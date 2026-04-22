@@ -1,0 +1,322 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useLanguage } from '@app/contexts/LanguageContext';
+import { Button } from '@app/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@app/components/ui/dialog';
+import { Input } from '@app/components/ui/input';
+import { Label } from '@app/components/ui/label';
+import { Textarea } from '@app/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@app/components/ui/select';
+import { OrganizationProjectReferenceDocumentsSection } from '@app/components/OrganizationProjectReferenceDocumentsSection';
+import {
+  CountryEnum,
+  FundingAgencyEnum,
+  REGION_COUNTRY_MAP,
+  RegionEnum,
+  SectorEnum,
+  SECTOR_SUBSECTOR_MAP,
+  SubSectorEnum,
+} from '@app/types/tender.dto';
+import {
+  OrganizationProjectReferenceDTO,
+  OrganizationProjectReferenceDocumentDTO,
+  OrganizationProjectReferenceFormValues,
+  OrganizationProjectReferenceStatus,
+} from '@app/modules/organization/types/organizationProjectReference.dto';
+import { getLocalizedCountryName } from '@app/utils/country-translator';
+import { toast } from 'sonner';
+
+interface OrganizationProjectReferenceFormDialogProps {
+  open: boolean;
+  mode: 'create' | 'edit';
+  initialReference?: OrganizationProjectReferenceDTO | null;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (values: OrganizationProjectReferenceFormValues) => void;
+}
+
+const getInitialValues = (): OrganizationProjectReferenceFormValues => ({
+  referenceNumber: '',
+  title: '',
+  summary: '',
+  description: '',
+  region: RegionEnum.AFRICA,
+  country: CountryEnum.SENEGAL,
+  sector: SectorEnum.EDUCATION,
+  subSector: undefined,
+  client: '',
+  donor: FundingAgencyEnum.WORLD_BANK,
+  startDate: '',
+  endDate: '',
+  status: 'ongoing',
+  documents: [],
+});
+
+export function OrganizationProjectReferenceFormDialog({
+  open,
+  mode,
+  initialReference,
+  onOpenChange,
+  onSubmit,
+}: OrganizationProjectReferenceFormDialogProps) {
+  const { t, language } = useLanguage();
+  const [formValues, setFormValues] = useState<OrganizationProjectReferenceFormValues>(getInitialValues());
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    if (initialReference) {
+      setFormValues({
+        referenceNumber: initialReference.referenceNumber,
+        title: initialReference.title,
+        summary: initialReference.summary,
+        description: initialReference.description,
+        region: initialReference.region,
+        country: initialReference.country,
+        sector: initialReference.sector,
+        subSector: initialReference.subSector,
+        client: initialReference.client,
+        donor: initialReference.donor,
+        startDate: initialReference.startDate,
+        endDate: initialReference.endDate,
+        status: initialReference.status,
+        documents: initialReference.documents,
+      });
+      return;
+    }
+
+    setFormValues(getInitialValues());
+  }, [initialReference, open]);
+
+  const availableCountries = useMemo(() => {
+    return REGION_COUNTRY_MAP[formValues.region] || [];
+  }, [formValues.region]);
+
+  const availableSubSectors = useMemo(() => {
+    return SECTOR_SUBSECTOR_MAP[formValues.sector] || [];
+  }, [formValues.sector]);
+
+  const setField = <K extends keyof OrganizationProjectReferenceFormValues>(field: K, value: OrganizationProjectReferenceFormValues[K]) => {
+    setFormValues(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleRegionChange = (value: RegionEnum) => {
+    const nextCountries = REGION_COUNTRY_MAP[value] || [];
+    setFormValues(prev => ({
+      ...prev,
+      region: value,
+      country: nextCountries.includes(prev.country) ? prev.country : nextCountries[0] || prev.country,
+    }));
+  };
+
+  const handleSectorChange = (value: SectorEnum) => {
+    const nextSubSectors = SECTOR_SUBSECTOR_MAP[value] || [];
+    setFormValues(prev => ({
+      ...prev,
+      sector: value,
+      subSector: nextSubSectors.includes(prev.subSector as SubSectorEnum) ? prev.subSector : undefined,
+    }));
+  };
+
+  const handleSubmit = () => {
+    const requiredFields = [
+      formValues.title.trim(),
+      formValues.summary.trim(),
+      formValues.description.trim(),
+      formValues.client.trim(),
+      formValues.startDate,
+      formValues.endDate,
+    ];
+
+    if (requiredFields.some(value => !value)) {
+      toast.error(t('organizations.projectReferences.form.validation.required'));
+      return;
+    }
+
+    if (new Date(formValues.endDate) < new Date(formValues.startDate)) {
+      toast.error(t('organizations.projectReferences.form.validation.dateRange'));
+      return;
+    }
+
+    onSubmit(formValues);
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {mode === 'create'
+              ? t('organizations.projectReferences.form.createTitle')
+              : t('organizations.projectReferences.form.editTitle')}
+          </DialogTitle>
+          <DialogDescription>
+            {t('organizations.projectReferences.form.description')}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          <div className="grid gap-5 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="referenceNumber">{t('organizations.projectReferences.form.referenceNumber')}</Label>
+              <Input
+                id="referenceNumber"
+                value={formValues.referenceNumber}
+                onChange={event => setField('referenceNumber', event.target.value)}
+                placeholder={t('organizations.projectReferences.form.referenceNumberPlaceholder')}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="status">{t('organizations.projectReferences.form.status')}</Label>
+              <Select value={formValues.status} onValueChange={(value: OrganizationProjectReferenceStatus) => setField('status', value)}>
+                <SelectTrigger id="status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ongoing">{t('organizations.projectReferences.status.ongoing')}</SelectItem>
+                  <SelectItem value="completed">{t('organizations.projectReferences.status.completed')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="title">{t('organizations.projectReferences.form.projectTitle')}</Label>
+            <Input id="title" value={formValues.title} onChange={event => setField('title', event.target.value)} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="summary">{t('organizations.projectReferences.form.summary')}</Label>
+            <Textarea id="summary" rows={3} value={formValues.summary} onChange={event => setField('summary', event.target.value)} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description">{t('organizations.projectReferences.form.fullDescription')}</Label>
+            <Textarea id="description" rows={6} value={formValues.description} onChange={event => setField('description', event.target.value)} />
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-2">
+              <Label>{t('organizations.projectReferences.form.region')}</Label>
+              <Select value={formValues.region} onValueChange={(value: RegionEnum) => handleRegionChange(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.values(RegionEnum).map(region => (
+                    <SelectItem key={region} value={region}>{t(`regions.${region}`)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t('organizations.projectReferences.form.country')}</Label>
+              <Select value={formValues.country} onValueChange={(value: CountryEnum) => setField('country', value)}>
+                <SelectTrigger>
+                  <SelectValue>{getLocalizedCountryName(formValues.country, language)}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {availableCountries.map(country => (
+                    <SelectItem key={country} value={country}>{getLocalizedCountryName(country, language)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t('organizations.projectReferences.form.sector')}</Label>
+              <Select value={formValues.sector} onValueChange={(value: SectorEnum) => handleSectorChange(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.values(SectorEnum).map(sector => (
+                    <SelectItem key={sector} value={sector}>{t(`sectors.${sector}`)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t('organizations.projectReferences.form.subSector')}</Label>
+              <Select
+                value={formValues.subSector || 'none'}
+                onValueChange={(value: string) => setField('subSector', value === 'none' ? undefined : value as SubSectorEnum)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{t('organizations.projectReferences.form.noSubSector')}</SelectItem>
+                  {availableSubSectors.map(subSector => (
+                    <SelectItem key={subSector} value={subSector}>{t(`subsectors.${subSector}`)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="client">{t('organizations.projectReferences.form.client')}</Label>
+              <Input id="client" value={formValues.client} onChange={event => setField('client', event.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('organizations.projectReferences.form.donor')}</Label>
+              <Select value={formValues.donor} onValueChange={(value: FundingAgencyEnum) => setField('donor', value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.values(FundingAgencyEnum).map(donor => (
+                    <SelectItem key={donor} value={donor}>{t(`fundingAgencies.${donor}`)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="startDate">{t('organizations.projectReferences.form.startDate')}</Label>
+              <Input id="startDate" type="date" value={formValues.startDate} onChange={event => setField('startDate', event.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="endDate">{t('organizations.projectReferences.form.endDate')}</Label>
+              <Input id="endDate" type="date" value={formValues.endDate} onChange={event => setField('endDate', event.target.value)} />
+            </div>
+          </div>
+
+          <OrganizationProjectReferenceDocumentsSection
+            documents={formValues.documents}
+            editable
+            onAddDocuments={(documents: OrganizationProjectReferenceDocumentDTO[]) => {
+              setField('documents', [...formValues.documents, ...documents]);
+            }}
+            onReplaceDocument={(documentId, document) => {
+              setField('documents', formValues.documents.map(existingDocument => (
+                existingDocument.id === documentId ? { ...document, id: documentId } : existingDocument
+              )));
+            }}
+            onRemoveDocument={(documentId) => {
+              setField('documents', formValues.documents.filter(document => document.id !== documentId));
+            }}
+          />
+        </div>
+
+        <DialogFooter className="mt-2">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            {t('organizations.projectReferences.form.cancel')}
+          </Button>
+          <Button type="button" onClick={handleSubmit}>
+            {mode === 'create'
+              ? t('organizations.projectReferences.form.createAction')
+              : t('organizations.projectReferences.form.saveAction')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

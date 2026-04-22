@@ -1,0 +1,151 @@
+import React, { useState } from 'react';
+import { useLanguage } from '@app/contexts/LanguageContext';
+import { useAuth } from '@app/contexts/AuthContext';
+import { isExpertAccountType } from '@app/services/permissions.service';
+import { StatisticsSectionLayout } from '@app/components/StatisticsSectionLayout';
+import { StatisticsChartCard } from '@app/components/StatisticsChartCard';
+import { StatisticsFilterBar } from '@app/components/StatisticsFilterBar';
+import { Button } from '@app/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@app/components/ui/select';
+import { expertPricingBySeniority } from '@app/modules/shared/data/statistics.mock';
+import { DollarSign } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+} from 'recharts';
+
+export default function StatisticsPricingExperts() {
+  const { t } = useLanguage();
+  const { user } = useAuth();
+  const isExpert = isExpertAccountType(user?.accountType);
+
+  const [country, setCountry] = useState('all');
+  const [sector, setSector] = useState('all');
+  const [seniority, setSeniority] = useState('all');
+
+  const pageTitle = isExpert ? t('statistics.tabs.pricingBenchmark') : t('statistics.pricingExperts.title');
+
+  return (
+    <StatisticsSectionLayout icon={DollarSign}>
+      <div className="mb-5">
+        <h2 className="text-2xl font-bold text-primary">{pageTitle}</h2>
+      </div>
+
+      <StatisticsFilterBar>
+        <Select value={country} onValueChange={setCountry}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder={t('statistics.filters.country')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('statistics.filters.country')}</SelectItem>
+            <SelectItem value="morocco">Morocco</SelectItem>
+            <SelectItem value="kenya">Kenya</SelectItem>
+            <SelectItem value="india">India</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={sector} onValueChange={setSector}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder={t('statistics.filters.sector')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('statistics.filters.sector')}</SelectItem>
+            <SelectItem value="energy">Energy</SelectItem>
+            <SelectItem value="education">Education</SelectItem>
+            <SelectItem value="health">Health</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={seniority} onValueChange={setSeniority}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder={t('statistics.filters.seniority')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('statistics.filters.seniority')}</SelectItem>
+            <SelectItem value="junior">Junior</SelectItem>
+            <SelectItem value="mid">Mid</SelectItem>
+            <SelectItem value="senior">Senior</SelectItem>
+            <SelectItem value="lead">Lead</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Button variant="outline" onClick={() => { setCountry('all'); setSector('all'); setSeniority('all'); }}>
+          {t('statistics.filters.reset')}
+        </Button>
+      </StatisticsFilterBar>
+
+      <StatisticsChartCard
+        title={t('statistics.charts.pricingRange')}
+        description={t('statistics.charts.pricingRangeDesc')}
+        className="mb-6"
+      >
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={expertPricingBySeniority}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="seniority" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="min" fill="#93c5fd" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="median" fill="#1f4b99" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="max" fill="#0f766e" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </StatisticsChartCard>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {expertPricingBySeniority.map((row) => (
+          <div key={row.seniority} className="bg-white rounded-lg border border-gray-200 p-4">
+            <h3 className="font-semibold text-primary mb-2">{row.seniority}</h3>
+            <p className="text-sm text-gray-600 mb-1">Min: ${row.min}</p>
+            <p className="text-sm text-gray-600 mb-1">Median: ${row.median}</p>
+            <p className="text-sm text-gray-600">Max: ${row.max}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Expert-only: Personal Benchmark Section */}
+      {isExpert && (
+        <div className="mt-8 pt-8 border-t border-gray-200">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100 p-6">
+            <h3 className="text-lg font-semibold text-primary mb-2">{t('statistics.expert.benchmark.title')}</h3>
+            <p className="text-sm text-gray-600 mb-6">{t('statistics.expert.benchmark.description')}</p>
+
+            {/* Your Rate vs Market Average Card */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white rounded-lg border border-gray-200 p-4">
+                <p className="text-xs text-gray-500 mb-1">Your Daily Rate</p>
+                <p className="text-2xl font-bold text-primary">$450</p>
+                <p className="text-xs text-gray-500 mt-2">Senior Level</p>
+              </div>
+
+              <div className="bg-white rounded-lg border border-gray-200 p-4">
+                <p className="text-xs text-gray-500 mb-1">Market Average</p>
+                <p className="text-2xl font-bold text-emerald-600">$420</p>
+                <p className="text-xs text-emerald-600 mt-2">All Levels</p>
+              </div>
+
+              <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col justify-between">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Your Position</p>
+                  <p className="font-semibold text-indigo-600">{t('statistics.expert.benchmark.within')}</p>
+                </div>
+                <p className="text-xs text-indigo-600 mt-2">+$30 above market avg</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-600 mt-4 text-center">Adjust your rate in your profile settings to see updated benchmarking.</p>
+          </div>
+        </div>
+      )}
+    </StatisticsSectionLayout>
+  );
+}
