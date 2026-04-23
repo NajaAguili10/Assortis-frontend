@@ -205,13 +205,10 @@ export interface ProjectListDTO {
   description: string;
   status: ProjectStatusEnum;
   priority: ProjectPriorityEnum;
-  type: ProjectTypeEnum;
-  
-  // Location
+
   country: string;
   region: RegionEnum;
-  
-  // Sector
+
   sector: ProjectSectorEnum;
   subsectors: string[];
   
@@ -287,18 +284,37 @@ export interface ProjectFiltersDTO {
 }
 
 export interface TaskDTO {
-  id: string;
-  projectId: string;
-  projectTitle: string;
+  id?: number;
+  projectId: number;
+
   title: string;
-  description: string;
-  status: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'COMPLETED';
-  priority: ProjectPriorityEnum;
-  assignedTo: string[];
+  description?: string;
+
+  status?: string;   
+  priority?: string;
+  assignedTo?: Record<string, any>;
+
   startDate?: string;
-  dueDate: string;
+  dueDate?: string;
   completedDate?: string;
-  tags: string[];
+
+  tags?: Record<string, any>;
+  taskCode?: string;
+  estimatedHours?: number;
+  isMilestone?: boolean;
+  estimatedBudget?: number;
+
+  resourcesRequired?: string;
+
+  deliverables?: Record<string, any>;
+
+  category?: string;
+  complexity?: string;
+
+  parentTaskId?: number;
+
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CollaborationDTO {
