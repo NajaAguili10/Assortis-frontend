@@ -21,7 +21,7 @@ pipeline {
         )
         string(
             name: 'BRANCH',
-            defaultValue: 'main',
+            defaultValue: 'Dev',
             description: 'Git branch to build'
         )
     }
@@ -49,11 +49,11 @@ pipeline {
         stage('Install & Build') {
             steps {
                 sh '''
-                    docker run --rm \
-                    -v $PWD:/app \
-                    -w /app \
-                    node:20-alpine \
-                    sh -c "node --version && npm install && npm run build"
+                docker run --rm \
+                -v $PWD:/app \
+                -w /app \
+                node:20-alpine \
+                sh -c "node --version && npm install && npm run build"
                 '''
             }
         }
