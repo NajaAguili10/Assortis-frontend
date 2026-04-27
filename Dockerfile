@@ -12,18 +12,19 @@ COPY . .
 RUN npm run build
 
 # ── Stage 2: Serve ────────────────────────────────────────────────────────────
-FROM nginx:1.27-alpine AS runner
+FROM node:20-alpine AS runner
 
-# Remove default nginx config
-RUN rm /etc/nginx/conf.d/default.conf
+# Lightweight static server for serving build output (removes nginx dependency)
+WORKDIR /app
 
-# Copy custom nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Install a minimal static server globally
+RUN npm install -g http-server
 
-# Copy built SPA assets
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Copy built SPA assets from builder
+COPY --from=builder /app/dist ./dist
 
-# Expose the internal port nginx listens on
+# Expose the port the static server will listen on
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+# Start a simple static file server serving the built SPA
+CMD ["http-server", "dist", "-p", "80", "-c-1"]
