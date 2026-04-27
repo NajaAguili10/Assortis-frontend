@@ -53,7 +53,7 @@ pipeline {
                     -v $PWD:/app \
                     -w /app \
                     node:20-alpine \
-                    sh -c "node --version && npm ci && npm run build"
+                    sh -c "node --version && npm install && npm run build"
                 '''
             }
         }
