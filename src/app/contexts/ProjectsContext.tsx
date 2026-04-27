@@ -9,69 +9,14 @@ import {
   TaskDTO,
   CollaborationDTO,
   ProjectTemplateDTO,
+  ProjectKPIsDTO,
 } from '../types/project.dto';
+import { projectService } from '../services/projectService';
 
 // Extended type pour l'usage interne avec champs additionnels
-interface ProjectListDTOInternal {
-  id: string;
-  referenceCode: string;
-  title: string;
-  description: string;
-  donor?: {
-    id: number;
-    name: string;
-    shortName?: string;
-    type?: string;
-  };
-  fundingType?: string;
-  budget: number;
-  currency: string;
-  status: string;
-  impactIndicators?: Record<string, any>;
-  country?: {
-    id: number;
-    name: string;
-    code: string;
-    iso3?: string;
-  };
-  city?: {
-    id: number;
-    name: string;
-  };
-  startDate: string;
-  endDate: string;
-  isValidatedByOrg?: boolean;
-  validatedAt?: string;
-  validatedByOrg?: {
-    id: number;
-    name: string;
-  };
-  estimatedShare?: number;
-  priority: string;
-  type: string;
-  mainSector?: {
-    id: number;
-    name: string;
-    code: string;
-  };
-  objectives?: Record<string, any>;
-  deliverables?: Record<string, any>;
-  updatedAt: string;
-  scope?: string;
-  source?: string;
-  region: string;
-  
-  // Champs additionnels pour l'UI
+interface ProjectListDTOInternal extends ProjectListDTO {
   name: string;
   managerName?: string;
-  subsectors?: string[];
-  teamSize?: number;
-  tasksCompleted?: number;
-  totalTasks?: number;
-  
-  // Aliases de compatibilit (temporaires)
-  code: string;
-  sector: ProjectSectorEnum;
 }
 
 interface ProjectsContextType {
@@ -85,11 +30,13 @@ interface ProjectsContextType {
   collaborations: CollaborationDTO[];
   addCollaboration: (collaboration: CollaborationDTO) => void;
   templates: ProjectTemplateDTO[];
+  kpis: ProjectKPIsDTO | null;
 }
 
 const ProjectsContext = createContext<ProjectsContextType | undefined>(undefined);
 
 // Mock Data Initial
+/*
 const initialMockProjects: ProjectListDTOInternal[] = [
   {
     id: '1',
@@ -524,6 +471,7 @@ const initialMockProjects: ProjectListDTOInternal[] = [
     source: 'AFD website',
   },
 ];
+*/
 
 // Mock Tasks Initial
 const initialMockTasks: TaskDTO[] = [
@@ -673,7 +621,7 @@ const initialMockCollaborations: CollaborationDTO[] = [
   {
     id: 'c1',
     projectId: '1',
-    projectTitle: 'EDUCATION Development Project 1',
+    projectTitle: 'EDUCATION Hajer Project 1',
     partnerOrganization: 'Local NGO Consortium',
     type: 'IMPLEMENTATION',
     status: 'ACTIVE',
@@ -829,10 +777,29 @@ const initialMockTemplates: ProjectTemplateDTO[] = [
 ];
 
 export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [projects, setProjects] = useState<ProjectListDTOInternal[]>(initialMockProjects);
+  const [projects, setProjects] = React.useState<ProjectListDTOInternal[]>([]);
   const [tasks, setTasks] = useState<TaskDTO[]>(initialMockTasks);
   const [collaborations, setCollaborations] = useState<CollaborationDTO[]>(initialMockCollaborations);
   const [templates, setTemplates] = useState<ProjectTemplateDTO[]>(initialMockTemplates);
+  const [kpis, setKpis] = useState<ProjectKPIsDTO | null>(null);
+
+React.useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const [projectsResult, kpisResult] = await Promise.all([
+        projectService.getAllProjects(),
+        projectService.getKPIs()
+      ]);
+      const projectsData = (projectsResult as any).data || (Array.isArray(projectsResult) ? projectsResult : []);
+      setProjects(projectsData as ProjectListDTOInternal[]);
+      setKpis(kpisResult as ProjectKPIsDTO);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  };
+
+  fetchData();
+}, []);
 
   const addProject = (project: ProjectListDTOInternal) => {
     setProjects((prev) => [project, ...prev]);
@@ -875,6 +842,7 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
         collaborations,
         addCollaboration,
         templates,
+        kpis,
       }}
     >
       {children}

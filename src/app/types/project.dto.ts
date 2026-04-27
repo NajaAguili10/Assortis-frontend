@@ -165,6 +165,67 @@ export enum RegionEnum {
   CARIBBEAN = 'CARIBBEAN',
   OCEANIA = 'OCEANIA',
 }
+interface ProjectListDTOInternal {
+  id: string;
+  referenceCode: string;
+  title: string;
+  description: string;
+  donor?: {
+    id: number;
+    name: string;
+    shortName?: string;
+    type?: string;
+  };
+  fundingType?: string;
+  budget: number;
+  currency: string;
+  status: string;
+  impactIndicators?: Record<string, any>;
+  country?: {
+    id: number;
+    name: string;
+    code: string;
+    iso3?: string;
+  };
+  city?: {
+    id: number;
+    name: string;
+  };
+  startDate: string;
+  endDate: string;
+  isValidatedByOrg?: boolean;
+  validatedAt?: string;
+  validatedByOrg?: {
+    id: number;
+    name: string;
+  };
+  estimatedShare?: number;
+  priority: string;
+  type: string;
+  mainSector?: {
+    id: number;
+    name: string;
+    code: string;
+  };
+  objectives?: Record<string, any>;
+  deliverables?: Record<string, any>;
+  updatedAt: string;
+  scope?: string;
+  source?: string;
+  region: string;
+  
+  // Champs additionnels pour l'UI
+  name: string;
+  managerName?: string;
+  subsectors?: string[];
+  teamSize?: number;
+  tasksCompleted?: number;
+  totalTasks?: number;
+  
+  // Aliases de compatibilit (temporaires)
+  code: string;
+  sector: ProjectSectorEnum;
+}
 
 export interface ProjectBudgetDTO {
   total: number;

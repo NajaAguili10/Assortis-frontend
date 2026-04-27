@@ -35,7 +35,9 @@ const ORGANIZATION_TYPES = [
   'FOUNDATION',
   'ACADEMIC',
   'CONSORTIUM',
-];
+]; 
+
+
 
 const EXPERTISE_AREAS = [
   'EDUCATION',

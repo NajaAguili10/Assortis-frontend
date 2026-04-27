@@ -14,6 +14,8 @@ import {
   ProjectSectorEnum,
   RegionEnum,
 } from '../types/project.dto';
+import React from 'react';
+import { projectService } from '../services/projectService';
 
 // Extended type pour l'usage interne avec champs additionnels
 interface ProjectListDTOInternal extends ProjectListDTO {
@@ -23,7 +25,6 @@ interface ProjectListDTOInternal extends ProjectListDTO {
 
 export const useProjects = () => {
   const { 
-    projects: mockProjects, 
     tasks, 
     collaborations, 
     templates, 
@@ -33,28 +34,49 @@ export const useProjects = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState<'newest' | 'priority' | 'budget' | 'completion' | 'name'>('newest');
   const pageSize = 10;
+  const [kpis, setKpis] = useState<ProjectKPIsDTO>({
+    totalProjects: 0,
+    activeProjects: 0,
+    completedProjects: 0,
+    onHoldProjects: 0,
+    totalBudget: 0,
+    budgetSpent: 0,
+    averageCompletion: 0,
+    urgentProjects: 0,
+  });
+   const [projectsList, setProjects] = React.useState<ProjectListDTOInternal[]>([]);
 
-  // KPIs
-  const kpis: ProjectKPIsDTO = useMemo(() => {
-    const totalBudget = mockProjects.reduce((sum, p) => sum + p.budget.total, 0);
-    const budgetSpent = mockProjects.reduce((sum, p) => sum + p.budget.spent, 0);
-    const avgCompletion = mockProjects.reduce((sum, p) => sum + p.timeline.completionPercentage, 0) / mockProjects.length;
-    
-    return {
-      totalProjects: mockProjects.length,
-      activeProjects: mockProjects.filter(p => p.status === ProjectStatusEnum.ACTIVE).length,
-      completedProjects: mockProjects.filter(p => p.status === ProjectStatusEnum.COMPLETED).length,
-      onHoldProjects: mockProjects.filter(p => p.status === ProjectStatusEnum.ON_HOLD).length,
-      totalBudget,
-      budgetSpent,
-      averageCompletion: Math.round(avgCompletion),
-      urgentProjects: mockProjects.filter(p => p.priority === ProjectPriorityEnum.URGENT).length,
+
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [projectsResult, kpisResult] = await Promise.all([
+          projectService.getAllProjects(),
+          projectService.getKPIs()
+        ]);
+        
+        const rawProjectsData = (projectsResult as any).data || (Array.isArray(projectsResult) ? projectsResult : []);
+        
+        // Defensive normalization to prevent React object child errors
+        const normalizedProjects = rawProjectsData.map((p: any) => ({
+          ...p,
+          country: typeof p.country === 'object' && p.country !== null ? p.country.name || p.country.code : p.country,
+          leadOrganization: typeof p.leadOrganization === 'object' && p.leadOrganization !== null ? p.leadOrganization.name : p.leadOrganization,
+        }));
+        
+        setProjects(normalizedProjects as ProjectListDTOInternal[]);
+        setKpis(kpisResult as ProjectKPIsDTO);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
     };
-  }, [mockProjects]);
+  
+    fetchData();
+  }, []);
 
   // Filter and sort projects
   const filteredProjects = useMemo(() => {
-    let filtered = [...mockProjects];
+    let filtered = [...projectsList];
 
     // Apply filters
     if (filters.searchQuery) {
@@ -127,7 +149,7 @@ export const useProjects = () => {
     }
 
     return filtered;
-  }, [filters, sortBy, mockProjects]);
+  }, [filters, sortBy, projectsList]);
 
   // Pagination
   const paginatedProjects: PaginatedResponseDTO<ProjectListDTO> = useMemo(() => {
@@ -185,7 +207,7 @@ export const useProjects = () => {
     tasks,
     collaborations,
     templates,
-    allProjects: mockProjects, // For global search
+    allProjects: projectsList, // For global search
     getProjectById: getProjectByIdFromContext,
     getCollaborationById: (id: string) => collaborations.find(c => c.id === id),
   };

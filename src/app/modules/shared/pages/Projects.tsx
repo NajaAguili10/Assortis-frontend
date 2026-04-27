@@ -47,8 +47,8 @@ export default function Projects() {
   // V�rifier si l'utilisateur est un expert (pas organization)
   const isExpertOnly = user?.accountType === 'expert';
   const [activeCreatedProjectsTab, setActiveCreatedProjectsTab] = useState<CreatedProjectsTab>('open');
-  const [deletedCreatedProjectIds, setDeletedCreatedProjectIds] = useState<Set<string>>(new Set());
-  const userCreatedProjects = allProjects.filter((project) => project.id.startsWith('proj-'));
+  const [deletedCreatedProjectIds, setDeletedCreatedProjectIds] = useState<Set<string | number>>(new Set());
+  const userCreatedProjects = allProjects.filter((project) => String(project.id).startsWith('proj-'));
   const now = Date.now();
 
   const formatProjectDate = (value: string) => new Date(value).toLocaleDateString(
@@ -89,9 +89,9 @@ export default function Projects() {
   };
 
   const createdProjectsByTab = useMemo(() => {
-    const open = userCreatedProjects.filter((project) => !isPastCreatedProject(project) && !deletedCreatedProjectIds.has(project.id));
-    const past = userCreatedProjects.filter((project) => isPastCreatedProject(project) && !deletedCreatedProjectIds.has(project.id));
-    const deleted = userCreatedProjects.filter((project) => deletedCreatedProjectIds.has(project.id));
+    const open = userCreatedProjects.filter((project) => !isPastCreatedProject(project) && !deletedCreatedProjectIds.has(String(project.id)));
+    const past = userCreatedProjects.filter((project) => isPastCreatedProject(project) && !deletedCreatedProjectIds.has(String(project.id)));
+    const deleted = userCreatedProjects.filter((project) => deletedCreatedProjectIds.has(String(project.id)));
 
     return { open, past, deleted };
   }, [deletedCreatedProjectIds, userCreatedProjects]);
@@ -102,14 +102,14 @@ export default function Projects() {
     return createdProjectsByTab.deleted;
   }, [activeCreatedProjectsTab, createdProjectsByTab]);
 
-  const handleDeleteCreatedProject = (id: string) => {
-    setDeletedCreatedProjectIds((prev) => new Set(prev).add(id));
+  const handleDeleteCreatedProject = (id: string | number) => {
+    setDeletedCreatedProjectIds((prev) => new Set(prev).add(String(id)));
   };
 
-  const handleRestoreCreatedProject = (id: string) => {
+  const handleRestoreCreatedProject = (id: string | number) => {
     setDeletedCreatedProjectIds((prev) => {
       const next = new Set(prev);
-      next.delete(id);
+      next.delete(String(id));
       return next;
     });
   };
