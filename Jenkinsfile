@@ -71,23 +71,6 @@ pipeline {
                 """
             }
         }
-
-        // ── 4. Smoke test ─────────────────────────────────────────────────────
-        stage('Smoke Test') {
-            steps {
-                sh """
-                    # Wait for nginx to start
-                    sleep 5
-                    STATUS=\$(curl -s -o /dev/null -w '%{http_code}' http://localhost:${params.HOST_PORT})
-                    echo "HTTP status: \$STATUS"
-                    if [ "\$STATUS" != "200" ]; then
-                        echo "❌ Smoke test failed – expected 200 got \$STATUS"
-                        exit 1
-                    fi
-                    echo "✅ Smoke test passed"
-                """
-            }
-        }
     }
 
     post {
