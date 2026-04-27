@@ -45,27 +45,14 @@ pipeline {
             }
         }
 
-        // ── 2. Install & Build (artifact smoke-test) ─────────────────────────
-        stage('Install & Build') {
-            steps {
-                sh '''
-                docker run --rm \
-                -v $PWD:/app \
-                -w /app \
-                node:20-alpine \
-                sh -c "node --version && npm install && npm run build"
-                '''
-            }
-        }
-
-        // ── 3. Docker – Build image ──────────────────────────────────────────
+        // ── 2. Docker – Build image ──────────────────────────────────────────
         stage('Docker Build') {
             steps {
                 sh "docker build --tag ${IMAGE_TAG} --tag ${IMAGE_LATEST} ."
             }
         }
 
-        // ── 4. Deploy – stop old, run new container ───────────────────────────
+        // ── 3. Deploy – stop old, run new container ───────────────────────────
         stage('Deploy') {
             steps {
                 sh """
@@ -85,7 +72,7 @@ pipeline {
             }
         }
 
-        // ── 5. Smoke test ─────────────────────────────────────────────────────
+        // ── 4. Smoke test ─────────────────────────────────────────────────────
         stage('Smoke Test') {
             steps {
                 sh """
