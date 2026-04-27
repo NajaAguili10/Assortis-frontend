@@ -70,22 +70,7 @@ pipeline {
             }
         }
 
-        // ── 4. Docker – Push to registry ─────────────────────────────────────
-        stage('Docker Push') {
-            steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'docker-registry-credentials',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
-                    sh "echo \$DOCKER_PASS | docker login ${params.REGISTRY} -u \$DOCKER_USER --password-stdin"
-                    sh "docker push ${IMAGE_TAG}"
-                    sh "docker push ${IMAGE_LATEST}"
-                }
-            }
-        }
-
-        // ── 5. Deploy – stop old, run new container ───────────────────────────
+        // ── 4. Deploy – stop old, run new container ───────────────────────────
         stage('Deploy') {
             steps {
                 sh """
@@ -105,7 +90,7 @@ pipeline {
             }
         }
 
-        // ── 6. Smoke test ─────────────────────────────────────────────────────
+        // ── 5. Smoke test ─────────────────────────────────────────────────────
         stage('Smoke Test') {
             steps {
                 sh """
