@@ -3,11 +3,7 @@ pipeline {
 
     // ── Configurable parameters ───────────────────────────────────────────────
     parameters {
-        string(
-            name: 'REGISTRY',
-            defaultValue: 'docker.io/your-org',
-            description: 'Docker registry prefix (e.g. docker.io/your-org or <ecr-url>)'
-        )
+
         string(
             name: 'IMAGE_NAME',
             defaultValue: 'assortis-frontend',
