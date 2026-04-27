@@ -47,15 +47,14 @@ pipeline {
 
         // ── 2. Install & Build (artifact smoke-test) ─────────────────────────
         stage('Install & Build') {
-            agent {
-                docker {
-                    image 'node:20-alpine'
-                }
-            }
             steps {
-                sh 'node --version'
-                sh 'npm ci'
-                sh 'npm run build'
+                sh '''
+                    docker run --rm \
+                    -v $PWD:/app \
+                    -w /app \
+                    node:20-alpine \
+                    sh -c "node --version && npm ci && npm run build"
+                '''
             }
         }
 
