@@ -11,6 +11,7 @@ import { Badge } from '@app/components/ui/badge';
 import { Input } from '@app/components/ui/input';
 import { Label } from '@app/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@app/components/ui/radio-group';
+import { Textarea } from '@app/components/ui/textarea';
 import { useEffect } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@app/components/ui/popover';
 import {
@@ -22,9 +23,12 @@ import {
   DialogTitle,
 } from '@app/components/ui/dialog';
 import { useExperts } from '@app/modules/expert/hooks/useExperts';
+import { generateCV } from '@app/modules/expert/services/cvGenerator.service';
+import type { ExpertProfile } from '@app/modules/expert/services/expertsData.service';
+import { ExpertStatusEnum } from '@app/modules/expert/types/expert.dto';
 import { SECTOR_SUBSECTOR_MAP } from '@app/config/subsectors.config';
 import { SectorEnum, SubSectorEnum, RegionEnum, CountryEnum, REGION_COUNTRY_MAP } from '@app/types/tender.dto';
-import { Search, MapPin, Star, Briefcase, CheckCircle, UserCheck, Clock, TrendingUp, X, Filter, ChevronDown, UserCircle, Plus } from 'lucide-react';
+import { Search, MapPin, Star, Briefcase, CheckCircle, UserCheck, Clock, TrendingUp, X, Filter, ChevronDown, UserCircle, Plus, Download, Trash2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -58,6 +62,13 @@ interface SavedSearchEntry<TPayload> {
   payload: TPayload;
 }
 
+interface AiExpertMatch {
+  id: string;
+  name: string;
+  title: string;
+  compatibility: number;
+}
+
 const isBidWriter = (expert: { title?: string; bio?: string; skills?: string[] }) => {
   const haystack = `${expert.title || ''} ${expert.bio || ''} ${(expert.skills || []).join(' ')}`.toLowerCase();
   return /bid|proposal|tender|writer/.test(haystack);
@@ -82,14 +93,24 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
   const [hoveredSector, setHoveredSector] = useState<SectorEnum | null>(null);
   const [selectedExperience, setSelectedExperience] = useState<string[]>([]);
   const [sourceFilter, setSourceFilter] = useState<ExpertSourceFilter>('all');
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(mode === 'experts');
   const [showSectorFilters, setShowSectorFilters] = useState(false);
   const [showRegionFilters, setShowRegionFilters] = useState(false);
   const [pendingUnlockExpert, setPendingUnlockExpert] = useState<PendingUnlockExpert | null>(null);
-  const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
   const [savedSearches, setSavedSearches] = useState<SavedSearchEntry<ExpertsSavedPayload>[]>([]);
+  const [hasSearched, setHasSearched] = useState(mode !== 'experts');
+  const [showSavedSearchesPanel, setShowSavedSearchesPanel] = useState(false);
+  const [saveSearchName, setSaveSearchName] = useState('');
+  const [editingSearchId, setEditingSearchId] = useState<string | null>(null);
+  const [editingSearchName, setEditingSearchName] = useState('');
+  const [isAiDialogOpen, setIsAiDialogOpen] = useState(false);
+  const [aiFile, setAiFile] = useState<File | null>(null);
+  const [aiDescription, setAiDescription] = useState('');
+  const [isAiProcessing, setIsAiProcessing] = useState(false);
+  const [aiMatches, setAiMatches] = useState<AiExpertMatch[]>([]);
 
   const storageKey = `search.tab.saved.${mode}`;
+  const aiResultsStorageKey = 'search.experts.aiMatching.lastResult';
 
   const filteredExperts = useMemo(() => {
     let filtered = [...experts.data];
@@ -169,7 +190,19 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
     const q = (searchParams.get('q') || '').trim();
     if (!q) return;
     setSearchQuery(q);
+    setHasSearched(true);
   }, [searchParams]);
+
+  useEffect(() => {
+    setSavedSearches(readSavedSearches());
+
+    try {
+      const storedAiMatches = JSON.parse(localStorage.getItem(aiResultsStorageKey) || '[]');
+      setAiMatches(Array.isArray(storedAiMatches) ? storedAiMatches : []);
+    } catch {
+      setAiMatches([]);
+    }
+  }, [aiResultsStorageKey]);
 
   const handleBuyPack = () => {
     navigate('/compte-utilisateur/credits');
@@ -258,14 +291,21 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
     setSelectedCountries(payload.selectedCountries || []);
     setSelectedExperience(payload.selectedExperience || []);
     setSourceFilter(payload.sourceFilter || 'all');
+    setHasSearched(true);
   };
 
   const saveSearch = () => {
+    const label = saveSearchName.trim();
+    if (!label) {
+      toast.error('Enter a search name');
+      return;
+    }
+
     const existing = readSavedSearches();
     const now = new Date();
     const entry: SavedSearchEntry<ExpertsSavedPayload> = {
       id: `saved-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
-      label: searchQuery.trim() || `Saved ${mode} ${format(now, 'yyyy-MM-dd HH:mm')}`,
+      label,
       createdAt: now.toISOString(),
       payload: {
         searchQuery,
@@ -278,13 +318,165 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
       },
     };
 
-    localStorage.setItem(storageKey, JSON.stringify([entry, ...existing]));
+    const next = [entry, ...existing];
+    localStorage.setItem(storageKey, JSON.stringify(next));
+    setSavedSearches(next);
+    setSaveSearchName('');
     toast.success('Search saved');
   };
 
-  const openLoadSearchDialog = () => {
-    setSavedSearches(readSavedSearches());
-    setIsLoadDialogOpen(true);
+  const handleRunSearch = () => {
+    setHasSearched(true);
+    setShowSavedSearchesPanel(true);
+  };
+
+  const updateSavedSearch = (entry: SavedSearchEntry<ExpertsSavedPayload>) => {
+    const nextLabel = editingSearchName.trim();
+    if (!nextLabel) {
+      toast.error('Enter a search name');
+      return;
+    }
+    const next = readSavedSearches().map((item) =>
+      item.id === entry.id
+        ? {
+            ...item,
+            label: nextLabel,
+          }
+        : item
+    );
+    localStorage.setItem(storageKey, JSON.stringify(next));
+    setSavedSearches(next);
+    setEditingSearchId(null);
+    setEditingSearchName('');
+    toast.success('Saved search updated');
+  };
+
+  const deleteSavedSearch = (id: string) => {
+    const next = readSavedSearches().filter((entry) => entry.id !== id);
+    localStorage.setItem(storageKey, JSON.stringify(next));
+    setSavedSearches(next);
+  };
+
+  const isExpertInLibrary = (expert: (typeof experts.data)[number]) =>
+    expert.organizationId === 'org-1' || libraryExpertIds.includes(expert.id);
+
+  const isExpertBlocked = (expert: (typeof experts.data)[number]) =>
+    expert.status === ExpertStatusEnum.SUSPENDED;
+
+  const canDownloadExpertCv = (expert: (typeof experts.data)[number]) =>
+    isExpertInLibrary(expert) && !isExpertBlocked(expert);
+
+  const mapExpertToCvProfile = (expert: (typeof experts.data)[number]): ExpertProfile => {
+    const expertWithExtra = expert as typeof expert & {
+      certifications?: Array<{ id?: string; name?: string; issuedBy?: string; issuer?: string; issuedDate?: string; date?: string; expiryDate?: string }>;
+      education?: Array<{ id?: string; degree?: string; institution?: string; field?: string; year?: string }>;
+      experience?: Array<{ id?: string; role?: string; title?: string; organization?: string; company?: string; startDate?: string; endDate?: string; description?: string; location?: string; current?: boolean }>;
+    };
+
+    return {
+      id: expert.id,
+      profilePhoto: null,
+      cvFile: null,
+      firstName: expert.firstName || 'Expert',
+      lastName: expert.lastName || expert.id,
+      email: expert.email || `expert-${expert.id}@assortis.local`,
+      phone: '',
+      location: [expert.city, expert.country].filter(Boolean).join(', '),
+      bio: expert.bio || 'Profile summary generated from the expert search profile.',
+      title: expert.title || 'Expert',
+      level: String(expert.level || 'EXPERT'),
+      yearsExperience: `${expert.yearsOfExperience || 0} years`,
+      sectors: (expert.sectors || []).map(String),
+      subsectors: [],
+      skills: expert.skills || [],
+      availability: String(expert.availability || ''),
+      availableFrom: '',
+      dailyRate: expert.dailyRate ? `${expert.dailyRate}` : '',
+      currency: expert.currency || 'EUR',
+      experiences: expertWithExtra.experience?.length
+        ? expertWithExtra.experience.map((item, index) => ({
+            id: item.id || `exp-${expert.id}-${index}`,
+            title: item.title || item.role || expert.title || 'Expert Assignment',
+            company: item.company || item.organization || 'Assortis Project',
+            location: item.location || [expert.city, expert.country].filter(Boolean).join(', '),
+            startDate: item.startDate || '',
+            endDate: item.endDate || '',
+            current: Boolean(item.current),
+            description: item.description || expert.bio || '',
+          }))
+        : [
+            {
+              id: `exp-${expert.id}-0`,
+              title: expert.title || 'Expert Assignment',
+              company: 'Assortis Network',
+              location: [expert.city, expert.country].filter(Boolean).join(', '),
+              startDate: '',
+              endDate: '',
+              current: true,
+              description: expert.bio || 'Profile summary generated from the expert search profile.',
+            },
+          ],
+      education: expertWithExtra.education?.map((item, index) => ({
+        id: item.id || `edu-${expert.id}-${index}`,
+        degree: item.degree || 'Professional Training',
+        institution: item.institution || 'Not specified',
+        field: item.field || '',
+        year: item.year || '',
+      })) || [],
+      languages: (expert.languages || []).map((item, index) => ({
+        id: `lang-${expert.id}-${index}`,
+        name: item.language,
+        level: item.level,
+      })),
+      certifications: expertWithExtra.certifications?.map((item, index) => ({
+        id: item.id || `cert-${expert.id}-${index}`,
+        name: item.name || 'Certification',
+        issuer: item.issuer || item.issuedBy || 'Not specified',
+        date: item.date || item.issuedDate || '',
+        expiryDate: item.expiryDate || '',
+      })) || [],
+      rating: expert.clientRating,
+      completedProjects: expert.completedMissions,
+      createdAt: expert.lastActive || new Date().toISOString(),
+    };
+  };
+
+  const downloadExpertCV = (expert: (typeof experts.data)[number], formatType: 'pdf' | 'word') => {
+    if (isExpertBlocked(expert)) {
+      toast.error('This expert profile is currently unavailable');
+      return;
+    }
+
+    if (!isExpertInLibrary(expert)) {
+      toast.error('Unlock this CV before downloading it');
+      return;
+    }
+
+    generateCV(mapExpertToCvProfile(expert), 'standard', formatType);
+  };
+
+  const handleAiMatching = async () => {
+    if (!aiFile) {
+      toast.error('Upload a file before running AI matching');
+      return;
+    }
+
+    setIsAiProcessing(true);
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    const shuffled = [...experts.data]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 5)
+      .map((expert) => ({
+        id: expert.id,
+        name: `${expert.firstName} ${expert.lastName}`,
+        title: expert.title || 'Expert',
+        compatibility: 60 + Math.floor(Math.random() * 39),
+      }));
+    localStorage.setItem(aiResultsStorageKey, JSON.stringify(shuffled));
+    setAiMatches(shuffled);
+    setIsAiProcessing(false);
+    setIsAiDialogOpen(false);
+    toast.success('Expert matching simulated');
   };
 
   const sectionHeadingKey = `search.section.${mode}.filters.heading`;
@@ -321,9 +513,16 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
           <Button variant="outline" size="sm" onClick={() => setShowFilters((prev) => !prev)}>
             {showFilters ? 'Hide filters' : 'Show filters'}
           </Button>
-          <Button variant="default" size="sm">Search</Button>
-          <Button variant="outline" size="sm" onClick={saveSearch}>Save Search</Button>
-          <Button variant="outline" size="sm" onClick={openLoadSearchDialog}>Load Search</Button>
+          <Button variant="default" size="sm" onClick={handleRunSearch}>Search</Button>
+          <Button variant="outline" size="sm" onClick={() => setShowSavedSearchesPanel((prev) => !prev)}>
+            Saved Experts Searches
+          </Button>
+          {mode === 'experts' && (
+            <Button variant="outline" size="sm" onClick={() => setIsAiDialogOpen(true)}>
+              <Sparkles className="mr-1.5 h-4 w-4" />
+              Expert Matching (AI)
+            </Button>
+          )}
         </div>
 
         {showFilters && (
@@ -332,7 +531,7 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
               <label className="text-sm font-medium text-gray-700 mb-2 block">{t('common.search')}</label>
               <div className="flex gap-2">
                 <Input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder={t('experts.filters.search')} className="flex-1" />
-                <Button type="button" size="icon">
+                <Button type="button" size="icon" onClick={handleRunSearch}>
                   <Search className="w-4 h-4" />
                 </Button>
               </div>
@@ -507,6 +706,106 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
         )}
       </div>
 
+      {mode === 'experts' && (
+        <div className="rounded-2xl border border-violet-100 bg-gradient-to-br from-white to-violet-50/60 p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-white px-3 py-1 text-xs font-semibold text-violet-700">
+                <Sparkles className="h-3.5 w-3.5" />
+                Tailored Expert Research
+              </div>
+              <h3 className="mt-3 text-lg font-semibold text-primary">Find experts tailored to your organisation</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Upload a brief or ToR and simulate expert matching without sending data to a backend.</p>
+            </div>
+            <Button variant="outline" className="min-h-11" onClick={() => setIsAiDialogOpen(true)}>
+              <Sparkles className="mr-1.5 h-4 w-4" />
+              Expert Matching (AI)
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {mode === 'experts' && (
+        <div className={`${showSavedSearchesPanel ? 'block' : 'hidden'} rounded-lg border border-gray-200 bg-white p-4`}>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-primary">Saved Experts Searches</h3>
+              <p className="text-xs text-muted-foreground">Save, load, rename, or delete expert searches stored in this browser.</p>
+            </div>
+          </div>
+
+          {hasSearched && (
+            <div className="mt-4 rounded-md border border-blue-100 bg-blue-50/50 p-3">
+              <label className="text-xs font-semibold text-blue-800" htmlFor="expert-search-name">Save this Search</label>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                <Input
+                  id="expert-search-name"
+                  value={saveSearchName}
+                  onChange={(event) => setSaveSearchName(event.target.value)}
+                  placeholder="Search name"
+                />
+                <Button onClick={saveSearch}>Confirm Save</Button>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-3 space-y-2">
+            {savedSearches.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No saved expert searches yet.</p>
+            ) : (
+              savedSearches.map((entry) => (
+                <div key={entry.id} className="rounded-md border border-gray-100 p-3">
+                  {editingSearchId === entry.id ? (
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Input value={editingSearchName} onChange={(event) => setEditingSearchName(event.target.value)} />
+                      <Button size="sm" onClick={() => updateSavedSearch(entry)}>Save</Button>
+                      <Button size="sm" variant="outline" onClick={() => setEditingSearchId(null)}>Cancel</Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-primary">{entry.label}</p>
+                        <p className="text-xs text-muted-foreground">{format(new Date(entry.createdAt), 'yyyy-MM-dd HH:mm')}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => applySavedSearch(entry.payload)}>Load</Button>
+                        <Button size="sm" variant="outline" onClick={() => { setEditingSearchId(entry.id); setEditingSearchName(entry.label); }}>Edit</Button>
+                        <Button size="sm" variant="ghost" onClick={() => deleteSavedSearch(entry.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+
+          {aiMatches.length > 0 && (
+            <div className="mt-4 rounded-lg border border-violet-100 bg-violet-50/50 p-4">
+              <h3 className="text-sm font-semibold text-primary">Last simulated AI match</h3>
+              <div className="mt-3 grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+                {aiMatches.map((match) => (
+                  <div key={match.id} className="rounded-md bg-white p-3">
+                    <p className="text-sm font-medium text-primary">{match.name}</p>
+                    <p className="text-xs text-muted-foreground">{match.title}</p>
+                    <Badge className="mt-2">{match.compatibility}% compatibility</Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {mode === 'experts' && !hasSearched ? (
+        <div className="rounded-lg border border-dashed border-gray-300 bg-white p-10 text-center">
+          <Search className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+          <h3 className="text-lg font-semibold text-primary">Run a search to view expert results</h3>
+          <p className="mt-1 text-sm text-muted-foreground">Filters are expanded by default. Results stay hidden until you search.</p>
+        </div>
+      ) : (
+      <>
       <div className="mb-5">
         <h3 className="text-lg font-semibold text-primary">{filteredExperts.length} {t('experts.list.expertsFound')}</h3>
       </div>
@@ -523,8 +822,10 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
             onClick={() => navigate(`/search/experts/${expert.id}`)}
           >
             {(() => {
-              const isInLibrary = expert.organizationId === 'org-1' || libraryExpertIds.includes(expert.id);
+              const isInLibrary = isExpertInLibrary(expert);
+              const isBlocked = isExpertBlocked(expert);
               const isNewExpert = !isInLibrary;
+              const canDownload = canDownloadExpertCv(expert);
 
               return (
                 <>
@@ -605,8 +906,12 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
               variant={isNewExpert ? 'default' : 'outline'}
               size="sm"
               className="w-full min-h-11"
+              disabled={isBlocked}
               onClick={(event) => {
                 event.stopPropagation();
+                if (isBlocked) {
+                  return;
+                }
                 if (isNewExpert) {
                   handleOpenUnlockConfirmation(expert.id, `Expert ${expert.id}`);
                   return;
@@ -614,14 +919,48 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
                 navigate(`/search/experts/${expert.id}`);
               }}
             >
-              {isNewExpert ? t('experts.credits.cta.accessCv') : t('experts.credits.cta.viewProfile')}
+              {isBlocked
+                ? 'Profile unavailable'
+                : isNewExpert
+                ? t('experts.credits.cta.accessCv')
+                : t('experts.credits.cta.viewProfile')}
             </Button>
+            {canDownload && (
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    downloadExpertCV(expert, 'pdf');
+                  }}
+                >
+                  <Download className="mr-1.5 h-4 w-4" />
+                  PDF
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    downloadExpertCV(expert, 'word');
+                  }}
+                >
+                  <Download className="mr-1.5 h-4 w-4" />
+                  Word
+                </Button>
+              </div>
+            )}
                 </>
               );
             })()}
           </div>
         ))}
       </div>
+      </>
+      )}
 
       <Dialog open={!!pendingUnlockExpert} onOpenChange={(isOpen) => !isOpen && setPendingUnlockExpert(null)}>
         <DialogContent className="sm:max-w-[460px]">
@@ -645,38 +984,37 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isLoadDialogOpen} onOpenChange={setIsLoadDialogOpen}>
-        <DialogContent className="sm:max-w-[520px]">
+      <Dialog open={isAiDialogOpen} onOpenChange={setIsAiDialogOpen}>
+        <DialogContent className="sm:max-w-[560px]">
           <DialogHeader>
-            <DialogTitle>Load Search</DialogTitle>
-            <DialogDescription>Choose a saved search for this page.</DialogDescription>
+            <DialogTitle>Expert Matching (AI)</DialogTitle>
+            <DialogDescription>Simulates an OpenAI matching request locally. No file leaves the browser.</DialogDescription>
           </DialogHeader>
-          {savedSearches.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No saved searches found for this page.</p>
-          ) : (
-            <div className="max-h-80 overflow-auto space-y-2">
-              {savedSearches.map(entry => (
-                <Button
-                  key={entry.id}
-                  type="button"
-                  variant="outline"
-                  className="w-full justify-between h-auto py-2"
-                  onClick={() => {
-                    applySavedSearch(entry.payload);
-                    setIsLoadDialogOpen(false);
-                    toast.success('Search loaded');
-                  }}
-                >
-                  <span className="truncate text-left max-w-[70%]">{entry.label}</span>
-                  <span className="text-xs text-muted-foreground">{format(new Date(entry.createdAt), 'yyyy-MM-dd HH:mm')}</span>
-                </Button>
-              ))}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="ai-match-file">File upload</Label>
+              <Input id="ai-match-file" type="file" onChange={(event) => setAiFile(event.target.files?.[0] || null)} />
             </div>
-          )}
+            <div className="space-y-2">
+              <Label htmlFor="ai-match-description">Optional description</Label>
+              <Textarea
+                id="ai-match-description"
+                value={aiDescription}
+                onChange={(event) => setAiDescription(event.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAiDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleAiMatching} disabled={isAiProcessing || !aiFile}>
+              {isAiProcessing ? 'Processing...' : 'Run matching'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {filteredExperts.length === 0 && (
+      {(mode !== 'experts' || hasSearched) && filteredExperts.length === 0 && (
         <div className="text-center py-12 bg-white rounded-lg border">
           <Search className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
           <h3 className="text-lg font-semibold text-primary mb-1">{t('experts.list.noResults')}</h3>

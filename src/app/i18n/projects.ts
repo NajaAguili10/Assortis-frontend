@@ -143,6 +143,10 @@ export const projectsTranslations = {
     'projects.actions.newProject': 'New Project',
     'projects.actions.newTask': 'New Task',
     'projects.actions.assignTasks': 'Assign Tasks',
+    'projects.actions.assignToMember': 'Assign to Member',
+    'projects.actions.manageMember': 'Manage Member',
+    'projects.actions.createNewReference': 'Create New Reference',
+    'projects.actions.finishProject': 'finish',
     'projects.actions.newProjectDescription': 'Create a new project and configure details',
     'projects.actions.newTaskDescription': 'Add a new task to a project',
     'projects.actions.assignTasksDescription': 'Assign tasks to team members',
@@ -242,12 +246,62 @@ export const projectsTranslations = {
     'projects.create.previous': 'Previous',
     'projects.create.submit': 'Submit Project',
     'projects.create.saveDraft': 'Save as Draft',
+    'projects.create.createNow': 'Create now',
+    'projects.create.completeHint': 'You can add team members, objectives, milestones, tasks and more after creation.',
+
+    // Quick Form (simplified creation)
+    'projects.create.quickForm.title': 'New Project',
+    'projects.create.quickForm.subtitle': 'Fill in the essentials to get started quickly. You can complete all details later.',
+    'projects.create.quickForm.deadline': 'Deadline',
+    'projects.create.quickForm.optional': 'optional',
+    'projects.create.quickForm.tags': 'Tags',
+    'projects.create.quickForm.tagsPlaceholder': 'e.g. education, kenya, unicef (comma-separated)',
+    'projects.create.quickForm.descriptionPlaceholder': 'Brief description of the project objectives and scope...',
+
+    // Search
+    'projects.search.placeholder': 'Search projects by title, keyword or tag...',
+    'projects.search.noResults': 'No projects match your search.',
+
+    // View mode filter (Team visibility)
+    'projects.filter.viewMode.mine': 'My Projects',
+    'projects.filter.viewMode.team': 'Team Projects',
+    'projects.filter.viewMode.all': 'All Projects',
+    'projects.filter.owner': 'Owner',
+
+    // Status labels
+    'projects.status.DRAFT': 'Draft',
+    'projects.status.PLANNING': 'Planning',
+    'projects.status.ACTIVE': 'Active',
+    'projects.status.ON_HOLD': 'On Hold',
+    'projects.status.COMPLETED': 'Completed',
+    'projects.status.CANCELLED': 'Cancelled',
+    'projects.status.ARCHIVED': 'Archived',
+
+    // Reference types
+    'projects.references.type.LINK': 'Link',
+    'projects.references.type.FILE': 'File',
+    'projects.references.type.NOTE': 'Note',
+    'projects.references.type.DOCUMENT': 'Document',
+    'projects.references.type.label': 'Reference type',
+    'projects.references.url': 'URL',
+    'projects.references.urlPlaceholder': 'https://',
+    'projects.references.actions.clone': 'Clone',
+    'projects.references.cloneHint': 'Documents are not copied — only reference metadata.',
+
+    // Task creation access
+    'projects.tasks.assignHint': 'Task assignment is managed by admins.',
+    'projects.tasks.assignedTo': 'Assigned to',
+    'projects.tasks.assignMemberDialogTitle': 'Assign task to member',
+    'projects.tasks.assignMemberDialogDescription': 'Select the team member responsible for this task.',
+    'projects.tasks.memberAssigned': 'Task assigned successfully',
     
     // Common
     'common.of': 'of',
     'common.select': 'Select',
     'common.fillRequired': 'Please fill all required fields',
     'common.back': 'Back',
+    'common.you': 'You',
+    'common.colleague': 'Colleague',
     'common.email': 'Email',
     'common.months': 'months',
     'common.country': 'Country',
@@ -669,6 +723,7 @@ export const projectsTranslations = {
     
     // Tasks
     'projects.tasks.title': 'My Tasks',
+    'projects.tasks.new': 'New',
     'projects.tasks.subtitle': 'Track and manage your assigned tasks',
     'projects.tasks.status.TODO': 'To Do',
     'projects.tasks.status.IN_PROGRESS': 'In Progress',
@@ -946,6 +1001,10 @@ export const projectsTranslations = {
     'projects.actions.newProject': 'Nouveau projet',
     'projects.actions.newTask': 'Nouvelle tâche',
     'projects.actions.assignTasks': 'Assigner des tâches',
+    'projects.actions.assignToMember': 'Assigner à un membre',
+    'projects.actions.manageMember': 'Gérer le membre',
+    'projects.actions.createNewReference': 'Créer une nouvelle référence',
+    'projects.actions.finishProject': 'finish',
     'projects.actions.newProjectDescription': 'Créer un nouveau projet et configurer les détails',
     'projects.actions.newTaskDescription': 'Ajouter une nouvelle tâche à un projet',
     'projects.actions.assignTasksDescription': 'Assigner des tâches aux membres de l\'équipe',
@@ -1045,12 +1104,62 @@ export const projectsTranslations = {
     'projects.create.previous': 'Précédent',
     'projects.create.submit': 'Soumettre le projet',
     'projects.create.saveDraft': 'Enregistrer comme brouillon',
-    
+    'projects.create.createNow': 'Créer maintenant',
+    'projects.create.completeHint': 'Vous pourrez ajouter des membres, objectifs, jalons et tâches après la création.',
+
+    // Formulaire rapide (création simplifiée)
+    'projects.create.quickForm.title': 'Nouveau projet',
+    'projects.create.quickForm.subtitle': 'Renseignez les informations essentielles pour démarrer. Vous pourrez compléter les détails plus tard.',
+    'projects.create.quickForm.deadline': 'Date limite',
+    'projects.create.quickForm.optional': 'facultatif',
+    'projects.create.quickForm.tags': 'Mots-clés',
+    'projects.create.quickForm.tagsPlaceholder': 'ex. éducation, kenya, unicef (séparés par des virgules)',
+    'projects.create.quickForm.descriptionPlaceholder': 'Brève description des objectifs et du périmètre du projet...',
+
+    // Recherche
+    'projects.search.placeholder': 'Rechercher des projets par titre, mot-clé ou tag...',
+    'projects.search.noResults': 'Aucun projet ne correspond à votre recherche.',
+
+    // Filtre de visibilité équipe
+    'projects.filter.viewMode.mine': 'Mes projets',
+    'projects.filter.viewMode.team': 'Projets équipe',
+    'projects.filter.viewMode.all': 'Tous les projets',
+    'projects.filter.owner': 'Propriétaire',
+
+    // Libellés de statut
+    'projects.status.DRAFT': 'Brouillon',
+    'projects.status.PLANNING': 'Planification',
+    'projects.status.ACTIVE': 'Actif',
+    'projects.status.ON_HOLD': 'En attente',
+    'projects.status.COMPLETED': 'Terminé',
+    'projects.status.CANCELLED': 'Annulé',
+    'projects.status.ARCHIVED': 'Archivé',
+
+    // Types de références
+    'projects.references.type.LINK': 'Lien',
+    'projects.references.type.FILE': 'Fichier',
+    'projects.references.type.NOTE': 'Note',
+    'projects.references.type.DOCUMENT': 'Document',
+    'projects.references.type.label': 'Type de référence',
+    'projects.references.url': 'URL',
+    'projects.references.urlPlaceholder': 'https://',
+    'projects.references.actions.clone': 'Cloner',
+    'projects.references.cloneHint': 'Les documents ne sont pas copiés — uniquement les métadonnées.',
+
+    // Création de tâches
+    'projects.tasks.assignHint': 'L\'attribution des tâches est gérée par les administrateurs.',
+    'projects.tasks.assignedTo': 'Attribué à',
+    'projects.tasks.assignMemberDialogTitle': 'Assigner la tâche à un membre',
+    'projects.tasks.assignMemberDialogDescription': 'Sélectionnez le membre de l\'équipe responsable de cette tâche.',
+    'projects.tasks.memberAssigned': 'Tâche assignée avec succès',
+
     // Common
     'common.of': 'sur',
     'common.select': 'Sélectionner',
     'common.fillRequired': 'Veuillez remplir tous les champs requis',
     'common.back': 'Retour',
+    'common.you': 'Vous',
+    'common.colleague': 'Collègue',
     'common.email': 'Email',
     'common.months': 'mois',
     'common.country': 'Pays',
@@ -1472,6 +1581,7 @@ export const projectsTranslations = {
     
     // Tasks
     'projects.tasks.title': 'Mes tâches',
+    'projects.tasks.new': 'Nouveau',
     'projects.tasks.subtitle': 'Suivez et gérez vos tâches assignées',
     'projects.tasks.status.TODO': 'À faire',
     'projects.tasks.status.IN_PROGRESS': 'En cours',
@@ -1742,6 +1852,10 @@ export const projectsTranslations = {
     'projects.actions.newProject': 'Nuevo proyecto',
     'projects.actions.newTask': 'Nueva tarea',
     'projects.actions.assignTasks': 'Asignar tareas',
+    'projects.actions.assignToMember': 'Asignar a miembro',
+    'projects.actions.manageMember': 'Gestionar miembro',
+    'projects.actions.createNewReference': 'Crear nueva referencia',
+    'projects.actions.finishProject': 'finish',
     'projects.actions.newProjectDescription': 'Crear un nuevo proyecto y configurar los detalles',
     'projects.actions.newTaskDescription': 'Agregar una nueva tarea a un proyecto',
     'projects.actions.assignTasksDescription': 'Asignar tareas a los miembros del equipo',
@@ -2268,12 +2382,16 @@ export const projectsTranslations = {
     
     // Tasks
     'projects.tasks.title': 'Mis tareas',
+    'projects.tasks.new': 'Nuevo',
     'projects.tasks.subtitle': 'Seguimiento y gestión de tareas asignadas',
     'projects.tasks.status.TODO': 'Por hacer',
     'projects.tasks.status.IN_PROGRESS': 'En progreso',
     'projects.tasks.status.REVIEW': 'Revisión',
     'projects.tasks.status.COMPLETED': 'Completado',
     'projects.tasks.assignedTo': 'Asignado a',
+    'projects.tasks.assignMemberDialogTitle': 'Asignar tarea a miembro',
+    'projects.tasks.assignMemberDialogDescription': 'Seleccione el miembro del equipo responsable de esta tarea.',
+    'projects.tasks.memberAssigned': 'Tarea asignada correctamente',
     'projects.tasks.startDate': 'Fecha de inicio',
     'projects.tasks.dueDate': 'Fecha de vencimiento',
     'projects.tasks.overdue': 'Atrasado',

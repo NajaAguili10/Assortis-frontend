@@ -1,12 +1,20 @@
 // Project Types and DTOs - Multilingue compatible
 
 export enum ProjectStatusEnum {
+  DRAFT = 'DRAFT',
   PLANNING = 'PLANNING',
   ACTIVE = 'ACTIVE',
   ON_HOLD = 'ON_HOLD',
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
   ARCHIVED = 'ARCHIVED',
+}
+
+export enum ReferenceTypeEnum {
+  LINK = 'LINK',
+  FILE = 'FILE',
+  NOTE = 'NOTE',
+  DOCUMENT = 'DOCUMENT',
 }
 
 export enum ProjectPriorityEnum {
@@ -165,67 +173,6 @@ export enum RegionEnum {
   CARIBBEAN = 'CARIBBEAN',
   OCEANIA = 'OCEANIA',
 }
-interface ProjectListDTOInternal {
-  id: string;
-  referenceCode: string;
-  title: string;
-  description: string;
-  donor?: {
-    id: number;
-    name: string;
-    shortName?: string;
-    type?: string;
-  };
-  fundingType?: string;
-  budget: number;
-  currency: string;
-  status: string;
-  impactIndicators?: Record<string, any>;
-  country?: {
-    id: number;
-    name: string;
-    code: string;
-    iso3?: string;
-  };
-  city?: {
-    id: number;
-    name: string;
-  };
-  startDate: string;
-  endDate: string;
-  isValidatedByOrg?: boolean;
-  validatedAt?: string;
-  validatedByOrg?: {
-    id: number;
-    name: string;
-  };
-  estimatedShare?: number;
-  priority: string;
-  type: string;
-  mainSector?: {
-    id: number;
-    name: string;
-    code: string;
-  };
-  objectives?: Record<string, any>;
-  deliverables?: Record<string, any>;
-  updatedAt: string;
-  scope?: string;
-  source?: string;
-  region: string;
-  
-  // Champs additionnels pour l'UI
-  name: string;
-  managerName?: string;
-  subsectors?: string[];
-  teamSize?: number;
-  tasksCompleted?: number;
-  totalTasks?: number;
-  
-  // Aliases de compatibilit (temporaires)
-  code: string;
-  sector: ProjectSectorEnum;
-}
 
 export interface ProjectBudgetDTO {
   total: number;
@@ -266,10 +213,13 @@ export interface ProjectListDTO {
   description: string;
   status: ProjectStatusEnum;
   priority: ProjectPriorityEnum;
-
+  type: ProjectTypeEnum;
+  
+  // Location
   country: string;
   region: RegionEnum;
-
+  
+  // Sector
   sector: ProjectSectorEnum;
   subsectors: string[];
   
@@ -291,6 +241,11 @@ export interface ProjectListDTO {
   // Metadata
   createdDate: string;
   updatedDate: string;
+
+  // Team & Search
+  createdBy?: string;
+  ownedBy?: string;
+  tags?: string[];
 }
 
 export interface ProjectDetailDTO extends ProjectListDTO {
@@ -344,38 +299,26 @@ export interface ProjectFiltersDTO {
   partners?: string[];
 }
 
+export interface TaskAssigneeDTO {
+  id: string;
+  name: string;
+  role?: string;
+  avatar?: string;
+}
+
 export interface TaskDTO {
-  id?: number;
-  projectId: number;
-
+  id: string;
+  projectId: string;
+  projectTitle: string;
   title: string;
-  description?: string;
-
-  status?: string;   
-  priority?: string;
-  assignedTo?: Record<string, any>;
-
+  description: string;
+  status: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'COMPLETED';
+  priority: ProjectPriorityEnum;
+  assignedTo: TaskAssigneeDTO[];
   startDate?: string;
-  dueDate?: string;
+  dueDate: string;
   completedDate?: string;
-
-  tags?: Record<string, any>;
-  taskCode?: string;
-  estimatedHours?: number;
-  isMilestone?: boolean;
-  estimatedBudget?: number;
-
-  resourcesRequired?: string;
-
-  deliverables?: Record<string, any>;
-
-  category?: string;
-  complexity?: string;
-
-  parentTaskId?: number;
-
-  createdAt?: string;
-  updatedAt?: string;
+  tags: string[];
 }
 
 export interface CollaborationDTO {

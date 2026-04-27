@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Search, FileText, Users, Building2, TrendingUp, X } from 'lucide-react';
 import { useTranslation } from '../contexts/LanguageContext';
+import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
@@ -159,7 +160,7 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
                   className="w-full text-left p-4 rounded-lg border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-colors group"
                   onClick={() => {
                     onClose();
-                    alert(`Navigation vers ${result.title}`);
+                    toast.info(`Navigation vers ${result.title}`);
                   }}
                 >
                   <div className="flex items-start gap-3">

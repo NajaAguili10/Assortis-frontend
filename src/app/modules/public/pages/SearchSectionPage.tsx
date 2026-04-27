@@ -5,7 +5,6 @@ import { PageContainer } from '@app/components/PageContainer';
 import { SearchSectionTabs, type SearchSectionTab } from '@app/components/SearchSectionTabs';
 import SearchAlertsTabContent from '@app/modules/public/pages/SearchAlertsTabContent';
 import SearchOrganizationsTabContent from '@app/modules/public/pages/SearchOrganizationsTabContent';
-import SearchProjectsTabContent from '@app/modules/public/pages/SearchProjectsTabContent';
 import SearchExpertsTabContent from '@app/modules/public/pages/SearchExpertsTabContent';
 import SearchMyExpertsContent from '@app/modules/public/pages/SearchMyExpertsContent';
 import SearchMapTabContent from '@app/modules/public/pages/SearchMapTabContent';
@@ -33,9 +32,7 @@ export default function SearchSectionPage({ section }: SearchSectionPageProps) {
         <div className="px-4 sm:px-5 lg:px-6 py-6 space-y-6">
           {section === 'map' && <SearchMapTabContent />}
 
-          {section === 'projects' && <SearchProjectsTabContent />}
-
-          {(section === 'awards' || section === 'shortlists') && (
+          {(section === 'projects' || section === 'awards' || section === 'shortlists') && (
             <SearchAlertsTabContent tab={section} />
           )}
 

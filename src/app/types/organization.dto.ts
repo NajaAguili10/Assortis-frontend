@@ -36,10 +36,7 @@ export enum OrganizationStatusEnum {
   VERIFIED = 'VERIFIED',
   PENDING = 'PENDING',
   INACTIVE = 'INACTIVE',
-  NOTVERIFIED = 'NOTVERIFIED',
 }
-
-
 
 export enum RegionEnum {
   AFRICA = 'AFRICA',
@@ -53,60 +50,6 @@ export enum RegionEnum {
 }
 
 export interface Organization {
-  id: number;
-  name: string;
-  cleanName?: string;
-  legalName?: string;
-  type: string;
-  registrationNumber?: string;
-  yearFounded?: number;
-  employeesCount?: number;
-  annualTurnover?: number;
-  website?: string;
-  logoUrl?: string;
-  description?: string;
-  validated?: boolean;
-  verifiedAt?: string;
-  ratingAvg?: number;
-  latitude?: number;
-  longitude?: number;
-  isPartner?: boolean;
-  slogan?: string;
-  contactEmail: string;
-  contactPhone?: string;
-  address?: string;
-  verificationStatus?: string;
-  profileValidationStatus?: string;
-  acronym?: string;
-  region?: string;
-  isActive?: boolean;
-  postalCode?: string;
-  equipmentInfrastructure?: string;
-  contactName?: string;
-  contactTitle?: string;
-  country?: {
-    id: number;
-    name: string;
-    code: string;
-  };
-  city?: {
-    id: number;
-    name: string;
-  };
-  mainSector?: {
-    id: number;
-    name: string;
-    code: string;
-  };
-  parentId?: number;
-  defaultPaymentMethod?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  profileValidatedBy?: string;
-  profileValidatedAt?: string;
-}
-
-/*export interface Organization {
   id: string;
   name: string;
   acronym?: string;
@@ -136,7 +79,7 @@ export interface Organization {
   teamMembers: number;
   createdAt: Date;
   updatedAt: Date;
-}*/
+}
 
 export interface OrganizationKPIs {
   totalOrganizations: number;

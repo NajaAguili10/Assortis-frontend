@@ -26,6 +26,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tool
 import { Popover, PopoverContent, PopoverTrigger } from '@app/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@app/components/ui/select';
 import { Calendar } from '@app/components/ui/calendar';
+import { EmailTemplatePreview } from '@app/components/EmailTemplatePreview';
 import {
   Dialog,
   DialogContent,
@@ -93,16 +94,24 @@ interface SavedSearchEntry<TPayload> {
   payload: TPayload;
 }
 
+interface SavedAlertPreference {
+  searchId: string;
+  enabled: boolean;
+  frequency: 'daily' | 'weekly' | 'monthly' | 'custom';
+  intervalDays: number;
+}
+
 export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentProps) {
   const { t, language } = useLanguage();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { allTenders } = useTenders();
   const storageKey = `search.tab.saved.${tab}`;
+  const alertsStorageKey = `search.tab.alerts.${tab}`;
 
-  const [showFilters, setShowFilters] = useState(false);
-  const [showSectorFilters, setShowSectorFilters] = useState(false);
-  const [showRegionFilters, setShowRegionFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(tab === 'projects');
+  const [showSectorFilters, setShowSectorFilters] = useState(tab === 'projects');
+  const [showRegionFilters, setShowRegionFilters] = useState(tab === 'projects');
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchMode, setSearchMode] = useState<SearchMode>('allWords');
@@ -127,6 +136,9 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
   const [donorFilters, setDonorFilters] = useState<string[]>([]);
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
   const [savedSearches, setSavedSearches] = useState<SavedSearchEntry<AlertsSavedPayload>[]>([]);
+  const [hasSearched, setHasSearched] = useState(tab !== 'projects');
+  const [alertPreferences, setAlertPreferences] = useState<SavedAlertPreference[]>([]);
+  const [expandedAlertId, setExpandedAlertId] = useState<string | null>(null);
 
   const dateLocale = language === 'fr' ? fr : language === 'es' ? es : enUS;
   const today = startOfToday();
@@ -136,7 +148,20 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
     if (!q) return;
     setSearchInput(q);
     setSearchQuery(q);
+    setHasSearched(true);
   }, [searchParams]);
+
+  useEffect(() => {
+    setSavedSearches(readSavedSearches());
+    if (tab !== 'projects') return;
+
+    try {
+      const parsed = JSON.parse(localStorage.getItem(alertsStorageKey) || '[]');
+      setAlertPreferences(Array.isArray(parsed) ? parsed : []);
+    } catch {
+      setAlertPreferences([]);
+    }
+  }, [alertsStorageKey, tab]);
 
   const handlePublishedFromSelect = (date: Date | undefined) => {
     if (!date) {
@@ -180,6 +205,7 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSearchQuery(searchInput.trim());
+    setHasSearched(true);
   };
 
   const filteredFundingAgencies = useMemo(() => {
@@ -302,6 +328,7 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
     setSortDirection(payload.sortDirection || 'none');
     setLocationFilters(payload.locationFilters || []);
     setDonorFilters(payload.donorFilters || []);
+    setHasSearched(true);
   };
 
   const buildPayload = (): AlertsSavedPayload => ({
@@ -334,14 +361,17 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
     const existing = readSavedSearches();
     const now = new Date();
     const labelBase = (searchInput || searchQuery).trim();
+    const label = labelBase || `Saved ${tab} ${format(now, 'yyyy-MM-dd HH:mm')}`;
     const nextEntry: SavedSearchEntry<AlertsSavedPayload> = {
       id: `saved-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
-      label: labelBase || `Saved ${tab} ${format(now, 'yyyy-MM-dd HH:mm')}`,
+      label,
       createdAt: now.toISOString(),
       payload: buildPayload(),
     };
 
-    localStorage.setItem(storageKey, JSON.stringify([nextEntry, ...existing]));
+    const next = [nextEntry, ...existing];
+    localStorage.setItem(storageKey, JSON.stringify(next));
+    setSavedSearches(next);
     toast.success('Search saved');
   };
 
@@ -349,6 +379,62 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
     setSavedSearches(readSavedSearches());
     setIsLoadDialogOpen(true);
   };
+
+  const updateSavedSearch = (entry: SavedSearchEntry<AlertsSavedPayload>) => {
+    const next = readSavedSearches().map((item) =>
+      item.id === entry.id ? { ...item, label: entry.label, payload: buildPayload() } : item
+    );
+    localStorage.setItem(storageKey, JSON.stringify(next));
+    setSavedSearches(next);
+    toast.success('Saved search updated');
+  };
+
+  const deleteSavedSearch = (id: string) => {
+    const next = readSavedSearches().filter((entry) => entry.id !== id);
+    localStorage.setItem(storageKey, JSON.stringify(next));
+    setSavedSearches(next);
+    const nextAlerts = alertPreferences.filter((preference) => preference.searchId !== id);
+    localStorage.setItem(alertsStorageKey, JSON.stringify(nextAlerts));
+    setAlertPreferences(nextAlerts);
+  };
+
+  const activeAlertCount = alertPreferences.filter((p) => p.enabled).length;
+
+  const setAlertEnabled = (searchId: string, enabled: boolean) => {
+    const existing = alertPreferences.find((p) => p.searchId === searchId);
+    let next: SavedAlertPreference[];
+    if (enabled) {
+      if (activeAlertCount >= 5) return; // limit enforced inline in UI
+      if (existing) {
+        next = alertPreferences.map((p) => p.searchId === searchId ? { ...p, enabled: true } : p);
+      } else {
+        next = [...alertPreferences, { searchId, enabled: true, frequency: 'weekly', intervalDays: 7 }];
+      }
+    } else {
+      if (existing) {
+        next = alertPreferences.map((p) => p.searchId === searchId ? { ...p, enabled: false } : p);
+      } else {
+        next = alertPreferences;
+      }
+    }
+    localStorage.setItem(alertsStorageKey, JSON.stringify(next));
+    setAlertPreferences(next);
+  };
+
+  const updateAlertConfig = (searchId: string, config: Partial<Omit<SavedAlertPreference, 'searchId'>>) => {
+    const existing = alertPreferences.find((p) => p.searchId === searchId);
+    let next: SavedAlertPreference[];
+    if (existing) {
+      next = alertPreferences.map((p) => p.searchId === searchId ? { ...p, ...config } : p);
+    } else {
+      next = [...alertPreferences, { searchId, enabled: false, frequency: 'weekly', intervalDays: 7, ...config }];
+    }
+    localStorage.setItem(alertsStorageKey, JSON.stringify(next));
+    setAlertPreferences(next);
+  };
+
+  // Keep legacy alias for deleteSavedSearch compatibility
+  const setAlertPreference = setAlertEnabled;
 
   const baseRows = useMemo(() => {
     if (tab === 'projects') return allTenders.filter(item => item.alertCategory === MatchingAlertCategoryEnum.PROJECTS);
@@ -872,6 +958,132 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
         )}
       </div>
 
+      {tab === 'projects' && (
+        <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-sm font-semibold text-primary">Saved Searches</h3>
+              <span className="text-xs text-muted-foreground">{activeAlertCount}/5 email alerts active</span>
+            </div>
+            <div className="mt-3 space-y-3">
+              {savedSearches.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No saved searches yet.</p>
+              ) : (
+                savedSearches.map((entry) => {
+                  const alertPref = alertPreferences.find((p) => p.searchId === entry.id);
+                  const isExpanded = expandedAlertId === entry.id;
+                  const isAlertEnabled = alertPref?.enabled ?? false;
+                  const atLimit = activeAlertCount >= 5 && !isAlertEnabled;
+                  return (
+                    <div key={entry.id} className="rounded-md border border-gray-100 p-3">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm text-primary truncate">{entry.label}</p>
+                            <p className="text-xs text-muted-foreground">{format(new Date(entry.createdAt), 'yyyy-MM-dd HH:mm')}</p>
+                          </div>
+                          <Badge className={isAlertEnabled ? 'shrink-0 bg-green-100 text-green-700 border-green-200 hover:bg-green-100' : 'shrink-0 bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-100'}>
+                            {isAlertEnabled ? 'Email ON' : 'Email OFF'}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button size="sm" variant="outline" onClick={() => applySavedSearch(entry.payload)}>Load</Button>
+                          <Button size="sm" variant="outline" onClick={() => updateSavedSearch(entry)}>Edit</Button>
+                          <Button size="sm" variant="ghost" onClick={() => deleteSavedSearch(entry.id)}>Delete</Button>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="mt-2 flex w-full items-center gap-1 rounded px-1 py-1 text-xs font-medium text-muted-foreground hover:bg-gray-50 hover:text-primary transition-colors"
+                        onClick={() => setExpandedAlertId(isExpanded ? null : entry.id)}
+                      >
+                        {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                        Email Alert Settings
+                      </button>
+
+                      {isExpanded && (
+                        <div className="mt-2 rounded-md border border-gray-100 bg-gray-50/60 p-3 space-y-3">
+                          {atLimit && (
+                            <p className="text-xs text-red-600 font-medium">You have reached the maximum of 5 email alerts. Disable another alert to enable this one.</p>
+                          )}
+
+                          <label className="flex items-center gap-2 text-sm cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 accent-[#E63462]"
+                              checked={isAlertEnabled}
+                              disabled={atLimit}
+                              onChange={(e) => setAlertEnabled(entry.id, e.target.checked)}
+                            />
+                            <span className={atLimit ? 'text-muted-foreground' : 'text-primary font-medium'}>
+                              Enable email alerts for this search
+                            </span>
+                          </label>
+
+                          {isAlertEnabled && (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground w-20 shrink-0">Frequency</span>
+                                <Select
+                                  value={alertPref?.frequency ?? 'weekly'}
+                                  onValueChange={(value: SavedAlertPreference['frequency']) => updateAlertConfig(entry.id, { frequency: value, intervalDays: value === 'custom' ? (alertPref?.intervalDays ?? 7) : 7 })}
+                                >
+                                  <SelectTrigger className="h-8 w-36 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="daily">Daily</SelectItem>
+                                    <SelectItem value="weekly">Weekly</SelectItem>
+                                    <SelectItem value="monthly">Monthly</SelectItem>
+                                    <SelectItem value="custom">Custom interval</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              {alertPref?.frequency === 'custom' && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-muted-foreground w-20 shrink-0">Every</span>
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    className="h-8 w-24 text-xs"
+                                    value={alertPref.intervalDays}
+                                    onChange={(e) => {
+                                      const days = Math.max(1, parseInt(e.target.value, 10) || 1);
+                                      updateAlertConfig(entry.id, { intervalDays: days });
+                                    }}
+                                  />
+                                  <span className="text-xs text-muted-foreground">day(s)</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <EmailTemplatePreview
+            title="Saved search alert"
+            frequency={alertPreferences.find((p) => p.enabled)?.frequency || 'not enabled'}
+            query={searchQuery || searchInput}
+            filtersSummary={`${activeFilterCount} active filters`}
+          />
+        </div>
+      )}
+
+      {tab === 'projects' && !hasSearched ? (
+        <div className="rounded-lg border border-dashed border-gray-300 bg-white p-10 text-center">
+          <Search className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+          <h3 className="text-lg font-semibold text-primary">Run a search to view project results</h3>
+          <p className="mt-1 text-sm text-muted-foreground">Filters are ready. Results stay hidden until you search.</p>
+        </div>
+      ) : (
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <div className="min-w-[920px]">
@@ -1068,6 +1280,7 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
           </div>
         </div>
       </div>
+      )}
 
       <Dialog open={isLoadDialogOpen} onOpenChange={setIsLoadDialogOpen}>
         <DialogContent className="sm:max-w-[520px]">

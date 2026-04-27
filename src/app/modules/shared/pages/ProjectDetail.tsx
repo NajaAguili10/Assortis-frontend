@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useLocation, useNavigate } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
+import { useAuth } from '@app/contexts/AuthContext';
 import { useProjects } from '@app/hooks/useProjects';
 import { useExperts } from '@app/modules/expert/hooks/useExperts';
 import { usePipeline } from '@app/modules/expert/hooks/usePipeline';
@@ -16,6 +17,7 @@ import { Button } from '@app/components/ui/button';
 import { Progress } from '@app/components/ui/progress';
 import { Alert, AlertDescription } from '@app/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@app/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@app/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@app/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@app/components/ui/accordion';
 import { toast } from 'sonner';
@@ -50,8 +52,10 @@ import {
   Trash2,
   X,
   Bookmark,
+  UserPlus,
 } from 'lucide-react';
 import { ProjectStatusEnum, ProjectPriorityEnum } from '@app/types/project.dto';
+import { canAssignProjectTasks } from '@app/services/permissions.service';
 
 type LifecycleGroupKey = 'early-intelligence' | 'open-procurement' | 'contract-shortlist';
 
@@ -243,6 +247,27 @@ function writeTorHistory(projectId: string | undefined, history: TorVersionEntry
   }
 }
 
+const PARTNER_VISIBILITY_STORAGE_KEY = 'myProjects.partnerVisibility';
+
+function readPartnerVisibility(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(PARTNER_VISIBILITY_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function writePartnerVisibility(visibility: Record<string, boolean>) {
+  try {
+    localStorage.setItem(PARTNER_VISIBILITY_STORAGE_KEY, JSON.stringify(visibility));
+  } catch (error) {
+    // Ignore storage errors to preserve current mock behavior.
+  }
+}
+
 function getInsightClasses(tone: PredictiveInsight['tone']) {
   switch (tone) {
     case 'emerald':
@@ -298,6 +323,7 @@ export default function ProjectDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { user } = useAuth();
   const { kpis, allProjects } = useProjects();
   const { experts } = useExperts();
   const { allOrganizations } = useOrganizations();
@@ -340,6 +366,7 @@ export default function ProjectDetail() {
     const savedIds = readSavedProjectIds();
     return savedIds.includes(id) || stateFavorited;
   });
+  const [partnerVisibility, setPartnerVisibility] = useState<Record<string, boolean>>(() => readPartnerVisibility());
   const showAlertsHeader = projectAccessSource === 'my-alerts';
 
   useEffect(() => {
@@ -565,6 +592,18 @@ export default function ProjectDetail() {
     createdDate: '2023-05-15',
     updatedDate: '2024-02-20',
   };
+
+  const [projectTasks, setProjectTasks] = useState(() =>
+    project.tasks.map((task) => ({ ...task, assignedTo: [] as { id: string; name: string; role?: string }[] }))
+  );
+  const [taskToAssign, setTaskToAssign] = useState<(typeof projectTasks)[number] | null>(null);
+  const [selectedTaskMemberId, setSelectedTaskMemberId] = useState('');
+  const canAssignTasks = canAssignProjectTasks(user?.accountType);
+  const assignmentMembers = project.teamMembers.map((member) => ({
+    id: member.id,
+    name: member.name,
+    role: member.role,
+  }));
 
   const lifecycleDocuments: LifecycleDocument[] = [
     {
@@ -839,6 +878,43 @@ export default function ProjectDetail() {
   const projectOpenClosedLabel = isProjectClosed ? 'Closed' : 'Open';
   const projectDetailBasePath = isSearchContext ? '/search/projects' : '/projects';
   const buildOrganizationDetailPath = (organizationName: string) => `/search/organisations/${encodeURIComponent(resolveOrganizationId(organizationName))}`;
+  const isPartnerVisible = (partnerName: string) => partnerVisibility[partnerName] !== false;
+  const setPartnerVisible = (partnerName: string, visible: boolean) => {
+    setPartnerVisibility((current) => {
+      const next = { ...current, [partnerName]: visible };
+      writePartnerVisibility(next);
+      return next;
+    });
+  };
+  const renderPartnerVisibilityToggle = (partnerName: string) => (
+    <label className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-[#4A5568]/15 bg-white px-2 py-1 text-[11px] font-medium text-[#4A5568]">
+      <input
+        type="checkbox"
+        className="h-3.5 w-3.5"
+        checked={isPartnerVisible(partnerName)}
+        onChange={(event) => setPartnerVisible(partnerName, event.target.checked)}
+        aria-label={`${isPartnerVisible(partnerName) ? 'Hide' : 'Show'} ${partnerName}`}
+      />
+      {isPartnerVisible(partnerName) ? 'Visible' : 'Hidden'}
+    </label>
+  );
+  const projectPartnerNames = Array.from(new Set([
+    ...project.partners,
+    ...project.otherPossiblePartners,
+    ...project.mostRelevantIcaPartners,
+    ...partnerMatches.map((partner) => partner.name),
+  ]));
+  const hiddenProjectPartnerCount = projectPartnerNames.filter((partnerName) => !isPartnerVisible(partnerName)).length;
+  const showAllProjectPartners = () => {
+    setPartnerVisibility((current) => {
+      const next = { ...current };
+      projectPartnerNames.forEach((partnerName) => {
+        next[partnerName] = true;
+      });
+      writePartnerVisibility(next);
+      return next;
+    });
+  };
   const buildExpertDetailPath = (expertId: string) => `/search/experts/${encodeURIComponent(resolveExpertId(expertId))}`;
   const buildProjectDetailPath = (projectReference: string) => `${projectDetailBasePath}/${encodeURIComponent(resolveProjectId(projectReference))}`;
   const CV_UNLOCK_COST = 1;
@@ -1219,6 +1295,48 @@ export default function ProjectDetail() {
     URL.revokeObjectURL(link.href);
   };
 
+  const downloadExpertCv = (expertId: string, expertName: string, format: 'pdf' | 'docx') => {
+    if (!hasCvAccess(expertId)) return;
+    const safeName = expertName.replace(/\s+/g, '_');
+    const extension = format === 'pdf' ? 'pdf' : 'docx';
+    const mimeType = format === 'pdf'
+      ? 'application/pdf'
+      : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    const content = `CV – ${expertName}\nFormat: ${format.toUpperCase()}\nGenerated: ${new Date().toISOString()}`;
+    const blob = new Blob([content], { type: mimeType });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `CV_${safeName}.${extension}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+  };
+
+  const hasAssignedMember = (task: (typeof projectTasks)[number]) =>
+    Boolean(task.assignedTo?.some((member) => member.id !== 'unassigned'));
+
+  const openTaskAssignmentDialog = (task: (typeof projectTasks)[number]) => {
+    setTaskToAssign(task);
+    setSelectedTaskMemberId(task.assignedTo[0]?.id || '');
+  };
+
+  const handleAssignTaskToMember = () => {
+    if (!taskToAssign || !selectedTaskMemberId) return;
+
+    const member = assignmentMembers.find((item) => item.id === selectedTaskMemberId);
+    if (!member) return;
+
+    setProjectTasks((prev) =>
+      prev.map((task) =>
+        task.id === taskToAssign.id ? { ...task, assignedTo: [member] } : task
+      )
+    );
+    setTaskToAssign(null);
+    setSelectedTaskMemberId('');
+    toast.success(t('projects.tasks.memberAssigned'));
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <PageBanner
@@ -1431,15 +1549,21 @@ export default function ProjectDetail() {
                       <div className="rounded-2xl border p-4" style={{ borderColor: 'rgba(0, 0, 0, 0.1)', background: '#FFFFFF' }}>
                         <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Users className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.partnerOrganizations')}</p>
                         <div className="mt-2 flex flex-wrap gap-2">
-                          {project.partners.map((partner) => (
+                          {project.partners.filter(isPartnerVisible).map((partner) => (
                             <div key={partner} className="inline-flex items-center gap-1.5">
                               <Link to={buildOrganizationDetailPath(partner)} className="inline-flex">
                                 <Badge variant="secondary" className="cursor-pointer border-[#4A5568]/15 bg-white text-[#1E293B] transition-colors hover:border-[#E63462]/30 hover:bg-[#E63462]/10 hover:text-[#E63462]">
                                   {partner}
                                 </Badge>
                               </Link>
+                              {renderPartnerVisibilityToggle(partner)}
                             </div>
                           ))}
+                          {hiddenProjectPartnerCount > 0 && (
+                            <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={showAllProjectPartners}>
+                              Show all partners ({hiddenProjectPartnerCount} hidden)
+                            </Button>
+                          )}
                         </div>
                       </div>
 
@@ -1451,13 +1575,14 @@ export default function ProjectDetail() {
                           <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Users className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Most Relevant Technical Partners</p>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {project.otherPossiblePartners.map((partner) => (
+                          {project.otherPossiblePartners.filter(isPartnerVisible).map((partner) => (
                             <div key={partner} className="inline-flex items-center gap-1.5">
                               <Link to={buildOrganizationDetailPath(partner)} className="inline-flex">
                                 <Badge variant="secondary" className="cursor-pointer border-[#4A5568]/15 bg-white text-[#1E293B] transition-colors hover:border-[#E63462]/30 hover:bg-[#E63462]/10 hover:text-[#E63462]">
                                   {partner}
                                 </Badge>
                               </Link>
+                              {renderPartnerVisibilityToggle(partner)}
                             </div>
                           ))}
                         </div>
@@ -1471,13 +1596,14 @@ export default function ProjectDetail() {
                           <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Users className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Most Relevant Matching ICA Partners</p>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {project.mostRelevantIcaPartners.map((partner) => (
+                          {project.mostRelevantIcaPartners.filter(isPartnerVisible).map((partner) => (
                             <div key={partner} className="inline-flex items-center gap-1.5">
                               <Link to={buildOrganizationDetailPath(partner)} className="inline-flex">
                                 <Badge variant="secondary" className="cursor-pointer border-[#4A5568]/15 bg-white text-[#1E293B] transition-colors hover:border-[#E63462]/30 hover:bg-[#E63462]/10 hover:text-[#E63462]">
                                   {partner}
                                 </Badge>
                               </Link>
+                              {renderPartnerVisibilityToggle(partner)}
                             </div>
                           ))}
                         </div>
@@ -1583,6 +1709,13 @@ export default function ProjectDetail() {
                         {t('projects.details.overview')}
                       </span>
                     </TabsTrigger>
+                    <TabsTrigger value="tasks" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
+                      <span className="inline-flex items-center gap-2"><CheckCircle className="h-4 w-4" aria-hidden />{t('projects.details.tasks')}</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="team-members" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
+                      <span className="inline-flex items-center gap-2"><Users className="h-4 w-4" aria-hidden />{t('projects.details.teamMembers')}</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="documents" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm"><span className="inline-flex items-center gap-2"><FileText className="h-4 w-4" aria-hidden />{t('projects.details.documents')}</span></TabsTrigger>
                     <TabsTrigger value="market-analysis" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
                       <span className="inline-flex items-center gap-2">
                         <TrendingUp className="h-4 w-4" aria-hidden />
@@ -1601,9 +1734,6 @@ export default function ProjectDetail() {
                         {t('projects.details.tabs.refPro')}
                       </span>
                     </TabsTrigger>
-                    {showSensitiveSections && <TabsTrigger value="team-members" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm"><span className="inline-flex items-center gap-2"><Users className="h-4 w-4" aria-hidden />{t('projects.details.teamMembers')}</span></TabsTrigger>}
-                    {showSensitiveSections && <TabsTrigger value="tasks" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm"><span className="inline-flex items-center gap-2"><CheckCircle className="h-4 w-4" aria-hidden />{t('projects.details.tasks')}</span></TabsTrigger>}
-                    <TabsTrigger value="documents" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm"><span className="inline-flex items-center gap-2"><FileText className="h-4 w-4" aria-hidden />{t('projects.details.documents')}</span></TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="overview" className="mt-0">
@@ -1723,11 +1853,19 @@ export default function ProjectDetail() {
                                 </div>
                                 <p className="text-xs text-[#4A5568]/80">{expert.profession}</p>
                                 <p className="text-xs text-[#4A5568]/80">Seniority: {expert.seniority}</p>
-                                <div className="mt-3">
+                                <div className="mt-3 flex flex-wrap gap-2">
                                   {hasCvAccess(expert.id) ? (
-                                    <Button size="sm" variant="outline" asChild>
-                                      <Link to={buildExpertDetailPath(expert.id)}>View Profile</Link>
-                                    </Button>
+                                    <>
+                                      <Button size="sm" variant="outline" asChild>
+                                        <Link to={buildExpertDetailPath(expert.id)}>View Profile</Link>
+                                      </Button>
+                                      <Button size="sm" variant="outline" onClick={() => downloadExpertCv(expert.id, expert.name, 'pdf')}>
+                                        <Download className="mr-1.5 h-4 w-4" />PDF
+                                      </Button>
+                                      <Button size="sm" variant="outline" onClick={() => downloadExpertCv(expert.id, expert.name, 'docx')}>
+                                        <Download className="mr-1.5 h-4 w-4" />DOCX
+                                      </Button>
+                                    </>
                                   ) : (
                                     <Button size="sm" variant="outline" className="border-[#E63462]/30 text-[#E63462] hover:bg-[#FFF1F4]" onClick={() => unlockExpertCv(expert.id)} disabled={availableCredits < CV_UNLOCK_COST}>
                                       <Coins className="mr-2 h-4 w-4" />Unlock CV ({CV_UNLOCK_COST})
@@ -1901,8 +2039,7 @@ export default function ProjectDetail() {
                     )}
                   </TabsContent>
 
-                  {showSensitiveSections && (
-                    <TabsContent value="team-members" className="mt-0">
+                  <TabsContent value="team-members" className="mt-0">
                       <div className="rounded-2xl border border-[#4A5568]/15 bg-gradient-to-br from-[#F5F7FA] via-white to-[#FFF1F4] p-4 sm:p-5">
                         <div className="mb-4 flex items-center gap-2">
                           <Users className="h-5 w-5 text-[#E63462]" />
@@ -1939,31 +2076,59 @@ export default function ProjectDetail() {
                         </div>
                       </div>
                     </TabsContent>
-                  )}
 
                   {showSensitiveSections && (
                     <TabsContent value="tasks" className="mt-0">
-                      <div className="mb-4 rounded-lg border bg-slate-50 p-4">
-                        <div className="mb-2 flex items-center justify-between">
-                          <span className="text-sm font-medium text-primary">Progress</span>
-                          <span className="text-sm font-semibold text-primary">{project.tasksCompleted}/{project.totalTasks}</span>
+                      <div className="mb-4 flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="rounded-lg border bg-slate-50 p-4">
+                            <div className="mb-2 flex items-center justify-between">
+                              <span className="text-sm font-medium text-primary">Progress</span>
+                              <span className="text-sm font-semibold text-primary">{project.tasksCompleted}/{project.totalTasks}</span>
+                            </div>
+                            <Progress value={Math.round((project.tasksCompleted / project.totalTasks) * 100)} className="h-2.5" />
+                          </div>
                         </div>
-                        <Progress value={Math.round((project.tasksCompleted / project.totalTasks) * 100)} className="h-2.5" />
+                        <Button size="sm" className="ml-4 gap-1.5" onClick={() => navigate('/projects/tasks/new')}>
+                          <Plus className="h-4 w-4" />
+                          {t('projects.tasks.new')}
+                        </Button>
                       </div>
 
                       <ul role="list" className="space-y-3">
-                        {project.tasks.map((task) => (
+                        {projectTasks.map((task) => (
                           <li key={task.id} className="rounded-lg border border-gray-100 p-3 transition-colors hover:bg-gray-50">
-                            <div className="flex items-start gap-3">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                              <div className="flex flex-1 items-start gap-3">
                               <CheckCircle className={`mt-1 h-5 w-5 ${task.status === 'COMPLETED' ? 'text-green-500' : 'text-gray-300'}`} aria-hidden />
                               <div className="flex-1">
                                 <p className="text-sm font-medium text-primary">{task.title}</p>
                                 <p className="text-xs text-muted-foreground">{t(`projects.tasks.status.${task.status}`)}</p>
+                                {task.assignedTo && task.assignedTo.length > 0 && (
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    {t('projects.tasks.assignedTo')}: {task.assignedTo.map((a) => a.name).join(', ')}
+                                  </p>
+                                )}
                                 <div className="mt-2 flex flex-wrap items-center gap-2">
                                   <Badge variant="outline" className="text-xs">{t(`projects.priority.${task.priority}`)}</Badge>
                                   <span className="text-xs text-muted-foreground">{formatDate(task.dueDate)}</span>
                                 </div>
                               </div>
+                              </div>
+                              {canAssignTasks && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="self-start gap-1.5"
+                                  onClick={() => openTaskAssignmentDialog(task)}
+                                >
+                                  <UserPlus className="h-4 w-4" />
+                                  {hasAssignedMember(task)
+                                    ? t('projects.actions.manageMember')
+                                    : t('projects.actions.assignToMember')}
+                                </Button>
+                              )}
                             </div>
                           </li>
                         ))}
@@ -2083,9 +2248,17 @@ export default function ProjectDetail() {
                                   </div>
                                   <div className="mt-4 flex flex-wrap gap-2">
                                     {hasCvAccess(expert.id) ? (
-                                      <Button size="sm" variant="outline" asChild>
-                                        <Link to={buildExpertDetailPath(expert.id)}>{t('projects.matchingAI.actions.viewProfile')}</Link>
-                                      </Button>
+                                      <>
+                                        <Button size="sm" variant="outline" asChild>
+                                          <Link to={buildExpertDetailPath(expert.id)}>{t('projects.matchingAI.actions.viewProfile')}</Link>
+                                        </Button>
+                                        <Button size="sm" variant="outline" onClick={() => downloadExpertCv(expert.id, expert.name, 'pdf')}>
+                                          <Download className="mr-1.5 h-4 w-4" />PDF
+                                        </Button>
+                                        <Button size="sm" variant="outline" onClick={() => downloadExpertCv(expert.id, expert.name, 'docx')}>
+                                          <Download className="mr-1.5 h-4 w-4" />DOCX
+                                        </Button>
+                                      </>
                                     ) : (
                                       <Button size="sm" variant="outline" className="border-[#E63462]/30 text-[#E63462] hover:bg-[#FFE6E8] hover:text-[#E63462]" onClick={() => unlockExpertCv(expert.id)} disabled={availableCredits < CV_UNLOCK_COST}>
                                         <Coins className="mr-2 h-4 w-4" />Unlock CV ({CV_UNLOCK_COST})
@@ -2146,9 +2319,17 @@ export default function ProjectDetail() {
                                   </div>
                                   <div className="mt-4 flex flex-wrap gap-2">
                                     {hasCvAccess(writer.id) ? (
-                                      <Button size="sm" variant="outline" asChild>
-                                        <Link to={buildExpertDetailPath(writer.id)}>{t('projects.matchingAI.actions.viewProfile')}</Link>
-                                      </Button>
+                                      <>
+                                        <Button size="sm" variant="outline" asChild>
+                                          <Link to={buildExpertDetailPath(writer.id)}>{t('projects.matchingAI.actions.viewProfile')}</Link>
+                                        </Button>
+                                        <Button size="sm" variant="outline" onClick={() => downloadExpertCv(writer.id, writer.name, 'pdf')}>
+                                          <Download className="mr-1.5 h-4 w-4" />PDF
+                                        </Button>
+                                        <Button size="sm" variant="outline" onClick={() => downloadExpertCv(writer.id, writer.name, 'docx')}>
+                                          <Download className="mr-1.5 h-4 w-4" />DOCX
+                                        </Button>
+                                      </>
                                     ) : (
                                       <Button size="sm" variant="outline" className="border-[#E63462]/30 text-[#E63462] hover:bg-[#FFE6E8] hover:text-[#E63462]" onClick={() => unlockExpertCv(writer.id)} disabled={availableCredits < CV_UNLOCK_COST}>
                                         <Coins className="mr-2 h-4 w-4" />Unlock CV ({CV_UNLOCK_COST})
@@ -2186,16 +2367,17 @@ export default function ProjectDetail() {
                               <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
                                 <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
                                   <p className="text-sm font-semibold text-primary">{t('projects.matchingAI.sections.primaryMatches')}</p>
-                                  <Badge variant="outline" className="border-emerald-200 bg-white text-emerald-700">{partnerMatches.filter((partner) => partner.category === 'primary').length}</Badge>
+                                  <Badge variant="outline" className="border-emerald-200 bg-white text-emerald-700">{partnerMatches.filter((partner) => partner.category === 'primary' && isPartnerVisible(partner.name)).length}</Badge>
                                 </div>
                                 <div className="space-y-3">
-                                  {partnerMatches.filter((partner) => partner.category === 'primary').map((partner) => (
+                                  {partnerMatches.filter((partner) => partner.category === 'primary' && isPartnerVisible(partner.name)).map((partner) => (
                                     <div key={partner.id} className="rounded-xl border border-emerald-100 bg-white/90 p-3">
                                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                         <div className="min-w-0 flex-1">
-                                          <div className="flex items-center gap-2">
+                                          <div className="flex flex-wrap items-center gap-2">
                                             <Link to={buildOrganizationDetailPath(partner.name)} className="text-sm font-semibold text-primary underline-offset-2 hover:text-[#E63462] hover:underline">{partner.name}</Link>
                                             {renderOrganizationBookmarkButton(partner.name)}
+                                            {renderPartnerVisibilityToggle(partner.name)}
                                           </div>
                                           <p className="mt-1 text-xs text-muted-foreground">{partner.summary}</p>
                                         </div>
@@ -2209,14 +2391,15 @@ export default function ProjectDetail() {
                               <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4">
                                 <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
                                   <p className="text-sm font-semibold text-primary">{t('projects.matchingAI.sections.secondaryMatches')}</p>
-                                  <Badge variant="outline" className="border-amber-200 bg-white text-amber-700">{partnerMatches.filter((partner) => partner.category === 'secondary').length}</Badge>
+                                  <Badge variant="outline" className="border-amber-200 bg-white text-amber-700">{partnerMatches.filter((partner) => partner.category === 'secondary' && isPartnerVisible(partner.name)).length}</Badge>
                                 </div>
                                 <div className="space-y-3">
-                                  {partnerMatches.filter((partner) => partner.category === 'secondary').map((partner) => (
+                                  {partnerMatches.filter((partner) => partner.category === 'secondary' && isPartnerVisible(partner.name)).map((partner) => (
                                     <div key={partner.id} className="rounded-xl border border-amber-100 bg-white/90 p-3">
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex flex-wrap items-center gap-2">
                                         <Link to={buildOrganizationDetailPath(partner.name)} className="text-sm font-semibold leading-tight text-primary underline-offset-2 hover:text-[#E63462] hover:underline">{partner.name}</Link>
                                         {renderOrganizationBookmarkButton(partner.name)}
+                                        {renderPartnerVisibilityToggle(partner.name)}
                                       </div>
                                       <p className="mt-1 text-xs text-muted-foreground">{partner.summary}</p>
                                       <p className="mt-2 text-xs font-medium text-amber-700">{partner.highlight}</p>
@@ -2552,6 +2735,47 @@ export default function ProjectDetail() {
           </div>
         </main>
       </PageContainer>
+
+      <Dialog open={Boolean(taskToAssign)} onOpenChange={(open) => !open && setTaskToAssign(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {taskToAssign && hasAssignedMember(taskToAssign)
+                ? t('projects.actions.manageMember')
+                : t('projects.tasks.assignMemberDialogTitle')}
+            </DialogTitle>
+            <DialogDescription>{t('projects.tasks.assignMemberDialogDescription')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Select value={selectedTaskMemberId} onValueChange={setSelectedTaskMemberId}>
+              <SelectTrigger
+                aria-label={taskToAssign && hasAssignedMember(taskToAssign)
+                  ? t('projects.actions.manageMember')
+                  : t('projects.actions.assignToMember')}
+              >
+                <SelectValue placeholder={t('common.select')} />
+              </SelectTrigger>
+              <SelectContent>
+                {assignmentMembers.map((member) => (
+                  <SelectItem key={member.id} value={member.id}>
+                    {member.name} - {member.role}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setTaskToAssign(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button type="button" onClick={handleAssignTaskToMember} disabled={!selectedTaskMemberId}>
+              {taskToAssign && hasAssignedMember(taskToAssign)
+                ? t('projects.actions.manageMember')
+                : t('projects.actions.assignToMember')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

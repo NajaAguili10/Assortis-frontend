@@ -14,8 +14,6 @@ import {
   ProjectSectorEnum,
   RegionEnum,
 } from '../types/project.dto';
-import React from 'react';
-import { projectService } from '../services/projectService';
 
 // Extended type pour l'usage interne avec champs additionnels
 interface ProjectListDTOInternal extends ProjectListDTO {
@@ -25,60 +23,50 @@ interface ProjectListDTOInternal extends ProjectListDTO {
 
 export const useProjects = () => {
   const { 
+    projects: mockProjects, 
     tasks, 
     collaborations, 
     templates, 
     getProjectById: getProjectByIdFromContext 
   } = useProjectsContext();
   const [filters, setFilters] = useState<ProjectFiltersDTO>({});
+  const [viewMode, setViewMode] = useState<'mine' | 'team' | 'all'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState<'newest' | 'priority' | 'budget' | 'completion' | 'name'>('newest');
   const pageSize = 10;
-  const [kpis, setKpis] = useState<ProjectKPIsDTO>({
-    totalProjects: 0,
-    activeProjects: 0,
-    completedProjects: 0,
-    onHoldProjects: 0,
-    totalBudget: 0,
-    budgetSpent: 0,
-    averageCompletion: 0,
-    urgentProjects: 0,
-  });
-   const [projectsList, setProjects] = React.useState<ProjectListDTOInternal[]>([]);
+  // CURRENT_USER_ID is the mock logged-in user
+  const CURRENT_USER_ID = 'user-1';
 
-
-  React.useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [projectsResult, kpisResult] = await Promise.all([
-          projectService.getAllProjects(),
-          projectService.getKPIs()
-        ]);
-        
-        const rawProjectsData = (projectsResult as any).data || (Array.isArray(projectsResult) ? projectsResult : []);
-        
-        // Defensive normalization to prevent React object child errors
-        const normalizedProjects = rawProjectsData.map((p: any) => ({
-          ...p,
-          country: typeof p.country === 'object' && p.country !== null ? p.country.name || p.country.code : p.country,
-          leadOrganization: typeof p.leadOrganization === 'object' && p.leadOrganization !== null ? p.leadOrganization.name : p.leadOrganization,
-        }));
-        
-        setProjects(normalizedProjects as ProjectListDTOInternal[]);
-        setKpis(kpisResult as ProjectKPIsDTO);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      }
+  // KPIs
+  const kpis: ProjectKPIsDTO = useMemo(() => {
+    const totalBudget = mockProjects.reduce((sum, p) => sum + p.budget.total, 0);
+    const budgetSpent = mockProjects.reduce((sum, p) => sum + p.budget.spent, 0);
+    const avgCompletion = mockProjects.reduce((sum, p) => sum + p.timeline.completionPercentage, 0) / mockProjects.length;
+    
+    return {
+      totalProjects: mockProjects.length,
+      activeProjects: mockProjects.filter(p => p.status === ProjectStatusEnum.ACTIVE).length,
+      completedProjects: mockProjects.filter(p => p.status === ProjectStatusEnum.COMPLETED).length,
+      onHoldProjects: mockProjects.filter(p => p.status === ProjectStatusEnum.ON_HOLD).length,
+      totalBudget,
+      budgetSpent,
+      averageCompletion: Math.round(avgCompletion),
+      urgentProjects: mockProjects.filter(p => p.priority === ProjectPriorityEnum.URGENT).length,
     };
-  
-    fetchData();
-  }, []);
+  }, [mockProjects]);
 
   // Filter and sort projects
   const filteredProjects = useMemo(() => {
-    let filtered = [...projectsList];
+    let filtered = [...mockProjects];
 
     // Apply filters
+    // Team visibility filter
+    if (viewMode === 'mine') {
+      filtered = filtered.filter((project) => (project as ProjectListDTO & { createdBy?: string }).createdBy === CURRENT_USER_ID);
+    } else if (viewMode === 'team') {
+      filtered = filtered.filter((project) => (project as ProjectListDTO & { createdBy?: string }).createdBy !== CURRENT_USER_ID);
+    }
+
     if (filters.searchQuery) {
       const query = filters.searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -86,7 +74,8 @@ export const useProjects = () => {
           project.title.toLowerCase().includes(query) ||
           project.code.toLowerCase().includes(query) ||
           project.description.toLowerCase().includes(query) ||
-          project.leadOrganization.toLowerCase().includes(query)
+          project.leadOrganization.toLowerCase().includes(query) ||
+          ((project as ProjectListDTO & { tags?: string[] }).tags || []).some((tag) => tag.toLowerCase().includes(query))
       );
     }
 
@@ -149,7 +138,7 @@ export const useProjects = () => {
     }
 
     return filtered;
-  }, [filters, sortBy, projectsList]);
+  }, [filters, sortBy, mockProjects]);
 
   // Pagination
   const paginatedProjects: PaginatedResponseDTO<ProjectListDTO> = useMemo(() => {
@@ -202,12 +191,15 @@ export const useProjects = () => {
     activeFiltersCount,
     sortBy,
     setSortBy,
+    viewMode,
+    setViewMode,
     currentPage,
     setCurrentPage,
     tasks,
     collaborations,
     templates,
-    allProjects: projectsList, // For global search
+    allProjects: mockProjects, // For global search
+    filteredProjects, // Filtered but not paginated
     getProjectById: getProjectByIdFromContext,
     getCollaborationById: (id: string) => collaborations.find(c => c.id === id),
   };

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+﻿import { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useAssistanceHistory } from '@app/contexts/AssistanceHistoryContext';
@@ -40,10 +40,6 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PROFESSIONAL_TITLES } from '@app/config/professional.config';
-import { projectService } from '@/app/services/projectService';
-import { organizationService } from '@/app/services/organizationService';
-import React from 'react';
-import { ProjectSectorEnum } from '@/app/types/project.dto';
 
 type RecipientType = 'organization' | 'expert' | null;
 type InvitationType = 'partnership' | 'consortium' | 'collaboration' | 'team' | 'consultant' | 'advisor' | null;
@@ -54,6 +50,13 @@ interface InviteStep {
 }
 
 // Mock data for selection
+const mockOrganizations = [
+  { id: '1', name: 'UNICEF', type: 'International Organization', verified: true, email: 'contact@unicef.org' },
+  { id: '2', name: 'World Bank', type: 'International Organization', verified: true, email: 'info@worldbank.org' },
+  { id: '3', name: 'Red Cross', type: 'NGO', verified: true, email: 'contact@redcross.org' },
+  { id: '4', name: 'Doctors Without Borders', type: 'NGO', verified: true, email: 'info@msf.org' },
+  { id: '5', name: 'UNESCO', type: 'International Organization', verified: true, email: 'contact@unesco.org' },
+];
 
 const mockExperts = [
   { id: '1', name: 'Dr. Sarah Johnson', expertise: 'Health & Development', verified: true, email: 'sarah.johnson@expert.com' },
@@ -71,125 +74,9 @@ const mockProjects = [
   { id: '4', code: 'PROJ-2024-004', title: 'Clean Water Access Program', status: 'ACTIVE', sector: 'Infrastructure' },
   { id: '5', code: 'PROJ-2024-005', title: 'Youth Skills Development Initiative', status: 'EXECUTION', sector: 'Education' },
 ];
-interface ProjectListDTOInternal {
-  id: string;
-  referenceCode: string;
-  title: string;
-  description: string;
-  donor?: {
-    id: number;
-    name: string;
-    shortName?: string;
-    type?: string;
-  };
-  fundingType?: string;
-  budget: number;
-  currency: string;
-  status: string;
-  impactIndicators?: Record<string, any>;
-  country?: {
-    id: number;
-    name: string;
-    code: string;
-    iso3?: string;
-  };
-  city?: {
-    id: number;
-    name: string;
-  };
-  startDate: string;
-  endDate: string;
-  isValidatedByOrg?: boolean;
-  validatedAt?: string;
-  validatedByOrg?: {
-    id: number;
-    name: string;
-  };
-  estimatedShare?: number;
-  priority: string;
-  type: string;
-  mainSector?: {
-    id: number;
-    name: string;
-    code: string;
-  };
-  objectives?: Record<string, any>;
-  deliverables?: Record<string, any>;
-  updatedAt: string;
-  scope?: string;
-  source?: string;
-  region: string;
-
-  // Champs additionnels pour l'UI
-  name: string;
-  managerName?: string;
-  subsectors?: string[];
-  teamSize?: number;
-  tasksCompleted?: number;
-  totalTasks?: number;
-
-  // Aliases de compatibilit (temporaires)
-  code: string;
-  sector: ProjectSectorEnum;
-}
-
 
 // Maximum number of invitations allowed
 const MAX_INVITATIONS = 2;
-
-export interface Organization {
-  id: number;
-  name: string;
-  cleanName?: string;
-  legalName?: string;
-  type: string;
-  registrationNumber?: string;
-  yearFounded?: number;
-  employeesCount?: number;
-  annualTurnover?: number;
-  website?: string;
-  logoUrl?: string;
-  description?: string;
-  validated?: boolean;
-  verifiedAt?: string;
-  ratingAvg?: number;
-  latitude?: number;
-  longitude?: number;
-  isPartner?: boolean;
-  slogan?: string;
-  contactEmail: string;
-  contactPhone?: string;
-  address?: string;
-  verificationStatus?: string;
-  profileValidationStatus?: string;
-  acronym?: string;
-  region?: string;
-  isActive?: boolean;
-  postalCode?: string;
-  equipmentInfrastructure?: string;
-  contactName?: string;
-  contactTitle?: string;
-  country?: {
-    id: number;
-    name: string;
-    code: string;
-  };
-  city?: {
-    id: number;
-    name: string;
-  };
-  mainSector?: {
-    id: number;
-    name: string;
-    code: string;
-  };
-  parentId?: number;
-  defaultPaymentMethod?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  profileValidatedBy?: string;
-  profileValidatedAt?: string;
-}
 
 export default function OrganizationsInvite() {
   const { t } = useLanguage();
@@ -199,36 +86,10 @@ export default function OrganizationsInvite() {
   const { pipelineItems } = usePipeline();
   const { allTenders } = useTenders();
   const { allToRs } = useToRs();
-  const [projects, setProjects] = React.useState<ProjectListDTOInternal[]>([]);
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
-
-  React.useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const result = await projectService.getAllProjects();
-        setProjects(result as ProjectListDTOInternal[]);
-      } catch (error) {
-        console.error("Error fetching projects:", error);
-      }
-    };
-
-    const fetchOrganizations = async () => {
-      try {
-        const result = await organizationService.getAllOrganizations();
-        setOrganizations(result as Organization[]);
-      } catch (error) {
-        console.error("Error fetching organizations:", error);
-      }
-    };
-
-    fetchProjects();
-    fetchOrganizations();
-  }, []);
-
-
+  
   // Detect which module we're in based on the URL path
   const isMonEspace = location.pathname.startsWith('/mon-espace');
-
+  
   const [currentStep, setCurrentStep] = useState(1);
   const [recipientType, setRecipientType] = useState<RecipientType>(null);
   const [invitationType, setInvitationType] = useState<InvitationType>(null);
@@ -237,14 +98,14 @@ export default function OrganizationsInvite() {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
-
+  
   // Invitation limit tracking
   const [invitationsSent, setInvitationsSent] = useState(0);
-
+  
   // States for Consortium and Collaboration references
   const [selectedTender, setSelectedTender] = useState('');
   const [selectedProject, setSelectedProject] = useState('');
-
+  
   // Get ToRs from Pipeline (Pipeline contains only ToRs)
   const pipelineTenders = useMemo(() => {
     return pipelineItems
@@ -252,13 +113,13 @@ export default function OrganizationsInvite() {
         // Try to find in tenders first
         let tender = allTenders.find(t => String(t.id) === String(item.tenderId));
         let isToR = false;
-
+        
         // If not found in tenders, try to find in ToRs
         if (!tender) {
           tender = allToRs.find(t => String(t.id) === String(item.tenderId));
           isToR = true;
         }
-
+        
         return tender ? {
           id: String(tender.id),
           reference: tender.reference || (tender as any).referenceNumber,
@@ -270,11 +131,11 @@ export default function OrganizationsInvite() {
       })
       .filter(Boolean);
   }, [pipelineItems, allTenders, allToRs]);
-
+  
   // New states for adding new expert/organization
   const [showAddExpertForm, setShowAddExpertForm] = useState(false);
   const [showAddOrganizationForm, setShowAddOrganizationForm] = useState(false);
-
+  
   // New Expert Form Fields
   const [newExpertData, setNewExpertData] = useState({
     firstName: '',
@@ -286,7 +147,7 @@ export default function OrganizationsInvite() {
     certifications: '',
     bio: '',
   });
-
+  
   // New Organization Form Fields
   const [newOrgData, setNewOrgData] = useState({
     organizationName: '',
@@ -295,7 +156,7 @@ export default function OrganizationsInvite() {
     contactPosition: '',
     contactEmail: '',
   });
-
+  
   // Validation errors
   const [expertErrors, setExpertErrors] = useState<Record<string, string>>({});
   const [orgErrors, setOrgErrors] = useState<Record<string, string>>({});
@@ -306,36 +167,36 @@ export default function OrganizationsInvite() {
     { number: 3, name: t('organizations.invite.step.select') },
     { number: 4, name: t('organizations.invite.step.message') },
   ];
-
+  
   // Email validation helper
   const isValidEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
-
+  
   // Check if email already exists in database
   const checkEmailExists = (email: string, type: 'expert' | 'organization'): boolean => {
     const normalizedEmail = email.trim().toLowerCase();
-
+    
     if (type === 'expert') {
       return mockExperts.some(expert => expert.email.toLowerCase() === normalizedEmail);
     } else {
-      return organizations.some(org => (org.contactEmail || org.email || '').toLowerCase() === normalizedEmail);
+      return mockOrganizations.some(org => org.email.toLowerCase() === normalizedEmail);
     }
   };
-
+  
   // Validate Expert Form
   const validateExpertForm = (): boolean => {
     const errors: Record<string, string> = {};
-
+    
     if (!newExpertData.firstName.trim()) {
       errors.firstName = t('organizations.invite.addNew.expertForm.validation.firstName');
     }
-
+    
     if (!newExpertData.lastName.trim()) {
       errors.lastName = t('organizations.invite.addNew.expertForm.validation.lastName');
     }
-
+    
     if (!newExpertData.email.trim()) {
       errors.email = t('organizations.invite.addNew.expertForm.validation.email');
     } else if (!isValidEmail(newExpertData.email)) {
@@ -343,35 +204,35 @@ export default function OrganizationsInvite() {
     } else if (checkEmailExists(newExpertData.email, 'expert')) {
       errors.email = t('organizations.invite.addNew.expertForm.validation.emailDuplicate');
     }
-
+    
     if (!newExpertData.expertise.trim()) {
       errors.expertise = t('organizations.invite.addNew.expertForm.validation.expertise');
     }
-
+    
     setExpertErrors(errors);
     return Object.keys(errors).length === 0;
   };
-
+  
   // Validate Organization Form
   const validateOrganizationForm = (): boolean => {
     const errors: Record<string, string> = {};
-
+    
     if (!newOrgData.organizationName.trim()) {
       errors.organizationName = t('organizations.invite.addNew.organizationForm.validation.name');
     }
-
+    
     if (!newOrgData.sector) {
       errors.sector = t('organizations.invite.addNew.organizationForm.validation.sector');
     }
-
+    
     if (!newOrgData.contactName.trim()) {
       errors.contactName = t('organizations.invite.addNew.organizationForm.validation.contactName');
     }
-
+    
     if (!newOrgData.contactPosition.trim()) {
       errors.contactPosition = t('organizations.invite.addNew.organizationForm.validation.contactPosition');
     }
-
+    
     if (!newOrgData.contactEmail.trim()) {
       errors.contactEmail = t('organizations.invite.addNew.organizationForm.validation.contactEmail');
     } else if (!isValidEmail(newOrgData.contactEmail)) {
@@ -379,7 +240,7 @@ export default function OrganizationsInvite() {
     } else if (checkEmailExists(newOrgData.contactEmail, 'organization')) {
       errors.contactEmail = t('organizations.invite.addNew.organizationForm.validation.contactEmailDuplicate');
     }
-
+    
     setOrgErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -408,27 +269,27 @@ export default function OrganizationsInvite() {
       });
       return;
     }
-
+    
     setIsSending(true);
-
+    
     try {
       // Simulate API call for sending email
       await new Promise(resolve => setTimeout(resolve, 800));
-
+      
       // Simulate sending email notification
       console.log('Sending email to:', selectedEntity?.name);
       console.log('Email subject:', subject || 'Invitation from Assortis Platform');
       console.log('Email message:', message);
-
+      
       // Simulate API call for system notification
       await new Promise(resolve => setTimeout(resolve, 700));
-
+      
       // Increment invitation counter
       const newInvitationCount = invitationsSent + 1;
       setInvitationsSent(newInvitationCount);
-
+      
       const remainingInvitations = MAX_INVITATIONS - newInvitationCount;
-
+      
       // ✅ Enregistrer dans l'historique
       addHistoryEntry({
         type: recipientType === 'organization' ? 'partnership' : 'invitation',
@@ -442,7 +303,7 @@ export default function OrganizationsInvite() {
         message: message,
         status: 'sent',
       });
-
+      
       // Show success toast with email notification
       toast.success(t('organizations.invite.success.title'), {
         description: (
@@ -474,7 +335,7 @@ export default function OrganizationsInvite() {
         ),
         duration: 5000,
       });
-
+      
       // Reset form fields for next invitation (if remaining invitations)
       if (remainingInvitations > 0) {
         // Reset to step 1 to allow sending another invitation
@@ -493,7 +354,7 @@ export default function OrganizationsInvite() {
           navigate(isMonEspace ? '/compte-utilisateur/invitations' : '/organizations/invitations');
         }, 3000);
       }
-
+      
     } catch (error) {
       toast.error('Error sending invitation', {
         description: 'Please try again later',
@@ -511,13 +372,13 @@ export default function OrganizationsInvite() {
   const remainingInvitations = MAX_INVITATIONS - invitationsSent;
 
   const filteredEntities = recipientType === 'organization'
-    ? organizations.filter(org =>
-      org.name.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-    : mockExperts.filter(expert =>
-      expert.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      expert.expertise.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    ? mockOrganizations.filter(org => 
+        org.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : mockExperts.filter(expert => 
+        expert.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        expert.expertise.toLowerCase().includes(searchQuery.toLowerCase())
+      );
 
   // Determine page description based on current step
   const getPageDescription = () => {
@@ -553,12 +414,13 @@ export default function OrganizationsInvite() {
                 <div key={step.number} className="flex items-center flex-1">
                   <div className="flex flex-col items-center">
                     <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold shadow-sm transition-all ${currentStep === step.number
+                      className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold shadow-sm transition-all ${
+                        currentStep === step.number
                           ? 'bg-[#B82547] text-white ring-4 ring-[#B82547]/20'
                           : currentStep > step.number
-                            ? 'bg-green-600 text-white'
-                            : 'bg-gray-100 text-gray-500 border-2 border-gray-300'
-                        }`}
+                          ? 'bg-green-600 text-white'
+                          : 'bg-gray-100 text-gray-500 border-2 border-gray-300'
+                      }`}
                     >
                       {currentStep > step.number ? (
                         <CheckCircle2 className="h-5 w-5" />
@@ -566,14 +428,16 @@ export default function OrganizationsInvite() {
                         step.number
                       )}
                     </div>
-                    <span className={`text-xs mt-2 text-center hidden md:block transition-colors ${currentStep === step.number ? 'text-[#B82547] font-semibold' : 'text-gray-500'
-                      }`}>
+                    <span className={`text-xs mt-2 text-center hidden md:block transition-colors ${
+                      currentStep === step.number ? 'text-[#B82547] font-semibold' : 'text-gray-500'
+                    }`}>
                       {step.name}
                     </span>
                   </div>
                   {index < steps.length - 1 && (
-                    <div className={`flex-1 h-1 mx-2 rounded transition-colors ${currentStep > step.number ? 'bg-green-600' : 'bg-gray-200'
-                      }`} />
+                    <div className={`flex-1 h-1 mx-2 rounded transition-colors ${
+                      currentStep > step.number ? 'bg-green-600' : 'bg-gray-200'
+                    }`} />
                   )}
                 </div>
               ))}
@@ -599,7 +463,7 @@ export default function OrganizationsInvite() {
               </div>
             </div>
           )}
-
+          
           {!limitReached && remainingInvitations <= 1 && invitationsSent > 0 && (
             <div className="mb-6 p-4 bg-orange-50 border-2 border-orange-200 rounded-lg">
               <div className="flex items-start gap-3">
@@ -638,16 +502,19 @@ export default function OrganizationsInvite() {
                     {/* Organization Option */}
                     <button
                       onClick={() => setRecipientType('organization')}
-                      className={`p-8 rounded-xl border-2 transition-all text-left hover:shadow-lg ${recipientType === 'organization'
+                      className={`p-8 rounded-xl border-2 transition-all text-left hover:shadow-lg ${
+                        recipientType === 'organization'
                           ? 'border-[#B82547] bg-[#B82547]/5 shadow-md'
                           : 'border-gray-200 hover:border-[#B82547]/30'
-                        }`}
+                      }`}
                     >
                       <div className="flex flex-col items-center text-center gap-4">
-                        <div className={`w-16 h-16 rounded-lg flex items-center justify-center ${recipientType === 'organization' ? 'bg-[#B82547]' : 'bg-gray-100'
-                          }`}>
-                          <Building2 className={`w-8 h-8 ${recipientType === 'organization' ? 'text-white' : 'text-gray-600'
-                            }`} />
+                        <div className={`w-16 h-16 rounded-lg flex items-center justify-center ${
+                          recipientType === 'organization' ? 'bg-[#B82547]' : 'bg-gray-100'
+                        }`}>
+                          <Building2 className={`w-8 h-8 ${
+                            recipientType === 'organization' ? 'text-white' : 'text-gray-600'
+                          }`} />
                         </div>
                         <div>
                           <h4 className="text-lg font-semibold text-[#3d4654] mb-2">
@@ -663,16 +530,19 @@ export default function OrganizationsInvite() {
                     {/* Expert Option */}
                     <button
                       onClick={() => setRecipientType('expert')}
-                      className={`p-8 rounded-xl border-2 transition-all text-left hover:shadow-lg ${recipientType === 'expert'
+                      className={`p-8 rounded-xl border-2 transition-all text-left hover:shadow-lg ${
+                        recipientType === 'expert'
                           ? 'border-[#B82547] bg-[#B82547]/5 shadow-md'
                           : 'border-gray-200 hover:border-[#B82547]/30'
-                        }`}
+                      }`}
                     >
                       <div className="flex flex-col items-center text-center gap-4">
-                        <div className={`w-16 h-16 rounded-lg flex items-center justify-center ${recipientType === 'expert' ? 'bg-[#B82547]' : 'bg-gray-100'
-                          }`}>
-                          <Users className={`w-8 h-8 ${recipientType === 'expert' ? 'text-white' : 'text-gray-600'
-                            }`} />
+                        <div className={`w-16 h-16 rounded-lg flex items-center justify-center ${
+                          recipientType === 'expert' ? 'bg-[#B82547]' : 'bg-gray-100'
+                        }`}>
+                          <Users className={`w-8 h-8 ${
+                            recipientType === 'expert' ? 'text-white' : 'text-gray-600'
+                          }`} />
                         </div>
                         <div>
                           <h4 className="text-lg font-semibold text-[#3d4654] mb-2">
@@ -695,14 +565,16 @@ export default function OrganizationsInvite() {
                     <div className="grid grid-cols-1 gap-4">
                       <button
                         onClick={() => setInvitationType('partnership')}
-                        className={`p-6 rounded-lg border-2 transition-all text-left hover:shadow-md ${invitationType === 'partnership'
+                        className={`p-6 rounded-lg border-2 transition-all text-left hover:shadow-md ${
+                          invitationType === 'partnership'
                             ? 'border-[#B82547] bg-[#B82547]/5'
                             : 'border-gray-200 hover:border-gray-300'
-                          }`}
+                        }`}
                       >
                         <div className="flex items-center gap-4">
-                          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${invitationType === 'partnership' ? 'bg-[#B82547]' : 'bg-gray-100'
-                            }`}>
+                          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                            invitationType === 'partnership' ? 'bg-[#B82547]' : 'bg-gray-100'
+                          }`}>
                             <Handshake className={`w-6 h-6 ${invitationType === 'partnership' ? 'text-white' : 'text-gray-600'}`} />
                           </div>
                           <div className="flex-1">
@@ -718,14 +590,16 @@ export default function OrganizationsInvite() {
 
                       <button
                         onClick={() => setInvitationType('consortium')}
-                        className={`p-6 rounded-lg border-2 transition-all text-left hover:shadow-md ${invitationType === 'consortium'
+                        className={`p-6 rounded-lg border-2 transition-all text-left hover:shadow-md ${
+                          invitationType === 'consortium'
                             ? 'border-[#B82547] bg-[#B82547]/5'
                             : 'border-gray-200 hover:border-gray-300'
-                          }`}
+                        }`}
                       >
                         <div className="flex items-center gap-4">
-                          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${invitationType === 'consortium' ? 'bg-[#B82547]' : 'bg-gray-100'
-                            }`}>
+                          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                            invitationType === 'consortium' ? 'bg-[#B82547]' : 'bg-gray-100'
+                          }`}>
                             <Target className={`w-6 h-6 ${invitationType === 'consortium' ? 'text-white' : 'text-gray-600'}`} />
                           </div>
                           <div className="flex-1">
@@ -741,14 +615,16 @@ export default function OrganizationsInvite() {
 
                       <button
                         onClick={() => setInvitationType('collaboration')}
-                        className={`p-6 rounded-lg border-2 transition-all text-left hover:shadow-md ${invitationType === 'collaboration'
+                        className={`p-6 rounded-lg border-2 transition-all text-left hover:shadow-md ${
+                          invitationType === 'collaboration'
                             ? 'border-[#B82547] bg-[#B82547]/5'
                             : 'border-gray-200 hover:border-gray-300'
-                          }`}
+                        }`}
                       >
                         <div className="flex items-center gap-4">
-                          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${invitationType === 'collaboration' ? 'bg-[#B82547]' : 'bg-gray-100'
-                            }`}>
+                          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                            invitationType === 'collaboration' ? 'bg-[#B82547]' : 'bg-gray-100'
+                          }`}>
                             <UserPlus className={`w-6 h-6 ${invitationType === 'collaboration' ? 'text-white' : 'text-gray-600'}`} />
                           </div>
                           <div className="flex-1">
@@ -766,14 +642,16 @@ export default function OrganizationsInvite() {
                     <div className="grid grid-cols-1 gap-4">
                       <button
                         onClick={() => setInvitationType('team')}
-                        className={`p-6 rounded-lg border-2 transition-all text-left hover:shadow-md ${invitationType === 'team'
+                        className={`p-6 rounded-lg border-2 transition-all text-left hover:shadow-md ${
+                          invitationType === 'team'
                             ? 'border-[#B82547] bg-[#B82547]/5'
                             : 'border-gray-200 hover:border-gray-300'
-                          }`}
+                        }`}
                       >
                         <div className="flex items-center gap-4">
-                          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${invitationType === 'team' ? 'bg-[#B82547]' : 'bg-gray-100'
-                            }`}>
+                          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                            invitationType === 'team' ? 'bg-[#B82547]' : 'bg-gray-100'
+                          }`}>
                             <UserPlus className={`w-6 h-6 ${invitationType === 'team' ? 'text-white' : 'text-gray-600'}`} />
                           </div>
                           <div className="flex-1">
@@ -789,14 +667,16 @@ export default function OrganizationsInvite() {
 
                       <button
                         onClick={() => setInvitationType('consultant')}
-                        className={`p-6 rounded-lg border-2 transition-all text-left hover:shadow-md ${invitationType === 'consultant'
+                        className={`p-6 rounded-lg border-2 transition-all text-left hover:shadow-md ${
+                          invitationType === 'consultant'
                             ? 'border-[#B82547] bg-[#B82547]/5'
                             : 'border-gray-200 hover:border-gray-300'
-                          }`}
+                        }`}
                       >
                         <div className="flex items-center gap-4">
-                          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${invitationType === 'consultant' ? 'bg-[#B82547]' : 'bg-gray-100'
-                            }`}>
+                          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                            invitationType === 'consultant' ? 'bg-[#B82547]' : 'bg-gray-100'
+                          }`}>
                             <Briefcase className={`w-6 h-6 ${invitationType === 'consultant' ? 'text-white' : 'text-gray-600'}`} />
                           </div>
                           <div className="flex-1">
@@ -812,14 +692,16 @@ export default function OrganizationsInvite() {
 
                       <button
                         onClick={() => setInvitationType('advisor')}
-                        className={`p-6 rounded-lg border-2 transition-all text-left hover:shadow-md ${invitationType === 'advisor'
+                        className={`p-6 rounded-lg border-2 transition-all text-left hover:shadow-md ${
+                          invitationType === 'advisor'
                             ? 'border-[#B82547] bg-[#B82547]/5'
                             : 'border-gray-200 hover:border-gray-300'
-                          }`}
+                        }`}
                       >
                         <div className="flex items-center gap-4">
-                          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${invitationType === 'advisor' ? 'bg-[#B82547]' : 'bg-gray-100'
-                            }`}>
+                          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                            invitationType === 'advisor' ? 'bg-[#B82547]' : 'bg-gray-100'
+                          }`}>
                             <Target className={`w-6 h-6 ${invitationType === 'advisor' ? 'text-white' : 'text-gray-600'}`} />
                           </div>
                           <div className="flex-1">
@@ -834,7 +716,7 @@ export default function OrganizationsInvite() {
                       </button>
                     </div>
                   )}
-
+                  
                   {/* Conditional Fields for Consortium and Collaboration */}
                   {recipientType === 'organization' && invitationType === 'consortium' && (
                     <div className="mt-6 p-6 bg-blue-50 rounded-lg border-2 border-blue-200">
@@ -891,7 +773,7 @@ export default function OrganizationsInvite() {
                       </div>
                     </div>
                   )}
-
+                  
                   {recipientType === 'organization' && invitationType === 'collaboration' && (
                     <div className="mt-6 p-6 bg-green-50 rounded-lg border-2 border-green-200">
                       <div className="flex items-start gap-3 mb-4">
@@ -1047,8 +929,8 @@ export default function OrganizationsInvite() {
                             {t('organizations.invite.addNew.expertForm.expertise')}
                             <span className="text-red-500 ml-1">*</span>
                           </label>
-                          <Select
-                            value={newExpertData.expertise}
+                          <Select 
+                            value={newExpertData.expertise} 
                             onValueChange={(value) => setNewExpertData({ ...newExpertData, expertise: value })}
                           >
                             <SelectTrigger>
@@ -1129,7 +1011,7 @@ export default function OrganizationsInvite() {
                           onClick={() => {
                             // Validate required fields
                             if (!validateExpertForm()) return;
-
+                            
                             // Create new expert entity
                             const newExpert = {
                               id: `new-${Date.now()}`,
@@ -1137,10 +1019,10 @@ export default function OrganizationsInvite() {
                               expertise: newExpertData.expertise,
                               verified: false,
                             };
-
+                            
                             setSelectedEntity(newExpert);
                             setShowAddExpertForm(false);
-
+                            
                             toast.success(t('organizations.invite.addNew.expertForm.success'), {
                               description: t('organizations.invite.addNew.expertForm.successDescription'),
                             });
@@ -1278,7 +1160,7 @@ export default function OrganizationsInvite() {
                           onClick={() => {
                             // Validate required fields
                             if (!validateOrganizationForm()) return;
-
+                            
                             // Create new organization entity
                             const newOrg = {
                               id: `new-${Date.now()}`,
@@ -1286,10 +1168,10 @@ export default function OrganizationsInvite() {
                               type: newOrgData.sector,
                               verified: false,
                             };
-
+                            
                             setSelectedEntity(newOrg);
                             setShowAddOrganizationForm(false);
-
+                            
                             toast.success(t('organizations.invite.addNew.organizationForm.success'), {
                               description: t('organizations.invite.addNew.organizationForm.successDescription'),
                             });
@@ -1308,7 +1190,7 @@ export default function OrganizationsInvite() {
                         <Input
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          placeholder={t(recipientType === 'organization'
+                          placeholder={t(recipientType === 'organization' 
                             ? 'organizations.invite.select.organization.placeholder'
                             : 'organizations.invite.select.expert.placeholder'
                           )}
@@ -1323,19 +1205,23 @@ export default function OrganizationsInvite() {
                             <button
                               key={entity.id}
                               onClick={() => setSelectedEntity(entity)}
-                              className={`w-full p-5 text-left hover:bg-gray-50 transition-colors ${selectedEntity?.id === entity.id ? 'bg-[#B82547]/5 border-l-4 border-l-[#B82547]' : ''
-                                }`}
+                              className={`w-full p-5 text-left hover:bg-gray-50 transition-colors ${
+                                selectedEntity?.id === entity.id ? 'bg-[#B82547]/5 border-l-4 border-l-[#B82547]' : ''
+                              }`}
                             >
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-4">
-                                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${selectedEntity?.id === entity.id ? 'bg-[#B82547]' : 'bg-gray-100'
-                                    }`}>
+                                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                                    selectedEntity?.id === entity.id ? 'bg-[#B82547]' : 'bg-gray-100'
+                                  }`}>
                                     {recipientType === 'organization' ? (
-                                      <Building2 className={`w-6 h-6 ${selectedEntity?.id === entity.id ? 'text-white' : 'text-gray-600'
-                                        }`} />
+                                      <Building2 className={`w-6 h-6 ${
+                                        selectedEntity?.id === entity.id ? 'text-white' : 'text-gray-600'
+                                      }`} />
                                     ) : (
-                                      <Users className={`w-6 h-6 ${selectedEntity?.id === entity.id ? 'text-white' : 'text-gray-600'
-                                        }`} />
+                                      <Users className={`w-6 h-6 ${
+                                        selectedEntity?.id === entity.id ? 'text-white' : 'text-gray-600'
+                                      }`} />
                                     )}
                                   </div>
                                   <div>
@@ -1383,7 +1269,7 @@ export default function OrganizationsInvite() {
                         <div>
                           <h4 className="font-semibold text-[#3d4654] text-lg">{selectedEntity.name}</h4>
                           <p className="text-sm text-gray-500">
-                            {t(recipientType === 'organization'
+                            {t(recipientType === 'organization' 
                               ? `organizations.invite.orgType.${invitationType}`
                               : `organizations.invite.expertType.${invitationType}`
                             )}

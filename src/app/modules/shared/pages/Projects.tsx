@@ -11,8 +11,9 @@ import { FeatureCard } from '@app/components/FeatureCard';
 import { AccessDenied } from '@app/components/AccessDenied';
 import { Badge } from '@app/components/ui/badge';
 import { Button } from '@app/components/ui/button';
+import { Input } from '@app/components/ui/input';
 import { useProjects } from '@app/hooks/useProjects';
-import { canManageOrganizationAdminActions, hasProjectsAccess } from '@app/services/permissions.service';
+import { canAssignProjectTasks, canCreateProjectItems, hasProjectsAccess } from '@app/services/permissions.service';
 import { ProjectStatusEnum } from '@app/types/project.dto';
 import {
   Briefcase,
@@ -37,19 +38,29 @@ export default function Projects() {
   const { t, language } = useLanguage();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { kpis, allProjects } = useProjects();
+  const { kpis, allProjects, filteredProjects, viewMode, setViewMode, updateFilters } = useProjects();
   
-  // V�rifier les permissions d'acc�s
+  // Vérifier les permissions d'accès
   const hasAccess = hasProjectsAccess(user?.accountType);
-  const canManageProjectActions = canManageOrganizationAdminActions(user?.accountType, user?.role);
+  const canCreateProjectsAndTasks = canCreateProjectItems(user?.accountType);
+  const canAssignTasks = canAssignProjectTasks(user?.accountType);
   const restrictedActionMessage = t('permissions.organization.adminOnlyAction');
   
-  // V�rifier si l'utilisateur est un expert (pas organization)
+  // Vérifier si l'utilisateur est un expert (pas organization)
   const isExpertOnly = user?.accountType === 'expert';
   const [activeCreatedProjectsTab, setActiveCreatedProjectsTab] = useState<CreatedProjectsTab>('open');
-  const [deletedCreatedProjectIds, setDeletedCreatedProjectIds] = useState<Set<string | number>>(new Set());
-  const userCreatedProjects = allProjects.filter((project) => String(project.id).startsWith('proj-'));
+  const [deletedCreatedProjectIds, setDeletedCreatedProjectIds] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Use filteredProjects (viewMode + search applied in hook)
+  const CURRENT_USER_ID = 'user-1';
+  const userCreatedProjects = filteredProjects;
   const now = Date.now();
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    updateFilters({ searchQuery: value });
+  };
 
   const formatProjectDate = (value: string) => new Date(value).toLocaleDateString(
     language === 'fr' ? 'fr-FR' : language === 'es' ? 'es-ES' : 'en-GB',
@@ -89,9 +100,9 @@ export default function Projects() {
   };
 
   const createdProjectsByTab = useMemo(() => {
-    const open = userCreatedProjects.filter((project) => !isPastCreatedProject(project) && !deletedCreatedProjectIds.has(String(project.id)));
-    const past = userCreatedProjects.filter((project) => isPastCreatedProject(project) && !deletedCreatedProjectIds.has(String(project.id)));
-    const deleted = userCreatedProjects.filter((project) => deletedCreatedProjectIds.has(String(project.id)));
+    const open = userCreatedProjects.filter((project) => !isPastCreatedProject(project) && !deletedCreatedProjectIds.has(project.id));
+    const past = userCreatedProjects.filter((project) => isPastCreatedProject(project) && !deletedCreatedProjectIds.has(project.id));
+    const deleted = userCreatedProjects.filter((project) => deletedCreatedProjectIds.has(project.id));
 
     return { open, past, deleted };
   }, [deletedCreatedProjectIds, userCreatedProjects]);
@@ -102,14 +113,14 @@ export default function Projects() {
     return createdProjectsByTab.deleted;
   }, [activeCreatedProjectsTab, createdProjectsByTab]);
 
-  const handleDeleteCreatedProject = (id: string | number) => {
-    setDeletedCreatedProjectIds((prev) => new Set(prev).add(String(id)));
+  const handleDeleteCreatedProject = (id: string) => {
+    setDeletedCreatedProjectIds((prev) => new Set(prev).add(id));
   };
 
-  const handleRestoreCreatedProject = (id: string | number) => {
+  const handleRestoreCreatedProject = (id: string) => {
     setDeletedCreatedProjectIds((prev) => {
       const next = new Set(prev);
-      next.delete(String(id));
+      next.delete(id);
       return next;
     });
   };
@@ -190,39 +201,65 @@ export default function Projects() {
               />
             </div>
 
-            {/* Quick Actions - NON visible pour Expert uniquement */}
-            {!isExpertOnly && (
-              <div className="mb-8">
-                <h2 className="text-xl font-bold text-primary mb-4">{t('actions.quick')}</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <ActionCard
-                    title={t('projects.actions.newProject')}
-                    icon={Plus}
-                    onClick={() => navigate('/projects/new')}
-                    disabled={!canManageProjectActions}
-                    disabledMessage={restrictedActionMessage}
-                  />
-                  <ActionCard
-                    title={t('projects.actions.newTask')}
-                    icon={ListChecks}
-                    onClick={() => navigate('/projects/tasks/new')}
-                    disabled={!canManageProjectActions}
-                    disabledMessage={restrictedActionMessage}
-                  />
-                  <ActionCard
-                    title={t('projects.actions.assignTasks')}
-                    icon={UserPlus}
-                    onClick={() => navigate('/projects/tasks/assign')}
-                    disabled={!canManageProjectActions}
-                    disabledMessage={restrictedActionMessage}
-                  />
-                </div>
+            {/* Quick Actions */}
+            <div className="mb-8">
+              <h2 className="text-xl font-bold text-primary mb-4">{t('actions.quick')}</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <ActionCard
+                  title={t('projects.actions.newProject')}
+                  icon={Plus}
+                  onClick={() => navigate('/projects/new')}
+                  disabled={!canCreateProjectsAndTasks}
+                  disabledMessage={restrictedActionMessage}
+                />
+                <ActionCard
+                  title={t('projects.actions.newTask')}
+                  icon={ListChecks}
+                  onClick={() => navigate('/projects/tasks/new')}
+                  disabled={!canCreateProjectsAndTasks}
+                  disabledMessage={restrictedActionMessage}
+                />
+                <ActionCard
+                  title={t('projects.actions.assignTasks')}
+                  icon={UserPlus}
+                  onClick={() => navigate('/projects/tasks/assign')}
+                  disabled={!canAssignTasks}
+                  disabledMessage={restrictedActionMessage}
+                />
               </div>
-            )}
+            </div>
 
             {/* Created Projects */}
             <div className="mb-8">
-              <h2 className="text-xl font-bold text-primary mb-4">{t('projects.created.title')}</h2>
+              <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <h2 className="text-xl font-bold text-primary">{t('projects.created.title')}</h2>
+              </div>
+
+              {/* View mode toggle (My / Team / All) */}
+              <div className="mb-4 flex items-center gap-2">
+                {(['all', 'mine', 'team'] as const).map((mode) => {
+                  const labels = {
+                    all: t('projects.filter.viewMode.all'),
+                    mine: t('projects.filter.viewMode.mine'),
+                    team: t('projects.filter.viewMode.team'),
+                  };
+                  return (
+                    <Button
+                      key={mode}
+                      variant="ghost"
+                      size="sm"
+                      className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
+                        viewMode === mode
+                          ? 'bg-accent text-white shadow-sm'
+                          : 'bg-slate-100 text-slate-700 hover:bg-accent hover:text-white'
+                      }`}
+                      onClick={() => setViewMode(mode)}
+                    >
+                      {labels[mode]}
+                    </Button>
+                  );
+                })}
+              </div>
 
               {/* Tabs */}
               <div className="mb-4 flex items-center gap-1 rounded-xl bg-slate-100 p-1 w-fit">
@@ -259,17 +296,31 @@ export default function Projects() {
                 })}
               </div>
 
+              {/* Search */}
+              <div className="mb-4 flex justify-end">
+                <div className="relative w-full sm:max-w-sm">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    placeholder={t('projects.search.placeholder')}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+
               {/* Table */}
               <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
                 <div className="overflow-x-auto">
                   <div className="min-w-[920px]">
-                    <div className="grid grid-cols-[2.2fr_1.2fr_1.3fr_1fr_0.95fr_0.95fr_1.1fr] items-center gap-2 border-b border-gray-200 bg-gray-50/80 px-5 py-3.5 text-xs font-semibold tracking-wide text-gray-600">
+                    <div className="grid grid-cols-[2.2fr_1.2fr_1.3fr_1fr_0.95fr_0.95fr_0.8fr_1.1fr] items-center gap-2 border-b border-gray-200 bg-gray-50/80 px-5 py-3.5 text-xs font-semibold tracking-wide text-gray-600">
                       <div>{t('activeTenders.table.projectTitle')}</div>
                       <div>{t('activeTenders.table.location')}</div>
                       <div>{t('projects.create.leadOrganization')}</div>
                       <div>{t('activeTenders.table.budget')}</div>
                       <div>{t('activeTenders.table.published')}</div>
                       <div>{t('activeTenders.table.deadline')}</div>
+                      <div>{t('projects.filter.owner')}</div>
                       <div>{t('activeTenders.table.actions')}</div>
                     </div>
 
@@ -292,13 +343,23 @@ export default function Projects() {
                               key={project.id}
                               className={`px-5 py-4 transition-colors ${rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'} hover:bg-gray-50/80`}
                             >
-                              <div className="grid grid-cols-[2.2fr_1.2fr_1.3fr_1fr_0.95fr_0.95fr_1.1fr] items-center gap-2 text-sm">
-                                <div className="pr-1 font-semibold leading-snug text-gray-900">{project.title}</div>
+                            <div className="grid grid-cols-[2.2fr_1.2fr_1.3fr_1fr_0.95fr_0.95fr_0.8fr_1.1fr] items-center gap-2 text-sm">
+                                <div className="pr-1 font-semibold leading-snug text-gray-900">
+                                  <div>{project.title}</div>
+                                  {project.status === ProjectStatusEnum.DRAFT && (
+                                    <Badge variant="outline" className="mt-1 border-amber-200 bg-amber-50 text-xs text-amber-700">{t('projects.status.DRAFT')}</Badge>
+                                  )}
+                                </div>
                                 <div className="leading-snug text-gray-700">{location}</div>
                                 <div className="leading-snug text-gray-700">{project.leadOrganization}</div>
                                 <div className="font-medium text-gray-700">{formatProjectBudget(project.budget.total, project.budget.currency)}</div>
                                 <div className="text-gray-700">{formatProjectDate(project.createdDate)}</div>
                                 <div className="text-gray-700">{formatProjectDate(project.timeline.endDate)}</div>
+                                <div className="text-xs text-gray-600">
+                                  {(project as typeof project & { createdBy?: string }).createdBy === CURRENT_USER_ID
+                                    ? t('common.you')
+                                    : t('common.colleague')}
+                                </div>
                                 <div className="flex flex-wrap gap-2">
                                   {activeCreatedProjectsTab !== 'deleted' && (
                                     <>
@@ -365,6 +426,15 @@ export default function Projects() {
                                   <div className="inline-flex items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-2.5 py-1">
                                     <span className="text-[11px] font-medium text-sky-700">{t('projects.stats.averageCompletion')}</span>
                                     <span className="text-xs font-semibold text-sky-900">{project.timeline.completionPercentage}%</span>
+                                    {project.timeline.completionPercentage < 100 && (
+                                      <button
+                                        type="button"
+                                        className="text-[11px] font-semibold text-blue-600 underline underline-offset-2 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                                        onClick={() => navigate(`/projects/${project.id}/edit`, { state: { continueEditing: true } })}
+                                      >
+                                        {t('projects.actions.finishProject')}
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
                               </div>
