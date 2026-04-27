@@ -51,15 +51,15 @@ pipeline {
 
         // ── 2. Install & Build (artifact smoke-test) ─────────────────────────
         stage('Install & Build') {
+            agent {
+                docker {
+                    image 'node:20-alpine'
+                }
+            }
             steps {
                 sh 'node --version'
-                sh 'npm ci --prefer-offline'
+                sh 'npm ci'
                 sh 'npm run build'
-            }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'dist/**', fingerprint: true, allowEmptyArchive: true
-                }
             }
         }
 
