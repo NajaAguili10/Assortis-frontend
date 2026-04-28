@@ -1290,7 +1290,7 @@ export default function ProjectDetail() {
     toast.success(t('projects.torAI.savedToast'));
   };
 
-  const resetTorUploadForm = () => {
+  const resetTorUploadFormLegacy = () => {
     setTorUploadVersionName('');
     setTorUploadFile(null);
   };
@@ -1298,11 +1298,11 @@ export default function ProjectDetail() {
   const handleTorUploadDialogChange = (open: boolean) => {
     setIsTorUploadDialogOpen(open);
     if (!open) {
-      resetTorUploadForm();
+      resetTorUploadFormLegacy();
     }
   };
 
-  const handleUploadTor = () => {
+  const handleUploadTorLegacy = () => {
     if (!torUploadFile) {
       toast.error(t('projects.torAI.upload.fileRequiredToast'));
       return;
@@ -1348,7 +1348,7 @@ export default function ProjectDetail() {
     setTorDraftGeneratedAt(null);
     setIsTorEditMode(false);
     setIsTorUploadDialogOpen(false);
-    resetTorUploadForm();
+    resetTorUploadFormLegacy();
     toast.success(t('projects.torAI.upload.successToast'));
   };
 
@@ -1692,7 +1692,7 @@ export default function ProjectDetail() {
                 <Button variant="outline" onClick={() => handleTorUploadDialogChange(false)}>
                   {t('common.cancel')}
                 </Button>
-                <Button onClick={handleUploadTor}>
+                <Button onClick={handleUploadTorLegacy}>
                   <Upload className="mr-2 h-4 w-4" />
                   {t('projects.torAI.upload.confirmAction')}
                 </Button>
