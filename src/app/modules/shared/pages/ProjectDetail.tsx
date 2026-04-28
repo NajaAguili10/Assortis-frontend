@@ -1290,66 +1290,13 @@ export default function ProjectDetail() {
     toast.success(t('projects.torAI.savedToast'));
   };
 
-  const resetTorUploadFormLegacy = () => {
-    setTorUploadVersionName('');
-    setTorUploadFile(null);
-  };
-
   const handleTorUploadDialogChange = (open: boolean) => {
+    if (!open && isUploadingTor) return;
+
     setIsTorUploadDialogOpen(open);
     if (!open) {
-      resetTorUploadFormLegacy();
+      resetTorUploadForm();
     }
-  };
-
-  const handleUploadTorLegacy = () => {
-    if (!torUploadFile) {
-      toast.error(t('projects.torAI.upload.fileRequiredToast'));
-      return;
-    }
-
-    const allowedTypes = [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    ];
-    const allowedExtensions = ['pdf', 'doc', 'docx'];
-    const extension = torUploadFile.name.split('.').pop()?.toLowerCase() || '';
-
-    if (!allowedTypes.includes(torUploadFile.type) && !allowedExtensions.includes(extension)) {
-      toast.error(t('projects.torAI.upload.invalidFileToast'));
-      return;
-    }
-
-    const versionNumber = torHistory.length + 1;
-    const uploadedAt = new Date().toISOString();
-    const label = torUploadVersionName.trim() || `${t('projects.torAI.upload.defaultVersionName')} ${versionNumber}`;
-    const fileSizeKb = Math.max(1, Math.round(torUploadFile.size / 1024));
-
-    const newVersion: TorVersionEntry = {
-      id: `tor-upload-${Date.now()}`,
-      createdAt: uploadedAt,
-      label,
-      sourceFileName: torUploadFile.name,
-      sourceFileSize: torUploadFile.size,
-      sourceFileType: torUploadFile.type || extension.toUpperCase(),
-      sections: [
-        {
-          id: 'uploaded-source-document',
-          title: t('projects.torAI.upload.sourceDocumentSection'),
-          content: `${t('projects.torAI.upload.sourceFileLabel')}: ${torUploadFile.name}\n${t('projects.torAI.upload.sourceFileSizeLabel')}: ${fileSizeKb} KB`,
-        },
-      ],
-    };
-
-    setTorHistory((previous) => [newVersion, ...previous].slice(0, 20));
-    setTorCurrentVersionId(newVersion.id);
-    setTorDraftSections(null);
-    setTorDraftGeneratedAt(null);
-    setIsTorEditMode(false);
-    setIsTorUploadDialogOpen(false);
-    resetTorUploadFormLegacy();
-    toast.success(t('projects.torAI.upload.successToast'));
   };
 
   const handleViewTorVersion = (versionId: string) => {
@@ -1464,20 +1411,15 @@ export default function ProjectDetail() {
   };
 
   const handleUploadTor = () => {
-    const versionName = torUploadVersionName.trim();
-
-    if (!versionName) {
-      setTorUploadError('Enter a version name before uploading.');
-      return;
-    }
+    const versionName = torUploadVersionName.trim() || `${t('projects.torAI.upload.defaultVersionName')} ${torHistory.length + 1}`;
 
     if (!torUploadFile) {
-      setTorUploadError('Choose a .pdf, .doc, or .docx file.');
+      setTorUploadError(t('projects.torAI.upload.fileRequiredToast'));
       return;
     }
 
     if (!isAllowedTorFile(torUploadFile)) {
-      setTorUploadError('Only .pdf, .doc, and .docx files are accepted.');
+      setTorUploadError(t('projects.torAI.upload.invalidFileToast'));
       return;
     }
 
@@ -1507,11 +1449,11 @@ export default function ProjectDetail() {
       setIsUploadingTor(false);
       setIsTorUploadDialogOpen(false);
       resetTorUploadForm();
-      toast.success('ToR uploaded to history.');
+      toast.success(t('projects.torAI.upload.successToast'));
     };
     reader.onerror = () => {
       setIsUploadingTor(false);
-      setTorUploadError('Unable to read this file. Please try another document.');
+      setTorUploadError(t('projects.torAI.upload.readError'));
     };
     reader.readAsDataURL(torUploadFile);
   };
@@ -1655,14 +1597,15 @@ export default function ProjectDetail() {
                   <label htmlFor="tor-upload-version-name" className="text-sm font-medium text-[#4A5568]">
                     {t('projects.torAI.upload.versionNameLabel')}
                   </label>
-                  <input
-                    id="tor-upload-version-name"
-                    type="text"
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-[#E63462]/50 focus:ring-2 focus:ring-[#E63462]/20"
-                    placeholder={t('projects.torAI.upload.versionNamePlaceholder')}
-                    value={torUploadVersionName}
-                    onChange={(event) => setTorUploadVersionName(event.target.value)}
-                  />
+                    <input
+                      id="tor-upload-version-name"
+                      type="text"
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-[#E63462]/50 focus:ring-2 focus:ring-[#E63462]/20"
+                      placeholder={t('projects.torAI.upload.versionNamePlaceholder')}
+                      value={torUploadVersionName}
+                      onChange={(event) => setTorUploadVersionName(event.target.value)}
+                      disabled={isUploadingTor}
+                    />
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="tor-upload-file" className="text-sm font-medium text-[#4A5568]">
@@ -1674,7 +1617,16 @@ export default function ProjectDetail() {
                       type="file"
                       accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                       className="sr-only"
-                      onChange={(event) => setTorUploadFile(event.target.files?.[0] ?? null)}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0] ?? null;
+                        setTorUploadFile(file);
+                        if (file && !isAllowedTorFile(file)) {
+                          setTorUploadError(t('projects.torAI.upload.invalidFileToast'));
+                        } else {
+                          setTorUploadError('');
+                        }
+                      }}
+                      disabled={isUploadingTor}
                     />
                     <label
                       htmlFor="tor-upload-file"
@@ -1687,14 +1639,28 @@ export default function ProjectDetail() {
                     </span>
                   </div>
                 </div>
+                {torUploadError && (
+                  <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {torUploadError}
+                  </div>
+                )}
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => handleTorUploadDialogChange(false)}>
+                <Button variant="outline" onClick={() => handleTorUploadDialogChange(false)} disabled={isUploadingTor}>
                   {t('common.cancel')}
                 </Button>
-                <Button onClick={handleUploadTorLegacy}>
-                  <Upload className="mr-2 h-4 w-4" />
-                  {t('projects.torAI.upload.confirmAction')}
+                <Button onClick={handleUploadTor} disabled={isUploadingTor}>
+                  {isUploadingTor ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {t('projects.torAI.upload.uploading')}
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="mr-2 h-4 w-4" />
+                      {t('projects.torAI.upload.confirmAction')}
+                    </>
+                  )}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -2873,12 +2839,12 @@ export default function ProjectDetail() {
                         {isUploadingTor ? (
                           <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Uploading...
+                            {t('projects.torAI.upload.uploading')}
                           </>
                         ) : (
                           <>
                             <Plus className="mr-2 h-4 w-4" />
-                            Upload ToR
+                            {t('projects.torAI.upload.action')}
                           </>
                         )}
                       </Button>
@@ -3001,7 +2967,7 @@ export default function ProjectDetail() {
                           ) : (
                             <div className="rounded-xl border border-dashed border-[#4A5568]/20 bg-[#F8FAFC] p-5 text-sm text-[#4A5568]/80">
                               {activeSavedTorVersion?.source === 'USER_UPLOADED'
-                                ? 'This uploaded ToR is stored as a source document. Use Download to open the original file.'
+                                ? t('projects.torAI.upload.sourceDocumentEmptyState')
                                 : t('projects.torAI.emptyState')}
                             </div>
                           )}
@@ -3020,7 +2986,7 @@ export default function ProjectDetail() {
                               const isLatest = latestTorVersion?.id === entry.id;
                               const isActive = !hasTorDraftPreview && activeSavedTorVersion?.id === entry.id;
                               const previewText = entry.sections?.[0]?.content || entry.extractedText || entry.originalFileName;
-                              const sourceLabel = entry.source === 'USER_UPLOADED' ? 'User uploaded' : 'AI generated';
+                              const sourceLabel = entry.source === 'USER_UPLOADED' ? t('projects.torAI.upload.sourceUserUploaded') : t('projects.torAI.upload.sourceAiGenerated');
 
                               return (
                                 <div key={entry.id} className={`flex flex-col gap-3 rounded-xl border p-3 ${isActive ? 'border-[#E63462]/30 bg-[#FFF1F4]' : 'border-[#4A5568]/10 bg-[#F8FAFC]'}`}>
@@ -3081,80 +3047,6 @@ export default function ProjectDetail() {
           </div>
         </main>
       </PageContainer>
-
-      <Dialog open={isTorUploadDialogOpen} onOpenChange={(open) => {
-        if (!open && !isUploadingTor) {
-          setIsTorUploadDialogOpen(false);
-          resetTorUploadForm();
-        } else {
-          setIsTorUploadDialogOpen(open);
-        }
-      }}>
-        <DialogContent className="sm:max-w-[520px]">
-          <DialogHeader>
-            <DialogTitle>Upload ToR</DialogTitle>
-            <DialogDescription>
-              Add a PDF, DOC, or DOCX source document to this project&apos;s ToR History.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-[#4A5568]" htmlFor="tor-upload-version-name">
-                Version name
-              </label>
-              <input
-                id="tor-upload-version-name"
-                className="min-h-10 w-full rounded-md border border-[#4A5568]/20 bg-white px-3 py-2 text-sm text-[#4A5568] focus:border-[#E63462]/50 focus:outline-none focus:ring-2 focus:ring-[#E63462]/20"
-                value={torUploadVersionName}
-                onChange={(event) => setTorUploadVersionName(event.target.value)}
-                placeholder="e.g. Client ToR v1"
-                disabled={isUploadingTor}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-[#4A5568]" htmlFor="tor-upload-file">
-                ToR file
-              </label>
-              <input
-                id="tor-upload-file"
-                className="min-h-10 w-full rounded-md border border-[#4A5568]/20 bg-white px-3 py-2 text-sm text-[#4A5568] file:mr-3 file:rounded-md file:border-0 file:bg-[#F8FAFC] file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-[#4A5568]"
-                type="file"
-                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                onChange={(event) => {
-                  const file = event.target.files?.[0] || null;
-                  setTorUploadFile(file);
-                  if (file && !isAllowedTorFile(file)) {
-                    setTorUploadError('Only .pdf, .doc, and .docx files are accepted.');
-                  } else {
-                    setTorUploadError('');
-                  }
-                }}
-                disabled={isUploadingTor}
-              />
-            </div>
-            {torUploadError && (
-              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {torUploadError}
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setIsTorUploadDialogOpen(false)} disabled={isUploadingTor}>
-              {t('common.cancel')}
-            </Button>
-            <Button type="button" onClick={handleUploadTor} disabled={isUploadingTor}>
-              {isUploadingTor ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Uploading...
-                </>
-              ) : (
-                'Upload ToR'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={Boolean(taskToAssign)} onOpenChange={(open) => !open && setTaskToAssign(null)}>
         <DialogContent className="sm:max-w-md">
