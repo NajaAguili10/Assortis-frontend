@@ -53,6 +53,7 @@ import {
   X,
   Bookmark,
   UserPlus,
+  Upload,
 } from 'lucide-react';
 import { ProjectStatusEnum, ProjectPriorityEnum } from '@app/types/project.dto';
 import { canAssignProjectTasks } from '@app/services/permissions.service';
@@ -147,6 +148,9 @@ interface TorVersionEntry {
   createdAt: string;
   label: string;
   sections: TorSection[];
+  sourceFileName?: string;
+  sourceFileSize?: number;
+  sourceFileType?: string;
 }
 
 function readSavedProjectIds(): string[] {
@@ -357,6 +361,9 @@ export default function ProjectDetail() {
   const [torDraftSections, setTorDraftSections] = useState<TorSection[] | null>(null);
   const [torDraftGeneratedAt, setTorDraftGeneratedAt] = useState<string | null>(null);
   const [isTorEditMode, setIsTorEditMode] = useState(false);
+  const [isTorUploadDialogOpen, setIsTorUploadDialogOpen] = useState(false);
+  const [torUploadVersionName, setTorUploadVersionName] = useState('');
+  const [torUploadFile, setTorUploadFile] = useState<File | null>(null);
   const [isProjectActionDialogOpen, setIsProjectActionDialogOpen] = useState(false);
   const [pendingProjectAction, setPendingProjectAction] = useState<'add' | 'remove'>('add');
   const [availableCredits, setAvailableCredits] = useState(120);
@@ -1185,6 +1192,68 @@ export default function ProjectDetail() {
     toast.success(t('projects.torAI.savedToast'));
   };
 
+  const resetTorUploadForm = () => {
+    setTorUploadVersionName('');
+    setTorUploadFile(null);
+  };
+
+  const handleTorUploadDialogChange = (open: boolean) => {
+    setIsTorUploadDialogOpen(open);
+    if (!open) {
+      resetTorUploadForm();
+    }
+  };
+
+  const handleUploadTor = () => {
+    if (!torUploadFile) {
+      toast.error(t('projects.torAI.upload.fileRequiredToast'));
+      return;
+    }
+
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+    const allowedExtensions = ['pdf', 'doc', 'docx'];
+    const extension = torUploadFile.name.split('.').pop()?.toLowerCase() || '';
+
+    if (!allowedTypes.includes(torUploadFile.type) && !allowedExtensions.includes(extension)) {
+      toast.error(t('projects.torAI.upload.invalidFileToast'));
+      return;
+    }
+
+    const versionNumber = torHistory.length + 1;
+    const uploadedAt = new Date().toISOString();
+    const label = torUploadVersionName.trim() || `${t('projects.torAI.upload.defaultVersionName')} ${versionNumber}`;
+    const fileSizeKb = Math.max(1, Math.round(torUploadFile.size / 1024));
+
+    const newVersion: TorVersionEntry = {
+      id: `tor-upload-${Date.now()}`,
+      createdAt: uploadedAt,
+      label,
+      sourceFileName: torUploadFile.name,
+      sourceFileSize: torUploadFile.size,
+      sourceFileType: torUploadFile.type || extension.toUpperCase(),
+      sections: [
+        {
+          id: 'uploaded-source-document',
+          title: t('projects.torAI.upload.sourceDocumentSection'),
+          content: `${t('projects.torAI.upload.sourceFileLabel')}: ${torUploadFile.name}\n${t('projects.torAI.upload.sourceFileSizeLabel')}: ${fileSizeKb} KB`,
+        },
+      ],
+    };
+
+    setTorHistory((previous) => [newVersion, ...previous].slice(0, 20));
+    setTorCurrentVersionId(newVersion.id);
+    setTorDraftSections(null);
+    setTorDraftGeneratedAt(null);
+    setIsTorEditMode(false);
+    setIsTorUploadDialogOpen(false);
+    resetTorUploadForm();
+    toast.success(t('projects.torAI.upload.successToast'));
+  };
+
   const handleViewTorVersion = (versionId: string) => {
     setTorCurrentVersionId(versionId);
     setIsTorEditMode(false);
@@ -1384,6 +1453,62 @@ export default function ProjectDetail() {
                 <Button variant="outline" onClick={() => setIsProjectActionDialogOpen(false)}>Cancel</Button>
                 <Button onClick={confirmProjectAction}>
                   {pendingProjectAction === 'add' ? 'Confirm Add' : 'Confirm Remove'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isTorUploadDialogOpen} onOpenChange={handleTorUploadDialogChange}>
+            <DialogContent className="max-w-lg w-full">
+              <DialogHeader>
+                <DialogTitle>{t('projects.torAI.upload.title')}</DialogTitle>
+                <DialogDescription>{t('projects.torAI.upload.description')}</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="tor-upload-version-name" className="text-sm font-medium text-[#4A5568]">
+                    {t('projects.torAI.upload.versionNameLabel')}
+                  </label>
+                  <input
+                    id="tor-upload-version-name"
+                    type="text"
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-[#E63462]/50 focus:ring-2 focus:ring-[#E63462]/20"
+                    placeholder={t('projects.torAI.upload.versionNamePlaceholder')}
+                    value={torUploadVersionName}
+                    onChange={(event) => setTorUploadVersionName(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="tor-upload-file" className="text-sm font-medium text-[#4A5568]">
+                    {t('projects.torAI.upload.fileLabel')}
+                  </label>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <input
+                      id="tor-upload-file"
+                      type="file"
+                      accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      className="sr-only"
+                      onChange={(event) => setTorUploadFile(event.target.files?.[0] ?? null)}
+                    />
+                    <label
+                      htmlFor="tor-upload-file"
+                      className="inline-flex h-10 cursor-pointer items-center justify-center rounded-md border border-[#4A5568]/25 bg-white px-4 text-sm font-medium text-[#4A5568] hover:bg-[#F8FAFC]"
+                    >
+                      {t('projects.torAI.upload.chooseFile')}
+                    </label>
+                    <span className="min-w-0 truncate text-sm text-[#4A5568]/80">
+                      {torUploadFile ? torUploadFile.name : t('projects.torAI.upload.noFileChosen')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => handleTorUploadDialogChange(false)}>
+                  {t('common.cancel')}
+                </Button>
+                <Button onClick={handleUploadTor}>
+                  <Upload className="mr-2 h-4 w-4" />
+                  {t('projects.torAI.upload.confirmAction')}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -2578,6 +2703,15 @@ export default function ProjectDetail() {
                       >
                         <Save className="mr-2 h-4 w-4" />
                         {t('projects.torAI.saveAction')}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="min-h-11 border-[#4A5568]/25 text-[#4A5568] hover:bg-[#F8FAFC]"
+                        onClick={() => setIsTorUploadDialogOpen(true)}
+                        disabled={!isProjectSaved}
+                      >
+                        <Upload className="mr-2 h-4 w-4" />
+                        {t('projects.torAI.upload.action')}
                       </Button>
                     </div>
                   </div>
