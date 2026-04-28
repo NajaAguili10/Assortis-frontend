@@ -53,6 +53,7 @@ import {
   X,
   Bookmark,
   UserPlus,
+  Upload,
 } from 'lucide-react';
 import { ProjectStatusEnum, ProjectPriorityEnum } from '@app/types/project.dto';
 import { canAssignProjectTasks } from '@app/services/permissions.service';
@@ -142,11 +143,23 @@ interface TorSection {
   content: string;
 }
 
-interface TorVersionEntry {
+type TorHistorySource = 'USER_UPLOADED' | 'AI_GENERATED';
+
+interface TorHistoryEntry {
   id: string;
+  projectId: string;
   createdAt: string;
   label: string;
-  sections: TorSection[];
+  sourceFileName?: string;
+  sourceFileSize?: number;
+  sourceFileType?: string;
+  versionName: string;
+  originalFileName: string;
+  fileType: string;
+  source: TorHistorySource;
+  fileUrl: string;
+  extractedText?: string;
+  sections?: TorSection[];
 }
 
 function readSavedProjectIds(): string[] {
@@ -213,7 +226,7 @@ function writeRefProHistory(projectId: string | undefined, history: RefProVersio
   }
 }
 
-function readTorHistory(projectId?: string): TorVersionEntry[] {
+function readTorHistory(projectId?: string): TorHistoryEntry[] {
   if (!projectId) return [];
 
   try {
@@ -223,21 +236,59 @@ function readTorHistory(projectId?: string): TorVersionEntry[] {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
 
-    return parsed.filter((entry): entry is TorVersionEntry => {
-      return (
-        Boolean(entry) &&
-        typeof entry.id === 'string' &&
-        typeof entry.createdAt === 'string' &&
-        typeof entry.label === 'string' &&
-        Array.isArray(entry.sections)
-      );
-    });
+    return parsed
+      .map((entry): TorHistoryEntry | null => {
+        if (!entry || typeof entry !== 'object' || typeof entry.id !== 'string' || typeof entry.createdAt !== 'string') {
+          return null;
+        }
+
+        if (
+          typeof entry.versionName === 'string' &&
+          typeof entry.originalFileName === 'string' &&
+          typeof entry.fileType === 'string' &&
+          (entry.source === 'USER_UPLOADED' || entry.source === 'AI_GENERATED') &&
+          typeof entry.fileUrl === 'string'
+        ) {
+          return {
+            id: entry.id,
+            projectId: typeof entry.projectId === 'string' ? entry.projectId : projectId,
+            createdAt: entry.createdAt,
+            versionName: entry.versionName,
+            originalFileName: entry.originalFileName,
+            fileType: entry.fileType,
+            source: entry.source,
+            fileUrl: entry.fileUrl,
+            extractedText: typeof entry.extractedText === 'string' ? entry.extractedText : undefined,
+            sections: Array.isArray(entry.sections) ? entry.sections : undefined,
+          };
+        }
+
+        if (typeof entry.label === 'string' && Array.isArray(entry.sections)) {
+          const plainText = buildTorPlainText(entry.sections);
+          return {
+            id: entry.id,
+            projectId,
+            createdAt: entry.createdAt,
+            versionName: entry.label,
+            originalFileName: `${entry.label}.txt`,
+            fileType: 'txt',
+            source: 'AI_GENERATED',
+            fileUrl: `data:text/plain;charset=utf-8,${encodeURIComponent(plainText)}`,
+            extractedText: plainText,
+            sections: entry.sections,
+          };
+        }
+
+        return null;
+      })
+      .filter((entry): entry is TorHistoryEntry => Boolean(entry))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   } catch (error) {
     return [];
   }
 }
 
-function writeTorHistory(projectId: string | undefined, history: TorVersionEntry[]) {
+function writeTorHistory(projectId: string | undefined, history: TorHistoryEntry[]) {
   if (!projectId) return;
 
   try {
@@ -245,6 +296,10 @@ function writeTorHistory(projectId: string | undefined, history: TorVersionEntry
   } catch (error) {
     // Ignore storage errors to preserve current mock behavior.
   }
+}
+
+function buildTorPlainText(sections: TorSection[]) {
+  return sections.map((section) => `${section.title}\n\n${section.content}`).join('\n\n---\n\n');
 }
 
 const PARTNER_VISIBILITY_STORAGE_KEY = 'myProjects.partnerVisibility';
@@ -352,11 +407,16 @@ export default function ProjectDetail() {
   const [refProDraftSections, setRefProDraftSections] = useState<RefProDescriptionSection[] | null>(null);
   const [refProDraftGeneratedAt, setRefProDraftGeneratedAt] = useState<string | null>(null);
   const [isGeneratingTor, setIsGeneratingTor] = useState(false);
-  const [torHistory, setTorHistory] = useState<TorVersionEntry[]>([]);
+  const [torHistory, setTorHistory] = useState<TorHistoryEntry[]>([]);
   const [torCurrentVersionId, setTorCurrentVersionId] = useState<string | null>(null);
   const [torDraftSections, setTorDraftSections] = useState<TorSection[] | null>(null);
   const [torDraftGeneratedAt, setTorDraftGeneratedAt] = useState<string | null>(null);
   const [isTorEditMode, setIsTorEditMode] = useState(false);
+  const [isTorUploadDialogOpen, setIsTorUploadDialogOpen] = useState(false);
+  const [torUploadVersionName, setTorUploadVersionName] = useState('');
+  const [torUploadFile, setTorUploadFile] = useState<File | null>(null);
+  const [torUploadError, setTorUploadError] = useState('');
+  const [isUploadingTor, setIsUploadingTor] = useState(false);
   const [isProjectActionDialogOpen, setIsProjectActionDialogOpen] = useState(false);
   const [pendingProjectAction, setPendingProjectAction] = useState<'add' | 'remove'>('add');
   const [availableCredits, setAvailableCredits] = useState(120);
@@ -380,6 +440,10 @@ export default function ProjectDetail() {
       setTorDraftSections(null);
       setTorDraftGeneratedAt(null);
       setIsTorEditMode(false);
+      setIsTorUploadDialogOpen(false);
+      setTorUploadVersionName('');
+      setTorUploadFile(null);
+      setTorUploadError('');
       return;
     }
 
@@ -1113,17 +1177,29 @@ export default function ProjectDetail() {
     const subsectorsLabel = project.subsectors
       .map((subsector) => subsector.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase()))
       .join(', ');
+    const historySummary = torHistory.length > 0
+      ? torHistory
+          .slice(0, 5)
+          .map((entry) => {
+            const sourceLabel = entry.source === 'USER_UPLOADED' ? 'user uploaded' : 'AI generated';
+            const sectionSummary = entry.sections?.map((section) => `${section.title}: ${section.content}`).join(' ');
+            const documentContext = entry.extractedText || sectionSummary || entry.originalFileName;
+            return `${entry.versionName} (${sourceLabel}, ${entry.originalFileName}): ${documentContext}`;
+          })
+          .join(' ')
+      : 'No previous ToR documents are available yet.';
+    const generatedInputSummary = Object.values(generatedResponses).filter(Boolean).join(' ');
 
     return [
       {
         id: 'tor-background',
         title: t('projects.torAI.sections.background'),
-        content: `${project.title} is a ${formatLabel(project.type).toLowerCase()} intervention focused on ${project.description.toLowerCase()} The project is located in ${project.country} and funded by ${project.donor}, with ${project.leadOrganization} as lead organization.`,
+        content: `${project.title} is a ${formatLabel(project.type).toLowerCase()} intervention focused on ${project.description.toLowerCase()} The project is located in ${project.country} and funded by ${project.donor}, with ${project.leadOrganization} as lead organization. This version consolidates available project context with prior ToR history: ${historySummary}`,
       },
       {
         id: 'tor-objectives',
         title: t('projects.torAI.sections.objectives'),
-        content: `The ToR aims to define implementation expectations, technical quality standards, governance approach, and measurable outcomes for the project. The core objective is to ${project.objectives.toLowerCase()}`,
+        content: `The ToR aims to define implementation expectations, technical quality standards, governance approach, and measurable outcomes for the project. The core objective is to ${project.objectives.toLowerCase()} ${generatedInputSummary ? `Additional workspace inputs indicate: ${generatedInputSummary}` : ''}`,
       },
       {
         id: 'tor-scope',
@@ -1155,9 +1231,29 @@ export default function ProjectDetail() {
 
     window.setTimeout(() => {
       const generatedAt = new Date().toISOString();
-      setTorDraftSections(generateTorSections());
-      setTorDraftGeneratedAt(generatedAt);
-      setTorCurrentVersionId(null);
+      const generatedSections = generateTorSections();
+      const versionNumber = torHistory.length + 1;
+      const versionName = `${t('projects.torAI.versionLabel')} ${versionNumber}`;
+      const originalFileName = `${project.title.replace(/\s+/g, '_')}_ToR_${versionNumber}.txt`;
+      const plainText = buildTorPlainText(generatedSections);
+      const versionId = `tor-${Date.now()}`;
+      const newVersion: TorHistoryEntry = {
+        id: versionId,
+        projectId: id || project.id || 'project',
+        createdAt: generatedAt,
+        versionName,
+        originalFileName,
+        fileType: 'txt',
+        source: 'AI_GENERATED',
+        fileUrl: `data:text/plain;charset=utf-8,${encodeURIComponent(plainText)}`,
+        extractedText: plainText,
+        sections: generatedSections,
+      };
+
+      setTorHistory((previous) => [newVersion, ...previous].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 20));
+      setTorDraftSections(null);
+      setTorDraftGeneratedAt(null);
+      setTorCurrentVersionId(versionId);
       setIsTorEditMode(false);
       setIsGeneratingTor(false);
       toast.success(t('projects.torAI.generatedToast'));
@@ -1169,11 +1265,20 @@ export default function ProjectDetail() {
 
     const versionId = `tor-${Date.now()}`;
     const versionNumber = torHistory.length + 1;
+    const versionName = `${t('projects.torAI.versionLabel')} ${versionNumber}`;
+    const originalFileName = `${project.title.replace(/\s+/g, '_')}_ToR_${versionNumber}.txt`;
+    const plainText = buildTorPlainText(torDraftSections);
 
-    const newVersion: TorVersionEntry = {
+    const newVersion: TorHistoryEntry = {
       id: versionId,
+      projectId: id || project.id || 'project',
       createdAt: torDraftGeneratedAt || new Date().toISOString(),
-      label: `${t('projects.torAI.versionLabel')} ${versionNumber}`,
+      versionName,
+      originalFileName,
+      fileType: 'txt',
+      source: 'AI_GENERATED',
+      fileUrl: `data:text/plain;charset=utf-8,${encodeURIComponent(plainText)}`,
+      extractedText: plainText,
       sections: torDraftSections,
     };
 
@@ -1183,6 +1288,68 @@ export default function ProjectDetail() {
     setTorDraftGeneratedAt(null);
     setIsTorEditMode(false);
     toast.success(t('projects.torAI.savedToast'));
+  };
+
+  const resetTorUploadForm = () => {
+    setTorUploadVersionName('');
+    setTorUploadFile(null);
+  };
+
+  const handleTorUploadDialogChange = (open: boolean) => {
+    setIsTorUploadDialogOpen(open);
+    if (!open) {
+      resetTorUploadForm();
+    }
+  };
+
+  const handleUploadTor = () => {
+    if (!torUploadFile) {
+      toast.error(t('projects.torAI.upload.fileRequiredToast'));
+      return;
+    }
+
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+    const allowedExtensions = ['pdf', 'doc', 'docx'];
+    const extension = torUploadFile.name.split('.').pop()?.toLowerCase() || '';
+
+    if (!allowedTypes.includes(torUploadFile.type) && !allowedExtensions.includes(extension)) {
+      toast.error(t('projects.torAI.upload.invalidFileToast'));
+      return;
+    }
+
+    const versionNumber = torHistory.length + 1;
+    const uploadedAt = new Date().toISOString();
+    const label = torUploadVersionName.trim() || `${t('projects.torAI.upload.defaultVersionName')} ${versionNumber}`;
+    const fileSizeKb = Math.max(1, Math.round(torUploadFile.size / 1024));
+
+    const newVersion: TorVersionEntry = {
+      id: `tor-upload-${Date.now()}`,
+      createdAt: uploadedAt,
+      label,
+      sourceFileName: torUploadFile.name,
+      sourceFileSize: torUploadFile.size,
+      sourceFileType: torUploadFile.type || extension.toUpperCase(),
+      sections: [
+        {
+          id: 'uploaded-source-document',
+          title: t('projects.torAI.upload.sourceDocumentSection'),
+          content: `${t('projects.torAI.upload.sourceFileLabel')}: ${torUploadFile.name}\n${t('projects.torAI.upload.sourceFileSizeLabel')}: ${fileSizeKb} KB`,
+        },
+      ],
+    };
+
+    setTorHistory((previous) => [newVersion, ...previous].slice(0, 20));
+    setTorCurrentVersionId(newVersion.id);
+    setTorDraftSections(null);
+    setTorDraftGeneratedAt(null);
+    setIsTorEditMode(false);
+    setIsTorUploadDialogOpen(false);
+    resetTorUploadForm();
+    toast.success(t('projects.torAI.upload.successToast'));
   };
 
   const handleViewTorVersion = (versionId: string) => {
@@ -1209,7 +1376,7 @@ export default function ProjectDetail() {
 
   const handleReuseTorVersion = (versionId: string) => {
     const selected = torHistory.find((entry) => entry.id === versionId);
-    if (!selected) return;
+    if (!selected?.sections) return;
 
     setTorDraftSections(selected.sections.map((section) => ({ ...section })));
     setTorDraftGeneratedAt(new Date().toISOString());
@@ -1248,6 +1415,17 @@ export default function ProjectDetail() {
   };
 
   const handleDownloadTor = () => {
+    const activeUploadedTor = activeSavedTorVersion && !activeSavedTorVersion.sections ? activeSavedTorVersion : null;
+    if (activeUploadedTor) {
+      const link = document.createElement('a');
+      link.href = activeUploadedTor.fileUrl;
+      link.download = activeUploadedTor.originalFileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
+
     if (!displayedTorSections) return;
 
     const fileName = `${project.title.replace(/\s+/g, '_')}_ToR.txt`;
@@ -1259,6 +1437,83 @@ export default function ProjectDetail() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(link.href);
+  };
+
+  const isAllowedTorFile = (file: File) => {
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    const allowedExtensions = ['pdf', 'doc', 'docx'];
+    const allowedMimeTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '',
+    ];
+
+    return Boolean(extension && allowedExtensions.includes(extension) && allowedMimeTypes.includes(file.type));
+  };
+
+  const resetTorUploadForm = () => {
+    setTorUploadVersionName('');
+    setTorUploadFile(null);
+    setTorUploadError('');
+  };
+
+  const handleOpenTorUploadDialog = () => {
+    resetTorUploadForm();
+    setIsTorUploadDialogOpen(true);
+  };
+
+  const handleUploadTor = () => {
+    const versionName = torUploadVersionName.trim();
+
+    if (!versionName) {
+      setTorUploadError('Enter a version name before uploading.');
+      return;
+    }
+
+    if (!torUploadFile) {
+      setTorUploadError('Choose a .pdf, .doc, or .docx file.');
+      return;
+    }
+
+    if (!isAllowedTorFile(torUploadFile)) {
+      setTorUploadError('Only .pdf, .doc, and .docx files are accepted.');
+      return;
+    }
+
+    setIsUploadingTor(true);
+    setTorUploadError('');
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const fileUrl = typeof reader.result === 'string' ? reader.result : '';
+      const extension = torUploadFile.name.split('.').pop()?.toLowerCase() || torUploadFile.type || 'file';
+      const newEntry: TorHistoryEntry = {
+        id: `tor-upload-${Date.now()}`,
+        projectId: id || project.id || 'project',
+        versionName,
+        originalFileName: torUploadFile.name,
+        fileType: extension,
+        source: 'USER_UPLOADED',
+        createdAt: new Date().toISOString(),
+        fileUrl,
+      };
+
+      setTorHistory((previous) => [newEntry, ...previous].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 20));
+      setTorCurrentVersionId(newEntry.id);
+      setTorDraftSections(null);
+      setTorDraftGeneratedAt(null);
+      setIsTorEditMode(false);
+      setIsUploadingTor(false);
+      setIsTorUploadDialogOpen(false);
+      resetTorUploadForm();
+      toast.success('ToR uploaded to history.');
+    };
+    reader.onerror = () => {
+      setIsUploadingTor(false);
+      setTorUploadError('Unable to read this file. Please try another document.');
+    };
+    reader.readAsDataURL(torUploadFile);
   };
 
   const latestRefProVersion = refProHistory[0] ?? null;
@@ -1384,6 +1639,62 @@ export default function ProjectDetail() {
                 <Button variant="outline" onClick={() => setIsProjectActionDialogOpen(false)}>Cancel</Button>
                 <Button onClick={confirmProjectAction}>
                   {pendingProjectAction === 'add' ? 'Confirm Add' : 'Confirm Remove'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isTorUploadDialogOpen} onOpenChange={handleTorUploadDialogChange}>
+            <DialogContent className="max-w-lg w-full">
+              <DialogHeader>
+                <DialogTitle>{t('projects.torAI.upload.title')}</DialogTitle>
+                <DialogDescription>{t('projects.torAI.upload.description')}</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="tor-upload-version-name" className="text-sm font-medium text-[#4A5568]">
+                    {t('projects.torAI.upload.versionNameLabel')}
+                  </label>
+                  <input
+                    id="tor-upload-version-name"
+                    type="text"
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-[#E63462]/50 focus:ring-2 focus:ring-[#E63462]/20"
+                    placeholder={t('projects.torAI.upload.versionNamePlaceholder')}
+                    value={torUploadVersionName}
+                    onChange={(event) => setTorUploadVersionName(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="tor-upload-file" className="text-sm font-medium text-[#4A5568]">
+                    {t('projects.torAI.upload.fileLabel')}
+                  </label>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <input
+                      id="tor-upload-file"
+                      type="file"
+                      accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      className="sr-only"
+                      onChange={(event) => setTorUploadFile(event.target.files?.[0] ?? null)}
+                    />
+                    <label
+                      htmlFor="tor-upload-file"
+                      className="inline-flex h-10 cursor-pointer items-center justify-center rounded-md border border-[#4A5568]/25 bg-white px-4 text-sm font-medium text-[#4A5568] hover:bg-[#F8FAFC]"
+                    >
+                      {t('projects.torAI.upload.chooseFile')}
+                    </label>
+                    <span className="min-w-0 truncate text-sm text-[#4A5568]/80">
+                      {torUploadFile ? torUploadFile.name : t('projects.torAI.upload.noFileChosen')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => handleTorUploadDialogChange(false)}>
+                  {t('common.cancel')}
+                </Button>
+                <Button onClick={handleUploadTor}>
+                  <Upload className="mr-2 h-4 w-4" />
+                  {t('projects.torAI.upload.confirmAction')}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -2554,6 +2865,24 @@ export default function ProjectDetail() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <Button
+                        variant="outline"
+                        className="min-h-11 border-[#E63462]/30 text-[#E63462] hover:bg-[#FFF1F4] hover:text-[#E63462]"
+                        onClick={handleOpenTorUploadDialog}
+                        disabled={!isProjectSaved || isUploadingTor || isGeneratingTor}
+                      >
+                        {isUploadingTor ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Upload ToR
+                          </>
+                        )}
+                      </Button>
+                      <Button
                         className="min-h-11 bg-[#4A5568] text-white hover:bg-[#3F4859]"
                         onClick={handleGenerateTor}
                         disabled={!isProjectSaved || isGeneratingTor}
@@ -2570,15 +2899,17 @@ export default function ProjectDetail() {
                           </>
                         )}
                       </Button>
-                      <Button
-                        variant="outline"
-                        className="min-h-11 border-[#E63462]/30 text-[#E63462] hover:bg-[#FFF1F4] hover:text-[#E63462]"
-                        onClick={handleSaveTor}
-                        disabled={!isProjectSaved || !torDraftSections || isGeneratingTor}
-                      >
-                        <Save className="mr-2 h-4 w-4" />
-                        {t('projects.torAI.saveAction')}
-                      </Button>
+                      {torDraftSections && (
+                        <Button
+                          variant="outline"
+                          className="min-h-11 border-[#E63462]/30 text-[#E63462] hover:bg-[#FFF1F4] hover:text-[#E63462]"
+                          onClick={handleSaveTor}
+                          disabled={!isProjectSaved || isGeneratingTor}
+                        >
+                          <Save className="mr-2 h-4 w-4" />
+                          {t('projects.torAI.saveAction')}
+                        </Button>
+                      )}
                     </div>
                   </div>
 
@@ -2603,7 +2934,7 @@ export default function ProjectDetail() {
                       <div className="rounded-2xl border border-[#4A5568]/15 bg-white p-4 sm:p-5">
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge variant="outline" className="border-[#4A5568]/25 bg-[#F8FAFC] text-[#4A5568]">
-                            {hasTorDraftPreview ? t('projects.torAI.unsavedBadge') : activeSavedTorVersion ? activeSavedTorVersion.label : t('projects.torAI.latestBadge')}
+                            {hasTorDraftPreview ? t('projects.torAI.unsavedBadge') : activeSavedTorVersion ? activeSavedTorVersion.versionName : t('projects.torAI.latestBadge')}
                           </Badge>
                           {hasTorDraftPreview && torDraftGeneratedAt && (
                             <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
@@ -2645,7 +2976,7 @@ export default function ProjectDetail() {
                             <Copy className="mr-1.5 h-3.5 w-3.5" />
                             {t('projects.torAI.copyAction')}
                           </Button>
-                          <Button size="sm" variant="outline" onClick={handleDownloadTor} disabled={!displayedTorSections}>
+                          <Button size="sm" variant="outline" onClick={handleDownloadTor} disabled={!displayedTorSections && !activeSavedTorVersion?.fileUrl}>
                             <Download className="mr-1.5 h-3.5 w-3.5" />
                             {t('projects.torAI.downloadAction')}
                           </Button>
@@ -2669,7 +3000,9 @@ export default function ProjectDetail() {
                             ))
                           ) : (
                             <div className="rounded-xl border border-dashed border-[#4A5568]/20 bg-[#F8FAFC] p-5 text-sm text-[#4A5568]/80">
-                              {t('projects.torAI.emptyState')}
+                              {activeSavedTorVersion?.source === 'USER_UPLOADED'
+                                ? 'This uploaded ToR is stored as a source document. Use Download to open the original file.'
+                                : t('projects.torAI.emptyState')}
                             </div>
                           )}
                         </div>
@@ -2686,17 +3019,21 @@ export default function ProjectDetail() {
                             {torHistory.map((entry) => {
                               const isLatest = latestTorVersion?.id === entry.id;
                               const isActive = !hasTorDraftPreview && activeSavedTorVersion?.id === entry.id;
-                              const previewText = entry.sections[0]?.content || '';
+                              const previewText = entry.sections?.[0]?.content || entry.extractedText || entry.originalFileName;
+                              const sourceLabel = entry.source === 'USER_UPLOADED' ? 'User uploaded' : 'AI generated';
 
                               return (
                                 <div key={entry.id} className={`flex flex-col gap-3 rounded-xl border p-3 ${isActive ? 'border-[#E63462]/30 bg-[#FFF1F4]' : 'border-[#4A5568]/10 bg-[#F8FAFC]'}`}>
                                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                     <div className="min-w-0 flex-1">
                                       <div className="flex flex-wrap items-center gap-2">
-                                        <p className="text-sm font-semibold text-[#4A5568]">{entry.label}</p>
+                                        <p className="text-sm font-semibold text-[#4A5568]">{entry.versionName}</p>
                                         {isLatest && <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">{t('projects.torAI.latestBadge')}</Badge>}
+                                        <Badge variant="outline" className={entry.source === 'USER_UPLOADED' ? 'border-sky-200 bg-sky-50 text-sky-700' : 'border-[#E63462]/20 bg-[#FFF1F4] text-[#E63462]'}>
+                                          {sourceLabel}
+                                        </Badge>
                                       </div>
-                                      <p className="text-xs text-[#4A5568]/75">{new Date(entry.createdAt).toLocaleString()}</p>
+                                      <p className="text-xs text-[#4A5568]/75">{entry.originalFileName} - {new Date(entry.createdAt).toLocaleString()}</p>
                                       <p className="mt-2 line-clamp-2 text-xs text-[#4A5568]/85">
                                         {previewText}
                                       </p>
@@ -2706,10 +3043,19 @@ export default function ProjectDetail() {
                                         <Eye className="mr-1.5 h-3.5 w-3.5" />
                                         {t('projects.torAI.viewAction')}
                                       </Button>
-                                      <Button size="sm" variant="outline" onClick={() => handleReuseTorVersion(entry.id)}>
-                                        <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-                                        {t('projects.torAI.reuseAction')}
-                                      </Button>
+                                      {entry.sections ? (
+                                        <Button size="sm" variant="outline" onClick={() => handleReuseTorVersion(entry.id)}>
+                                          <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                                          {t('projects.torAI.reuseAction')}
+                                        </Button>
+                                      ) : (
+                                        <Button size="sm" variant="outline" asChild>
+                                          <a href={entry.fileUrl} download={entry.originalFileName}>
+                                            <Download className="mr-1.5 h-3.5 w-3.5" />
+                                            {t('projects.torAI.downloadAction')}
+                                          </a>
+                                        </Button>
+                                      )}
                                       <Button size="sm" variant="outline" className="border-[#E63462]/30 text-[#E63462] hover:bg-[#FFF1F4] hover:text-[#E63462]" onClick={() => handleDeleteTorVersion(entry.id)}>
                                         <Trash2 className="mr-1.5 h-3.5 w-3.5" />
                                         {t('projects.torAI.deleteAction')}
@@ -2735,6 +3081,80 @@ export default function ProjectDetail() {
           </div>
         </main>
       </PageContainer>
+
+      <Dialog open={isTorUploadDialogOpen} onOpenChange={(open) => {
+        if (!open && !isUploadingTor) {
+          setIsTorUploadDialogOpen(false);
+          resetTorUploadForm();
+        } else {
+          setIsTorUploadDialogOpen(open);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>Upload ToR</DialogTitle>
+            <DialogDescription>
+              Add a PDF, DOC, or DOCX source document to this project&apos;s ToR History.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-[#4A5568]" htmlFor="tor-upload-version-name">
+                Version name
+              </label>
+              <input
+                id="tor-upload-version-name"
+                className="min-h-10 w-full rounded-md border border-[#4A5568]/20 bg-white px-3 py-2 text-sm text-[#4A5568] focus:border-[#E63462]/50 focus:outline-none focus:ring-2 focus:ring-[#E63462]/20"
+                value={torUploadVersionName}
+                onChange={(event) => setTorUploadVersionName(event.target.value)}
+                placeholder="e.g. Client ToR v1"
+                disabled={isUploadingTor}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-[#4A5568]" htmlFor="tor-upload-file">
+                ToR file
+              </label>
+              <input
+                id="tor-upload-file"
+                className="min-h-10 w-full rounded-md border border-[#4A5568]/20 bg-white px-3 py-2 text-sm text-[#4A5568] file:mr-3 file:rounded-md file:border-0 file:bg-[#F8FAFC] file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-[#4A5568]"
+                type="file"
+                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                onChange={(event) => {
+                  const file = event.target.files?.[0] || null;
+                  setTorUploadFile(file);
+                  if (file && !isAllowedTorFile(file)) {
+                    setTorUploadError('Only .pdf, .doc, and .docx files are accepted.');
+                  } else {
+                    setTorUploadError('');
+                  }
+                }}
+                disabled={isUploadingTor}
+              />
+            </div>
+            {torUploadError && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {torUploadError}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsTorUploadDialogOpen(false)} disabled={isUploadingTor}>
+              {t('common.cancel')}
+            </Button>
+            <Button type="button" onClick={handleUploadTor} disabled={isUploadingTor}>
+              {isUploadingTor ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                'Upload ToR'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={Boolean(taskToAssign)} onOpenChange={(open) => !open && setTaskToAssign(null)}>
         <DialogContent className="sm:max-w-md">

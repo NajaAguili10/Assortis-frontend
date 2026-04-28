@@ -13,6 +13,7 @@ import {
   RegionEnum,
   AvailabilityEnum,
   CertificationTypeEnum,
+  WritingExperienceDTO,
 } from '../types/expert.dto';
 
 // Extended type pour l'usage interne avec champs additionnels
@@ -23,6 +24,137 @@ interface ExpertListDTOInternal extends ExpertListDTO {
   availabilityLabel: string;
   rate: string;
 }
+
+const bidWriterExperienceSamples: Record<string, WritingExperienceDTO> = {
+  '7': {
+    writingMethodologies: ['TA', 'Grants'],
+    writingContributions: ["Reviewing others' contributions", 'Writing methodologies in full', 'Proofreading and editing'],
+    writingLanguages: ['English', 'Spanish'],
+    comfortableToWriteOn: 'Governance reform, public administration, civil society strengthening, institutional capacity building',
+    donorProcurementExperience: 'USAID, World Bank, FCDO, EU PRAG and UN agency proposal procedures',
+    writingComments: 'Strong at turning mixed technical inputs into a coherent win theme and compliant methodology.',
+    writingExperienceRows: [
+      {
+        id: 'writer-7-row-1',
+        titleOfTenderProject: 'Public Financial Management Reform Facility',
+        donor: 'World Bank',
+        country: 'Ghana',
+        year: '2024',
+        indicativePagesWritten: '42',
+        result: 'won',
+        referencePersonProjectManager: 'Helen Carter',
+        additionalInformation: 'Led methodology, staffing narrative, and compliance review.',
+      },
+      {
+        id: 'writer-7-row-2',
+        titleOfTenderProject: 'Local Governance Accountability Programme',
+        donor: 'FCDO',
+        country: 'Kenya',
+        year: '2023',
+        indicativePagesWritten: '36',
+        result: 'won',
+        referencePersonProjectManager: 'Omar Lewis',
+        additionalInformation: 'Reviewed partner inputs and edited final technical proposal.',
+      },
+    ],
+  },
+  '8': {
+    writingMethodologies: ['TA', 'FWC'],
+    writingContributions: ['Contributing with technical inputs', 'Writing methodologies in full'],
+    writingLanguages: ['Spanish', 'English', 'Portuguese'],
+    comfortableToWriteOn: 'Infrastructure, agriculture value chains, logistics, regional development and climate-resilient services',
+    donorProcurementExperience: 'IDB, CAF, EU FWC, World Bank and national procurement portals',
+    writingComments: 'Excellent with tight compliance matrices and converting technical designs into clear tender responses.',
+    writingExperienceRows: [
+      {
+        id: 'writer-8-row-1',
+        titleOfTenderProject: 'Rural Roads Climate Resilience Technical Assistance',
+        donor: 'IDB',
+        country: 'Peru',
+        year: '2024',
+        indicativePagesWritten: '28',
+        result: 'lost',
+        referencePersonProjectManager: 'Lucia Moreno',
+        additionalInformation: 'Prepared implementation approach and quality assurance sections.',
+      },
+      {
+        id: 'writer-8-row-2',
+        titleOfTenderProject: 'Agricultural Market Systems FWC Assignment',
+        donor: 'European Union',
+        country: 'Colombia',
+        year: '2022',
+        indicativePagesWritten: '31',
+        result: 'won',
+        referencePersonProjectManager: 'Mateo Silva',
+        additionalInformation: 'Consolidated expert inputs in English and Spanish.',
+      },
+    ],
+  },
+  '9': {
+    writingMethodologies: ['Grants', 'FWC'],
+    writingContributions: ["Reviewing others' contributions", 'Proofreading and editing'],
+    writingLanguages: ['English', 'French'],
+    comfortableToWriteOn: 'Education, health systems, gender inclusion, NGO grants and donor reporting frameworks',
+    donorProcurementExperience: 'UNICEF, Global Affairs Canada, EU grants, Gates Foundation and UNOPS',
+    writingComments: 'Particularly strong on grant logic, editorial polish, donor terminology and results frameworks.',
+    writingExperienceRows: [
+      {
+        id: 'writer-9-row-1',
+        titleOfTenderProject: 'Inclusive Education Grant Proposal',
+        donor: 'UNICEF',
+        country: 'Senegal',
+        year: '2023',
+        indicativePagesWritten: '24',
+        result: 'won',
+        referencePersonProjectManager: 'Nadia Bell',
+        additionalInformation: 'Edited full proposal and rewrote results framework narrative.',
+      },
+      {
+        id: 'writer-9-row-2',
+        titleOfTenderProject: 'Primary Health Outreach Programme',
+        donor: 'Global Affairs Canada',
+        country: 'Rwanda',
+        year: '2021',
+        indicativePagesWritten: '39',
+        result: 'won',
+        referencePersonProjectManager: 'Claire Martin',
+        additionalInformation: 'Reviewed technical annexes and final proofread.',
+      },
+    ],
+  },
+  '10': {
+    writingMethodologies: ['TA', 'FWC'],
+    writingContributions: ['Contributing with technical inputs', 'Writing methodologies in full', 'Proofreading and editing'],
+    writingLanguages: ['English', 'German'],
+    comfortableToWriteOn: 'Digital transformation, infrastructure, e-government platforms, data systems and technology-enabled services',
+    donorProcurementExperience: 'ADB, KfW, GIZ, World Bank and EU FWC procedures',
+    writingComments: 'Combines technical architecture fluency with practical proposal structure and delivery planning.',
+    writingExperienceRows: [
+      {
+        id: 'writer-10-row-1',
+        titleOfTenderProject: 'Digital Government Interoperability Platform',
+        donor: 'ADB',
+        country: 'Indonesia',
+        year: '2024',
+        indicativePagesWritten: '45',
+        result: 'won',
+        referencePersonProjectManager: 'Daniel Koh',
+        additionalInformation: 'Wrote technical methodology, workplan and risk management approach.',
+      },
+      {
+        id: 'writer-10-row-2',
+        titleOfTenderProject: 'Municipal Infrastructure Data Hub',
+        donor: 'KfW',
+        country: 'Georgia',
+        year: '2022',
+        indicativePagesWritten: '33',
+        result: 'lost',
+        referencePersonProjectManager: 'Anna Weber',
+        additionalInformation: 'Prepared systems integration narrative and implementation schedule.',
+      },
+    ],
+  },
+};
 
 // Mock Data for Experts
 const mockExperts: ExpertListDTOInternal[] = [
@@ -266,6 +398,7 @@ const mockExperts: ExpertListDTOInternal[] = [
     profileCompleteness: 96,
     verified: true,
     lastActive: '2024-02-24T10:00:00Z',
+    writingExperience: bidWriterExperienceSamples['7'],
   },
   {
     id: '8',
@@ -301,6 +434,7 @@ const mockExperts: ExpertListDTOInternal[] = [
     profileCompleteness: 89,
     verified: false,
     lastActive: '2024-02-22T15:45:00Z',
+    writingExperience: bidWriterExperienceSamples['8'],
   },
   {
     id: '9',
@@ -335,6 +469,7 @@ const mockExperts: ExpertListDTOInternal[] = [
     profileCompleteness: 94,
     verified: true,
     lastActive: '2024-02-23T11:30:00Z',
+    writingExperience: bidWriterExperienceSamples['9'],
   },
   {
     id: '10',
@@ -369,6 +504,7 @@ const mockExperts: ExpertListDTOInternal[] = [
     profileCompleteness: 91,
     verified: true,
     lastActive: '2024-02-24T08:20:00Z',
+    writingExperience: bidWriterExperienceSamples['10'],
   },
 ];
 
