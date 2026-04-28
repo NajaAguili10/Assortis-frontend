@@ -24,5 +24,11 @@ export default defineConfig({
   // Bind the dev server to all network interfaces so other devices can connect
   server: {
     host: '0.0.0.0',
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8082',
+        changeOrigin: true,
+      },
+    },
   },
 })
