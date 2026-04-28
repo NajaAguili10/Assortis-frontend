@@ -25,7 +25,7 @@ import {
 import { useExperts } from '@app/modules/expert/hooks/useExperts';
 import { generateCV } from '@app/modules/expert/services/cvGenerator.service';
 import type { ExpertProfile } from '@app/modules/expert/services/expertsData.service';
-import { ExpertStatusEnum } from '@app/modules/expert/types/expert.dto';
+import { ExpertStatusEnum, type WritingContribution, type WritingLanguage, type WritingMethodology } from '@app/modules/expert/types/expert.dto';
 import { SECTOR_SUBSECTOR_MAP } from '@app/config/subsectors.config';
 import { SectorEnum, SubSectorEnum, RegionEnum, CountryEnum, REGION_COUNTRY_MAP } from '@app/types/tender.dto';
 import { Search, MapPin, Star, Briefcase, CheckCircle, UserCheck, Clock, TrendingUp, X, Filter, ChevronDown, UserCircle, Plus, Download, Trash2, Sparkles } from 'lucide-react';
@@ -53,6 +53,12 @@ interface ExpertsSavedPayload {
   selectedCountries: CountryEnum[];
   selectedExperience: string[];
   sourceFilter: ExpertSourceFilter;
+  selectedWritingMethodologies?: WritingMethodology[];
+  selectedWritingContributions?: WritingContribution[];
+  selectedWritingLanguages?: WritingLanguage[];
+  comfortableToWriteOnQuery?: string;
+  donorProcurementQuery?: string;
+  writingCommentsQuery?: string;
 }
 
 interface SavedSearchEntry<TPayload> {
@@ -68,6 +74,15 @@ interface AiExpertMatch {
   title: string;
   compatibility: number;
 }
+
+const WRITING_METHODOLOGY_OPTIONS: WritingMethodology[] = ['TA', 'FWC', 'Grants'];
+const WRITING_CONTRIBUTION_OPTIONS: WritingContribution[] = [
+  "Reviewing others' contributions",
+  'Contributing with technical inputs',
+  'Writing methodologies in full',
+  'Proofreading and editing',
+];
+const WRITING_LANGUAGE_OPTIONS: WritingLanguage[] = ['English', 'French', 'Spanish', 'Portuguese', 'German'];
 
 const isBidWriter = (expert: { title?: string; bio?: string; skills?: string[] }) => {
   const haystack = `${expert.title || ''} ${expert.bio || ''} ${(expert.skills || []).join(' ')}`.toLowerCase();
@@ -96,6 +111,13 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
   const [showFilters, setShowFilters] = useState(mode === 'experts');
   const [showSectorFilters, setShowSectorFilters] = useState(false);
   const [showRegionFilters, setShowRegionFilters] = useState(false);
+  const [showWritingFilters, setShowWritingFilters] = useState(mode === 'bid-writers');
+  const [selectedWritingMethodologies, setSelectedWritingMethodologies] = useState<WritingMethodology[]>([]);
+  const [selectedWritingContributions, setSelectedWritingContributions] = useState<WritingContribution[]>([]);
+  const [selectedWritingLanguages, setSelectedWritingLanguages] = useState<WritingLanguage[]>([]);
+  const [comfortableToWriteOnQuery, setComfortableToWriteOnQuery] = useState('');
+  const [donorProcurementQuery, setDonorProcurementQuery] = useState('');
+  const [writingCommentsQuery, setWritingCommentsQuery] = useState('');
   const [pendingUnlockExpert, setPendingUnlockExpert] = useState<PendingUnlockExpert | null>(null);
   const [savedSearches, setSavedSearches] = useState<SavedSearchEntry<ExpertsSavedPayload>[]>([]);
   const [hasSearched, setHasSearched] = useState(mode !== 'experts');
@@ -183,8 +205,85 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
       });
     }
 
+    if (mode === 'bid-writers') {
+      const normalize = (value: string | undefined) => (value || '').toLowerCase();
+      const matchesText = (haystack: string, needle: string) => normalize(haystack).includes(normalize(needle.trim()));
+
+      filtered = filtered.filter((expert) => {
+        const writing = expert.writingExperience;
+        if (!writing) return false;
+
+        if (
+          selectedWritingMethodologies.length > 0 &&
+          !writing.writingMethodologies.some((item) => selectedWritingMethodologies.includes(item))
+        ) {
+          return false;
+        }
+
+        if (
+          selectedWritingContributions.length > 0 &&
+          !writing.writingContributions.some((item) => selectedWritingContributions.includes(item))
+        ) {
+          return false;
+        }
+
+        if (
+          selectedWritingLanguages.length > 0 &&
+          !writing.writingLanguages.some((item) => selectedWritingLanguages.includes(item))
+        ) {
+          return false;
+        }
+
+        const rowText = writing.writingExperienceRows
+          .map((row) =>
+            [
+              row.titleOfTenderProject,
+              row.donor,
+              row.country,
+              row.year,
+              row.indicativePagesWritten,
+              row.result,
+              row.referencePersonProjectManager,
+              row.additionalInformation,
+            ].join(' ')
+          )
+          .join(' ');
+
+        if (comfortableToWriteOnQuery.trim() && !matchesText(`${writing.comfortableToWriteOn} ${rowText}`, comfortableToWriteOnQuery)) {
+          return false;
+        }
+
+        if (donorProcurementQuery.trim() && !matchesText(`${writing.donorProcurementExperience} ${rowText}`, donorProcurementQuery)) {
+          return false;
+        }
+
+        if (writingCommentsQuery.trim() && !matchesText(`${writing.writingComments} ${rowText}`, writingCommentsQuery)) {
+          return false;
+        }
+
+        return true;
+      });
+    }
+
     return filtered;
-  }, [experts.data, libraryExpertIds, mode, searchQuery, selectedCountries, selectedExperience, selectedRegions, selectedSectors, selectedSubSectors, sourceFilter]);
+  }, [
+    comfortableToWriteOnQuery,
+    donorProcurementQuery,
+    experts.data,
+    libraryExpertIds,
+    mode,
+    searchQuery,
+    selectedCountries,
+    selectedExperience,
+    selectedRegions,
+    selectedSectors,
+    selectedSubSectors,
+    selectedWritingContributions,
+    selectedWritingLanguages,
+    selectedWritingMethodologies,
+    sourceFilter,
+    writingCommentsQuery,
+  ]);
 
   useEffect(() => {
     const q = (searchParams.get('q') || '').trim();
@@ -246,7 +345,12 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
     setPendingUnlockExpert(null);
   };
 
-  const activeFiltersCount = selectedSectors.length + selectedSubSectors.length + selectedRegions.length + selectedCountries.length + selectedExperience.length + (sourceFilter === 'all' ? 0 : 1);
+  const writingTextFilterCount = [comfortableToWriteOnQuery, donorProcurementQuery, writingCommentsQuery].filter((value) => value.trim()).length;
+  const bidWriterFiltersCount =
+    mode === 'bid-writers'
+      ? selectedWritingMethodologies.length + selectedWritingContributions.length + selectedWritingLanguages.length + writingTextFilterCount
+      : 0;
+  const activeFiltersCount = selectedSectors.length + selectedSubSectors.length + selectedRegions.length + selectedCountries.length + selectedExperience.length + (sourceFilter === 'all' ? 0 : 1) + bidWriterFiltersCount;
 
   const clearAllFilters = () => {
     setSearchQuery('');
@@ -256,6 +360,12 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
     setSelectedCountries([]);
     setSelectedExperience([]);
     setSourceFilter('all');
+    setSelectedWritingMethodologies([]);
+    setSelectedWritingContributions([]);
+    setSelectedWritingLanguages([]);
+    setComfortableToWriteOnQuery('');
+    setDonorProcurementQuery('');
+    setWritingCommentsQuery('');
   };
 
   const readSavedSearches = (): SavedSearchEntry<ExpertsSavedPayload>[] => {
@@ -291,6 +401,12 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
     setSelectedCountries(payload.selectedCountries || []);
     setSelectedExperience(payload.selectedExperience || []);
     setSourceFilter(payload.sourceFilter || 'all');
+    setSelectedWritingMethodologies(payload.selectedWritingMethodologies || []);
+    setSelectedWritingContributions(payload.selectedWritingContributions || []);
+    setSelectedWritingLanguages(payload.selectedWritingLanguages || []);
+    setComfortableToWriteOnQuery(payload.comfortableToWriteOnQuery || '');
+    setDonorProcurementQuery(payload.donorProcurementQuery || '');
+    setWritingCommentsQuery(payload.writingCommentsQuery || '');
     setHasSearched(true);
   };
 
@@ -315,6 +431,12 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
         selectedCountries,
         selectedExperience,
         sourceFilter,
+        selectedWritingMethodologies,
+        selectedWritingContributions,
+        selectedWritingLanguages,
+        comfortableToWriteOnQuery,
+        donorProcurementQuery,
+        writingCommentsQuery,
       },
     };
 
@@ -702,6 +824,131 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
                 </Popover>
               </div>
             </div>
+
+            {mode === 'bid-writers' && (
+              <div className="mt-5 rounded-lg border border-gray-200 bg-slate-50/40">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                  onClick={() => setShowWritingFilters((prev) => !prev)}
+                >
+                  <span>
+                    <span className="block text-sm font-semibold text-primary">Writing Experience</span>
+                    <span className="block text-xs text-muted-foreground">Filter bid writers by proposal-writing methodology, contribution, language and donor experience.</span>
+                  </span>
+                  <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${showWritingFilters ? 'rotate-180' : ''}`} />
+                </button>
+
+                {showWritingFilters && (
+                  <div className="space-y-5 border-t border-gray-200 p-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">Methodologies</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {WRITING_METHODOLOGY_OPTIONS.map((option) => {
+                          const selected = selectedWritingMethodologies.includes(option);
+                          return (
+                            <Button
+                              key={option}
+                              type="button"
+                              size="sm"
+                              variant={selected ? 'default' : 'outline'}
+                              onClick={() =>
+                                setSelectedWritingMethodologies((previous) =>
+                                  selected ? previous.filter((item) => item !== option) : [...previous, option]
+                                )
+                              }
+                            >
+                              {selected && <CheckCircle className="mr-1.5 h-3.5 w-3.5" />}
+                              {option}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">Contribution</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {WRITING_CONTRIBUTION_OPTIONS.map((option) => {
+                          const selected = selectedWritingContributions.includes(option);
+                          return (
+                            <Button
+                              key={option}
+                              type="button"
+                              size="sm"
+                              variant={selected ? 'default' : 'outline'}
+                              onClick={() =>
+                                setSelectedWritingContributions((previous) =>
+                                  selected ? previous.filter((item) => item !== option) : [...previous, option]
+                                )
+                              }
+                            >
+                              {selected && <CheckCircle className="mr-1.5 h-3.5 w-3.5" />}
+                              {option}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">Languages</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {WRITING_LANGUAGE_OPTIONS.map((option) => {
+                          const selected = selectedWritingLanguages.includes(option);
+                          return (
+                            <Button
+                              key={option}
+                              type="button"
+                              size="sm"
+                              variant={selected ? 'default' : 'outline'}
+                              onClick={() =>
+                                setSelectedWritingLanguages((previous) =>
+                                  selected ? previous.filter((item) => item !== option) : [...previous, option]
+                                )
+                              }
+                            >
+                              {selected && <CheckCircle className="mr-1.5 h-3.5 w-3.5" />}
+                              {option}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="bid-writer-comfortable">Expert is comfortable to write on</Label>
+                        <Input
+                          id="bid-writer-comfortable"
+                          value={comfortableToWriteOnQuery}
+                          onChange={(event) => setComfortableToWriteOnQuery(event.target.value)}
+                          placeholder="e.g. governance, health, infrastructure"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="bid-writer-donors">Experience with donors procurement procedures</Label>
+                        <Input
+                          id="bid-writer-donors"
+                          value={donorProcurementQuery}
+                          onChange={(event) => setDonorProcurementQuery(event.target.value)}
+                          placeholder="e.g. EU PRAG, World Bank, USAID"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="bid-writer-comments">Writing experience: comments by experts</Label>
+                        <Input
+                          id="bid-writer-comments"
+                          value={writingCommentsQuery}
+                          onChange={(event) => setWritingCommentsQuery(event.target.value)}
+                          placeholder="e.g. compliance, editing, win theme"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>
