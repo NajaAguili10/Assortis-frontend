@@ -16,9 +16,11 @@ import {
 } from '@app/components/ui/select';
 import { toast } from 'sonner';
 import { useState, useMemo } from 'react';
-import { ListChecks, ArrowLeft, CheckCircle2, X } from 'lucide-react';
+import { ListChecks, ArrowLeft, CheckCircle2, X, Info } from 'lucide-react';
 import { useProjects } from '@app/hooks/useProjects';
 import { useExperts } from '@app/modules/expert/hooks/useExperts';
+import { useAuth } from '@app/contexts/AuthContext';
+import { canAssignProjectTasks } from '@app/services/permissions.service';
 import { ProjectListDTO, ProjectPriorityEnum } from '@app/types/project.dto';
 import { useProjectsContext } from '@app/contexts/ProjectsContext';
 
@@ -44,6 +46,8 @@ interface Dependency {
 export default function NewTask() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canAssign = canAssignProjectTasks(user?.accountType);
   const { addTask } = useProjectsContext();
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 7;
@@ -204,13 +208,16 @@ export default function NewTask() {
         }
         return true;
       case 5:
-        if (!assignmentInfo.assignedTo) {
-          toast.error(t('projects.task.validation.assignedTo'));
-          return false;
-        }
-        if (!assignmentInfo.taskOwner) {
-          toast.error(t('common.fillRequired'));
-          return false;
+        // Assignment step — only validate for admins
+        if (canAssign) {
+          if (!assignmentInfo.assignedTo) {
+            toast.error(t('projects.task.validation.assignedTo'));
+            return false;
+          }
+          if (!assignmentInfo.taskOwner) {
+            toast.error(t('common.fillRequired'));
+            return false;
+          }
         }
         return true;
       case 6:
@@ -241,10 +248,10 @@ export default function NewTask() {
   };
 
   const handleSubmit = () => {
-    // Obtenir les noms d'experts assignés
-    const assignedToNames = organizationExperts
+    // Obtenir les experts assignés avec TaskAssigneeDTO structure
+    const assignedToList = organizationExperts
       .filter(e => e.id === assignmentInfo.assignedTo || collaborators.some(c => c.expertId === e.id))
-      .map(e => e.name);
+      .map(e => ({ id: e.id, name: e.name, role: e.role }));
 
     // Créer la nouvelle tâche avec toutes les données requises par le DTO
     const newTask = {
@@ -255,7 +262,7 @@ export default function NewTask() {
       description: basicInfo.description,
       status: taskDetails.status,
       priority: taskDetails.priority as ProjectPriorityEnum,
-      assignedTo: assignedToNames.length > 0 ? assignedToNames : ['Unassigned'],
+      assignedTo: assignedToList.length > 0 ? assignedToList : [{ id: 'unassigned', name: 'Unassigned' }],
       startDate: datesInfo.estimatedStartDate,
       dueDate: datesInfo.estimatedEndDate,
       tags: [taskDetails.category, generalInfo.taskType].filter(Boolean),
@@ -579,6 +586,14 @@ export default function NewTask() {
       case 5:
         return (
           <div className="grid gap-6">
+            {!canAssign && (
+              <div className="flex items-start gap-2 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                <span>{t('projects.tasks.assignHint')}</span>
+              </div>
+            )}
+            {canAssign && (
+            <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="assignedTo">{t('projects.task.assignedTo')} *</Label>
@@ -689,6 +704,8 @@ export default function NewTask() {
                 </div>
               ))}
             </div>
+            </>
+            )}
           </div>
         );
 

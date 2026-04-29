@@ -3,7 +3,7 @@ import { useLanguage } from '@app/contexts/LanguageContext';
 import { useNavigate, useParams } from 'react-router';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
-import { SubMenu } from '@app/components/SubMenu';
+import { TrainingSubMenu } from '@app/components/TrainingSubMenu';
 import { Button } from '@app/components/ui/button';
 import { Badge } from '@app/components/ui/badge';
 import { useTraining } from '@app/hooks/useTraining';
@@ -198,14 +198,7 @@ export default function TrainingProgramDetails() {
             { value: kpis.enrolledPrograms.toString(), label: t('training.stats.enrolledPrograms') }
           ]}
         />
-        <SubMenu
-          items={[
-            { label: t('training.submenu.catalog'), icon: BookOpen, onClick: () => navigate('/training/catalog') },
-            { label: t('training.submenu.liveSessions'), icon: Video, onClick: () => navigate('/training/live-sessions') },
-            { label: t('training.submenu.trainers'), icon: UserCheck, onClick: () => navigate('/training/trainers') },
-            { label: t('training.submenu.certifications'), icon: Award, onClick: () => navigate('/training/certifications') },
-          ]}
-        />
+        <TrainingSubMenu />
         <PageContainer className="my-6">
           <div className="px-4 sm:px-5 lg:px-6 py-6">
             <div className="text-center py-12 bg-white rounded-lg border">
@@ -237,14 +230,7 @@ export default function TrainingProgramDetails() {
       />
 
       {/* Sub Menu */}
-      <SubMenu
-        items={[
-          { label: t('training.submenu.catalog'), icon: BookOpen, onClick: () => navigate('/training/catalog') },
-          { label: t('training.submenu.liveSessions'), icon: Video, onClick: () => navigate('/training/live-sessions') },
-          { label: t('training.submenu.trainers'), icon: UserCheck, onClick: () => navigate('/training/trainers') },
-          { label: t('training.submenu.certifications'), icon: Award, onClick: () => navigate('/training/certifications') },
-        ]}
-      />
+      <TrainingSubMenu />
 
       <PageContainer className="my-6">
         <div className="px-4 sm:px-5 lg:px-6 py-6">
@@ -502,7 +488,7 @@ export default function TrainingProgramDetails() {
                       variant="outline"
                       className="w-full h-12 text-base border-[#3d4654] text-[#3d4654] hover:bg-gray-50"
                       size="lg"
-                      onClick={() => navigate('/training/certifications')}
+                      onClick={() => navigate('/training/portfolio')}
                     >
                       <Award className="w-5 h-5 mr-2" />
                       {t('training.actions.viewCertificate')}

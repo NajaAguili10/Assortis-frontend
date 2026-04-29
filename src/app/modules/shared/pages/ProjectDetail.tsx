@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useLocation, useNavigate } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
+import { useAuth } from '@app/contexts/AuthContext';
 import { useProjects } from '@app/hooks/useProjects';
 import { useExperts } from '@app/modules/expert/hooks/useExperts';
 import { usePipeline } from '@app/modules/expert/hooks/usePipeline';
@@ -11,11 +12,13 @@ import { PageContainer } from '@app/components/PageContainer';
 import { ProjectsSubMenu } from '@app/components/ProjectsSubMenu';
 import { SearchSectionTabs, type SearchSectionTab } from '@app/components/SearchSectionTabs';
 import { TendersSubMenu } from '@app/components/TendersSubMenu';
+import { ContactOrganizationDialog } from '@app/components/ContactOrganizationDialog';
 import { Badge } from '@app/components/ui/badge';
 import { Button } from '@app/components/ui/button';
 import { Progress } from '@app/components/ui/progress';
 import { Alert, AlertDescription } from '@app/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@app/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@app/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@app/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@app/components/ui/accordion';
 import { toast } from 'sonner';
@@ -35,6 +38,7 @@ import {
   Sparkles,
   Lock,
   Star,
+  TrendingDown,
   TrendingUp,
   WandSparkles,
   Download,
@@ -50,8 +54,13 @@ import {
   Trash2,
   X,
   Bookmark,
+  UserPlus,
+  Upload,
+  Mail,
 } from 'lucide-react';
 import { ProjectStatusEnum, ProjectPriorityEnum } from '@app/types/project.dto';
+import { aiDiscountSamples, expertPricingBySeniority } from '@app/modules/shared/data/statistics.mock';
+import { canAssignProjectTasks } from '@app/services/permissions.service';
 
 type LifecycleGroupKey = 'early-intelligence' | 'open-procurement' | 'contract-shortlist';
 
@@ -138,11 +147,23 @@ interface TorSection {
   content: string;
 }
 
-interface TorVersionEntry {
+type TorHistorySource = 'USER_UPLOADED' | 'AI_GENERATED';
+
+interface TorHistoryEntry {
   id: string;
+  projectId: string;
   createdAt: string;
   label: string;
-  sections: TorSection[];
+  sourceFileName?: string;
+  sourceFileSize?: number;
+  sourceFileType?: string;
+  versionName: string;
+  originalFileName: string;
+  fileType: string;
+  source: TorHistorySource;
+  fileUrl: string;
+  extractedText?: string;
+  sections?: TorSection[];
 }
 
 function readSavedProjectIds(): string[] {
@@ -209,7 +230,7 @@ function writeRefProHistory(projectId: string | undefined, history: RefProVersio
   }
 }
 
-function readTorHistory(projectId?: string): TorVersionEntry[] {
+function readTorHistory(projectId?: string): TorHistoryEntry[] {
   if (!projectId) return [];
 
   try {
@@ -219,25 +240,88 @@ function readTorHistory(projectId?: string): TorVersionEntry[] {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
 
-    return parsed.filter((entry): entry is TorVersionEntry => {
-      return (
-        Boolean(entry) &&
-        typeof entry.id === 'string' &&
-        typeof entry.createdAt === 'string' &&
-        typeof entry.label === 'string' &&
-        Array.isArray(entry.sections)
-      );
-    });
+    return parsed
+      .map((entry): TorHistoryEntry | null => {
+        if (!entry || typeof entry !== 'object' || typeof entry.id !== 'string' || typeof entry.createdAt !== 'string') {
+          return null;
+        }
+
+        if (
+          typeof entry.versionName === 'string' &&
+          typeof entry.originalFileName === 'string' &&
+          typeof entry.fileType === 'string' &&
+          (entry.source === 'USER_UPLOADED' || entry.source === 'AI_GENERATED') &&
+          typeof entry.fileUrl === 'string'
+        ) {
+          return {
+            id: entry.id,
+            projectId: typeof entry.projectId === 'string' ? entry.projectId : projectId,
+            createdAt: entry.createdAt,
+            versionName: entry.versionName,
+            originalFileName: entry.originalFileName,
+            fileType: entry.fileType,
+            source: entry.source,
+            fileUrl: entry.fileUrl,
+            extractedText: typeof entry.extractedText === 'string' ? entry.extractedText : undefined,
+            sections: Array.isArray(entry.sections) ? entry.sections : undefined,
+          };
+        }
+
+        if (typeof entry.label === 'string' && Array.isArray(entry.sections)) {
+          const plainText = buildTorPlainText(entry.sections);
+          return {
+            id: entry.id,
+            projectId,
+            createdAt: entry.createdAt,
+            versionName: entry.label,
+            originalFileName: `${entry.label}.txt`,
+            fileType: 'txt',
+            source: 'AI_GENERATED',
+            fileUrl: `data:text/plain;charset=utf-8,${encodeURIComponent(plainText)}`,
+            extractedText: plainText,
+            sections: entry.sections,
+          };
+        }
+
+        return null;
+      })
+      .filter((entry): entry is TorHistoryEntry => Boolean(entry))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   } catch (error) {
     return [];
   }
 }
 
-function writeTorHistory(projectId: string | undefined, history: TorVersionEntry[]) {
+function writeTorHistory(projectId: string | undefined, history: TorHistoryEntry[]) {
   if (!projectId) return;
 
   try {
     localStorage.setItem(`projects.tor.history.${projectId}`, JSON.stringify(history));
+  } catch (error) {
+    // Ignore storage errors to preserve current mock behavior.
+  }
+}
+
+function buildTorPlainText(sections: TorSection[]) {
+  return sections.map((section) => `${section.title}\n\n${section.content}`).join('\n\n---\n\n');
+}
+
+const PARTNER_VISIBILITY_STORAGE_KEY = 'myProjects.partnerVisibility';
+
+function readPartnerVisibility(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(PARTNER_VISIBILITY_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function writePartnerVisibility(visibility: Record<string, boolean>) {
+  try {
+    localStorage.setItem(PARTNER_VISIBILITY_STORAGE_KEY, JSON.stringify(visibility));
   } catch (error) {
     // Ignore storage errors to preserve current mock behavior.
   }
@@ -298,6 +382,7 @@ export default function ProjectDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { user } = useAuth();
   const { kpis, allProjects } = useProjects();
   const { experts } = useExperts();
   const { allOrganizations } = useOrganizations();
@@ -317,7 +402,7 @@ export default function ProjectDetail() {
     : 'my-alerts';
   const initialAccessSource = locationState.accessSource || (fromMyProjects ? 'my-projects' : pathAccessSource);
   const [activeLifecycleDocId, setActiveLifecycleDocId] = useState('early-intelligence-notice');
-  const [activeDetailTab, setActiveDetailTab] = useState('overview');
+  const [activeDetailTab, setActiveDetailTab] = useState('notice');
   const [projectAccessSource, setProjectAccessSource] = useState<ProjectAccessSource>(initialAccessSource);
   const [generatedResponses, setGeneratedResponses] = useState<Record<string, string>>({});
   const [isGeneratingRefPro, setIsGeneratingRefPro] = useState(false);
@@ -326,13 +411,20 @@ export default function ProjectDetail() {
   const [refProDraftSections, setRefProDraftSections] = useState<RefProDescriptionSection[] | null>(null);
   const [refProDraftGeneratedAt, setRefProDraftGeneratedAt] = useState<string | null>(null);
   const [isGeneratingTor, setIsGeneratingTor] = useState(false);
-  const [torHistory, setTorHistory] = useState<TorVersionEntry[]>([]);
+  const [torHistory, setTorHistory] = useState<TorHistoryEntry[]>([]);
   const [torCurrentVersionId, setTorCurrentVersionId] = useState<string | null>(null);
   const [torDraftSections, setTorDraftSections] = useState<TorSection[] | null>(null);
   const [torDraftGeneratedAt, setTorDraftGeneratedAt] = useState<string | null>(null);
   const [isTorEditMode, setIsTorEditMode] = useState(false);
+  const [isTorUploadDialogOpen, setIsTorUploadDialogOpen] = useState(false);
+  const [torUploadVersionName, setTorUploadVersionName] = useState('');
+  const [torUploadFile, setTorUploadFile] = useState<File | null>(null);
+  const [torUploadError, setTorUploadError] = useState('');
+  const [isUploadingTor, setIsUploadingTor] = useState(false);
   const [isProjectActionDialogOpen, setIsProjectActionDialogOpen] = useState(false);
   const [pendingProjectAction, setPendingProjectAction] = useState<'add' | 'remove'>('add');
+  const [contactOrganization, setContactOrganization] = useState<{ id: string; name: string; projectTitle?: string } | null>(null);
+  const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [availableCredits, setAvailableCredits] = useState(120);
   const [purchasedCvExpertIds, setPurchasedCvExpertIds] = useState<Set<string>>(new Set());
   const [isProjectSaved, setIsProjectSaved] = useState<boolean>(() => {
@@ -340,7 +432,21 @@ export default function ProjectDetail() {
     const savedIds = readSavedProjectIds();
     return savedIds.includes(id) || stateFavorited;
   });
+  const [partnerVisibility, setPartnerVisibility] = useState<Record<string, boolean>>(() => readPartnerVisibility());
+  const [pricingPolicy, setPricingPolicy] = useState<'aggressive' | 'competitive' | 'premium'>('competitive');
   const showAlertsHeader = projectAccessSource === 'my-alerts';
+
+  const priceEstimate = useMemo(() => {
+    const avgBase = aiDiscountSamples.reduce((sum, s) => sum + s.initialBudget, 0) / aiDiscountSamples.length;
+    const avgExpertMedian = expertPricingBySeniority.reduce((sum, s) => sum + s.median, 0) / expertPricingBySeniority.length;
+    const discountFactors = { aggressive: 0.82, competitive: 0.88, premium: 0.94 } as const;
+    const factor = discountFactors[pricingPolicy];
+    const central = Math.round(avgBase * factor);
+    const low = Math.round(central * 0.9);
+    const high = Math.round(central * 1.12);
+    const discountPct = Math.round((1 - factor) * 100);
+    return { central, low, high, avgExpertMedian: Math.round(avgExpertMedian), discountPct, sampleCount: aiDiscountSamples.length };
+  }, [pricingPolicy]);
 
   useEffect(() => {
     if (!id) {
@@ -353,6 +459,10 @@ export default function ProjectDetail() {
       setTorDraftSections(null);
       setTorDraftGeneratedAt(null);
       setIsTorEditMode(false);
+      setIsTorUploadDialogOpen(false);
+      setTorUploadVersionName('');
+      setTorUploadFile(null);
+      setTorUploadError('');
       return;
     }
 
@@ -565,6 +675,18 @@ export default function ProjectDetail() {
     createdDate: '2023-05-15',
     updatedDate: '2024-02-20',
   };
+
+  const [projectTasks, setProjectTasks] = useState(() =>
+    project.tasks.map((task) => ({ ...task, assignedTo: [] as { id: string; name: string; role?: string }[] }))
+  );
+  const [taskToAssign, setTaskToAssign] = useState<(typeof projectTasks)[number] | null>(null);
+  const [selectedTaskMemberId, setSelectedTaskMemberId] = useState('');
+  const canAssignTasks = canAssignProjectTasks(user?.accountType);
+  const assignmentMembers = project.teamMembers.map((member) => ({
+    id: member.id,
+    name: member.name,
+    role: member.role,
+  }));
 
   const lifecycleDocuments: LifecycleDocument[] = [
     {
@@ -815,6 +937,7 @@ export default function ProjectDetail() {
 
   const budgetUtilization = Math.round((project.budget.spent / project.budget.total) * 100);
   const remainingTasks = Math.max(project.totalTasks - project.tasksCompleted, 0);
+  const taskCompletionPercentage = Math.round((project.tasksCompleted / project.totalTasks) * 100);
   const formatDate = (value: string) =>
     new Date(value).toLocaleDateString('en-GB', {
       day: '2-digit',
@@ -839,6 +962,63 @@ export default function ProjectDetail() {
   const projectOpenClosedLabel = isProjectClosed ? 'Closed' : 'Open';
   const projectDetailBasePath = isSearchContext ? '/search/projects' : '/projects';
   const buildOrganizationDetailPath = (organizationName: string) => `/search/organisations/${encodeURIComponent(resolveOrganizationId(organizationName))}`;
+  const isPartnerVisible = (partnerName: string) => partnerVisibility[partnerName] !== false;
+  const setPartnerVisible = (partnerName: string, visible: boolean) => {
+    setPartnerVisibility((current) => {
+      const next = { ...current, [partnerName]: visible };
+      writePartnerVisibility(next);
+      return next;
+    });
+  };
+  const renderPartnerVisibilityToggle = (partnerName: string) => (
+    <label className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-[#4A5568]/15 bg-white px-2 py-1 text-[11px] font-medium text-[#4A5568]">
+      <input
+        type="checkbox"
+        className="h-3.5 w-3.5"
+        checked={isPartnerVisible(partnerName)}
+        onChange={(event) => setPartnerVisible(partnerName, event.target.checked)}
+        aria-label={`${isPartnerVisible(partnerName) ? 'Hide' : 'Show'} ${partnerName}`}
+      />
+      {isPartnerVisible(partnerName) ? 'Visible' : 'Hidden'}
+    </label>
+  );
+  const openOrganizationContact = (organizationName: string) => {
+    setContactOrganization({
+      id: resolveOrganizationBookmarkId(organizationName),
+      name: organizationName,
+      projectTitle: project.title,
+    });
+    setIsContactDialogOpen(true);
+  };
+  const renderOrganizationContactButton = (organizationName: string) => (
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      className="h-8 border-[#E63462]/30 text-[#E63462] hover:bg-[#FFF1F4] hover:text-[#E63462]"
+      onClick={() => openOrganizationContact(organizationName)}
+    >
+      <Mail className="mr-1.5 h-3.5 w-3.5" />
+      {t('projects.engagement.contact')}
+    </Button>
+  );
+  const projectPartnerNames = Array.from(new Set([
+    ...project.partners,
+    ...project.otherPossiblePartners,
+    ...project.mostRelevantIcaPartners,
+    ...partnerMatches.map((partner) => partner.name),
+  ]));
+  const hiddenProjectPartnerCount = projectPartnerNames.filter((partnerName) => !isPartnerVisible(partnerName)).length;
+  const showAllProjectPartners = () => {
+    setPartnerVisibility((current) => {
+      const next = { ...current };
+      projectPartnerNames.forEach((partnerName) => {
+        next[partnerName] = true;
+      });
+      writePartnerVisibility(next);
+      return next;
+    });
+  };
   const buildExpertDetailPath = (expertId: string) => `/search/experts/${encodeURIComponent(resolveExpertId(expertId))}`;
   const buildProjectDetailPath = (projectReference: string) => `${projectDetailBasePath}/${encodeURIComponent(resolveProjectId(projectReference))}`;
   const CV_UNLOCK_COST = 1;
@@ -1037,17 +1217,29 @@ export default function ProjectDetail() {
     const subsectorsLabel = project.subsectors
       .map((subsector) => subsector.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase()))
       .join(', ');
+    const historySummary = torHistory.length > 0
+      ? torHistory
+          .slice(0, 5)
+          .map((entry) => {
+            const sourceLabel = entry.source === 'USER_UPLOADED' ? 'user uploaded' : 'AI generated';
+            const sectionSummary = entry.sections?.map((section) => `${section.title}: ${section.content}`).join(' ');
+            const documentContext = entry.extractedText || sectionSummary || entry.originalFileName;
+            return `${entry.versionName} (${sourceLabel}, ${entry.originalFileName}): ${documentContext}`;
+          })
+          .join(' ')
+      : 'No previous ToR documents are available yet.';
+    const generatedInputSummary = Object.values(generatedResponses).filter(Boolean).join(' ');
 
     return [
       {
         id: 'tor-background',
         title: t('projects.torAI.sections.background'),
-        content: `${project.title} is a ${formatLabel(project.type).toLowerCase()} intervention focused on ${project.description.toLowerCase()} The project is located in ${project.country} and funded by ${project.donor}, with ${project.leadOrganization} as lead organization.`,
+        content: `${project.title} is a ${formatLabel(project.type).toLowerCase()} intervention focused on ${project.description.toLowerCase()} The project is located in ${project.country} and funded by ${project.donor}, with ${project.leadOrganization} as lead organization. This version consolidates available project context with prior ToR history: ${historySummary}`,
       },
       {
         id: 'tor-objectives',
         title: t('projects.torAI.sections.objectives'),
-        content: `The ToR aims to define implementation expectations, technical quality standards, governance approach, and measurable outcomes for the project. The core objective is to ${project.objectives.toLowerCase()}`,
+        content: `The ToR aims to define implementation expectations, technical quality standards, governance approach, and measurable outcomes for the project. The core objective is to ${project.objectives.toLowerCase()} ${generatedInputSummary ? `Additional workspace inputs indicate: ${generatedInputSummary}` : ''}`,
       },
       {
         id: 'tor-scope',
@@ -1079,9 +1271,29 @@ export default function ProjectDetail() {
 
     window.setTimeout(() => {
       const generatedAt = new Date().toISOString();
-      setTorDraftSections(generateTorSections());
-      setTorDraftGeneratedAt(generatedAt);
-      setTorCurrentVersionId(null);
+      const generatedSections = generateTorSections();
+      const versionNumber = torHistory.length + 1;
+      const versionName = `${t('projects.torAI.versionLabel')} ${versionNumber}`;
+      const originalFileName = `${project.title.replace(/\s+/g, '_')}_ToR_${versionNumber}.txt`;
+      const plainText = buildTorPlainText(generatedSections);
+      const versionId = `tor-${Date.now()}`;
+      const newVersion: TorHistoryEntry = {
+        id: versionId,
+        projectId: id || project.id || 'project',
+        createdAt: generatedAt,
+        versionName,
+        originalFileName,
+        fileType: 'txt',
+        source: 'AI_GENERATED',
+        fileUrl: `data:text/plain;charset=utf-8,${encodeURIComponent(plainText)}`,
+        extractedText: plainText,
+        sections: generatedSections,
+      };
+
+      setTorHistory((previous) => [newVersion, ...previous].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 20));
+      setTorDraftSections(null);
+      setTorDraftGeneratedAt(null);
+      setTorCurrentVersionId(versionId);
       setIsTorEditMode(false);
       setIsGeneratingTor(false);
       toast.success(t('projects.torAI.generatedToast'));
@@ -1093,11 +1305,20 @@ export default function ProjectDetail() {
 
     const versionId = `tor-${Date.now()}`;
     const versionNumber = torHistory.length + 1;
+    const versionName = `${t('projects.torAI.versionLabel')} ${versionNumber}`;
+    const originalFileName = `${project.title.replace(/\s+/g, '_')}_ToR_${versionNumber}.txt`;
+    const plainText = buildTorPlainText(torDraftSections);
 
-    const newVersion: TorVersionEntry = {
+    const newVersion: TorHistoryEntry = {
       id: versionId,
+      projectId: id || project.id || 'project',
       createdAt: torDraftGeneratedAt || new Date().toISOString(),
-      label: `${t('projects.torAI.versionLabel')} ${versionNumber}`,
+      versionName,
+      originalFileName,
+      fileType: 'txt',
+      source: 'AI_GENERATED',
+      fileUrl: `data:text/plain;charset=utf-8,${encodeURIComponent(plainText)}`,
+      extractedText: plainText,
       sections: torDraftSections,
     };
 
@@ -1107,6 +1328,15 @@ export default function ProjectDetail() {
     setTorDraftGeneratedAt(null);
     setIsTorEditMode(false);
     toast.success(t('projects.torAI.savedToast'));
+  };
+
+  const handleTorUploadDialogChange = (open: boolean) => {
+    if (!open && isUploadingTor) return;
+
+    setIsTorUploadDialogOpen(open);
+    if (!open) {
+      resetTorUploadForm();
+    }
   };
 
   const handleViewTorVersion = (versionId: string) => {
@@ -1133,7 +1363,7 @@ export default function ProjectDetail() {
 
   const handleReuseTorVersion = (versionId: string) => {
     const selected = torHistory.find((entry) => entry.id === versionId);
-    if (!selected) return;
+    if (!selected?.sections) return;
 
     setTorDraftSections(selected.sections.map((section) => ({ ...section })));
     setTorDraftGeneratedAt(new Date().toISOString());
@@ -1172,6 +1402,17 @@ export default function ProjectDetail() {
   };
 
   const handleDownloadTor = () => {
+    const activeUploadedTor = activeSavedTorVersion && !activeSavedTorVersion.sections ? activeSavedTorVersion : null;
+    if (activeUploadedTor) {
+      const link = document.createElement('a');
+      link.href = activeUploadedTor.fileUrl;
+      link.download = activeUploadedTor.originalFileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
+
     if (!displayedTorSections) return;
 
     const fileName = `${project.title.replace(/\s+/g, '_')}_ToR.txt`;
@@ -1183,6 +1424,78 @@ export default function ProjectDetail() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(link.href);
+  };
+
+  const isAllowedTorFile = (file: File) => {
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    const allowedExtensions = ['pdf', 'doc', 'docx'];
+    const allowedMimeTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '',
+    ];
+
+    return Boolean(extension && allowedExtensions.includes(extension) && allowedMimeTypes.includes(file.type));
+  };
+
+  const resetTorUploadForm = () => {
+    setTorUploadVersionName('');
+    setTorUploadFile(null);
+    setTorUploadError('');
+  };
+
+  const handleOpenTorUploadDialog = () => {
+    resetTorUploadForm();
+    setIsTorUploadDialogOpen(true);
+  };
+
+  const handleUploadTor = () => {
+    const versionName = torUploadVersionName.trim() || `${t('projects.torAI.upload.defaultVersionName')} ${torHistory.length + 1}`;
+
+    if (!torUploadFile) {
+      setTorUploadError(t('projects.torAI.upload.fileRequiredToast'));
+      return;
+    }
+
+    if (!isAllowedTorFile(torUploadFile)) {
+      setTorUploadError(t('projects.torAI.upload.invalidFileToast'));
+      return;
+    }
+
+    setIsUploadingTor(true);
+    setTorUploadError('');
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const fileUrl = typeof reader.result === 'string' ? reader.result : '';
+      const extension = torUploadFile.name.split('.').pop()?.toLowerCase() || torUploadFile.type || 'file';
+      const newEntry: TorHistoryEntry = {
+        id: `tor-upload-${Date.now()}`,
+        projectId: id || project.id || 'project',
+        versionName,
+        originalFileName: torUploadFile.name,
+        fileType: extension,
+        source: 'USER_UPLOADED',
+        createdAt: new Date().toISOString(),
+        fileUrl,
+      };
+
+      setTorHistory((previous) => [newEntry, ...previous].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 20));
+      setTorCurrentVersionId(newEntry.id);
+      setTorDraftSections(null);
+      setTorDraftGeneratedAt(null);
+      setIsTorEditMode(false);
+      setIsUploadingTor(false);
+      setIsTorUploadDialogOpen(false);
+      resetTorUploadForm();
+      toast.success(t('projects.torAI.upload.successToast'));
+    };
+    reader.onerror = () => {
+      setIsUploadingTor(false);
+      setTorUploadError(t('projects.torAI.upload.readError'));
+    };
+    reader.readAsDataURL(torUploadFile);
   };
 
   const latestRefProVersion = refProHistory[0] ?? null;
@@ -1217,6 +1530,48 @@ export default function ProjectDetail() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(link.href);
+  };
+
+  const downloadExpertCv = (expertId: string, expertName: string, format: 'pdf' | 'docx') => {
+    if (!hasCvAccess(expertId)) return;
+    const safeName = expertName.replace(/\s+/g, '_');
+    const extension = format === 'pdf' ? 'pdf' : 'docx';
+    const mimeType = format === 'pdf'
+      ? 'application/pdf'
+      : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    const content = `CV – ${expertName}\nFormat: ${format.toUpperCase()}\nGenerated: ${new Date().toISOString()}`;
+    const blob = new Blob([content], { type: mimeType });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `CV_${safeName}.${extension}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+  };
+
+  const hasAssignedMember = (task: (typeof projectTasks)[number]) =>
+    Boolean(task.assignedTo?.some((member) => member.id !== 'unassigned'));
+
+  const openTaskAssignmentDialog = (task: (typeof projectTasks)[number]) => {
+    setTaskToAssign(task);
+    setSelectedTaskMemberId(task.assignedTo[0]?.id || '');
+  };
+
+  const handleAssignTaskToMember = () => {
+    if (!taskToAssign || !selectedTaskMemberId) return;
+
+    const member = assignmentMembers.find((item) => item.id === selectedTaskMemberId);
+    if (!member) return;
+
+    setProjectTasks((prev) =>
+      prev.map((task) =>
+        task.id === taskToAssign.id ? { ...task, assignedTo: [member] } : task
+      )
+    );
+    setTaskToAssign(null);
+    setSelectedTaskMemberId('');
+    toast.success(t('projects.tasks.memberAssigned'));
   };
 
   return (
@@ -1270,6 +1625,95 @@ export default function ProjectDetail() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          <Dialog open={isTorUploadDialogOpen} onOpenChange={handleTorUploadDialogChange}>
+            <DialogContent className="max-w-lg w-full">
+              <DialogHeader>
+                <DialogTitle>{t('projects.torAI.upload.title')}</DialogTitle>
+                <DialogDescription>{t('projects.torAI.upload.description')}</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="tor-upload-version-name" className="text-sm font-medium text-[#4A5568]">
+                    {t('projects.torAI.upload.versionNameLabel')}
+                  </label>
+                    <input
+                      id="tor-upload-version-name"
+                      type="text"
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-[#E63462]/50 focus:ring-2 focus:ring-[#E63462]/20"
+                      placeholder={t('projects.torAI.upload.versionNamePlaceholder')}
+                      value={torUploadVersionName}
+                      onChange={(event) => setTorUploadVersionName(event.target.value)}
+                      disabled={isUploadingTor}
+                    />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="tor-upload-file" className="text-sm font-medium text-[#4A5568]">
+                    {t('projects.torAI.upload.fileLabel')}
+                  </label>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <input
+                      id="tor-upload-file"
+                      type="file"
+                      accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      className="sr-only"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0] ?? null;
+                        setTorUploadFile(file);
+                        if (file && !isAllowedTorFile(file)) {
+                          setTorUploadError(t('projects.torAI.upload.invalidFileToast'));
+                        } else {
+                          setTorUploadError('');
+                        }
+                      }}
+                      disabled={isUploadingTor}
+                    />
+                    <label
+                      htmlFor="tor-upload-file"
+                      className="inline-flex h-10 cursor-pointer items-center justify-center rounded-md border border-[#4A5568]/25 bg-white px-4 text-sm font-medium text-[#4A5568] hover:bg-[#F8FAFC]"
+                    >
+                      {t('projects.torAI.upload.chooseFile')}
+                    </label>
+                    <span className="min-w-0 truncate text-sm text-[#4A5568]/80">
+                      {torUploadFile ? torUploadFile.name : t('projects.torAI.upload.noFileChosen')}
+                    </span>
+                  </div>
+                </div>
+                {torUploadError && (
+                  <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {torUploadError}
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => handleTorUploadDialogChange(false)} disabled={isUploadingTor}>
+                  {t('common.cancel')}
+                </Button>
+                <Button onClick={handleUploadTor} disabled={isUploadingTor}>
+                  {isUploadingTor ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {t('projects.torAI.upload.uploading')}
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="mr-2 h-4 w-4" />
+                      {t('projects.torAI.upload.confirmAction')}
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <ContactOrganizationDialog
+            open={isContactDialogOpen}
+            onClose={() => {
+              setIsContactDialogOpen(false);
+              setContactOrganization(null);
+            }}
+            organization={contactOrganization}
+          />
 
           <section
             className={`mb-6 overflow-hidden rounded-2xl border p-6 shadow-sm ${
@@ -1334,254 +1778,21 @@ export default function ProjectDetail() {
 
           <div className="mt-6 space-y-6">
             <div className="space-y-6">
-              <section id="project-overview-card" aria-labelledby="project-overview-heading" className="rounded-lg border bg-white p-6" style={{ borderColor: 'rgba(0, 0, 0, 0.1)' }}>
-                <div className="mb-4 flex items-center gap-2">
-                  <Landmark className="h-5 w-5 text-[#E63462]" />
-                  <h2 id="project-overview-heading" className="text-lg font-bold text-[#1E293B]">{t('projects.details.overview')}</h2>
-                </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <article className="rounded-xl border bg-[#F8FAFC] p-4 shadow-sm" style={{ borderColor: 'rgba(0, 0, 0, 0.1)' }}>
-                      <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Published</p>
-                      <p className="mt-2 text-sm font-semibold text-[#1E293B]">{formatDate(project.timeline.startDate)}</p>
-                    </article>
-                    <article className="rounded-xl border bg-[#F8FAFC] p-4 shadow-sm" style={{ borderColor: 'rgba(0, 0, 0, 0.1)' }}>
-                      <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Target className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Deadline</p>
-                      <p className="mt-2 text-sm font-semibold text-[#1E293B]">{formatDate(project.timeline.endDate)}</p>
-                    </article>
-                    <article className="rounded-xl border bg-[#F8FAFC] p-4 shadow-sm" style={{ borderColor: 'rgba(0, 0, 0, 0.1)' }}>
-                      <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><DollarSign className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Budget</p>
-                      <p className="mt-2 text-sm font-semibold text-[#1E293B]">{project.budget.total.toLocaleString()} {project.budget.currency}</p>
-                    </article>
-                    <article className="rounded-xl border bg-[#F8FAFC] p-4 shadow-sm" style={{ borderColor: 'rgba(0, 0, 0, 0.1)' }}>
-                      <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><TrendingUp className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Total Cost</p>
-                      <p className="mt-2 text-sm font-semibold text-[#1E293B]">${project.budget.spent.toLocaleString()}</p>
-                    </article>
-                  </div>
-
-                <div className="mt-4 h-0.5 w-full bg-gradient-to-r from-[#4A5568]/20 via-[#E63462]/25 to-transparent" />
-
-                <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
-                    <div className="space-y-4 rounded-xl border bg-white p-4" style={{ borderColor: 'rgba(0, 0, 0, 0.1)' }}>
-                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div>
-                          <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Briefcase className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Procurement Type</p>
-                          <p className="mt-1 text-sm font-semibold text-[#1E293B]">{t(`projects.type.${project.type}`)}</p>
-                        </div>
-                        <div>
-                          <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.projectSource')}</p>
-                          <p className="mt-1 text-sm font-semibold text-[#1E293B]">{t(`projects.create.source.${project.projectSource}`)}</p>
-                        </div>
-                        <div>
-                          <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Reference</p>
-                          <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.code}</p>
-                        </div>
-                        <div>
-                          <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Target className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.relatedTender')}</p>
-                          <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.relatedTender}</p>
-                        </div>
-                      </div>
-
-                      <div>
-                        <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Building2 className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.leadOrganization')}</p>
-                        <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.leadOrganization}</p>
-                      </div>
-
-                      <div>
-                        <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Building2 className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Funding Agency</p>
-                        <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.donor}</p>
-                      </div>
-
-                      <div>
-                        <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><MapPin className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Countries</p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {project.countries.map((country) => (
-                            <Badge key={country} variant="outline" className="border-[#4A5568]/20 bg-[#F8FAFC] text-[#1E293B]">
-                              {country}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4 rounded-xl border bg-white p-4" style={{ borderColor: 'rgba(0, 0, 0, 0.1)' }}>
-                      <div>
-                        <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Target className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Sectors</p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {(project.sectors && project.sectors.length > 0 ? project.sectors : [project.sector]).map((sector) => (
-                            <Badge key={sector} variant="outline" className="border-[#4A5568]/20 bg-[#F8FAFC] text-[#1E293B]">
-                              {formatLabel(sector)}
-                            </Badge>
-                          ))}
-                        </div>
-                        <ul className="mt-2 space-y-1 text-sm text-[#4A5568]/90">
-                          {project.subsectors.map((subsector) => (
-                            <li key={subsector} className="flex items-start gap-2">
-                              <span className="mt-1.5 inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#E63462' }} />
-                              <span className="text-[#1E293B]">{subsector.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      <div className="rounded-2xl border p-4" style={{ borderColor: 'rgba(0, 0, 0, 0.1)', background: '#F8FAFC' }}>
-                        <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.projectObjectives')}</p>
-                        <p className="mt-2 text-sm leading-relaxed text-[#1E293B]">{project.objectives}</p>
-                      </div>
-
-                      <div className="rounded-2xl border p-4" style={{ borderColor: 'rgba(0, 0, 0, 0.1)', background: '#FFFFFF' }}>
-                        <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Users className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.partnerOrganizations')}</p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {project.partners.map((partner) => (
-                            <div key={partner} className="inline-flex items-center gap-1.5">
-                              <Link to={buildOrganizationDetailPath(partner)} className="inline-flex">
-                                <Badge variant="secondary" className="cursor-pointer border-[#4A5568]/15 bg-white text-[#1E293B] transition-colors hover:border-[#E63462]/30 hover:bg-[#E63462]/10 hover:text-[#E63462]">
-                                  {partner}
-                                </Badge>
-                              </Link>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border p-4" style={{ borderColor: 'rgba(0, 0, 0, 0.1)', background: '#F8FAFC' }}>
-                        <div className="mb-3 flex flex-wrap items-center gap-2">
-                          <Badge variant="outline" className="border-[#E63462]/30 bg-[#E63462]/10 text-[#E63462] text-[11px]">
-                            Technical
-                          </Badge>
-                          <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Users className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Most Relevant Technical Partners</p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {project.otherPossiblePartners.map((partner) => (
-                            <div key={partner} className="inline-flex items-center gap-1.5">
-                              <Link to={buildOrganizationDetailPath(partner)} className="inline-flex">
-                                <Badge variant="secondary" className="cursor-pointer border-[#4A5568]/15 bg-white text-[#1E293B] transition-colors hover:border-[#E63462]/30 hover:bg-[#E63462]/10 hover:text-[#E63462]">
-                                  {partner}
-                                </Badge>
-                              </Link>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border p-4" style={{ borderColor: 'rgba(0, 0, 0, 0.1)', background: '#FFFFFF' }}>
-                        <div className="mb-3 flex flex-wrap items-center gap-2">
-                          <Badge variant="outline" className="border-[#4A5568]/30 bg-[#4A5568]/10 text-[#4A5568] text-[11px]">
-                            ICA
-                          </Badge>
-                          <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Users className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Most Relevant Matching ICA Partners</p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {project.mostRelevantIcaPartners.map((partner) => (
-                            <div key={partner} className="inline-flex items-center gap-1.5">
-                              <Link to={buildOrganizationDetailPath(partner)} className="inline-flex">
-                                <Badge variant="secondary" className="cursor-pointer border-[#4A5568]/15 bg-white text-[#1E293B] transition-colors hover:border-[#E63462]/30 hover:bg-[#E63462]/10 hover:text-[#E63462]">
-                                  {partner}
-                                </Badge>
-                              </Link>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-              </section>
-
-              <section id="project-lifecycle-card" className="rounded-lg border bg-white p-6">
-                <div className="mb-4 flex items-center gap-2">
-                  <Route className="h-5 w-5 text-[#E63462]" />
-                  <h2 className="text-lg font-bold text-primary">Project Lifecycle</h2>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 xl:grid-cols-[260px_1fr]">
-                  <nav aria-label="Project lifecycle navigation" className="space-y-4 rounded-lg border bg-slate-50 p-3">
-                    {[
-                      { key: 'early-intelligence' as const, title: 'Early Intelligence', items: lifecycleDocuments.filter((doc) => doc.group === 'early-intelligence') },
-                      { key: 'open-procurement' as const, title: 'Open Procurement', items: lifecycleDocuments.filter((doc) => doc.group === 'open-procurement') },
-                      { key: 'contract-shortlist' as const, title: 'Contract / Shortlist', items: lifecycleDocuments.filter((doc) => doc.group === 'contract-shortlist') },
-                    ].map((section) => (
-                      <div key={section.key}>
-                        <p className="mb-2 text-xs font-semibold capitalize tracking-[0.08em] text-muted-foreground">{section.title}</p>
-                        <div className="space-y-1">
-                          {section.items.map((item) => (
-                            <button
-                              key={item.id}
-                              type="button"
-                              aria-pressed={activeLifecycleDocId === item.id}
-                              onClick={() => {
-                                setActiveLifecycleDocId(item.id);
-                                setActiveDetailTab('overview');
-                              }}
-                              className={`w-full rounded-md border px-3 py-2 text-left text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 ${
-                                activeLifecycleDocId === item.id
-                                  ? 'border-accent/20 bg-secondary text-accent'
-                                  : 'bg-white hover:bg-gray-50'
-                              }`}
-                            >
-                              {item.itemLabel}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </nav>
-
-                  <div className="rounded-lg border p-4">
-                    <p className="text-xs capitalize tracking-[0.08em] text-muted-foreground">{activeLifecycleDoc.sectionLabel}</p>
-                    <h3 className="mt-1 text-base font-semibold text-primary">{activeLifecycleDoc.itemLabel}</h3>
-                    <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{activeLifecycleDoc.description}</p>
-
-                    {activeLifecycleDoc.hasShortlist && (
-                      <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50/60 p-3">
-                        <p className="mb-2 text-sm font-semibold text-primary">Shortlisted Companies / Organizations</p>
-                        <div className="space-y-2">
-                          {project.shortlistedCompanies.map((item, index) => (
-                            <div key={index} className="rounded-md border bg-white p-3 text-sm">
-                              <div className="flex items-center justify-between gap-2">
-                                <Link to={buildOrganizationDetailPath(item.name)} className="font-semibold text-primary underline-offset-2 hover:text-accent hover:underline">
-                                  {item.name}
-                                </Link>
-                                {renderOrganizationBookmarkButton(item.name)}
-                              </div>
-                              <p className="mt-1 text-xs text-muted-foreground">Shortlisted on: {formatDate(item.date)}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {activeLifecycleDoc.hasContract && (
-                      <div className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50/60 p-3">
-                        <p className="mb-2 text-sm font-semibold text-primary">Contract Awarded Companies</p>
-                        <div className="space-y-2">
-                          {project.contractAwardedCompanies.map((item, index) => (
-                            <div key={index} className="rounded-md border bg-white p-3 text-sm">
-                              <div className="flex items-center justify-between gap-2">
-                                <Link to={buildOrganizationDetailPath(item.name)} className="font-semibold text-primary underline-offset-2 hover:text-accent hover:underline">
-                                  {item.name}
-                                </Link>
-                                {renderOrganizationBookmarkButton(item.name)}
-                              </div>
-                              <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                                <span>Date: {formatDate(item.date)}</span>
-                                <span>Budget: {item.budget}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </section>
-
               <section id="project-market-analysis-card" className="rounded-lg border bg-white p-6">
                 <Tabs value={activeDetailTab} onValueChange={setActiveDetailTab}>
                   <TabsList className="mb-4 h-auto w-fit flex-wrap items-center gap-1 rounded-xl bg-slate-100 p-1" aria-label="Project detail tabs">
-                    <TabsTrigger value="overview" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
+                    <TabsTrigger value="notice" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
                       <span className="inline-flex items-center gap-2">
                         <Landmark className="h-4 w-4" aria-hidden />
-                        {t('projects.details.overview')}
+                        {t('projects.details.notice')}
                       </span>
+                    </TabsTrigger>
+                    <TabsTrigger value="documents" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm"><span className="inline-flex items-center gap-2"><FileText className="h-4 w-4" aria-hidden />{t('projects.details.documents')}</span></TabsTrigger>
+                    <TabsTrigger value="tasks" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
+                      <span className="inline-flex items-center gap-2"><CheckCircle className="h-4 w-4" aria-hidden />{t('projects.details.tasks')}</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="project-lifecycle" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
+                      <span className="inline-flex items-center gap-2"><Route className="h-4 w-4" aria-hidden />{t('projects.details.projectLifecycle')}</span>
                     </TabsTrigger>
                     <TabsTrigger value="market-analysis" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
                       <span className="inline-flex items-center gap-2">
@@ -1601,16 +1812,271 @@ export default function ProjectDetail() {
                         {t('projects.details.tabs.refPro')}
                       </span>
                     </TabsTrigger>
-                    {showSensitiveSections && <TabsTrigger value="team-members" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm"><span className="inline-flex items-center gap-2"><Users className="h-4 w-4" aria-hidden />{t('projects.details.teamMembers')}</span></TabsTrigger>}
-                    {showSensitiveSections && <TabsTrigger value="tasks" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm"><span className="inline-flex items-center gap-2"><CheckCircle className="h-4 w-4" aria-hidden />{t('projects.details.tasks')}</span></TabsTrigger>}
-                    <TabsTrigger value="documents" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm"><span className="inline-flex items-center gap-2"><FileText className="h-4 w-4" aria-hidden />{t('projects.details.documents')}</span></TabsTrigger>
+                    <TabsTrigger value="team-members" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
+                      <span className="inline-flex items-center gap-2"><Users className="h-4 w-4" aria-hidden />{t('projects.details.teamMembers')}</span>
+                    </TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="overview" className="mt-0">
-                    <h3 className="text-base font-semibold text-primary">{t('common.description')}</h3>
-                    <p className="mt-1 text-xs text-muted-foreground">{activeLifecycleDoc.sectionLabel} · {activeLifecycleDoc.itemLabel}</p>
-                    <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{activeLifecycleDoc.description}</p>
+                  <TabsContent value="notice" className="mt-0">
+                    <div className="space-y-5">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        {[
+                          { label: t('projects.notice.published'), value: formatDate(project.timeline.startDate), icon: FileText },
+                          { label: t('projects.notice.deadline'), value: formatDate(project.timeline.endDate), icon: Target },
+                          { label: t('projects.notice.publishedBudget'), value: `${project.budget.total.toLocaleString()} ${project.budget.currency}`, icon: DollarSign },
+                          { label: t('projects.notice.totalCosts'), value: `${project.budget.spent.toLocaleString()} ${project.budget.currency}`, icon: TrendingUp },
+                          { label: t('projects.details.remaining'), value: `${project.budget.remaining.toLocaleString()} ${project.budget.currency}`, icon: Coins },
+                          { label: t('projects.notice.budgetUtilization'), value: `${budgetUtilization}%`, icon: Landmark },
+                          { label: t('projects.notice.taskProgress'), value: `${project.tasksCompleted}/${project.totalTasks} (${taskCompletionPercentage}%)`, icon: CheckCircle },
+                          { label: t('projects.notice.timelineProgress'), value: `${project.timeline.completionPercentage}%`, icon: Route },
+                        ].map((metric) => {
+                          const MetricIcon = metric.icon;
 
+                          return (
+                            <article key={metric.label} className="rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-4 shadow-sm">
+                              <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]">
+                                <MetricIcon className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />
+                                {metric.label}
+                              </p>
+                              <p className="mt-2 text-sm font-semibold text-[#1E293B]">{metric.value}</p>
+                            </article>
+                          );
+                        })}
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                        <div className="space-y-4 rounded-xl border border-[#4A5568]/15 bg-white p-4">
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                              <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Briefcase className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Procurement Type</p>
+                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{t(`projects.type.${project.type}`)}</p>
+                            </div>
+                            <div>
+                              <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.projectSource')}</p>
+                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{t(`projects.create.source.${project.projectSource}`)}</p>
+                            </div>
+                            <div>
+                              <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Reference</p>
+                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.code}</p>
+                            </div>
+                            <div>
+                              <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Target className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.relatedTender')}</p>
+                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.relatedTender}</p>
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-[#4A5568]/15 bg-[#F8FAFC] p-4">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                              <div>
+                                <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Building2 className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.details.organizations')}</p>
+                                <div className="mt-2 space-y-2 text-sm">
+                                  <p><span className="font-medium text-[#4A5568]">{t('projects.create.leadOrganization')}:</span> <span className="font-semibold text-[#1E293B]">{project.leadOrganization}</span></p>
+                                  <p><span className="font-medium text-[#4A5568]">Funding Agency:</span> <span className="font-semibold text-[#1E293B]">{project.donor}</span></p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div>
+                            <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><MapPin className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Countries</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {project.countries.map((country) => (
+                                <Badge key={country} variant="outline" className="border-[#4A5568]/20 bg-[#F8FAFC] text-[#1E293B]">
+                                  {country}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4 rounded-xl border border-[#4A5568]/15 bg-white p-4">
+                          <div>
+                            <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Target className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Sectors</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {(project.sectors && project.sectors.length > 0 ? project.sectors : [project.sector]).map((sector) => (
+                                <Badge key={sector} variant="outline" className="border-[#4A5568]/20 bg-[#F8FAFC] text-[#1E293B]">
+                                  {formatLabel(sector)}
+                                </Badge>
+                              ))}
+                            </div>
+                            <ul className="mt-2 space-y-1 text-sm text-[#4A5568]/90">
+                              {project.subsectors.map((subsector) => (
+                                <li key={subsector} className="flex items-start gap-2">
+                                  <span className="mt-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[#E63462]" />
+                                  <span className="text-[#1E293B]">{subsector.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+
+                          <div className="rounded-2xl border border-[#4A5568]/15 bg-[#F8FAFC] p-4">
+                            <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.projectObjectives')}</p>
+                            <p className="mt-2 text-sm leading-relaxed text-[#1E293B]">{project.objectives}</p>
+                          </div>
+
+                          <div className="rounded-2xl border border-[#4A5568]/15 bg-white p-4">
+                            <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Users className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.partnerOrganizations')}</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {project.partners.filter(isPartnerVisible).map((partner) => (
+                                <div key={partner} className="inline-flex items-center gap-1.5">
+                                  <Link to={buildOrganizationDetailPath(partner)} className="inline-flex">
+                                    <Badge variant="secondary" className="cursor-pointer border-[#4A5568]/15 bg-white text-[#1E293B] transition-colors hover:border-[#E63462]/30 hover:bg-[#E63462]/10 hover:text-[#E63462]">
+                                      {partner}
+                                    </Badge>
+                                  </Link>
+                                  {renderOrganizationContactButton(partner)}
+                                  {renderPartnerVisibilityToggle(partner)}
+                                </div>
+                              ))}
+                              {hiddenProjectPartnerCount > 0 && (
+                                <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={showAllProjectPartners}>
+                                  Show all partners ({hiddenProjectPartnerCount} hidden)
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="project-lifecycle" className="mt-0">
+                    <div className="rounded-2xl border border-[#4A5568]/15 bg-gradient-to-br from-[#F5F7FA] via-white to-[#FFF1F4] p-4 sm:p-5">
+                      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Route className="h-5 w-5 text-[#E63462]" />
+                            <h3 className="text-base font-semibold text-[#4A5568]">{t('projects.details.projectLifecycle')}</h3>
+                          </div>
+                          <p className="mt-1 text-sm text-[#4A5568]/80">Track stage, workflow state, documents, partners, and delivery progress in one place.</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
+                          <div className="rounded-xl border border-[#4A5568]/15 bg-white p-3">
+                            <p className="text-[#4A5568]/70">Timeline</p>
+                            <p className="mt-1 font-semibold text-[#4A5568]">{project.timeline.completionPercentage}%</p>
+                          </div>
+                          <div className="rounded-xl border border-[#4A5568]/15 bg-white p-3">
+                            <p className="text-[#4A5568]/70">Tasks</p>
+                            <p className="mt-1 font-semibold text-[#4A5568]">{taskCompletionPercentage}%</p>
+                          </div>
+                          <div className="rounded-xl border border-[#4A5568]/15 bg-white p-3">
+                            <p className="text-[#4A5568]/70">Budget</p>
+                            <p className="mt-1 font-semibold text-[#4A5568]">{budgetUtilization}%</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+                        {project.milestones.map((milestone) => (
+                          <div key={milestone.id} className="rounded-xl border border-[#4A5568]/15 bg-white p-3">
+                            <Badge variant="outline" className={milestone.status === 'COMPLETED' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : milestone.status === 'IN_PROGRESS' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-200 bg-slate-50 text-slate-700'}>
+                              {formatLabel(milestone.status)}
+                            </Badge>
+                            <p className="mt-2 text-sm font-semibold text-[#4A5568]">{milestone.title}</p>
+                            <p className="mt-1 text-xs text-[#4A5568]/75">{formatDate(milestone.date)}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[280px_1fr]">
+                        <nav aria-label="Project lifecycle navigation" className="space-y-4 rounded-lg border border-[#4A5568]/15 bg-slate-50 p-3">
+                          {[
+                            { key: 'early-intelligence' as const, title: 'Early Intelligence', items: lifecycleDocuments.filter((doc) => doc.group === 'early-intelligence') },
+                            { key: 'open-procurement' as const, title: 'Open Procurement', items: lifecycleDocuments.filter((doc) => doc.group === 'open-procurement') },
+                            { key: 'contract-shortlist' as const, title: 'Contract / Shortlist', items: lifecycleDocuments.filter((doc) => doc.group === 'contract-shortlist') },
+                          ].map((section) => (
+                            <div key={section.key}>
+                              <p className="mb-2 text-xs font-semibold capitalize tracking-[0.08em] text-muted-foreground">{section.title}</p>
+                              <div className="space-y-1">
+                                {section.items.map((item) => (
+                                  <button
+                                    key={item.id}
+                                    type="button"
+                                    aria-pressed={activeLifecycleDocId === item.id}
+                                    onClick={() => setActiveLifecycleDocId(item.id)}
+                                    className={`w-full rounded-md border px-3 py-2 text-left text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 ${
+                                      activeLifecycleDocId === item.id
+                                        ? 'border-accent/20 bg-secondary text-accent'
+                                        : 'bg-white hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    {item.itemLabel}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </nav>
+
+                        <div className="rounded-lg border border-[#4A5568]/15 bg-white p-4">
+                          <p className="text-xs capitalize tracking-[0.08em] text-muted-foreground">{activeLifecycleDoc.sectionLabel}</p>
+                          <h3 className="mt-1 text-base font-semibold text-primary">{activeLifecycleDoc.itemLabel}</h3>
+                          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{activeLifecycleDoc.description}</p>
+
+                          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            <div className="rounded-xl border bg-[#F8FAFC] p-3">
+                              <p className="text-xs text-muted-foreground">Workflow state</p>
+                              <p className="mt-1 text-sm font-semibold text-primary">{projectOpenClosedLabel}</p>
+                            </div>
+                            <div className="rounded-xl border bg-[#F8FAFC] p-3">
+                              <p className="text-xs text-muted-foreground">Remaining tasks</p>
+                              <p className="mt-1 text-sm font-semibold text-primary">{remainingTasks}</p>
+                            </div>
+                            <div className="rounded-xl border bg-[#F8FAFC] p-3">
+                              <p className="text-xs text-muted-foreground">Active document</p>
+                              <p className="mt-1 text-sm font-semibold text-primary">{activeLifecycleDoc.itemLabel}</p>
+                            </div>
+                          </div>
+
+                          {activeLifecycleDoc.hasShortlist && (
+                            <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50/60 p-3">
+                              <p className="mb-2 text-sm font-semibold text-primary">Shortlisted Companies / Organizations</p>
+                              <div className="space-y-2">
+                                {project.shortlistedCompanies.map((item, index) => (
+                                  <div key={index} className="rounded-md border bg-white p-3 text-sm">
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                      <Link to={buildOrganizationDetailPath(item.name)} className="font-semibold text-primary underline-offset-2 hover:text-accent hover:underline">
+                                        {item.name}
+                                      </Link>
+                                      <div className="flex flex-wrap gap-2">
+                                        {renderOrganizationBookmarkButton(item.name)}
+                                        {renderOrganizationContactButton(item.name)}
+                                      </div>
+                                    </div>
+                                    <p className="mt-1 text-xs text-muted-foreground">Shortlisted on: {formatDate(item.date)}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {activeLifecycleDoc.hasContract && (
+                            <div className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50/60 p-3">
+                              <p className="mb-2 text-sm font-semibold text-primary">Contract Awarded Companies</p>
+                              <div className="space-y-2">
+                                {project.contractAwardedCompanies.map((item, index) => (
+                                  <div key={index} className="rounded-md border bg-white p-3 text-sm">
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                      <Link to={buildOrganizationDetailPath(item.name)} className="font-semibold text-primary underline-offset-2 hover:text-accent hover:underline">
+                                        {item.name}
+                                      </Link>
+                                      <div className="flex flex-wrap gap-2">
+                                        {renderOrganizationBookmarkButton(item.name)}
+                                        {renderOrganizationContactButton(item.name)}
+                                      </div>
+                                    </div>
+                                    <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                                      <span>Date: {formatDate(item.date)}</span>
+                                      <span>Budget: {item.budget}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </TabsContent>
 
                   <TabsContent value="market-analysis" className="mt-0">
@@ -1650,6 +2116,7 @@ export default function ProjectDetail() {
                                   <span>Donor:</span>
                                   <Link to={buildOrganizationDetailPath(item.donor)} className="font-medium text-[#4A5568] underline-offset-2 hover:text-[#E63462] hover:underline">{item.donor}</Link>
                                   {renderOrganizationBookmarkButton(item.donor)}
+                                  {renderOrganizationContactButton(item.donor)}
                                 </div>
                                 <p className="text-xs text-[#4A5568]/80">Budget: {item.budget}</p>
                               </div>
@@ -1668,10 +2135,11 @@ export default function ProjectDetail() {
                         <AccordionContent>
                           <div className="space-y-2">
                             {topCompanies.map((company) => (
-                              <div key={company.id} className="flex items-center justify-between gap-3 rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-3">
-                                <div className="flex items-center gap-2">
+                              <div key={company.id} className="flex flex-col gap-3 rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="flex flex-wrap items-center gap-2">
                                   <Link to={buildOrganizationDetailPath(company.name)} className="text-sm font-medium text-[#4A5568] underline-offset-2 hover:text-[#E63462] hover:underline">{company.name}</Link>
                                   {renderOrganizationBookmarkButton(company.name)}
+                                  {renderOrganizationContactButton(company.name)}
                                 </div>
                                 <p className="text-xs text-right text-[#4A5568]/80">{company.count} contracts/shortlists</p>
                               </div>
@@ -1691,9 +2159,10 @@ export default function ProjectDetail() {
                           <div className="space-y-2">
                             {localCompanies.map((company) => (
                               <div key={company.id} className="rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-3">
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
                                   <Link to={buildOrganizationDetailPath(company.name)} className="text-sm font-medium text-[#4A5568] underline-offset-2 hover:text-[#E63462] hover:underline">{company.name}</Link>
                                   {renderOrganizationBookmarkButton(company.name)}
+                                  {renderOrganizationContactButton(company.name)}
                                 </div>
                                 <p className="text-xs text-[#4A5568]/80">{company.info}</p>
                               </div>
@@ -1723,11 +2192,19 @@ export default function ProjectDetail() {
                                 </div>
                                 <p className="text-xs text-[#4A5568]/80">{expert.profession}</p>
                                 <p className="text-xs text-[#4A5568]/80">Seniority: {expert.seniority}</p>
-                                <div className="mt-3">
+                                <div className="mt-3 flex flex-wrap gap-2">
                                   {hasCvAccess(expert.id) ? (
-                                    <Button size="sm" variant="outline" asChild>
-                                      <Link to={buildExpertDetailPath(expert.id)}>View Profile</Link>
-                                    </Button>
+                                    <>
+                                      <Button size="sm" variant="outline" asChild>
+                                        <Link to={buildExpertDetailPath(expert.id)}>View Profile</Link>
+                                      </Button>
+                                      <Button size="sm" variant="outline" onClick={() => downloadExpertCv(expert.id, expert.name, 'pdf')}>
+                                        <Download className="mr-1.5 h-4 w-4" />PDF
+                                      </Button>
+                                      <Button size="sm" variant="outline" onClick={() => downloadExpertCv(expert.id, expert.name, 'docx')}>
+                                        <Download className="mr-1.5 h-4 w-4" />DOCX
+                                      </Button>
+                                    </>
                                   ) : (
                                     <Button size="sm" variant="outline" className="border-[#E63462]/30 text-[#E63462] hover:bg-[#FFF1F4]" onClick={() => unlockExpertCv(expert.id)} disabled={availableCredits < CV_UNLOCK_COST}>
                                       <Coins className="mr-2 h-4 w-4" />Unlock CV ({CV_UNLOCK_COST})
@@ -1736,6 +2213,53 @@ export default function ProjectDetail() {
                                 </div>
                               </div>
                             ))}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      <AccordionItem value="pricing-policy" className="rounded-xl border border-[#4A5568]/15 bg-white px-3">
+                        <AccordionTrigger>
+                          <span className="inline-flex items-center gap-2 text-[#4A5568]">
+                            <TrendingDown className="h-4 w-4 text-[#E63462]" />
+                            {t('projects.details.tabs.pricingPolicy')}
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <div className="space-y-4 pb-1">
+                            <div className="flex flex-wrap items-center gap-3">
+                              <span className="text-sm font-medium text-[#4A5568]">{t('projects.marketAnalysis.pricingPolicy.dropdown')}</span>
+                              <Select value={pricingPolicy} onValueChange={(v) => setPricingPolicy(v as typeof pricingPolicy)}>
+                                <SelectTrigger className="w-44">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="aggressive">{t('projects.marketAnalysis.pricingPolicy.aggressive')}</SelectItem>
+                                  <SelectItem value="competitive">{t('projects.marketAnalysis.pricingPolicy.competitive')}</SelectItem>
+                                  <SelectItem value="premium">{t('projects.marketAnalysis.pricingPolicy.premium')}</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              <div className="rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-3 text-center">
+                                <p className="text-xs text-[#4A5568]/70 mb-1">{t('projects.marketAnalysis.pricingPolicy.estimatedPrice')}</p>
+                                <p className="text-xl font-bold text-[#E63462]">${priceEstimate.central.toLocaleString()}</p>
+                              </div>
+                              <div className="rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-3 text-center">
+                                <p className="text-xs text-[#4A5568]/70 mb-1">{t('projects.marketAnalysis.pricingPolicy.range')}</p>
+                                <p className="text-base font-semibold text-[#4A5568]">${priceEstimate.low.toLocaleString()} – ${priceEstimate.high.toLocaleString()}</p>
+                              </div>
+                              <div className="rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-3 text-center">
+                                <p className="text-xs text-[#4A5568]/70 mb-1">{t('projects.marketAnalysis.pricingPolicy.discountRate')}</p>
+                                <p className="text-base font-semibold text-[#4A5568]">{priceEstimate.discountPct}%</p>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-4 text-xs text-[#4A5568]/70">
+                              <span className="inline-flex items-center gap-1">
+                                <DollarSign className="h-3 w-3" />
+                                {t('projects.marketAnalysis.pricingPolicy.avgExpertRate')}: ${priceEstimate.avgExpertMedian}/day
+                              </span>
+                              <span>{t('projects.marketAnalysis.pricingPolicy.basis').replace('{count}', String(priceEstimate.sampleCount))}</span>
+                            </div>
                           </div>
                         </AccordionContent>
                       </AccordionItem>
@@ -1901,8 +2425,7 @@ export default function ProjectDetail() {
                     )}
                   </TabsContent>
 
-                  {showSensitiveSections && (
-                    <TabsContent value="team-members" className="mt-0">
+                  <TabsContent value="team-members" className="mt-0">
                       <div className="rounded-2xl border border-[#4A5568]/15 bg-gradient-to-br from-[#F5F7FA] via-white to-[#FFF1F4] p-4 sm:p-5">
                         <div className="mb-4 flex items-center gap-2">
                           <Users className="h-5 w-5 text-[#E63462]" />
@@ -1939,31 +2462,59 @@ export default function ProjectDetail() {
                         </div>
                       </div>
                     </TabsContent>
-                  )}
 
                   {showSensitiveSections && (
                     <TabsContent value="tasks" className="mt-0">
-                      <div className="mb-4 rounded-lg border bg-slate-50 p-4">
-                        <div className="mb-2 flex items-center justify-between">
-                          <span className="text-sm font-medium text-primary">Progress</span>
-                          <span className="text-sm font-semibold text-primary">{project.tasksCompleted}/{project.totalTasks}</span>
+                      <div className="mb-4 flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="rounded-lg border bg-slate-50 p-4">
+                            <div className="mb-2 flex items-center justify-between">
+                              <span className="text-sm font-medium text-primary">Progress</span>
+                              <span className="text-sm font-semibold text-primary">{project.tasksCompleted}/{project.totalTasks}</span>
+                            </div>
+                            <Progress value={Math.round((project.tasksCompleted / project.totalTasks) * 100)} className="h-2.5" />
+                          </div>
                         </div>
-                        <Progress value={Math.round((project.tasksCompleted / project.totalTasks) * 100)} className="h-2.5" />
+                        <Button size="sm" className="ml-4 gap-1.5" onClick={() => navigate('/projects/tasks/new')}>
+                          <Plus className="h-4 w-4" />
+                          {t('projects.tasks.new')}
+                        </Button>
                       </div>
 
                       <ul role="list" className="space-y-3">
-                        {project.tasks.map((task) => (
+                        {projectTasks.map((task) => (
                           <li key={task.id} className="rounded-lg border border-gray-100 p-3 transition-colors hover:bg-gray-50">
-                            <div className="flex items-start gap-3">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                              <div className="flex flex-1 items-start gap-3">
                               <CheckCircle className={`mt-1 h-5 w-5 ${task.status === 'COMPLETED' ? 'text-green-500' : 'text-gray-300'}`} aria-hidden />
                               <div className="flex-1">
                                 <p className="text-sm font-medium text-primary">{task.title}</p>
                                 <p className="text-xs text-muted-foreground">{t(`projects.tasks.status.${task.status}`)}</p>
+                                {task.assignedTo && task.assignedTo.length > 0 && (
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    {t('projects.tasks.assignedTo')}: {task.assignedTo.map((a) => a.name).join(', ')}
+                                  </p>
+                                )}
                                 <div className="mt-2 flex flex-wrap items-center gap-2">
                                   <Badge variant="outline" className="text-xs">{t(`projects.priority.${task.priority}`)}</Badge>
                                   <span className="text-xs text-muted-foreground">{formatDate(task.dueDate)}</span>
                                 </div>
                               </div>
+                              </div>
+                              {canAssignTasks && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="self-start gap-1.5"
+                                  onClick={() => openTaskAssignmentDialog(task)}
+                                >
+                                  <UserPlus className="h-4 w-4" />
+                                  {hasAssignedMember(task)
+                                    ? t('projects.actions.manageMember')
+                                    : t('projects.actions.assignToMember')}
+                                </Button>
+                              )}
                             </div>
                           </li>
                         ))}
@@ -2083,9 +2634,17 @@ export default function ProjectDetail() {
                                   </div>
                                   <div className="mt-4 flex flex-wrap gap-2">
                                     {hasCvAccess(expert.id) ? (
-                                      <Button size="sm" variant="outline" asChild>
-                                        <Link to={buildExpertDetailPath(expert.id)}>{t('projects.matchingAI.actions.viewProfile')}</Link>
-                                      </Button>
+                                      <>
+                                        <Button size="sm" variant="outline" asChild>
+                                          <Link to={buildExpertDetailPath(expert.id)}>{t('projects.matchingAI.actions.viewProfile')}</Link>
+                                        </Button>
+                                        <Button size="sm" variant="outline" onClick={() => downloadExpertCv(expert.id, expert.name, 'pdf')}>
+                                          <Download className="mr-1.5 h-4 w-4" />PDF
+                                        </Button>
+                                        <Button size="sm" variant="outline" onClick={() => downloadExpertCv(expert.id, expert.name, 'docx')}>
+                                          <Download className="mr-1.5 h-4 w-4" />DOCX
+                                        </Button>
+                                      </>
                                     ) : (
                                       <Button size="sm" variant="outline" className="border-[#E63462]/30 text-[#E63462] hover:bg-[#FFE6E8] hover:text-[#E63462]" onClick={() => unlockExpertCv(expert.id)} disabled={availableCredits < CV_UNLOCK_COST}>
                                         <Coins className="mr-2 h-4 w-4" />Unlock CV ({CV_UNLOCK_COST})
@@ -2146,9 +2705,17 @@ export default function ProjectDetail() {
                                   </div>
                                   <div className="mt-4 flex flex-wrap gap-2">
                                     {hasCvAccess(writer.id) ? (
-                                      <Button size="sm" variant="outline" asChild>
-                                        <Link to={buildExpertDetailPath(writer.id)}>{t('projects.matchingAI.actions.viewProfile')}</Link>
-                                      </Button>
+                                      <>
+                                        <Button size="sm" variant="outline" asChild>
+                                          <Link to={buildExpertDetailPath(writer.id)}>{t('projects.matchingAI.actions.viewProfile')}</Link>
+                                        </Button>
+                                        <Button size="sm" variant="outline" onClick={() => downloadExpertCv(writer.id, writer.name, 'pdf')}>
+                                          <Download className="mr-1.5 h-4 w-4" />PDF
+                                        </Button>
+                                        <Button size="sm" variant="outline" onClick={() => downloadExpertCv(writer.id, writer.name, 'docx')}>
+                                          <Download className="mr-1.5 h-4 w-4" />DOCX
+                                        </Button>
+                                      </>
                                     ) : (
                                       <Button size="sm" variant="outline" className="border-[#E63462]/30 text-[#E63462] hover:bg-[#FFE6E8] hover:text-[#E63462]" onClick={() => unlockExpertCv(writer.id)} disabled={availableCredits < CV_UNLOCK_COST}>
                                         <Coins className="mr-2 h-4 w-4" />Unlock CV ({CV_UNLOCK_COST})
@@ -2186,16 +2753,18 @@ export default function ProjectDetail() {
                               <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
                                 <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
                                   <p className="text-sm font-semibold text-primary">{t('projects.matchingAI.sections.primaryMatches')}</p>
-                                  <Badge variant="outline" className="border-emerald-200 bg-white text-emerald-700">{partnerMatches.filter((partner) => partner.category === 'primary').length}</Badge>
+                                  <Badge variant="outline" className="border-emerald-200 bg-white text-emerald-700">{partnerMatches.filter((partner) => partner.category === 'primary' && isPartnerVisible(partner.name)).length}</Badge>
                                 </div>
                                 <div className="space-y-3">
-                                  {partnerMatches.filter((partner) => partner.category === 'primary').map((partner) => (
+                                  {partnerMatches.filter((partner) => partner.category === 'primary' && isPartnerVisible(partner.name)).map((partner) => (
                                     <div key={partner.id} className="rounded-xl border border-emerald-100 bg-white/90 p-3">
                                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                         <div className="min-w-0 flex-1">
-                                          <div className="flex items-center gap-2">
+                                          <div className="flex flex-wrap items-center gap-2">
                                             <Link to={buildOrganizationDetailPath(partner.name)} className="text-sm font-semibold text-primary underline-offset-2 hover:text-[#E63462] hover:underline">{partner.name}</Link>
                                             {renderOrganizationBookmarkButton(partner.name)}
+                                            {renderOrganizationContactButton(partner.name)}
+                                            {renderPartnerVisibilityToggle(partner.name)}
                                           </div>
                                           <p className="mt-1 text-xs text-muted-foreground">{partner.summary}</p>
                                         </div>
@@ -2209,14 +2778,16 @@ export default function ProjectDetail() {
                               <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4">
                                 <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
                                   <p className="text-sm font-semibold text-primary">{t('projects.matchingAI.sections.secondaryMatches')}</p>
-                                  <Badge variant="outline" className="border-amber-200 bg-white text-amber-700">{partnerMatches.filter((partner) => partner.category === 'secondary').length}</Badge>
+                                  <Badge variant="outline" className="border-amber-200 bg-white text-amber-700">{partnerMatches.filter((partner) => partner.category === 'secondary' && isPartnerVisible(partner.name)).length}</Badge>
                                 </div>
                                 <div className="space-y-3">
-                                  {partnerMatches.filter((partner) => partner.category === 'secondary').map((partner) => (
+                                  {partnerMatches.filter((partner) => partner.category === 'secondary' && isPartnerVisible(partner.name)).map((partner) => (
                                     <div key={partner.id} className="rounded-xl border border-amber-100 bg-white/90 p-3">
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex flex-wrap items-center gap-2">
                                         <Link to={buildOrganizationDetailPath(partner.name)} className="text-sm font-semibold leading-tight text-primary underline-offset-2 hover:text-[#E63462] hover:underline">{partner.name}</Link>
                                         {renderOrganizationBookmarkButton(partner.name)}
+                                        {renderOrganizationContactButton(partner.name)}
+                                        {renderPartnerVisibilityToggle(partner.name)}
                                       </div>
                                       <p className="mt-1 text-xs text-muted-foreground">{partner.summary}</p>
                                       <p className="mt-2 text-xs font-medium text-amber-700">{partner.highlight}</p>
@@ -2371,6 +2942,24 @@ export default function ProjectDetail() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <Button
+                        variant="outline"
+                        className="min-h-11 border-[#E63462]/30 text-[#E63462] hover:bg-[#FFF1F4] hover:text-[#E63462]"
+                        onClick={handleOpenTorUploadDialog}
+                        disabled={!isProjectSaved || isUploadingTor || isGeneratingTor}
+                      >
+                        {isUploadingTor ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            {t('projects.torAI.upload.uploading')}
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="mr-2 h-4 w-4" />
+                            {t('projects.torAI.upload.action')}
+                          </>
+                        )}
+                      </Button>
+                      <Button
                         className="min-h-11 bg-[#4A5568] text-white hover:bg-[#3F4859]"
                         onClick={handleGenerateTor}
                         disabled={!isProjectSaved || isGeneratingTor}
@@ -2387,15 +2976,17 @@ export default function ProjectDetail() {
                           </>
                         )}
                       </Button>
-                      <Button
-                        variant="outline"
-                        className="min-h-11 border-[#E63462]/30 text-[#E63462] hover:bg-[#FFF1F4] hover:text-[#E63462]"
-                        onClick={handleSaveTor}
-                        disabled={!isProjectSaved || !torDraftSections || isGeneratingTor}
-                      >
-                        <Save className="mr-2 h-4 w-4" />
-                        {t('projects.torAI.saveAction')}
-                      </Button>
+                      {torDraftSections && (
+                        <Button
+                          variant="outline"
+                          className="min-h-11 border-[#E63462]/30 text-[#E63462] hover:bg-[#FFF1F4] hover:text-[#E63462]"
+                          onClick={handleSaveTor}
+                          disabled={!isProjectSaved || isGeneratingTor}
+                        >
+                          <Save className="mr-2 h-4 w-4" />
+                          {t('projects.torAI.saveAction')}
+                        </Button>
+                      )}
                     </div>
                   </div>
 
@@ -2420,7 +3011,7 @@ export default function ProjectDetail() {
                       <div className="rounded-2xl border border-[#4A5568]/15 bg-white p-4 sm:p-5">
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge variant="outline" className="border-[#4A5568]/25 bg-[#F8FAFC] text-[#4A5568]">
-                            {hasTorDraftPreview ? t('projects.torAI.unsavedBadge') : activeSavedTorVersion ? activeSavedTorVersion.label : t('projects.torAI.latestBadge')}
+                            {hasTorDraftPreview ? t('projects.torAI.unsavedBadge') : activeSavedTorVersion ? activeSavedTorVersion.versionName : t('projects.torAI.latestBadge')}
                           </Badge>
                           {hasTorDraftPreview && torDraftGeneratedAt && (
                             <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
@@ -2462,7 +3053,7 @@ export default function ProjectDetail() {
                             <Copy className="mr-1.5 h-3.5 w-3.5" />
                             {t('projects.torAI.copyAction')}
                           </Button>
-                          <Button size="sm" variant="outline" onClick={handleDownloadTor} disabled={!displayedTorSections}>
+                          <Button size="sm" variant="outline" onClick={handleDownloadTor} disabled={!displayedTorSections && !activeSavedTorVersion?.fileUrl}>
                             <Download className="mr-1.5 h-3.5 w-3.5" />
                             {t('projects.torAI.downloadAction')}
                           </Button>
@@ -2486,7 +3077,9 @@ export default function ProjectDetail() {
                             ))
                           ) : (
                             <div className="rounded-xl border border-dashed border-[#4A5568]/20 bg-[#F8FAFC] p-5 text-sm text-[#4A5568]/80">
-                              {t('projects.torAI.emptyState')}
+                              {activeSavedTorVersion?.source === 'USER_UPLOADED'
+                                ? t('projects.torAI.upload.sourceDocumentEmptyState')
+                                : t('projects.torAI.emptyState')}
                             </div>
                           )}
                         </div>
@@ -2503,17 +3096,21 @@ export default function ProjectDetail() {
                             {torHistory.map((entry) => {
                               const isLatest = latestTorVersion?.id === entry.id;
                               const isActive = !hasTorDraftPreview && activeSavedTorVersion?.id === entry.id;
-                              const previewText = entry.sections[0]?.content || '';
+                              const previewText = entry.sections?.[0]?.content || entry.extractedText || entry.originalFileName;
+                              const sourceLabel = entry.source === 'USER_UPLOADED' ? t('projects.torAI.upload.sourceUserUploaded') : t('projects.torAI.upload.sourceAiGenerated');
 
                               return (
                                 <div key={entry.id} className={`flex flex-col gap-3 rounded-xl border p-3 ${isActive ? 'border-[#E63462]/30 bg-[#FFF1F4]' : 'border-[#4A5568]/10 bg-[#F8FAFC]'}`}>
                                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                     <div className="min-w-0 flex-1">
                                       <div className="flex flex-wrap items-center gap-2">
-                                        <p className="text-sm font-semibold text-[#4A5568]">{entry.label}</p>
+                                        <p className="text-sm font-semibold text-[#4A5568]">{entry.versionName}</p>
                                         {isLatest && <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">{t('projects.torAI.latestBadge')}</Badge>}
+                                        <Badge variant="outline" className={entry.source === 'USER_UPLOADED' ? 'border-sky-200 bg-sky-50 text-sky-700' : 'border-[#E63462]/20 bg-[#FFF1F4] text-[#E63462]'}>
+                                          {sourceLabel}
+                                        </Badge>
                                       </div>
-                                      <p className="text-xs text-[#4A5568]/75">{new Date(entry.createdAt).toLocaleString()}</p>
+                                      <p className="text-xs text-[#4A5568]/75">{entry.originalFileName} - {new Date(entry.createdAt).toLocaleString()}</p>
                                       <p className="mt-2 line-clamp-2 text-xs text-[#4A5568]/85">
                                         {previewText}
                                       </p>
@@ -2523,10 +3120,19 @@ export default function ProjectDetail() {
                                         <Eye className="mr-1.5 h-3.5 w-3.5" />
                                         {t('projects.torAI.viewAction')}
                                       </Button>
-                                      <Button size="sm" variant="outline" onClick={() => handleReuseTorVersion(entry.id)}>
-                                        <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-                                        {t('projects.torAI.reuseAction')}
-                                      </Button>
+                                      {entry.sections ? (
+                                        <Button size="sm" variant="outline" onClick={() => handleReuseTorVersion(entry.id)}>
+                                          <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                                          {t('projects.torAI.reuseAction')}
+                                        </Button>
+                                      ) : (
+                                        <Button size="sm" variant="outline" asChild>
+                                          <a href={entry.fileUrl} download={entry.originalFileName}>
+                                            <Download className="mr-1.5 h-3.5 w-3.5" />
+                                            {t('projects.torAI.downloadAction')}
+                                          </a>
+                                        </Button>
+                                      )}
                                       <Button size="sm" variant="outline" className="border-[#E63462]/30 text-[#E63462] hover:bg-[#FFF1F4] hover:text-[#E63462]" onClick={() => handleDeleteTorVersion(entry.id)}>
                                         <Trash2 className="mr-1.5 h-3.5 w-3.5" />
                                         {t('projects.torAI.deleteAction')}
@@ -2552,6 +3158,47 @@ export default function ProjectDetail() {
           </div>
         </main>
       </PageContainer>
+
+      <Dialog open={Boolean(taskToAssign)} onOpenChange={(open) => !open && setTaskToAssign(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {taskToAssign && hasAssignedMember(taskToAssign)
+                ? t('projects.actions.manageMember')
+                : t('projects.tasks.assignMemberDialogTitle')}
+            </DialogTitle>
+            <DialogDescription>{t('projects.tasks.assignMemberDialogDescription')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Select value={selectedTaskMemberId} onValueChange={setSelectedTaskMemberId}>
+              <SelectTrigger
+                aria-label={taskToAssign && hasAssignedMember(taskToAssign)
+                  ? t('projects.actions.manageMember')
+                  : t('projects.actions.assignToMember')}
+              >
+                <SelectValue placeholder={t('common.select')} />
+              </SelectTrigger>
+              <SelectContent>
+                {assignmentMembers.map((member) => (
+                  <SelectItem key={member.id} value={member.id}>
+                    {member.name} - {member.role}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setTaskToAssign(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button type="button" onClick={handleAssignTaskToMember} disabled={!selectedTaskMemberId}>
+              {taskToAssign && hasAssignedMember(taskToAssign)
+                ? t('projects.actions.manageMember')
+                : t('projects.actions.assignToMember')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

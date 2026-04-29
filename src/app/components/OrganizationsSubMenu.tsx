@@ -8,8 +8,6 @@ import {
   Building2,
   UsersRound,
   FileText,
-  Shield,
-  BriefcaseBusiness,
 } from 'lucide-react';
 
 export function OrganizationsSubMenu() {
@@ -24,8 +22,6 @@ export function OrganizationsSubMenu() {
     if (path === '/organizations' || path === '/organizations/overview') return null;
     if (path.startsWith('/organizations/database')) return 'database';
     if (path.startsWith('/organizations/my-organization')) return 'myOrganization';
-    if (path.startsWith('/organizations/my-tenders')) return 'myTenders';
-    if (path.startsWith('/organizations/subscription')) return 'subscription';
     if (path.startsWith('/organizations/project-references')) return 'projectReferences';
     if (path.startsWith('/organizations/teams')) return 'teams';
     if (path.startsWith('/organizations/partnerships')) return 'partnerships';
@@ -40,8 +36,6 @@ export function OrganizationsSubMenu() {
 
   // Vérifier l'accès à chaque sous-menu individuellement
   const canAccessMyOrganization = hasOrganizationsSubMenuAccess('myOrganization', user?.accountType);
-  const canAccessMyTenders = hasOrganizationsSubMenuAccess('myTenders', user?.accountType);
-  const canAccessSubscription = hasOrganizationsSubMenuAccess('subscription', user?.accountType);
   const canAccessProjectReferences = hasOrganizationsSubMenuAccess('projectReferences', user?.accountType);
   const canAccessTeams = hasOrganizationsSubMenuAccess('teams', user?.accountType);
   const canAccessMatching = hasOrganizationsSubMenuAccess('matching', user?.accountType);
@@ -54,18 +48,6 @@ export function OrganizationsSubMenu() {
       icon: Building2,
       active: activeTab === 'myOrganization',
       onClick: () => navigate('/organizations/my-organization'),
-    },
-    canAccessMyTenders && {
-      label: t('organizations.submenu.myTenders'),
-      icon: BriefcaseBusiness,
-      active: activeTab === 'myTenders',
-      onClick: () => navigate('/organizations/my-tenders'),
-    },
-    canAccessSubscription && {
-      label: t('organizations.submenu.subscription'),
-      icon: Shield,
-      active: activeTab === 'subscription',
-      onClick: () => navigate('/organizations/subscription'),
     },
     canAccessProjectReferences && {
       label: t('organizations.submenu.projectReferences'),

@@ -7,6 +7,7 @@ import {
   ProjectSectorEnum,
   RegionEnum,
   TaskDTO,
+  TaskAssigneeDTO,
   CollaborationDTO,
   ProjectTemplateDTO,
 } from '../types/project.dto';
@@ -25,6 +26,7 @@ interface ProjectsContextType {
   getProjectById: (id: string) => ProjectListDTOInternal | undefined;
   tasks: TaskDTO[];
   addTask: (task: TaskDTO) => void;
+  updateTask: (id: string, task: Partial<TaskDTO>) => void;
   collaborations: CollaborationDTO[];
   addCollaboration: (collaboration: CollaborationDTO) => void;
   templates: ProjectTemplateDTO[];
@@ -68,9 +70,11 @@ const initialMockProjects: ProjectListDTOInternal[] = [
     totalTasks: 172,
     createdDate: '2023-05-15',
     updatedDate: '2024-02-20',
+    createdBy: 'user-1',
+    ownedBy: 'user-1',
+    tags: ['education', 'infrastructure', 'kenya', 'schools'],
   },
   {
-    id: '2',
     organizationId: 'org-1',
     code: 'PROJ-2024-002',
     title: 'HEALTH Development Project 2',
@@ -103,9 +107,11 @@ const initialMockProjects: ProjectListDTOInternal[] = [
     totalTasks: 198,
     createdDate: '2023-01-20',
     updatedDate: '2024-02-24',
+    createdBy: 'user-1',
+    ownedBy: 'user-1',
+    tags: ['health', 'maternal', 'ethiopia', 'unicef'],
   },
   {
-    id: '3',
     organizationId: 'org-1',
     code: 'PROJ-2024-003',
     title: 'AGRICULTURE Development Project 3',
@@ -138,9 +144,11 @@ const initialMockProjects: ProjectListDTOInternal[] = [
     totalTasks: 96,
     createdDate: '2023-11-10',
     updatedDate: '2024-02-22',
+    createdBy: 'user-2',
+    ownedBy: 'user-2',
+    tags: ['agriculture', 'senegal', 'farmers', 'capacity-building'],
   },
   {
-    id: '4',
     organizationId: 'org-1',
     code: 'PROJ-2023-042',
     title: 'INFRASTRUCTURE Development Project 4',
@@ -173,19 +181,18 @@ const initialMockProjects: ProjectListDTOInternal[] = [
     totalTasks: 245,
     createdDate: '2023-05-10',
     updatedDate: '2024-02-23',
+    createdBy: 'user-2',
+    ownedBy: 'user-2',
+    tags: ['water', 'sanitation', 'tanzania', 'wash'],
   },
   {
-    id: '5',
     organizationId: 'org-1',
     code: 'PROJ-2024-015',
     title: 'ENVIRONMENT Development Project 5',
     name: 'ENVIRONMENT Development Project 5',
     managerName: 'Clara Nguyen',
     description: 'Development and implementation of climate change adaptation strategies for vulnerable coastal communities.',
-    status: ProjectStatusEnum.PLANNING,
-    priority: ProjectPriorityEnum.MEDIUM,
-    type: ProjectTypeEnum.RESEARCH,
-    country: 'Bangladesh',
+    status: ProjectStatusEnum.DRAFT,
     region: RegionEnum.ASIA_PACIFIC,
     sector: ProjectSectorEnum.ENVIRONMENT,
     subsectors: ['CLIMATE_CHANGE', 'SUSTAINABLE_DEVELOPMENT'],
@@ -208,9 +215,11 @@ const initialMockProjects: ProjectListDTOInternal[] = [
     totalTasks: 78,
     createdDate: '2024-02-01',
     updatedDate: '2024-02-24',
+    createdBy: 'user-1',
+    ownedBy: 'user-1',
+    tags: ['environment', 'climate', 'bangladesh', 'research'],
   },
   {
-    id: '6',
     organizationId: 'org-2',
     code: 'PROJ-2023-028',
     title: 'ENERGY Development Project 6',
@@ -243,9 +252,11 @@ const initialMockProjects: ProjectListDTOInternal[] = [
     totalTasks: 234,
     createdDate: '2021-10-15',
     updatedDate: '2024-02-05',
+    createdBy: 'user-2',
+    ownedBy: 'user-2',
+    tags: ['energy', 'solar', 'morocco', 'renewable'],
   },
   {
-    id: '7',
     organizationId: 'org-1',
     code: 'PROJ-2024-007',
     title: 'GOVERNANCE Development Project 7',
@@ -278,9 +289,11 @@ const initialMockProjects: ProjectListDTOInternal[] = [
     totalTasks: 112,
     createdDate: '2024-01-10',
     updatedDate: '2024-03-01',
+    createdBy: 'user-1',
+    ownedBy: 'user-1',
+    tags: ['governance', 'mali', 'peacebuilding', 'institutions'],
   },
   {
-    id: '8',
     organizationId: 'org-2',
     code: 'PROJ-2024-008',
     title: 'GENDER Development Project 8',
@@ -313,9 +326,11 @@ const initialMockProjects: ProjectListDTOInternal[] = [
     totalTasks: 80,
     createdDate: '2024-01-25',
     updatedDate: '2024-03-05',
+    createdBy: 'user-2',
+    ownedBy: 'user-2',
+    tags: ['gender', 'women', 'uganda', 'empowerment'],
   },
   {
-    id: '9',
     organizationId: 'org-1',
     code: 'PROJ-2024-009',
     title: 'DIGITAL Development Project 9',
@@ -348,16 +363,18 @@ const initialMockProjects: ProjectListDTOInternal[] = [
     totalTasks: 140,
     createdDate: '2023-12-01',
     updatedDate: '2024-03-10',
+    createdBy: 'user-1',
+    ownedBy: 'user-1',
+    tags: ['digital', 'india', 'ict', 'infrastructure'],
   },
   {
-    id: '10',
     organizationId: 'org-2',
     code: 'PROJ-2023-010',
     title: 'NUTRITION Development Project 10',
     name: 'NUTRITION Development Project 10',
     managerName: 'Marie Leclerc',
     description: 'Combatting malnutrition and food insecurity through community-based nutrition programs and school feeding initiatives.',
-    status: ProjectStatusEnum.ON_HOLD,
+    status: ProjectStatusEnum.DRAFT,
     priority: ProjectPriorityEnum.URGENT,
     type: ProjectTypeEnum.DEVELOPMENT,
     country: 'Niger',
@@ -383,9 +400,11 @@ const initialMockProjects: ProjectListDTOInternal[] = [
     totalTasks: 196,
     createdDate: '2023-07-15',
     updatedDate: '2024-02-28',
+    createdBy: 'user-2',
+    ownedBy: 'user-2',
+    tags: ['nutrition', 'niger', 'food-security', 'health'],
   },
   {
-    id: '11',
     organizationId: 'org-1',
     code: 'PROJ-2024-011',
     title: 'TRANSPORT Development Project 11',
@@ -418,9 +437,11 @@ const initialMockProjects: ProjectListDTOInternal[] = [
     totalTasks: 160,
     createdDate: '2024-01-05',
     updatedDate: '2024-03-12',
+    createdBy: 'user-1',
+    ownedBy: 'user-1',
+    tags: ['transport', 'peru', 'roads', 'rural'],
   },
   {
-    id: '12',
     organizationId: 'org-2',
     code: 'PROJ-2022-012',
     title: 'FINANCE Development Project 12',
@@ -453,6 +474,9 @@ const initialMockProjects: ProjectListDTOInternal[] = [
     totalTasks: 132,
     createdDate: '2022-04-10',
     updatedDate: '2024-06-01',
+    createdBy: 'user-2',
+    ownedBy: 'user-2',
+    tags: ['finance', 'ghana', 'microfinance', 'entrepreneurship'],
   },
 ];
 
@@ -466,7 +490,7 @@ const initialMockTasks: TaskDTO[] = [
     description: 'Conduct detailed site survey and soil testing for the new primary school construction in Kisumu region.',
     status: 'IN_PROGRESS',
     priority: ProjectPriorityEnum.HIGH,
-    assignedTo: ['John Doe', 'Jane Smith'],
+    assignedTo: [{ id: 'u1', name: 'John Doe', role: 'Engineer' }, { id: 'u2', name: 'Jane Smith', role: 'Surveyor' }],
     startDate: '2024-03-01',
     dueDate: '2024-03-15',
     tags: ['survey', 'infrastructure'],
@@ -479,7 +503,7 @@ const initialMockTasks: TaskDTO[] = [
     description: 'Complete architectural drawings for 3 school buildings and get approval from Ministry of Education.',
     status: 'TODO',
     priority: ProjectPriorityEnum.URGENT,
-    assignedTo: ['Architect Team'],
+    assignedTo: [{ id: 'u3', name: 'Architect Team', role: 'Architect' }],
     startDate: '2024-03-05',
     dueDate: '2024-03-10',
     tags: ['design', 'planning'],
@@ -492,7 +516,7 @@ const initialMockTasks: TaskDTO[] = [
     description: 'Train 50 community health workers on maternal care and nutrition best practices.',
     status: 'IN_PROGRESS',
     priority: ProjectPriorityEnum.HIGH,
-    assignedTo: ['Health Team', 'Dr. Amina Hassan'],
+    assignedTo: [{ id: 'u4', name: 'Health Team', role: 'Trainer' }, { id: 'u5', name: 'Dr. Amina Hassan', role: 'Health Specialist' }],
     startDate: '2024-03-10',
     dueDate: '2024-03-20',
     tags: ['training', 'health'],
@@ -505,7 +529,7 @@ const initialMockTasks: TaskDTO[] = [
     description: 'Create comprehensive training modules on sustainable farming techniques and climate-smart agriculture.',
     status: 'COMPLETED',
     priority: ProjectPriorityEnum.MEDIUM,
-    assignedTo: ['Training Department'],
+    assignedTo: [{ id: 'u6', name: 'Training Department', role: 'Trainer' }],
     startDate: '2024-02-01',
     dueDate: '2024-02-28',
     tags: ['materials', 'agriculture'],
@@ -518,7 +542,7 @@ const initialMockTasks: TaskDTO[] = [
     description: 'Install and test 12 water filtration units in selected communities.',
     status: 'IN_PROGRESS',
     priority: ProjectPriorityEnum.URGENT,
-    assignedTo: ['Engineering Team', 'Michael Brown'],
+    assignedTo: [{ id: 'u7', name: 'Engineering Team', role: 'Engineer' }, { id: 'u8', name: 'Michael Brown', role: 'Project Manager' }],
     startDate: '2024-03-01',
     dueDate: '2024-03-25',
     tags: ['installation', 'water'],
@@ -531,7 +555,7 @@ const initialMockTasks: TaskDTO[] = [
     description: 'Source and procure cement, steel, and other construction materials according to approved specifications.',
     status: 'TODO',
     priority: ProjectPriorityEnum.HIGH,
-    assignedTo: ['Procurement Team'],
+    assignedTo: [{ id: 'u9', name: 'Procurement Team', role: 'Procurement Officer' }],
     startDate: '2024-03-15',
     dueDate: '2024-03-30',
     tags: ['procurement', 'materials'],
@@ -544,7 +568,7 @@ const initialMockTasks: TaskDTO[] = [
     description: 'Compile and submit monthly monitoring report on maternal and child health indicators.',
     status: 'REVIEW',
     priority: ProjectPriorityEnum.MEDIUM,
-    assignedTo: ['M&E Team'],
+    assignedTo: [{ id: 'u10', name: 'M&E Team', role: 'M&E Officer' }],
     startDate: '2024-03-01',
     dueDate: '2024-03-08',
     tags: ['monitoring', 'reporting'],
@@ -557,7 +581,7 @@ const initialMockTasks: TaskDTO[] = [
     description: 'Coordinate field visits to demonstration farms for 200 smallholder farmers.',
     status: 'TODO',
     priority: ProjectPriorityEnum.MEDIUM,
-    assignedTo: ['Field Officers'],
+    assignedTo: [{ id: 'u11', name: 'Field Officers', role: 'Field Officer' }],
     startDate: '2024-03-20',
     dueDate: '2024-04-10',
     tags: ['fieldwork', 'training'],
@@ -570,7 +594,7 @@ const initialMockTasks: TaskDTO[] = [
     description: 'Launch community awareness campaign on water conservation and sanitation practices.',
     status: 'IN_PROGRESS',
     priority: ProjectPriorityEnum.MEDIUM,
-    assignedTo: ['Communications Team', 'Community Mobilizers'],
+    assignedTo: [{ id: 'u12', name: 'Communications Team', role: 'Communications' }, { id: 'u13', name: 'Community Mobilizers', role: 'Mobilizer' }],
     startDate: '2024-02-15',
     dueDate: '2024-03-31',
     tags: ['awareness', 'community'],
@@ -583,7 +607,7 @@ const initialMockTasks: TaskDTO[] = [
     description: 'Conduct baseline assessment of climate vulnerabilities in target coastal communities.',
     status: 'IN_PROGRESS',
     priority: ProjectPriorityEnum.HIGH,
-    assignedTo: ['Research Team'],
+    assignedTo: [{ id: 'u14', name: 'Research Team', role: 'Researcher' }],
     startDate: '2024-02-01',
     dueDate: '2024-03-15',
     tags: ['research', 'assessment'],
@@ -780,6 +804,14 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
     setTasks((prev) => [task, ...prev]);
   };
 
+  const updateTask = (id: string, updatedTask: Partial<TaskDTO>) => {
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === id ? { ...task, ...updatedTask } : task
+      )
+    );
+  };
+
   const addCollaboration = (collaboration: CollaborationDTO) => {
     setCollaborations((prev) => [collaboration, ...prev]);
   };
@@ -794,6 +826,7 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
         getProjectById,
         tasks,
         addTask,
+        updateTask,
         collaborations,
         addCollaboration,
         templates,

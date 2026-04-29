@@ -11,6 +11,40 @@ export enum OrganizationTypeEnum {
   RESEARCH_INSTITUTION = 'RESEARCH_INSTITUTION',
   FOUNDATION = 'FOUNDATION',
   CONSORTIUM = 'CONSORTIUM',
+  IT_SERVICES = 'IT_SERVICES',
+  International = 'International Organization',
+}
+
+// Backend API Organization format
+export interface OrganizationBackend {
+  id: number;
+  name: string;
+  acronym?: string;
+  type: string;
+  city?: {
+    id: number;
+    name: string;
+  };
+  country?: {
+    code: string;
+    id: number;
+    name: string;
+  };
+  description?: string;
+  isActive: boolean;
+  verificationStatus: string;
+  website?: string;
+  contactEmail?: string;
+  createdAt: string;
+  updatedAt?: string;
+  legalName?: string;
+  logoUrl?: string;
+  region?: string | null;
+  mainSector?: string | null;
+  employeesCount?: number | null;
+  annualTurnover?: number | null;
+  yearFounded?: number | null;
+  [key: string]: any;
 }
 
 export enum OrganizationSectorEnum {
@@ -50,35 +84,40 @@ export enum RegionEnum {
 }
 
 export interface Organization {
-  id: string;
+  id: string | number;
   name: string;
   acronym?: string;
-  type: OrganizationTypeEnum;
-  sectors: OrganizationSectorEnum[];
+  type: string;
+  sectors?: string[];
   subSectors?: SubSectorEnum[];
-  status: OrganizationStatusEnum;
-  region: RegionEnum;
-  country: string;
-  city?: string;
-  description: string;
+  status?: string;
+  region?: string;
+  country?: string | { code: string; id: number; name: string };
+  city?: string | { id: number; name: string };
+  description?: string;
   logo?: string;
+  logoUrl?: string;
   website?: string;
-  email: string;
+  email?: string;
+  contactEmail?: string;
   phone?: string;
   yearEstablished?: number;
   employeeCount?: number;
-  activeProjects: number;
-  completedProjects: number;
-  partnerships: number;
-  certifications: string[];
+  activeProjects?: number;
+  completedProjects?: number;
+  partnerships?: number;
+  certifications?: string[];
   budget?: {
     amount: number;
     currency: string;
     formatted: string;
   };
-  teamMembers: number;
-  createdAt: Date;
-  updatedAt: Date;
+  teamMembers?: number;
+  createdAt: string | Date;
+  updatedAt?: string | Date;
+  isActive?: boolean;
+  verificationStatus?: string;
+  legalName?: string;
 }
 
 export interface OrganizationKPIs {
@@ -100,6 +139,8 @@ export interface OrganizationFilters {
   status?: OrganizationStatusEnum[];
   region?: RegionEnum[];
   country?: string[];
+  regions?: RegionEnum[];
+  countries?: string[];
 }
 
 export interface PaginatedOrganizations {

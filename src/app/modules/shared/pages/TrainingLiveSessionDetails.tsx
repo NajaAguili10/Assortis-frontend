@@ -52,7 +52,7 @@ export default function TrainingLiveSessionDetails() {
               <Video className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
               <h3 className="text-lg font-semibold text-primary mb-1">{t('common.notFound')}</h3>
               <p className="text-sm text-muted-foreground mb-4">{t('training.liveSessions.noResults.message')}</p>
-              <Button onClick={() => navigate('/training/live-sessions')}>
+              <Button onClick={() => navigate('/training/catalog')}>
                 {t('actions.back')}
               </Button>
             </div>

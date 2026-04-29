@@ -95,7 +95,6 @@ const PROFILE_VALIDATION_SECTIONS = [
   'operations',
   'resources',
   'projects',
-  'subscription',
 ] as const;
 
 export default function OrganizationsEditProfile() {
@@ -141,7 +140,7 @@ export default function OrganizationsEditProfile() {
     annualBudget: organizationProfile?.annualBudget?.toString() || myOrganizationData.annualBudget.toString(),
     projectsCompleted: organizationProfile?.projectsCompleted?.toString() || myOrganizationData.projectsCompleted.toString(),
     
-    // Step 6: Subscription & Services (Pre-filled from myOrganizationData)
+    // Step 6: Services (Pre-filled from myOrganizationData)
     selectedServices: organizationProfile?.selectedServices || myOrganizationData.selectedServices as string[],
   });
 
@@ -802,7 +801,7 @@ export default function OrganizationsEditProfile() {
               </div>
             )}
 
-            {/* Step 6: Subscription & Services */}
+            {/* Step 6: Services */}
             {currentStep === 6 && (
               <div className="space-y-6">
                 <div>

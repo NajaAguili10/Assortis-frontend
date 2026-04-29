@@ -603,7 +603,7 @@ export default function GlobalSearch() {
                       {filteredCertifications.map((cert) => (
                         <button
                           key={cert.id}
-                          onClick={() => navigate(`/training/certifications`)}
+                          onClick={() => navigate(`/training/portfolio`)}
                           className="w-full p-5 text-left hover:bg-gray-50 transition-colors"
                         >
                           <div className="flex items-start gap-4">

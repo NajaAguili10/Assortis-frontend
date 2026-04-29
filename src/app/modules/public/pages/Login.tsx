@@ -88,7 +88,7 @@ const Login = () => {
 
     try {
       await quickLogin(accountType);
-      navigate('/account');
+      navigate('/calls/active');
     } catch (err: any) {
       setError(err.message || t('auth.login.invalidCredentials'));
     } finally {

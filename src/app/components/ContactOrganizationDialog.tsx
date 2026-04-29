@@ -43,9 +43,7 @@ export function ContactOrganizationDialog({ open, onClose, onContactSent, organi
 
   const handleSendMessage = async () => {
     if (!subject.trim() || !message.trim() || !organization) {
-      toast.error(t('common.error'), {
-        description: 'Please fill in all required fields',
-      });
+      toast.error(t('organisation.contact.error'));
       return;
     }
 
@@ -69,8 +67,8 @@ export function ContactOrganizationDialog({ open, onClose, onContactSent, organi
         console.error('Error saving contact history:', error);
       }
 
-      toast.success(t('common.success'), {
-        description: `Your message has been sent to ${organization.name}`,
+      toast.success(t('organisation.contact.success'), {
+        description: organization.name,
       });
 
       resetState();
@@ -87,7 +85,7 @@ export function ContactOrganizationDialog({ open, onClose, onContactSent, organi
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Mail className="w-5 h-5 text-[#B82547]" />
-            {t('projects.contact.title')}
+            {t('organisation.contact')}
           </DialogTitle>
         </DialogHeader>
 

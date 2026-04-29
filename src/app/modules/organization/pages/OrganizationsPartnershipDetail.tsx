@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { PageBanner } from '@app/components/PageBanner';
@@ -6,7 +6,7 @@ import { PageContainer } from '@app/components/PageContainer';
 import { OrganizationsSubMenu } from '@app/components/OrganizationsSubMenu';
 import { Button } from '@app/components/ui/button';
 import { Badge } from '@app/components/ui/badge';
-import { Separator } from '@app/components/ui/separator';
+import { partnershipService, type PartnershipListItem } from '@app/services/partnershipService';
 import {
   ArrowLeft,
   Building2,
@@ -21,151 +21,67 @@ import {
   AlertCircle,
   Users,
   TrendingUp,
+  Handshake,
 } from 'lucide-react';
-
-interface Partnership {
-  id: string;
-  organizationName: string;
-  organizationType: string;
-  partnershipType: 'strategic' | 'operational' | 'consortium' | 'collaboration';
-  status: 'active' | 'pending' | 'completed' | 'terminated';
-  startDate: string;
-  endDate?: string;
-  sector: string;
-  region: string;
-  projectsCount: number;
-  tenderReference?: string;
-  tenderTitle?: string;
-  projectCode?: string;
-  projectTitle?: string;
-  description?: string;
-}
-
-// Mock partnerships data (same as in OrganizationsPartnerships.tsx)
-const mockPartnerships: Partnership[] = [
-  {
-    id: '1',
-    organizationName: 'World Health Organization',
-    organizationType: 'International Organization',
-    partnershipType: 'consortium',
-    status: 'active',
-    startDate: '2024-01-15',
-    sector: 'Health',
-    region: 'Africa',
-    projectsCount: 3,
-    tenderReference: 'REF-2024-002',
-    tenderTitle: 'Healthcare System Modernization',
-    description: 'Strategic consortium for healthcare infrastructure development in Sub-Saharan Africa',
-  },
-  {
-    id: '2',
-    organizationName: 'Red Cross International',
-    organizationType: 'NGO',
-    partnershipType: 'collaboration',
-    status: 'active',
-    startDate: '2024-02-20',
-    sector: 'Humanitarian Aid',
-    region: 'Global',
-    projectsCount: 5,
-    projectCode: 'PROJ-2024-002',
-    projectTitle: 'Community Health Centers Network',
-    description: 'Operational collaboration for emergency response and community health programs',
-  },
-  {
-    id: '3',
-    organizationName: 'Global Education Alliance',
-    organizationType: 'International Organization',
-    partnershipType: 'consortium',
-    status: 'pending',
-    startDate: '2024-03-01',
-    sector: 'Education',
-    region: 'Asia',
-    projectsCount: 0,
-    tenderReference: 'REF-2024-003',
-    tenderTitle: 'Education Quality Improvement Program',
-    description: 'Multi-stakeholder consortium to enhance education quality across Asian countries',
-  },
-  {
-    id: '4',
-    organizationName: 'Agricultural Development Fund',
-    organizationType: 'Government Agency',
-    partnershipType: 'collaboration',
-    status: 'active',
-    startDate: '2023-11-10',
-    endDate: '2025-11-10',
-    sector: 'Agriculture',
-    region: 'Latin America',
-    projectsCount: 4,
-    projectCode: 'PROJ-2024-003',
-    projectTitle: 'Sustainable Agriculture Transformation',
-    description: 'Long-term partnership for sustainable farming practices and rural development',
-  },
-  {
-    id: '5',
-    organizationName: 'European Investment Bank',
-    organizationType: 'Financial Institution',
-    partnershipType: 'consortium',
-    status: 'active',
-    startDate: '2024-01-01',
-    sector: 'Infrastructure',
-    region: 'Europe',
-    projectsCount: 2,
-    tenderReference: 'REF-2024-005',
-    tenderTitle: 'Urban Renewal and Housing Project',
-    description: 'Financial consortium for urban infrastructure development and affordable housing',
-  },
-  {
-    id: '6',
-    organizationName: 'Clean Water Initiative',
-    organizationType: 'NGO',
-    partnershipType: 'collaboration',
-    status: 'completed',
-    startDate: '2023-03-15',
-    endDate: '2024-03-15',
-    sector: 'Water & Sanitation',
-    region: 'Africa',
-    projectsCount: 6,
-    projectCode: 'PROJ-2024-004',
-    projectTitle: 'Clean Water Access Program',
-    description: 'Completed collaboration for water infrastructure and sanitation facilities',
-  },
-  {
-    id: '7',
-    organizationName: 'Tech for Good Foundation',
-    organizationType: 'Private Foundation',
-    partnershipType: 'consortium',
-    status: 'pending',
-    startDate: '2024-04-01',
-    sector: 'Technology',
-    region: 'Global',
-    projectsCount: 0,
-    tenderReference: 'REF-2024-001',
-    tenderTitle: 'Rural Water Infrastructure Development',
-    description: 'Technology-driven consortium for digital transformation in rural areas',
-  },
-  {
-    id: '8',
-    organizationName: 'Youth Empowerment Network',
-    organizationType: 'NGO',
-    partnershipType: 'collaboration',
-    status: 'active',
-    startDate: '2024-02-01',
-    sector: 'Education',
-    region: 'Middle East',
-    projectsCount: 3,
-    projectCode: 'PROJ-2024-005',
-    projectTitle: 'Youth Skills Development Initiative',
-    description: 'Active collaboration for youth training, skills development and employment programs',
-  },
-];
 
 export default function OrganizationsPartnershipDetail() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const [partnership, setPartnership] = useState<PartnershipListItem | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Find partnership by ID
-  const partnership = mockPartnerships.find((p) => p.id === id);
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPartnership = async () => {
+      setIsLoading(true);
+
+      try {
+        const partnerships = await partnershipService.getPartnerships();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setPartnership(partnerships.find((item) => item.id === id) ?? null);
+      } catch (error) {
+        if (isMounted) {
+          console.error('Error fetching partnership detail:', error);
+          setPartnership(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadPartnership();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen">
+        <PageBanner
+          title={t('common.loading')}
+          description=""
+          icon={Building2}
+        />
+        <PageContainer>
+          <OrganizationsSubMenu />
+          <div className="text-center py-12">
+            <Handshake className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-600">{t('common.loading')}</p>
+          </div>
+        </PageContainer>
+      </div>
+    );
+  }
 
   if (!partnership) {
     return (
@@ -190,7 +106,7 @@ export default function OrganizationsPartnershipDetail() {
     );
   }
 
-  const getStatusConfig = (status: Partnership['status']) => {
+  const getStatusConfig = (status: PartnershipListItem['status']) => {
     switch (status) {
       case 'active':
         return {
@@ -231,7 +147,7 @@ export default function OrganizationsPartnershipDetail() {
     }
   };
 
-  const getPartnershipTypeConfig = (type: Partnership['partnershipType']) => {
+  const getPartnershipTypeConfig = (type: PartnershipListItem['partnershipType']) => {
     switch (type) {
       case 'consortium':
         return {
@@ -270,7 +186,6 @@ export default function OrganizationsPartnershipDetail() {
 
   return (
     <div className="min-h-screen">
-      {/* Banner */}
       <PageBanner
         title={partnership.organizationName}
         description={partnership.organizationType}
@@ -280,9 +195,7 @@ export default function OrganizationsPartnershipDetail() {
       <PageContainer>
         <OrganizationsSubMenu />
 
-        {/* Partnership Details */}
         <div className="grid gap-6">
-          {/* Status and Type */}
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-[#3d4654]">
@@ -300,7 +213,6 @@ export default function OrganizationsPartnershipDetail() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Organization Info */}
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-medium text-gray-500">
@@ -343,7 +255,6 @@ export default function OrganizationsPartnershipDetail() {
                 </div>
               </div>
 
-              {/* Partnership Dates */}
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-medium text-gray-500">
@@ -392,7 +303,6 @@ export default function OrganizationsPartnershipDetail() {
             </div>
           </div>
 
-          {/* Description */}
           {partnership.description && (
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
               <h3 className="text-lg font-semibold text-[#3d4654] mb-4">
@@ -402,7 +312,6 @@ export default function OrganizationsPartnershipDetail() {
             </div>
           )}
 
-          {/* Reference Information */}
           {(partnership.tenderReference || partnership.projectCode) && (
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
               <h3 className="text-lg font-semibold text-[#3d4654] mb-4">

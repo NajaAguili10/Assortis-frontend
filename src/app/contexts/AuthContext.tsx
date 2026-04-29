@@ -11,6 +11,7 @@ interface User {
   token?: string;
   roles?: string[];
   permissions?: string[];
+  isSubscribed?: boolean;
 }
 
 type QuickLoginAccountType = 'expert' | 'organization' | 'organization-user' | 'admin' | 'public';
@@ -48,6 +49,7 @@ const mapLoginResponseToUser = (authData: LoginResponse): User => {
     token: authData.token,
     roles: authData.roles || [],
     permissions: authData.permissions || [],
+    isSubscribed: primaryRole !== 'public',
   };
 };
 

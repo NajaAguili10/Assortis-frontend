@@ -3,7 +3,7 @@ import { useLanguage } from '@app/contexts/LanguageContext';
 import { useNavigate, useParams } from 'react-router';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
-import { SubMenu } from '@app/components/SubMenu';
+import { TrainingSubMenu } from '@app/components/TrainingSubMenu';
 import { Button } from '@app/components/ui/button';
 import { Badge } from '@app/components/ui/badge';
 import { useTraining } from '@app/hooks/useTraining';
@@ -48,14 +48,7 @@ export default function TrainingTrainerDetails() {
             { value: kpis.enrolledPrograms.toString(), label: t('training.stats.enrolledPrograms') }
           ]}
         />
-        <SubMenu
-          items={[
-            { label: t('training.submenu.catalog'), icon: BookOpen, onClick: () => navigate('/training/catalog') },
-            { label: t('training.submenu.liveSessions'), icon: Video, onClick: () => navigate('/training/live-sessions') },
-            { label: t('training.submenu.trainers'), active: true, icon: UserCheck },
-            { label: t('training.submenu.certifications'), icon: Award, onClick: () => navigate('/training/certifications') },
-          ]}
-        />
+        <TrainingSubMenu />
         <PageContainer className="my-6">
           <div className="text-center py-12 bg-white rounded-lg border">
             <UserCheck className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
@@ -86,14 +79,7 @@ export default function TrainingTrainerDetails() {
         ]}
       />
 
-      <SubMenu
-        items={[
-          { label: t('training.submenu.catalog'), icon: BookOpen, onClick: () => navigate('/training/catalog') },
-          { label: t('training.submenu.liveSessions'), icon: Video, onClick: () => navigate('/training/live-sessions') },
-          { label: t('training.submenu.trainers'), active: true, icon: UserCheck },
-          { label: t('training.submenu.certifications'), icon: Award, onClick: () => navigate('/training/certifications') },
-        ]}
-      />
+      <TrainingSubMenu />
 
       <PageContainer className="my-6">
         <div className="px-4 sm:px-5 lg:px-6 py-6">

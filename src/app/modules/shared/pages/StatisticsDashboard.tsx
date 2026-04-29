@@ -47,6 +47,7 @@ export default function StatisticsDashboard() {
     { value: statisticsKpis.totalProjects, label: t('statistics.kpi.totalProjects') },
     { value: statisticsKpis.totalContracts, label: t('statistics.kpi.totalContracts') },
     { value: statisticsKpis.shortlistsCount, label: t('statistics.kpi.shortlists') },
+    { value: `${statisticsKpis.winRate}%`, label: t('statistics.kpi.winRate') },
   ];
 
   return (
@@ -280,6 +281,31 @@ export default function StatisticsDashboard() {
                   <p className="text-sm text-amber-800">{t('statistics.highlights.emergingText')}</p>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Quick Navigation to Dashboard sections */}
+          <div className="mt-2">
+            <h3 className="text-lg font-semibold text-primary mb-4">{t('statistics.dashboard.section.quickInsights')}</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[
+                { label: t('statistics.tabs.marketTrends'), path: '/statistics/market-trends', color: 'bg-blue-50 border-blue-100', icon: '📈' },
+                { label: t('statistics.tabs.projectsContracts'), path: '/statistics/projects-contracts', color: 'bg-green-50 border-green-100', icon: '📁' },
+                { label: t('statistics.tabs.pricingPolicy'), path: '/statistics/pricing-experts', color: 'bg-indigo-50 border-indigo-100', icon: '💰' },
+                { label: t('statistics.tabs.expertsFees'), path: '/statistics/experts-fees', color: 'bg-purple-50 border-purple-100', icon: '👥' },
+                { label: t('statistics.tabs.competitors'), path: '/statistics/competitors', color: 'bg-orange-50 border-orange-100', icon: '🏆' },
+                { label: t('statistics.tabs.mapInsights'), path: '/statistics/map-insights', color: 'bg-teal-50 border-teal-100', icon: '🗺️' },
+              ].map((item) => (
+                <button
+                  key={item.path}
+                  type="button"
+                  onClick={() => window.location.href = item.path}
+                  className={`flex items-center gap-3 rounded-lg border p-4 text-left hover:shadow-md transition-shadow ${item.color}`}
+                >
+                  <span className="text-2xl">{item.icon}</span>
+                  <span className="text-sm font-semibold text-primary">{item.label}</span>
+                </button>
+              ))}
             </div>
           </div>
         </>

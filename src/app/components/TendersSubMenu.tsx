@@ -5,8 +5,6 @@ import { SubMenu } from './SubMenu';
 import { useTenders } from '../hooks/useTenders';
 import { hasTendersAccess } from '../services/permissions.service';
 import {
-  FolderOpen,
-  FileText,
   Home,
 } from 'lucide-react';
 
@@ -46,13 +44,6 @@ export function TendersSubMenu() {
           active: activeTab === 'overview',
           icon: Home,
           onClick: hasAccess ? () => navigate(`${basePath}/overview`) : undefined,
-          disabled: !hasAccess,
-        },
-        {
-          label: t('tenders.submenu.active'),
-          active: activeTab === 'active',
-          icon: FolderOpen,
-          onClick: hasAccess ? () => navigate(`${basePath}/active`) : undefined,
           disabled: !hasAccess,
         },
       ]}

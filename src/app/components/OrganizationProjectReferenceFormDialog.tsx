@@ -22,15 +22,17 @@ import {
   OrganizationProjectReferenceFormValues,
   OrganizationProjectReferenceStatus,
 } from '@app/modules/organization/types/organizationProjectReference.dto';
+import { ReferenceTypeEnum } from '@app/types/project.dto';
 import { getLocalizedCountryName } from '@app/utils/country-translator';
 import { toast } from 'sonner';
 
 interface OrganizationProjectReferenceFormDialogProps {
-  open: boolean;
+  open?: boolean;
   mode: 'create' | 'edit';
   initialReference?: OrganizationProjectReferenceDTO | null;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange?: (open: boolean) => void;
   onSubmit: (values: OrganizationProjectReferenceFormValues) => void;
+  inline?: boolean;
 }
 
 const getInitialValues = (): OrganizationProjectReferenceFormValues => ({
@@ -56,16 +58,21 @@ export function OrganizationProjectReferenceFormDialog({
   initialReference,
   onOpenChange,
   onSubmit,
+  inline = false,
 }: OrganizationProjectReferenceFormDialogProps) {
   const { t, language } = useLanguage();
   const [formValues, setFormValues] = useState<OrganizationProjectReferenceFormValues>(getInitialValues());
+  const [referenceType, setReferenceType] = useState<ReferenceTypeEnum>(ReferenceTypeEnum.DOCUMENT);
+  const [url, setUrl] = useState('');
 
   useEffect(() => {
-    if (!open) {
+    if (!open && !inline) {
       return;
     }
 
     if (initialReference) {
+      if (initialReference.referenceType) setReferenceType(initialReference.referenceType);
+      if (initialReference.url) setUrl(initialReference.url);
       setFormValues({
         referenceNumber: initialReference.referenceNumber,
         title: initialReference.title,
@@ -86,7 +93,9 @@ export function OrganizationProjectReferenceFormDialog({
     }
 
     setFormValues(getInitialValues());
-  }, [initialReference, open]);
+    setReferenceType(ReferenceTypeEnum.DOCUMENT);
+    setUrl('');
+  }, [initialReference, open, inline]);
 
   const availableCountries = useMemo(() => {
     return REGION_COUNTRY_MAP[formValues.region] || [];
@@ -138,13 +147,14 @@ export function OrganizationProjectReferenceFormDialog({
       return;
     }
 
-    onSubmit(formValues);
-    onOpenChange(false);
+    onSubmit({ ...formValues, referenceType, url: referenceType === ReferenceTypeEnum.LINK ? url : undefined });
+    if (!inline) {
+      onOpenChange?.(false);
+    }
   };
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+  const formContent = (
+    <>
         <DialogHeader>
           <DialogTitle>
             {mode === 'create'
@@ -157,6 +167,40 @@ export function OrganizationProjectReferenceFormDialog({
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Reference Type Toggle */}
+          <div className="space-y-2">
+            <Label>{t('projects.references.type.DOCUMENT')}</Label>
+            <div className="flex gap-2">
+              {[ReferenceTypeEnum.DOCUMENT, ReferenceTypeEnum.LINK, ReferenceTypeEnum.FILE, ReferenceTypeEnum.NOTE].map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setReferenceType(type)}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    referenceType === type
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  {t(`projects.references.type.${type}`)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {referenceType === ReferenceTypeEnum.LINK && (
+            <div className="space-y-2">
+              <Label htmlFor="refUrl">{t('projects.references.url')}</Label>
+              <Input
+                id="refUrl"
+                type="url"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder={t('projects.references.urlPlaceholder')}
+              />
+            </div>
+          )}
+
           <div className="grid gap-5 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="referenceNumber">{t('organizations.projectReferences.form.referenceNumber')}</Label>
@@ -307,7 +351,7 @@ export function OrganizationProjectReferenceFormDialog({
         </div>
 
         <DialogFooter className="mt-2">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" onClick={() => onOpenChange?.(false)}>
             {t('organizations.projectReferences.form.cancel')}
           </Button>
           <Button type="button" onClick={handleSubmit}>
@@ -316,6 +360,21 @@ export function OrganizationProjectReferenceFormDialog({
               : t('organizations.projectReferences.form.saveAction')}
           </Button>
         </DialogFooter>
+    </>
+  );
+
+  if (inline) {
+    return (
+      <div className="rounded-xl border border-primary/15 bg-white p-5 shadow-sm">
+        {formContent}
+      </div>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        {formContent}
       </DialogContent>
     </Dialog>
   );

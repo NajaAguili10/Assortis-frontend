@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
 import { isExpertAccountType } from '@app/services/permissions.service';
@@ -6,13 +6,13 @@ import { StatisticsSectionLayout } from '@app/components/StatisticsSectionLayout
 import { mapInsights } from '@app/modules/shared/data/statistics.mock';
 import { Globe, Users } from 'lucide-react';
 import { Button } from '@app/components/ui/button';
+import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 
 export default function StatisticsMapInsights() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const isExpert = isExpertAccountType(user?.accountType);
-
-  const [hoveredCountry, setHoveredCountry] = useState<(typeof mapInsights)[number] | null>(null);
 
   const topCountries = useMemo(
     () => [...mapInsights].sort((a, b) => b.projects - a.projects).slice(0, 5),
@@ -44,49 +44,53 @@ export default function StatisticsMapInsights() {
             </div>
           </div>
 
-          <div className="relative h-[360px] rounded-xl border border-gray-100 overflow-hidden bg-[radial-gradient(circle_at_20%_20%,#f1f5f9,transparent_35%),radial-gradient(circle_at_80%_30%,#e2e8f0,transparent_35%),linear-gradient(135deg,#f8fafc,#eff6ff)]">
-            {mapInsights.map((point) => (
-              <button
-                key={point.country}
-                type="button"
-                onMouseEnter={() => setHoveredCountry(point)}
-                onMouseLeave={() => setHoveredCountry(null)}
-                className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow hover:shadow-lg transition-shadow"
-                style={{
-                  left: `${point.x}%`,
-                  top: `${point.y}%`,
-                  width: `${12 + point.intensity * 22}px`,
-                  height: `${12 + point.intensity * 22}px`,
-                  backgroundColor: `rgba(31, 75, 153, ${0.35 + point.intensity * 0.6})`,
-                }}
-                aria-label={isExpert ? `${point.country}: ${point.experts} experts` : `${point.country}: ${point.projects} projects, ${point.experts} experts`}
-                title={isExpert ? `${point.country} - ${t('statistics.map.tooltip.experts')}: ${point.experts}` : `${point.country} - ${t('statistics.map.tooltip.projects')}: ${point.projects}, ${t('statistics.map.tooltip.experts')}: ${point.experts}`}
+          <div className="relative h-[360px] rounded-xl overflow-hidden">
+            <MapContainer
+              center={[20, 20]}
+              zoom={2}
+              style={{ height: '360px', width: '100%', borderRadius: '0.75rem' }}
+              scrollWheelZoom={false}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-            ))}
-
-            {hoveredCountry && (
-              <div className="absolute right-3 top-3 bg-white border border-gray-200 rounded-lg shadow-lg p-3 min-w-[220px]">
-                <p className="text-sm font-semibold text-primary mb-1">{hoveredCountry.country}</p>
-                {!isExpert && (
-                  <p className="text-xs text-gray-600">
-                    {t('statistics.map.tooltip.projects')}: {hoveredCountry.projects}
-                  </p>
-                )}
-                <p className="text-xs text-gray-600">
-                  {t('statistics.map.tooltip.experts')}: {hoveredCountry.experts}
-                </p>
-                {isExpert && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="mt-2 w-full text-xs"
-                    onClick={() => console.log(`Request connection with peers in ${hoveredCountry.country}`)}
-                  >
-                    {t('statistics.expert.peers.requestConnection')}
-                  </Button>
-                )}
-              </div>
-            )}
+              {mapInsights.map((point) => (
+                <CircleMarker
+                  key={point.country}
+                  center={[point.lat, point.lng]}
+                  radius={8 + point.intensity * 20}
+                  pathOptions={{
+                    fillColor: `rgba(31, 75, 153, ${0.35 + point.intensity * 0.6})`,
+                    color: '#ffffff',
+                    weight: 2,
+                    fillOpacity: 1,
+                  }}
+                >
+                  <Popup>
+                    <p className="font-semibold text-primary">{point.country}</p>
+                    {!isExpert && (
+                      <p className="text-xs text-gray-600">
+                        {t('statistics.map.tooltip.projects')}: {point.projects}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-600">
+                      {t('statistics.map.tooltip.experts')}: {point.experts}
+                    </p>
+                    {isExpert && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 w-full text-xs"
+                        onClick={() => console.log(`Request connection with peers in ${point.country}`)}
+                      >
+                        {t('statistics.expert.peers.requestConnection')}
+                      </Button>
+                    )}
+                  </Popup>
+                </CircleMarker>
+              ))}
+            </MapContainer>
           </div>
         </div>
 

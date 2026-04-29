@@ -30,9 +30,12 @@ export const useProjects = () => {
     getProjectById: getProjectByIdFromContext 
   } = useProjectsContext();
   const [filters, setFilters] = useState<ProjectFiltersDTO>({});
+  const [viewMode, setViewMode] = useState<'mine' | 'team' | 'all'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState<'newest' | 'priority' | 'budget' | 'completion' | 'name'>('newest');
   const pageSize = 10;
+  // CURRENT_USER_ID is the mock logged-in user
+  const CURRENT_USER_ID = 'user-1';
 
   // KPIs
   const kpis: ProjectKPIsDTO = useMemo(() => {
@@ -57,6 +60,13 @@ export const useProjects = () => {
     let filtered = [...mockProjects];
 
     // Apply filters
+    // Team visibility filter
+    if (viewMode === 'mine') {
+      filtered = filtered.filter((project) => (project as ProjectListDTO & { createdBy?: string }).createdBy === CURRENT_USER_ID);
+    } else if (viewMode === 'team') {
+      filtered = filtered.filter((project) => (project as ProjectListDTO & { createdBy?: string }).createdBy !== CURRENT_USER_ID);
+    }
+
     if (filters.searchQuery) {
       const query = filters.searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -64,7 +74,8 @@ export const useProjects = () => {
           project.title.toLowerCase().includes(query) ||
           project.code.toLowerCase().includes(query) ||
           project.description.toLowerCase().includes(query) ||
-          project.leadOrganization.toLowerCase().includes(query)
+          project.leadOrganization.toLowerCase().includes(query) ||
+          ((project as ProjectListDTO & { tags?: string[] }).tags || []).some((tag) => tag.toLowerCase().includes(query))
       );
     }
 
@@ -180,12 +191,15 @@ export const useProjects = () => {
     activeFiltersCount,
     sortBy,
     setSortBy,
+    viewMode,
+    setViewMode,
     currentPage,
     setCurrentPage,
     tasks,
     collaborations,
     templates,
     allProjects: mockProjects, // For global search
+    filteredProjects, // Filtered but not paginated
     getProjectById: getProjectByIdFromContext,
     getCollaborationById: (id: string) => collaborations.find(c => c.id === id),
   };

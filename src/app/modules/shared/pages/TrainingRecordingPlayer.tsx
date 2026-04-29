@@ -2,7 +2,7 @@
 import { useNavigate, useParams } from 'react-router';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
-import { SubMenu } from '@app/components/SubMenu';
+import { TrainingSubMenu } from '@app/components/TrainingSubMenu';
 import { Button } from '@app/components/ui/button';
 import { Badge } from '@app/components/ui/badge';
 import { Progress } from '@app/components/ui/progress';
@@ -87,21 +87,14 @@ export default function TrainingRecordingPlayer() {
             { value: kpis.enrolledPrograms.toString(), label: t('training.stats.enrolledPrograms') }
           ]}
         />
-        <SubMenu
-          items={[
-            { label: t('training.submenu.catalog'), icon: BookOpen, onClick: () => navigate('/training/catalog') },
-            { label: t('training.submenu.liveSessions'), active: true, icon: Video },
-            { label: t('training.submenu.trainers'), icon: UserCheck, onClick: () => navigate('/training/trainers') },
-            { label: t('training.submenu.certifications'), icon: Award, onClick: () => navigate('/training/certifications') },
-          ]}
-        />
+        <TrainingSubMenu />
         <PageContainer className="my-6">
           <div className="px-4 sm:px-5 lg:px-6 py-6">
             <div className="text-center py-12 bg-white rounded-lg border">
               <Video className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
               <h3 className="text-lg font-semibold text-primary mb-1">{t('common.notFound')}</h3>
               <p className="text-sm text-muted-foreground mb-4">{t('training.liveSessions.noResults.message')}</p>
-              <Button onClick={() => navigate('/training/live-sessions')}>
+              <Button onClick={() => navigate('/training/catalog')}>
                 {t('actions.back')}
               </Button>
             </div>
@@ -141,14 +134,7 @@ export default function TrainingRecordingPlayer() {
       />
 
       {/* Sub Menu */}
-      <SubMenu
-        items={[
-          { label: t('training.submenu.catalog'), icon: BookOpen, onClick: () => navigate('/training/catalog') },
-          { label: t('training.submenu.liveSessions'), active: true, icon: Video },
-          { label: t('training.submenu.trainers'), icon: UserCheck, onClick: () => navigate('/training/trainers') },
-          { label: t('training.submenu.certifications'), icon: Award, onClick: () => navigate('/training/certifications') },
-        ]}
-      />
+      <TrainingSubMenu />
 
       <PageContainer className="my-6">
         <div className="px-4 sm:px-5 lg:px-6 py-6">

@@ -129,8 +129,12 @@ export const expertsTranslations = {
     'experts.list.subtitle': 'Browse and search qualified experts for your projects',
     'experts.list.showing': 'Showing {from}-{to} of {total} experts',
     'experts.list.results': 'results',
+    'experts.list.expertsFound': 'experts found',
     'experts.list.noResults': 'No experts found',
     'experts.list.noResults.message': 'Try adjusting your filters or search criteria',
+    'experts.rating': 'Rating',
+    'experts.missions': 'Missions',
+    'experts.profile': 'Profile',
     
     // Filters
     'experts.filters.search': 'Search experts by name, title, skills...',
@@ -770,8 +774,12 @@ export const expertsTranslations = {
     'experts.list.subtitle': 'Parcourez et recherchez des experts qualifiés pour vos projets',
     'experts.list.showing': 'Affichage de {from}-{to} sur {total} experts',
     'experts.list.results': 'résultats',
+    'experts.list.expertsFound': 'experts trouvés',
     'experts.list.noResults': 'Aucun expert trouvé',
     'experts.list.noResults.message': 'Essayez d\'ajuster vos filtres ou critères de recherche',
+    'experts.rating': 'Note',
+    'experts.missions': 'Missions',
+    'experts.profile': 'Profil',
     
     // Filters
     'experts.filters.search': 'Rechercher par nom, titre, compétences...',
@@ -1411,8 +1419,12 @@ export const expertsTranslations = {
     'experts.list.subtitle': 'Explore y busque expertos calificados para sus proyectos',
     'experts.list.showing': 'Mostrando {from}-{to} de {total} expertos',
     'experts.list.results': 'resultados',
+    'experts.list.expertsFound': 'expertos encontrados',
     'experts.list.noResults': 'No se encontraron expertos',
     'experts.list.noResults.message': 'Intente ajustar sus filtros o criterios de búsqueda',
+    'experts.rating': 'Calificación',
+    'experts.missions': 'Misiones',
+    'experts.profile': 'Perfil',
     
     // Filters
     'experts.filters.search': 'Buscar por nombre, título, habilidades...',

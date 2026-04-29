@@ -152,8 +152,8 @@ export default function Training() {
           <div className="bg-white rounded-lg border p-5 mt-6">
             <div className="flex items-center justify-between gap-3 mb-4">
               <h3 className="text-lg font-semibold text-primary">{t('training.dashboard.upcomingLiveSessions')}</h3>
-              <Button variant="outline" size="sm" onClick={() => navigate('/training/live-sessions')}>
-                {t('training.actions.liveSessions')}
+              <Button variant="outline" size="sm" onClick={() => navigate('/training/catalog')}>
+                {t('training.submenu.catalog')}
               </Button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -170,7 +170,7 @@ export default function Training() {
                     <Clock className="w-3.5 h-3.5" />
                     {session.duration} {t('training.certifications.minutes')}
                   </p>
-                  <Button size="sm" className="w-full" onClick={() => navigate('/training/live-sessions')}>
+                  <Button size="sm" className="w-full" onClick={() => navigate('/training/catalog')}>
                     {t('training.actions.joinSession')}
                   </Button>
                 </div>

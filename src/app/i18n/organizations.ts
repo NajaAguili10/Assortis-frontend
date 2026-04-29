@@ -36,6 +36,9 @@ export const organizationsTranslations = {
     'organizations.actions.addOrganization': 'Add Organization',
     'organizations.actions.viewProfile': 'View Profile',
     'organizations.actions.contact': 'Contact',
+    'organisation.contact': 'Contact Organisation',
+    'organisation.contact.success': 'Message sent to organisation',
+    'organisation.contact.error': 'Please fill in all required fields',
     'organizations.actions.addPartnership': 'Add Partnership',
     'organizations.actions.inviteTeam': 'Invite Team Member',
     'organizations.actions.createProfile': 'Create Organization Profile',
@@ -698,7 +701,7 @@ export const organizationsTranslations = {
     'organizations.createProfile.step3': 'Operations & Expertise',
     'organizations.createProfile.step4': 'Team & Resources',
     'organizations.createProfile.step5': 'Financial & Projects',
-    'organizations.createProfile.step6': 'Subscription & Services',
+    'organizations.createProfile.step6': 'Services',
     
     // Edit Profile Form
     'organizations.editProfile.title': 'Edit Organization Profile',
@@ -853,6 +856,9 @@ export const organizationsTranslations = {
     // Organizations Actions
     'organizations.actions.filterByRegion': 'Filtrer par Région',
     'organizations.actions.export': 'Exporter la Base',
+    'organisation.contact': 'Contacter l\'organisation',
+    'organisation.contact.success': 'Message envoye a l\'organisation',
+    'organisation.contact.error': 'Veuillez remplir tous les champs obligatoires',
     'organizations.actions.addOrganization': 'Ajouter Organisation',
     'organizations.actions.viewProfile': 'Voir le Profil',
     'organizations.actions.contact': 'Contacter',
@@ -1518,7 +1524,7 @@ export const organizationsTranslations = {
     'organizations.createProfile.step3': 'Opérations & Expertise',
     'organizations.createProfile.step4': 'Équipe & Ressources',
     'organizations.createProfile.step5': 'Finances & Projets',
-    'organizations.createProfile.step6': 'Abonnement & Services',
+    'organizations.createProfile.step6': 'Services',
     
     // Edit Profile Form
     'organizations.editProfile.title': 'Modifier Profil Organisation',
@@ -1676,6 +1682,9 @@ export const organizationsTranslations = {
     'organizations.actions.addOrganization': 'Agregar Organización',
     'organizations.actions.viewProfile': 'Ver Perfil',
     'organizations.actions.contact': 'Contactar',
+    'organisation.contact': 'Contactar organizacion',
+    'organisation.contact.success': 'Mensaje enviado a la organizacion',
+    'organisation.contact.error': 'Complete todos los campos obligatorios',
     'organizations.actions.addPartnership': 'Agregar Asociación',
     'organizations.actions.inviteTeam': 'Invitar Miembro',
     'organizations.actions.createProfile': 'Crear Perfil Organización',
@@ -2338,7 +2347,7 @@ export const organizationsTranslations = {
     'organizations.createProfile.step3': 'Operaciones & Expertise',
     'organizations.createProfile.step4': 'Equipo & Recursos',
     'organizations.createProfile.step5': 'Finanzas & Proyectos',
-    'organizations.createProfile.step6': 'Suscripción & Servicios',
+    'organizations.createProfile.step6': 'Servicios',
     
     // Edit Profile Form
     'organizations.editProfile.title': 'Editar Perfil Organización',

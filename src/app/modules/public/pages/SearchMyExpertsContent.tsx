@@ -6,10 +6,13 @@ import {
   CheckCircle,
   Clock,
   Eye,
+  Download,
+  FileText,
   History,
   MapPin,
   Sparkles,
   Star,
+  Trash2,
   TrendingUp,
   Upload,
   UserCheck,
@@ -23,6 +26,8 @@ import CVCreditsSummaryCard from '@app/components/CVCreditsSummaryCard';
 import PillTabs from '@app/components/PillTabs';
 import { Button } from '@app/components/ui/button';
 import { Badge } from '@app/components/ui/badge';
+import { Input } from '@app/components/ui/input';
+import { Label } from '@app/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -60,8 +65,18 @@ interface GeneratedExpertsHistoryEntry {
   experts: InternalExpertEntry[];
 }
 
+interface UploadedCvEntry {
+  id: string;
+  name: string;
+  fileName: string;
+  fileType: string;
+  fileData: string;
+  uploadedAt: string;
+}
+
 const INTERNAL_STORAGE_KEY = 'search.myexperts.cvip.internal';
 const GENERATED_HISTORY_STORAGE_KEY = 'search.myexperts.cvup.history';
+const CVUP_UPLOADS_STORAGE_KEY = 'search.myexperts.cvup.uploads';
 const GENERATION_OPTIONS = [1, 4, 8, 12, 16, 20];
 const DUMMY_CVIP_EXPERTS: InternalExpertEntry[] = [
   {
@@ -162,6 +177,48 @@ function writeGeneratedHistory(history: GeneratedExpertsHistoryEntry[]) {
   } catch {
     // Keep UX responsive even if storage is not available.
   }
+}
+
+function readUploadedCvEntries(): UploadedCvEntry[] {
+  try {
+    const raw = localStorage.getItem(CVUP_UPLOADS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is UploadedCvEntry => (
+      Boolean(item)
+      && typeof item.id === 'string'
+      && typeof item.name === 'string'
+      && typeof item.fileName === 'string'
+      && typeof item.fileData === 'string'
+    ));
+  } catch {
+    return [];
+  }
+}
+
+function writeUploadedCvEntries(entries: UploadedCvEntry[]) {
+  try {
+    localStorage.setItem(CVUP_UPLOADS_STORAGE_KEY, JSON.stringify(entries));
+  } catch {
+    // Keep the UI usable if localStorage is unavailable.
+  }
+}
+
+const readFileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result || ''));
+  reader.onerror = reject;
+  reader.readAsDataURL(file);
+});
+
+function downloadDataUrl(dataUrl: string, fileName: string) {
+  const link = document.createElement('a');
+  link.href = dataUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
 
 function parseFileNameToName(fileName: string): { firstName: string; lastName: string } {
@@ -341,6 +398,9 @@ export default function SearchMyExpertsContent() {
   });
   const [generatedExperts, setGeneratedExperts] = useState<InternalExpertEntry[]>([]);
   const [generatedHistory, setGeneratedHistory] = useState<GeneratedExpertsHistoryEntry[]>(() => readGeneratedHistory());
+  const [uploadedCvEntries, setUploadedCvEntries] = useState<UploadedCvEntry[]>(() => readUploadedCvEntries());
+  const [cvUploadName, setCvUploadName] = useState('');
+  const [cvUploadFile, setCvUploadFile] = useState<File | null>(null);
 
   const generationCount = Number(selectedGenerationCount) || 1;
 
@@ -438,6 +498,49 @@ export default function SearchMyExpertsContent() {
     });
   };
 
+  const handleCvUpUpload = async () => {
+    if (!cvUploadName.trim() || !cvUploadFile) {
+      toast.error('Name and CV file are required');
+      return;
+    }
+
+    if (!/\.(pdf|doc|docx)$/i.test(cvUploadFile.name)) {
+      toast.error('Please upload a PDF, DOC, or DOCX file');
+      return;
+    }
+
+    const entry: UploadedCvEntry = {
+      id: `cvup-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name: cvUploadName.trim(),
+      fileName: cvUploadFile.name,
+      fileType: cvUploadFile.type || 'application/octet-stream',
+      fileData: await readFileAsDataUrl(cvUploadFile),
+      uploadedAt: new Date().toISOString(),
+    };
+    const next = [entry, ...uploadedCvEntries];
+    setUploadedCvEntries(next);
+    writeUploadedCvEntries(next);
+    setCvUploadName('');
+    setCvUploadFile(null);
+    toast.success('CV uploaded');
+  };
+
+  const handleViewUploadedCv = (entry: UploadedCvEntry) => {
+    const win = window.open();
+    if (win) {
+      win.document.write(`<iframe src="${entry.fileData}" title="${entry.fileName}" style="border:0;width:100%;height:100vh"></iframe>`);
+      win.document.close();
+    } else {
+      downloadDataUrl(entry.fileData, entry.fileName);
+    }
+  };
+
+  const handleDeleteUploadedCv = (id: string) => {
+    const next = uploadedCvEntries.filter((entry) => entry.id !== id);
+    setUploadedCvEntries(next);
+    writeUploadedCvEntries(next);
+  };
+
   return (
     <div className="space-y-6">
       <CVCreditsSummaryCard
@@ -452,7 +555,7 @@ export default function SearchMyExpertsContent() {
         onTabChange={(tabId) => setActiveTab(tabId as MyExpertsTab)}
         tabs={[
           { id: 'cvip', label: t('search.myExperts.tabs.cvip'), count: internalExperts.length },
-          { id: 'cv-up', label: t('search.myExperts.tabs.cvUp'), count: generatedExperts.length },
+          { id: 'cv-up', label: t('search.myExperts.tabs.cvUp'), count: uploadedCvEntries.length },
         ]}
       />
 
@@ -503,101 +606,82 @@ export default function SearchMyExpertsContent() {
 
       {activeTab === 'cv-up' && (
         <div className="space-y-6">
-          <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-slate-50 p-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="rounded-2xl border border-gray-200 bg-white p-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-accent/20 bg-accent/5 px-3 py-1 text-xs font-semibold text-accent">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  {t('search.myExperts.cvup.kicker')}
+                  <FileText className="h-3.5 w-3.5" />
+                  CV-UP
                 </div>
-                <h2 className="mt-3 text-xl font-semibold text-primary">{t('search.myExperts.cvup.title')}</h2>
-                <p className="mt-1 text-sm text-gray-600">{t('search.myExperts.cvup.description')}</p>
-              </div>
-
-              <div className="w-full md:w-auto space-y-2">
-                <p className="text-xs font-medium text-gray-600">{t('search.myExperts.cvup.selectLabel')}</p>
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                  <Select value={selectedGenerationCount} onValueChange={setSelectedGenerationCount}>
-                    <SelectTrigger className="w-full sm:w-[140px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {GENERATION_OPTIONS.map((value) => (
-                        <SelectItem key={value} value={String(value)}>{value}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Badge variant="secondary" className="text-xs bg-accent/10 text-accent border-accent/20">
-                    {t('search.myExperts.cvup.cost', { count: generationCount })}
-                  </Badge>
-                </div>
+                <h2 className="mt-3 text-xl font-semibold text-primary">Upload CV</h2>
+                <p className="mt-1 max-w-2xl text-sm text-gray-600">
+                  Store CV files locally with the expert name. Files stay in this browser and remain available after refresh.
+                </p>
               </div>
             </div>
 
-            <div className="mt-4">
-              <Button onClick={handleGenerate} className="min-h-11" disabled={isGenerating}>
-                {isGenerating ? t('search.myExperts.cvup.generate.loading') : t('search.myExperts.cvup.generate.cta')}
+            <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+              <div className="space-y-2">
+                <Label htmlFor="my-experts-cv-name">Name</Label>
+                <Input
+                  id="my-experts-cv-name"
+                  value={cvUploadName}
+                  onChange={(event) => setCvUploadName(event.target.value)}
+                  placeholder="Expert name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="my-experts-cv-file">File</Label>
+                <Input
+                  id="my-experts-cv-file"
+                  type="file"
+                  accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  onChange={(event) => setCvUploadFile(event.target.files?.[0] || null)}
+                />
+              </div>
+              <Button onClick={handleCvUpUpload} className="min-h-10">
+                <Upload className="mr-2 h-4 w-4" />
+                Upload CV
               </Button>
             </div>
           </div>
 
-          {isGenerating && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Array.from({ length: Math.min(generationCount, 6) }).map((_, index) => (
-                <div key={`loading-card-${index}`} className="rounded-lg border border-gray-200 p-6 bg-white animate-pulse space-y-3">
-                  <div className="h-4 w-1/3 rounded bg-gray-200" />
-                  <div className="h-6 w-2/3 rounded bg-gray-200" />
-                  <div className="h-4 w-1/2 rounded bg-gray-200" />
-                  <div className="h-20 rounded bg-gray-100" />
-                  <div className="h-10 rounded bg-gray-200" />
-                </div>
-              ))}
-            </div>
-          )}
-
-          {!isGenerating && generatedExperts.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {generatedExperts.map((expert) => (
-                <ExpertDisplayCard
-                  key={expert.id}
-                  expert={expert}
-                  type="generated"
-                  t={t}
-                  onView={() => handleOpenExpertDetails(expert.detailExpertId)}
-                />
-              ))}
-            </div>
-          )}
-
-          <div className="rounded-2xl border border-[#4A5568]/15 bg-white p-4 sm:p-5">
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5">
             <div className="mb-4 flex items-center gap-2">
-              <History className="h-5 w-5 text-[#E63462]" />
-              <h3 className="text-base font-semibold text-[#4A5568]">{t('search.myExperts.cvup.history.title')}</h3>
+              <FileText className="h-5 w-5 text-accent" />
+              <h3 className="text-base font-semibold text-primary">Uploaded CVs</h3>
             </div>
 
-            {generatedHistory.length > 0 ? (
-              <div className="space-y-2">
-                {generatedHistory.map((entry, index) => (
-                  <div key={entry.id} className={`flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between ${index === 0 ? 'border-[#E63462]/30 bg-[#FFF1F4]' : 'border-[#4A5568]/10 bg-[#F8FAFC]'}`}>
+            {uploadedCvEntries.length > 0 ? (
+              <div className="space-y-3">
+                {uploadedCvEntries.map((entry) => (
+                  <div key={entry.id} className="flex flex-col gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-[#4A5568]">{t('search.myExperts.cvup.history.entryTitle', { count: entry.generatedCount })}</p>
-                        {index === 0 && <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">{t('search.myExperts.cvup.history.latestBadge')}</Badge>}
-                      </div>
-                      <p className="text-xs text-[#4A5568]/75">{format(new Date(entry.createdAt), 'yyyy-MM-dd HH:mm')}</p>
+                      <p className="text-sm font-semibold text-primary">{entry.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {entry.fileName} - {format(new Date(entry.uploadedAt), 'yyyy-MM-dd HH:mm')}
+                      </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button size="sm" variant="outline" onClick={() => handleViewHistory(entry)}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={() => handleViewUploadedCv(entry)}>
                         <Eye className="mr-1.5 h-3.5 w-3.5" />
                         {t('search.myExperts.actions.view')}
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => downloadDataUrl(entry.fileData, entry.fileName)}>
+                        <Download className="mr-1.5 h-3.5 w-3.5" />
+                        Download
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => handleDeleteUploadedCv(entry.id)}>
+                        <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                        Delete
                       </Button>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="rounded-xl border border-dashed border-[#4A5568]/20 bg-[#F8FAFC] p-5 text-sm text-[#4A5568]/80">
-                {t('search.myExperts.cvup.history.empty')}
+              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-5 text-sm text-muted-foreground">
+                No CVs uploaded yet.
               </div>
             )}
           </div>

@@ -55,7 +55,7 @@ const mockOrganizations = [
   { id: '2', name: 'World Bank', type: 'International Organization', verified: true, email: 'info@worldbank.org' },
   { id: '3', name: 'Red Cross', type: 'NGO', verified: true, email: 'contact@redcross.org' },
   { id: '4', name: 'Doctors Without Borders', type: 'NGO', verified: true, email: 'info@msf.org' },
-  { id: '5', name: 'UNESCO', type: 'International Organization', verified: true, email: 'contact@unesco.org' },
+  { id: '5', name: 'UNESCO', type: 'International Organization', verified: false, email: 'contact@unesco.org' },
 ];
 
 const mockExperts = [

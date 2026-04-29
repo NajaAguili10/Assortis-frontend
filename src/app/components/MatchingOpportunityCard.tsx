@@ -2,7 +2,7 @@ import { MatchingOpportunityDTO, OpportunityTypeEnum } from '@app/types/matching
 import { Card, CardContent } from '@app/components/ui/card';
 import { Badge } from '@app/components/ui/badge';
 import { Button } from '@app/components/ui/button';
-import { Bookmark, AlertCircle } from 'lucide-react';
+import { Bookmark, AlertCircle, X, UserCircle2, Bell } from 'lucide-react';
 import { format } from 'date-fns';
 import { useState } from 'react';
 
@@ -13,6 +13,7 @@ interface MatchingOpportunityCardProps {
   onRemove?: (opportunityId: string) => void;
   onApply?: (opportunityId: string) => void;
   onExpressInterest?: (opportunityId: string) => void;
+  onNotInterested?: (opportunityId: string) => void;
 }
 
 const OPPORTUNITY_TYPE_LABELS: Record<OpportunityTypeEnum, string> = {
@@ -38,6 +39,7 @@ export function MatchingOpportunityCard({
   onRemove,
   onApply,
   onExpressInterest,
+  onNotInterested,
 }: MatchingOpportunityCardProps) {
   const [localSaved, setLocalSaved] = useState(isSaved);
   const isDeadlineSoon =
@@ -129,8 +131,27 @@ export function MatchingOpportunityCard({
         {/* Description */}
         <p className="text-sm text-gray-600 mb-4 line-clamp-2">{opportunity.description}</p>
 
-        {/* Action buttons */}
-        <div className="flex gap-2 flex-wrap">
+        {/* Match origin */}
+        {(opportunity.matchedViaProfile || opportunity.matchedViaAlert) && (
+          <div className="flex items-center gap-1.5 mb-4">
+            {opportunity.matchedViaProfile ? (
+              <>
+                <UserCircle2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                <span className="text-xs text-blue-600 font-medium">
+                  Matched via: {opportunity.matchedViaProfile}
+                </span>
+              </>
+            ) : (
+              <>
+                <Bell className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <span className="text-xs text-amber-600 font-medium">
+                  Based on: {opportunity.matchedViaAlert}
+                </span>
+              </>
+            )}
+          </div>
+        )}
+        <div className="flex gap-2 flex-wrap items-center">
           {opportunity.type === OpportunityTypeEnum.PROJECT_VACANCY ||
           opportunity.type === OpportunityTypeEnum.IN_HOUSE_VACANCY ? (
             <Button
@@ -163,6 +184,19 @@ export function MatchingOpportunityCard({
           >
             <Bookmark className={`w-4 h-4 ${localSaved ? 'fill-current' : ''}`} />
           </Button>
+
+          {onNotInterested && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onNotInterested(opportunity.id)}
+              className="text-gray-400 hover:text-gray-600 ml-auto"
+              title="Not interested"
+            >
+              <X className="w-4 h-4" />
+              <span className="ml-1 text-xs">Not interested</span>
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

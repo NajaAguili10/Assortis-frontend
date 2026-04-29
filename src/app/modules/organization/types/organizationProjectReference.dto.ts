@@ -5,6 +5,7 @@ import {
   SectorEnum,
   SubSectorEnum,
 } from '@app/types/tender.dto';
+import { ReferenceTypeEnum } from '@app/types/project.dto';
 
 export type OrganizationProjectReferenceStatus = 'ongoing' | 'completed';
 export type OrganizationProjectDocumentType = 'tor' | 'report';
@@ -34,6 +35,8 @@ export interface OrganizationProjectReferenceDTO {
   startDate: string;
   endDate: string;
   status: OrganizationProjectReferenceStatus;
+  referenceType?: ReferenceTypeEnum;
+  url?: string;
   documents: OrganizationProjectReferenceDocumentDTO[];
   createdAt: string;
   updatedAt: string;
@@ -53,5 +56,7 @@ export interface OrganizationProjectReferenceFormValues {
   startDate: string;
   endDate: string;
   status: OrganizationProjectReferenceStatus;
+  referenceType?: ReferenceTypeEnum;
+  url?: string;
   documents: OrganizationProjectReferenceDocumentDTO[];
 }

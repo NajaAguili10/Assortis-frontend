@@ -3,13 +3,15 @@ import { useTranslation } from '@app/contexts/LanguageContext';
 import { SubMenu } from '@app/components/SubMenu';
 import { useLocation, useNavigate } from 'react-router';
 import { useAuth } from '@app/contexts/AuthContext';
-import { hasCreditsAccess } from '@app/services/permissions.service';
+import { canManageOrganizationAdminActions } from '@app/services/permissions.service';
 import {
   User,
   Shield,
-  Inbox,
-  Coins,
   Library,
+  LayoutDashboard,
+  Layers,
+  CreditCard,
+  Users,
 } from 'lucide-react';
 
 interface AccountSubMenuProps {
@@ -25,11 +27,21 @@ export function AccountSubMenu({ activeTab, onTabChange, mode = 'account-tabs' }
   const { user } = useAuth();
 
   if (mode === 'profile-settings') {
-    const isProfileRoute =
+    const canManage = canManageOrganizationAdminActions(user?.accountType, user?.role);
+
+    const isHomeRoute =
       location.pathname === '/account' ||
-      location.pathname === '/compte-utilisateur' ||
-      location.pathname === '/account/profile' ||
-      location.pathname === '/compte-utilisateur/profil';
+      location.pathname === '/compte-utilisateur';
+
+    const isMySelectionRoute = location.pathname.startsWith('/account/my-selection');
+
+    const isSubscriptionRoute =
+      location.pathname.startsWith('/account/subscription') ||
+      location.pathname === '/compte-utilisateur/abonnement' ||
+      location.pathname === '/account/member-area' ||
+      location.pathname === '/compte-utilisateur/espace-membre';
+
+    const isTeamsRoute = location.pathname.startsWith('/account/teams');
 
     const isSecurityRoute =
       location.pathname === '/account/security' ||
@@ -39,62 +51,58 @@ export function AccountSubMenu({ activeTab, onTabChange, mode = 'account-tabs' }
       location.pathname === '/account/resources' ||
       location.pathname === '/compte-utilisateur/resources';
 
-    const isCreditsRoute =
-      location.pathname === '/account/credits' ||
-      location.pathname === '/compte-utilisateur/credits';
-
-    const canAccessCredits = hasCreditsAccess(user?.accountType);
-    const canAccessMemberAreaFromAccount = user?.accountType === 'expert';
+    const isProfileRoute =
+      location.pathname === '/compte-utilisateur' ||
+      location.pathname === '/account/profile' ||
+      location.pathname === '/compte-utilisateur/profil';
 
     const items = [
       {
-        label: t('account.tabs.profile'),
-        icon: User,
-        active: isProfileRoute,
-        onClick: () => navigate('/compte-utilisateur'),
+        label: t('account.nav.home'),
+        icon: LayoutDashboard,
+        active: isHomeRoute,
+        onClick: () => navigate('/account'),
       },
       {
-        label: t('account.tabs.security'),
+        label: t('account.nav.mySelection'),
+        icon: Layers,
+        active: isMySelectionRoute,
+        onClick: () => navigate('/account/my-selection'),
+      },
+      {
+        label: t('account.nav.subscription'),
+        icon: CreditCard,
+        active: isSubscriptionRoute,
+        onClick: () => navigate('/account/subscription'),
+      },
+      ...(canManage
+        ? [
+            {
+              label: t('account.nav.teams'),
+              icon: Users,
+              active: isTeamsRoute,
+              onClick: () => navigate('/account/teams'),
+            },
+          ]
+        : []),
+      {
+        label: t('account.nav.security'),
         icon: Shield,
         active: isSecurityRoute,
         onClick: () => navigate('/compte-utilisateur/security'),
       },
       {
-        label: t('monEspace.nav.invitations'),
-        icon: Inbox,
-        active: location.pathname.startsWith('/account/invitations') || location.pathname.startsWith('/compte-utilisateur/invitations'),
-        onClick: () => navigate('/compte-utilisateur/invitations'),
-      },
-      ...(canAccessMemberAreaFromAccount
-        ? [
-            {
-              label: t('monEspace.nav.memberArea'),
-              icon: Shield,
-              active:
-                location.pathname === '/account/subscription' ||
-                location.pathname === '/compte-utilisateur/abonnement' ||
-                location.pathname === '/account/member-area' ||
-                location.pathname === '/compte-utilisateur/espace-membre',
-              onClick: () => navigate('/compte-utilisateur/abonnement'),
-            },
-          ]
-        : []),
-      {
-        label: t('account.tabs.resources'),
+        label: t('account.nav.resources'),
         icon: Library,
         active: isResourcesRoute,
         onClick: () => navigate('/compte-utilisateur/resources'),
       },
-      ...(canAccessCredits
-        ? [
-            {
-              label: t('monEspace.nav.credits'),
-              icon: Coins,
-              active: isCreditsRoute,
-              onClick: () => navigate('/compte-utilisateur/credits'),
-            },
-          ]
-        : []),
+      {
+        label: t('account.nav.profile'),
+        icon: User,
+        active: isProfileRoute,
+        onClick: () => navigate('/compte-utilisateur'),
+      },
     ];
 
     return <SubMenu items={items} />;

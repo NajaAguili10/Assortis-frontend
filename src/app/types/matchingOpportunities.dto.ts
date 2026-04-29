@@ -56,6 +56,8 @@ export interface MatchingOpportunityDTO {
     name: string;
     date: Date;
   }>;
+  matchedViaProfile?: string;  // Profile name that generated this match
+  matchedViaAlert?: string;   // Alert name that generated this match
 }
 
 export interface MatchingStatsDTO {
@@ -135,4 +137,41 @@ export interface MatchingOpportunitiesContextDTO {
   sipInfo: SIPInfoDTO;
   pendingMatches: PendingMatchDTO[];
   savedOpportunities: string[]; // Array of opportunity IDs
+}
+
+export interface MatchingProjectsFilterDTO {
+  sort: 'relevance' | 'date';
+  category: OpportunityTypeEnum | 'ALL';
+  country: string | 'ALL';
+  minScore: 0 | 50 | 70 | 90;
+  dateRange: '5days' | '7days' | '30days' | 'custom';
+  customDateFrom?: string; // ISO date string YYYY-MM-DD
+  customDateTo?: string;   // ISO date string YYYY-MM-DD
+}
+
+export type AlertFrequency = 'realtime' | 'daily' | 'weekly' | 'none';
+
+export interface MatchingProfileDTO {
+  id: string;
+  name: string;
+  sectors: string[];
+  countries: string[];
+  donors: string[];
+  keywords: string[];
+  isActive: boolean;
+  alertFrequency: AlertFrequency;
+  createdAt: Date;
+  matchCount: number;
+}
+
+export interface AlertProfileSettingsDTO {
+  profileId: string;
+  isEnabled: boolean;
+  frequency: AlertFrequency;
+}
+
+export interface AlertFusionConfigDTO {
+  globalFrequency: AlertFrequency;
+  deduplicationEnabled: boolean;
+  profileSettings: AlertProfileSettingsDTO[];
 }

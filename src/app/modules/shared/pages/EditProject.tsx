@@ -15,9 +15,10 @@ import {
   SelectValue,
 } from '@app/components/ui/select';
 import { toast } from 'sonner';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus, CheckCircle2, X, Briefcase } from 'lucide-react';
 import { useProjects } from '@app/hooks/useProjects';
+import { useProjectsContext } from '@app/contexts/ProjectsContext';
 import { ProjectSectorSubsectorFilter } from '@app/components/ProjectSectorSubsectorFilter';
 import { RegionCountryFilter } from '@app/components/RegionCountryFilter';
 import {
@@ -25,9 +26,11 @@ import {
   ProjectPriorityEnum,
   ProjectTypeEnum,
   ProjectSectorEnum,
+  RegionEnum as ProjectRegionEnum,
   PROJECT_SUBSECTORS,
 } from '@app/types/project.dto';
 import { RegionEnum as TenderRegionEnum, CountryEnum, REGION_COUNTRY_MAP } from '@app/types/tender.dto';
+import { calculateProjectCompletion } from '@app/utils/project-completion';
 
 interface TeamMember {
   id: string;
@@ -49,9 +52,11 @@ export default function EditProject() {
   const navigate = useNavigate();
   const { id } = useParams();
   const { getProjectById } = useProjects();
+  const { updateProject } = useProjectsContext();
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 7;
   const [isLoading, setIsLoading] = useState(true);
+  const loadedProjectId = useRef<string | null>(null);
 
   // Load project data
   const project = getProjectById(id || '');
@@ -110,10 +115,26 @@ export default function EditProject() {
   // Load project data when component mounts
   useEffect(() => {
     if (project) {
+      if (loadedProjectId.current === project.id) {
+        return;
+      }
+
+      loadedProjectId.current = project.id;
+      const extendedProject = project as typeof project & {
+        relatedTender?: string;
+        projectSource?: string;
+        objectives?: string;
+        scope?: string;
+        fundingSource?: string;
+        implementingPartner?: string;
+        technicalLead?: string;
+        teamMembers?: TeamMember[];
+        countries?: CountryEnum[];
+      };
       // Pre-fill general info
       setGeneralInfo({
-        relatedTender: '', // This would come from project data if available
-        projectSource: 'TENDER', // Default or from project data
+        relatedTender: extendedProject.relatedTender || '',
+        projectSource: extendedProject.projectSource || 'TENDER',
       });
 
       // Pre-fill basic info
@@ -121,14 +142,14 @@ export default function EditProject() {
         title: project.title,
         code: project.code,
         description: project.description,
-        objectives: '', // This would come from extended project data
+        objectives: extendedProject.objectives || '',
       });
 
       // Pre-fill project details
       setProjectDetails({
         type: project.type,
         priority: project.priority,
-        scope: 'REGIONAL',
+        scope: extendedProject.scope || 'REGIONAL',
       });
       setSelectedProjectSectors(project.sector ? [project.sector as ProjectSectorEnum] : []);
       setSelectedProjectSubSectors(project.subsectors || []);
@@ -140,13 +161,13 @@ export default function EditProject() {
         budget: project.budget.total.toString(),
         currency: project.budget.currency,
       });
-      setSelectedCountries(project.country ? [project.country as CountryEnum] : []);
+      setSelectedCountries(extendedProject.countries?.length ? extendedProject.countries : project.country ? [project.country as CountryEnum] : []);
 
       // Pre-fill organization
       setOrganization({
         leadOrganization: project.leadOrganization,
-        donor: '', // Would come from extended project data
-        implementingPartner: '',
+        donor: extendedProject.fundingSource || '',
+        implementingPartner: extendedProject.implementingPartner || '',
       });
 
       // Pre-fill partners
@@ -157,6 +178,12 @@ export default function EditProject() {
         type: 'IMPLEMENTING',
       }));
       setPartners(partnersList);
+
+      setTeamInfo({
+        projectManager: project.managerName || '',
+        technicalLead: extendedProject.technicalLead || '',
+      });
+      setTeamMembers(extendedProject.teamMembers || []);
 
       setIsLoading(false);
     } else {
@@ -225,24 +252,96 @@ export default function EditProject() {
     return true;
   };
 
+  const buildProjectUpdate = () => {
+    const totalBudget = Number(budgetLocation.budget) || 0;
+    const startDate = budgetLocation.startDate || project?.timeline.startDate || new Date().toISOString().split('T')[0];
+    const endDate = budgetLocation.endDate || project?.timeline.endDate || startDate;
+    const duration = Math.max(1, Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24 * 30)));
+    const countries = selectedCountries.length > 0 ? selectedCountries : project?.country ? [project.country as CountryEnum] : [];
+    const partnersList = partners.map((partner) => partner.organizationName.trim()).filter(Boolean);
+    const update = {
+      title: basicInfo.title.trim(),
+      name: basicInfo.title.trim(),
+      code: basicInfo.code.trim(),
+      description: basicInfo.description.trim(),
+      type: (projectDetails.type || ProjectTypeEnum.DEVELOPMENT) as ProjectTypeEnum,
+      priority: (projectDetails.priority || ProjectPriorityEnum.MEDIUM) as ProjectPriorityEnum,
+      status: project?.status || ProjectStatusEnum.ACTIVE,
+      sector: (selectedProjectSectors[0] || project?.sector || ProjectSectorEnum.OTHER) as ProjectSectorEnum,
+      subsectors: selectedProjectSubSectors,
+      country: countries[0] || project?.country || '',
+      countries,
+      region: (project?.region || ProjectRegionEnum.AFRICA_EAST) as ProjectRegionEnum,
+      budget: {
+        total: totalBudget,
+        spent: project?.budget.spent || 0,
+        remaining: Math.max(totalBudget - (project?.budget.spent || 0), 0),
+        currency: budgetLocation.currency,
+      },
+      timeline: {
+        startDate,
+        endDate,
+        duration,
+        completionPercentage: 0,
+      },
+      leadOrganization: organization.leadOrganization.trim(),
+      partners: partnersList,
+      teamSize: [teamInfo.projectManager, teamInfo.technicalLead, ...teamMembers.map((member) => member.expertName)].filter(Boolean).length,
+      managerName: teamInfo.projectManager.trim(),
+      tags: project?.tags || [],
+      relatedTender: generalInfo.relatedTender,
+      projectSource: generalInfo.projectSource,
+      objectives: basicInfo.objectives,
+      scope: projectDetails.scope,
+      fundingSource: organization.donor,
+      implementingPartner: organization.implementingPartner,
+      technicalLead: teamInfo.technicalLead,
+      teamMembers,
+    };
+
+    return {
+      ...update,
+      timeline: {
+        ...update.timeline,
+        completionPercentage: calculateProjectCompletion(update),
+      },
+    };
+  };
+
+  useEffect(() => {
+    if (isLoading || !project?.id) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      updateProject(project.id, buildProjectUpdate() as any);
+    }, 500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    isLoading,
+    project?.id,
+    generalInfo,
+    basicInfo,
+    projectDetails,
+    selectedProjectSectors,
+    selectedProjectSubSectors,
+    budgetLocation,
+    selectedCountries,
+    organization,
+    partners,
+    teamInfo,
+    teamMembers,
+  ]);
+
   const handleSubmit = () => {
     if (!validateCurrentStep()) {
       return;
     }
 
-    const projectData = {
-      id: project?.id,
-      generalInfo,
-      basicInfo,
-      projectDetails,
-      budgetLocation,
-      organization,
-      partners,
-      teamInfo,
-      teamMembers,
-    };
-
-    console.log('Updated Project Data:', projectData);
+    if (project?.id) {
+      updateProject(project.id, buildProjectUpdate() as any);
+    }
     toast.success(t('projects.edit.success'));
     setTimeout(() => {
       navigate('/projects');

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
 import { ProjectsSubMenu } from '@app/components/ProjectsSubMenu';
+import { AccessDenied } from '@app/components/AccessDenied';
 import { Button } from '@app/components/ui/button';
 import { Input } from '@app/components/ui/input';
 import { Label } from '@app/components/ui/label';
@@ -19,6 +20,8 @@ import { useState, useMemo } from 'react';
 import { UserPlus, ArrowLeft, CheckCircle2, Search } from 'lucide-react';
 import { useProjects } from '@app/hooks/useProjects';
 import { useExperts } from '@app/modules/expert/hooks/useExperts';
+import { useAuth } from '@app/contexts/AuthContext';
+import { canManageOrganizationAdminActions } from '@app/services/permissions.service';
 import { ProjectListDTO } from '@app/types/project.dto';
 
 interface Task {
@@ -52,8 +55,23 @@ interface Assignment {
 export default function AssignTasks() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canAssign = canManageOrganizationAdminActions(user?.accountType, user?.role);
+
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 5;
+
+  if (!canAssign) {
+    return (
+      <div className="min-h-screen">
+        <PageBanner title={t('projects.hub.title')} description={t('projects.hub.subtitle')} icon={UserPlus} />
+        <ProjectsSubMenu />
+        <PageContainer className="my-6">
+          <AccessDenied module="projects" accountType={user?.accountType} />
+        </PageContainer>
+      </div>
+    );
+  }
 
   // Step 1: Select Project
   const [selectedProject, setSelectedProject] = useState('');

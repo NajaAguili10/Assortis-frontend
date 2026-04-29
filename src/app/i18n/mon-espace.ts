@@ -108,6 +108,16 @@ export const monEspaceTranslations = {
     'monEspace.action.view': 'View Details',
     'monEspace.action.edit': 'Edit',
     'monEspace.action.delete': 'Delete',
+    'monEspace.action.duplicate': 'Duplicate',
+    'monEspace.action.duplicateNotice': 'Form pre-filled from a duplicate. Review the details and publish to save it as a new offer.',
+
+    // Posting Board tabs
+    'monEspace.tab.publishOffers': 'Publish Offers',
+    'monEspace.tab.jobOffers': 'Job Offers',
+    'monEspace.tab.manageOffers': 'Manage Your Offers',
+
+    // Delete confirmation
+    'monEspace.message.closeConfirm': 'Are you sure you want to delete this job offer? This action cannot be undone.',
 
     // Job Offers
     'monEspace.job.published': 'Published',
@@ -481,6 +491,16 @@ export const monEspaceTranslations = {
     'monEspace.action.view': 'Voir Détails',
     'monEspace.action.edit': 'Modifier',
     'monEspace.action.delete': 'Supprimer',
+    'monEspace.action.duplicate': 'Dupliquer',
+    'monEspace.action.duplicateNotice': "Formulaire pré-rempli depuis un doublon. Vérifiez les informations et publiez pour enregistrer cette nouvelle offre.",
+
+    // Posting Board tabs
+    'monEspace.tab.publishOffers': 'Publier des Offres',
+    'monEspace.tab.jobOffers': "Offres d'Emploi",
+    'monEspace.tab.manageOffers': 'Gérer Vos Offres',
+
+    // Delete confirmation
+    'monEspace.message.closeConfirm': "Êtes-vous sûr de vouloir supprimer cette offre d'emploi ? Cette action est irréversible.",
 
     // Job Offers
     'monEspace.job.published': 'Publié le',
@@ -865,6 +885,16 @@ export const monEspaceTranslations = {
     'monEspace.action.view': 'Ver Detalles',
     'monEspace.action.edit': 'Editar',
     'monEspace.action.delete': 'Eliminar',
+    'monEspace.action.duplicate': 'Duplicar',
+    'monEspace.action.duplicateNotice': 'Formulario completado desde un duplicado. Revise los datos y publique para guardar como nueva oferta.',
+
+    // Posting Board tabs
+    'monEspace.tab.publishOffers': 'Publicar Ofertas',
+    'monEspace.tab.jobOffers': 'Ofertas de Empleo',
+    'monEspace.tab.manageOffers': 'Gestionar Sus Ofertas',
+
+    // Delete confirmation
+    'monEspace.message.closeConfirm': '¿Está seguro de que desea eliminar esta oferta de empleo? Esta acción no se puede deshacer.',
 
     // Job Offers
     'monEspace.job.published': 'Publicado',

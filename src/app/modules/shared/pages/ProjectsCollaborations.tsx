@@ -37,6 +37,8 @@ import {
   X,
   Target,
   Bookmark,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 interface Partnership {
@@ -146,6 +148,20 @@ export default function ProjectsCollaborations() {
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
 
+  const HIDDEN_PARTNERS_KEY = 'projects.collaborations.hiddenPartners';
+  const [hiddenPartnerIds, setHiddenPartnerIds] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(HIDDEN_PARTNERS_KEY) || '[]'); } catch { return []; }
+  });
+  const [showHidden, setShowHidden] = useState(false);
+
+  const toggleHidePartner = (id: string) => {
+    setHiddenPartnerIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      localStorage.setItem(HIDDEN_PARTNERS_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
   const partnerships = useMemo<Partnership[]>(() => {
     return allOrganizations
       .filter((organization) => bookmarkedOrganizationIds.includes(organization.id))
@@ -185,8 +201,9 @@ export default function ProjectsCollaborations() {
     
     const matchesType = selectedTypes.length === 0 || selectedTypes.includes(partnership.partnershipType);
     const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(partnership.status);
+    const isVisible = showHidden || !hiddenPartnerIds.includes(partnership.id);
     
-    return matchesSearch && matchesType && matchesStatus;
+    return matchesSearch && matchesType && matchesStatus && isVisible;
   });
 
   const getPartnershipTypeBadge = (type: string) => {
@@ -393,6 +410,16 @@ export default function ProjectsCollaborations() {
           </div>
 
           {/* Partnerships Grid */}
+          {hiddenPartnerIds.filter(id => partnerships.some(p => p.id === id)).length > 0 && (
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm text-muted-foreground">
+                {hiddenPartnerIds.filter(id => partnerships.some(p => p.id === id)).length} organisation{hiddenPartnerIds.filter(id => partnerships.some(p => p.id === id)).length > 1 ? 's' : ''} hidden
+              </span>
+              <Button variant="outline" size="sm" onClick={() => setShowHidden((v) => !v)}>
+                {showHidden ? <><EyeOff className="w-4 h-4 mr-1.5" />Hide hidden</> : <><Eye className="w-4 h-4 mr-1.5" />Show hidden</>}
+              </Button>
+            </div>
+          )}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {filteredPartnerships.length > 0 ? (
               filteredPartnerships.map((partnership) => {
@@ -454,14 +481,24 @@ export default function ProjectsCollaborations() {
                     </div>
 
                     {/* View Details Button */}
-                    <Button 
-                      onClick={() => handleViewDetails(partnership)} 
-                      variant="outline" 
-                      className="w-full"
-                    >
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      View Details
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        onClick={() => handleViewDetails(partnership)} 
+                        variant="outline" 
+                        className="flex-1"
+                      >
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                        View Details
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        title={hiddenPartnerIds.includes(partnership.id) ? 'Show organisation' : 'Hide organisation'}
+                        onClick={() => toggleHidePartner(partnership.id)}
+                      >
+                        {hiddenPartnerIds.includes(partnership.id) ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                      </Button>
+                    </div>
                     {shouldShowBookmarkButton && (
                       <Button
                         variant="ghost"

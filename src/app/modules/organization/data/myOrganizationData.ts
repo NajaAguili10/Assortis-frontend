@@ -50,11 +50,7 @@ export const myOrganizationData = {
   certifications: ['ISO 9001', 'UN Procurement Certified', 'EU Donor Certified'],
   partnerships: ['UN Agencies', 'World Bank', 'EU Commission'],
   
-  // Subscription
-  subscriptionPlan: 'Professional',
-  subscriptionStatus: 'Active',
-  renewalDate: '2025-12-31',
-  features: ['Unlimited Tenders', 'Expert Database', 'AI Matching', 'Priority Support'],
+  // Services
   selectedServices: ['Technical Assistance', 'Project Management'],
   
   // Status

@@ -44,7 +44,10 @@ import ExpertsMatchingOrganisation from './modules/expert/pages/ExpertsMatchingO
 import ExpertsMatchingOrganisationArchive from './modules/expert/pages/ExpertsMatchingOrganisationArchive';
 import MatchingOpportunitiesHome from './modules/expert/pages/MatchingOpportunitiesHome';
 import MatchingOpportunitiesPage from './modules/expert/pages/MatchingOpportunitiesPage';
+import MatchingProjectsPage from './modules/expert/pages/MatchingProjectsPage';
 import MatchingOpportunitiesSaved from './modules/expert/pages/MatchingOpportunitiesSaved';
+import SavedProfilesPage from './modules/expert/pages/SavedProfilesPage';
+import AlertsFusionPage from './modules/expert/pages/AlertsFusionPage';
 import MatchingProjectDetailPage from './modules/expert/pages/MatchingProjectDetailPage';
 import MatchingAwardDetailPage from './modules/expert/pages/MatchingAwardDetailPage';
 import MatchingShortlistDetailPage from './modules/expert/pages/MatchingShortlistDetailPage';
@@ -59,9 +62,6 @@ import OrganizationsPartnerships from './modules/organization/pages/Organization
 import OrganizationsPartnershipDetail from './modules/organization/pages/OrganizationsPartnershipDetail';
 import OrganizationsInvitations from './modules/organization/pages/OrganizationsInvitations';
 import OrganizationsCreateProfile from './modules/organization/pages/OrganizationsCreateProfile';
-import OrganizationsCreateTender from './modules/organization/pages/OrganizationsCreateTender';
-import OrganizationsMyTenders from './modules/organization/pages/OrganizationsMyTenders';
-import OrganizationsTenderDetail from './modules/organization/pages/OrganizationsTenderDetail';
 import OrganizationsEditProfile from './modules/organization/pages/OrganizationsEditProfile';
 import OrganizationsInvite from './modules/organization/pages/OrganizationsInvite';
 import OrganizationsMatching from './modules/organization/pages/OrganizationsMatching';
@@ -79,13 +79,11 @@ import TrainingPortfolio from './modules/shared/pages/TrainingPortfolio';
 import TrainingActivatedPills from './modules/shared/pages/TrainingActivatedPills';
 import TrainingEnrollment from './modules/shared/pages/TrainingEnrollment';
 import TrainingProgramDetails from './modules/shared/pages/TrainingProgramDetails';
-import TrainingLiveSessions from './modules/shared/pages/TrainingLiveSessions';
 import TrainingLiveSessionDetails from './modules/shared/pages/TrainingLiveSessionDetails';
 import TrainingSessionEnrollment from './modules/shared/pages/TrainingSessionEnrollment';
 import TrainingRecordingPlayer from './modules/shared/pages/TrainingRecordingPlayer';
 import TrainingTrainers from './modules/shared/pages/TrainingTrainers';
 import TrainingTrainerDetails from './modules/shared/pages/TrainingTrainerDetails';
-import TrainingCertifications from './modules/shared/pages/TrainingCertifications';
 import TrainingCertificationDetails from './modules/shared/pages/TrainingCertificationDetails';
 import TrainingCertificationEnroll from './modules/shared/pages/TrainingCertificationEnroll';
 import TrainingCheckout from './modules/shared/pages/TrainingCheckout';
@@ -99,6 +97,7 @@ import StatisticsDashboard from './modules/shared/pages/StatisticsDashboard';
 import StatisticsProjectsContracts from './modules/shared/pages/StatisticsProjectsContracts';
 import StatisticsMarketTrends from './modules/shared/pages/StatisticsMarketTrends';
 import StatisticsPricingExperts from './modules/shared/pages/StatisticsPricingExperts';
+import StatisticsExpertsFees from './modules/shared/pages/StatisticsExpertsFees';
 import StatisticsCompetitors from './modules/shared/pages/StatisticsCompetitors';
 import StatisticsUsageAnalytics from './modules/shared/pages/StatisticsUsageAnalytics';
 import StatisticsMapInsights from './modules/shared/pages/StatisticsMapInsights';
@@ -141,6 +140,11 @@ import {
   ProtectedCompteUtilisateurResources,
   ProtectedCompteUtilisateurSecurity,
   ProtectedModifierProfilPage,
+  ProtectedAccountHome,
+  ProtectedAccountMessages,
+  ProtectedMySelectionAlerts,
+  ProtectedAccountSubscription,
+  ProtectedAccountTeams,
 } from './components/ProtectedRouteWrapper';
 import AboutPage from './modules/public/pages/AboutPage';
 import Login from './modules/public/pages/Login';
@@ -158,7 +162,6 @@ import OffresInternesPage from './modules/mon-espace/pages/OffresInternesPage';
 import EnregistrerCVPage from './modules/mon-espace/pages/EnregistrerCVPage';
 import MonComptePage from './modules/mon-espace/pages/MonComptePage';
 import MonCVPage from './modules/mon-espace/pages/MonCVPage';
-import EspaceMembrePage from './modules/mon-espace/pages/EspaceMembrePage';
 import ChangerPlanPage from './modules/mon-espace/pages/ChangerPlanPage';
 import CheckoutPage from './modules/mon-espace/pages/CheckoutPage';
 import PublierOffrePage from './modules/posting-board/pages/PublierOffrePage';
@@ -193,7 +196,7 @@ const router = createBrowserRouter([
       { path: 'privacy-policy', Component: PrivacyPolicy },
       { path: 'about', Component: AboutPage },
       { path: 'dashboard', Component: Dashboard },
-      { path: 'calls', Component: TendersHub },
+      { path: 'calls', element: <Navigate to="/calls/active" replace /> },
       { path: 'calls/overview', Component: TendersHub },
       { path: 'calls/active', Component: ActiveTenders },
       { path: 'calls/tors', Component: ToRsList },
@@ -206,7 +209,7 @@ const router = createBrowserRouter([
       // Route Pipeline supprimée - déplacée vers /projects/pipeline
       { path: 'calls-enhanced', Component: CallsEnhanced },
       { path: 'calls-old', Component: Calls },
-      { path: 'tenders', Component: TendersHub },
+      { path: 'tenders', element: <Navigate to="/tenders/active" replace /> },
       { path: 'tenders/overview', Component: TendersHub },
       { path: 'tenders/active', Component: ActiveTenders },
       { path: 'tenders/:id', Component: ProjectDetail },
@@ -248,28 +251,23 @@ const router = createBrowserRouter([
       { path: 'experts/:id', Component: ExpertPublicProfile },
       { path: 'matching-opportunities', element: <Navigate to="/matching-opportunities/home" replace /> },
       { path: 'matching-opportunities/home', Component: MatchingOpportunitiesHome },
+      { path: 'matching-opportunities/projects', Component: MatchingProjectsPage },
       { path: 'matching-opportunities/opportunities', Component: MatchingOpportunitiesPage },
       { path: 'matching-opportunities/opportunities/project/:id', Component: MatchingProjectDetailPage },
       { path: 'matching-opportunities/opportunities/award/:id', Component: MatchingAwardDetailPage },
       { path: 'matching-opportunities/opportunities/shortlist/:id', Component: MatchingShortlistDetailPage },
       { path: 'matching-opportunities/opportunities/vacancy/:id', Component: MatchingVacancyDetailPage },
       { path: 'matching-opportunities/saved', Component: MatchingOpportunitiesSaved },
+      { path: 'matching-opportunities/profiles', Component: SavedProfilesPage },
+      { path: 'matching-opportunities/alerts', Component: AlertsFusionPage },
       { path: 'organizations', Component: OrganizationsHub },
       { path: 'organizations/overview', Component: OrganizationsHub },
       { path: 'organizations/database', Component: OrganizationsDatabase },
       { path: 'organizations/:id', Component: OrganizationDetail },
       { path: 'organizations/create-profile', Component: OrganizationsCreateProfile },
-      { path: 'organizations/create-tender', Component: OrganizationsCreateTender },
-      { path: 'organizations/my-tenders', Component: OrganizationsMyTenders },
-      { path: 'organizations/my-tenders/:id', Component: OrganizationsTenderDetail },
-      { path: 'organizations/my-tenders/:id/edit', Component: OrganizationsCreateTender },
-      { path: 'organization/my-tenders', Component: OrganizationsMyTenders },
-      { path: 'organization/my-tenders/:id', Component: OrganizationsTenderDetail },
-      { path: 'organization/my-tenders/:id/edit', Component: OrganizationsCreateTender },
       { path: 'organizations/edit-profile', Component: OrganizationsEditProfile },
       { path: 'organizations/invite', Component: OrganizationsInvite },
       { path: 'organizations/my-organization', Component: MyOrganization },
-      { path: 'organizations/subscription', Component: withMonEspaceProtection(EspaceMembrePage) },
       { path: 'organizations/project-references', Component: OrganizationProjectReferences },
       { path: 'organizations/project-references/:id', Component: OrganizationProjectReferenceDetail },
       { path: 'organizations/teams', Component: OrganizationsTeams },
@@ -288,14 +286,14 @@ const router = createBrowserRouter([
       { path: 'training/checkout/confirmation', Component: TrainingCheckoutConfirmation },
       { path: 'training/enroll/:courseId', Component: TrainingEnrollment },
       { path: 'training/program-details/:programId', Component: TrainingProgramDetails },
-      { path: 'training/live-sessions', Component: TrainingLiveSessions },
+      { path: 'training/live-sessions', element: <Navigate to="/training/catalog" replace /> },
       { path: 'training/live-session-details/:sessionId', Component: TrainingLiveSessionDetails },
       { path: 'training/session-enroll/:sessionId', Component: TrainingSessionEnrollment },
       { path: 'training/recording-player/:sessionId', Component: TrainingRecordingPlayer },
       { path: 'training/trainers', Component: TrainingTrainers },
       { path: 'training/trainer-details/:trainerId', Component: TrainingTrainerDetails },
-      { path: 'training/certifications', Component: TrainingCertifications },
-      { path: 'training/certifications-history', Component: TrainingCertifications },
+      { path: 'training/certifications', element: <Navigate to="/training/portfolio" replace /> },
+      { path: 'training/certifications-history', element: <Navigate to="/training/portfolio" replace /> },
       { path: 'training/certification-details/:certificationId', Component: TrainingCertificationDetails },
       { path: 'training/certification-enroll/:certificationId', Component: TrainingCertificationEnroll },
       { path: 'excellence', Component: Assistance },
@@ -309,6 +307,7 @@ const router = createBrowserRouter([
       { path: 'statistics/projects-contracts', Component: StatisticsProjectsContracts },
       { path: 'statistics/market-trends', Component: StatisticsMarketTrends },
       { path: 'statistics/pricing-experts', Component: StatisticsPricingExperts },
+      { path: 'statistics/experts-fees', Component: StatisticsExpertsFees },
       { path: 'statistics/competitors', Component: StatisticsCompetitors },
       { path: 'statistics/usage-analytics', Component: StatisticsUsageAnalytics },
       { path: 'statistics/map-insights', Component: StatisticsMapInsights },
@@ -355,22 +354,26 @@ const router = createBrowserRouter([
       { path: 'search/experts/:id', Component: ExpertPublicProfile },
       { path: 'search/organizations/:id', Component: OrganizationDetail },
       { path: 'search/organisations/:id', Component: OrganizationDetail },
-      { path: 'account', Component: ProtectedCompteUtilisateur },
+      { path: 'account', Component: ProtectedAccountHome },
       { path: 'compte-utilisateur', Component: ProtectedCompteUtilisateur },
       { path: 'account/security', Component: ProtectedCompteUtilisateurSecurity },
       { path: 'compte-utilisateur/security', Component: ProtectedCompteUtilisateurSecurity },
       { path: 'account/resources', Component: ProtectedCompteUtilisateurResources },
       { path: 'compte-utilisateur/resources', Component: ProtectedCompteUtilisateurResources },
-      { path: 'compte-utilisateur/credits', Component: ProtectedCompteUtilisateurCredits },
-      { path: 'account/credits', element: <Navigate to="/compte-utilisateur/credits" replace /> },
+      { path: 'compte-utilisateur/credits', element: <Navigate to="/account/subscription" replace /> },
+      { path: 'account/credits', element: <Navigate to="/account/subscription" replace /> },
+      { path: 'account/my-selection', Component: ProtectedMySelectionAlerts },
+      { path: 'account/teams', Component: ProtectedAccountTeams },
+      { path: 'account/messages', Component: ProtectedAccountMessages },
       { path: 'account/profile', Component: ProtectedModifierProfilPage },
       { path: 'compte-utilisateur/profil', Component: ProtectedModifierProfilPage },
+      { path: 'compte-utilisateur/messages', Component: ProtectedAccountMessages },
       { path: 'account/my-account', Component: withMonEspaceProtection(MonComptePage) },
       { path: 'compte-utilisateur/mon-compte', Component: withMonEspaceProtection(MonComptePage) },
-      { path: 'account/subscription', Component: withMonEspaceProtection(EspaceMembrePage) },
-      { path: 'compte-utilisateur/abonnement', Component: withMonEspaceProtection(EspaceMembrePage) },
-      { path: 'account/member-area', Component: withMonEspaceProtection(EspaceMembrePage) },
-      { path: 'compte-utilisateur/espace-membre', Component: withMonEspaceProtection(EspaceMembrePage) },
+      { path: 'account/subscription', Component: ProtectedAccountSubscription },
+      { path: 'compte-utilisateur/abonnement', Component: ProtectedAccountSubscription },
+      { path: 'account/member-area', Component: ProtectedAccountSubscription },
+      { path: 'compte-utilisateur/espace-membre', Component: ProtectedAccountSubscription },
       { path: 'account/invitations', Component: withMonEspaceProtection(Invitations) },
       { path: 'compte-utilisateur/invitations', Component: withMonEspaceProtection(Invitations) },
       { path: 'account/invitations/:invitationId/messages', Component: withMonEspaceProtection(InvitationMessaging) },

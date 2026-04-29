@@ -1,12 +1,20 @@
 // Project Types and DTOs - Multilingue compatible
 
 export enum ProjectStatusEnum {
+  DRAFT = 'DRAFT',
   PLANNING = 'PLANNING',
   ACTIVE = 'ACTIVE',
   ON_HOLD = 'ON_HOLD',
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
   ARCHIVED = 'ARCHIVED',
+}
+
+export enum ReferenceTypeEnum {
+  LINK = 'LINK',
+  FILE = 'FILE',
+  NOTE = 'NOTE',
+  DOCUMENT = 'DOCUMENT',
 }
 
 export enum ProjectPriorityEnum {
@@ -233,6 +241,11 @@ export interface ProjectListDTO {
   // Metadata
   createdDate: string;
   updatedDate: string;
+
+  // Team & Search
+  createdBy?: string;
+  ownedBy?: string;
+  tags?: string[];
 }
 
 export interface ProjectDetailDTO extends ProjectListDTO {
@@ -286,6 +299,13 @@ export interface ProjectFiltersDTO {
   partners?: string[];
 }
 
+export interface TaskAssigneeDTO {
+  id: string;
+  name: string;
+  role?: string;
+  avatar?: string;
+}
+
 export interface TaskDTO {
   id: string;
   projectId: string;
@@ -294,7 +314,7 @@ export interface TaskDTO {
   description: string;
   status: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'COMPLETED';
   priority: ProjectPriorityEnum;
-  assignedTo: string[];
+  assignedTo: TaskAssigneeDTO[];
   startDate?: string;
   dueDate: string;
   completedDate?: string;

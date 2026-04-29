@@ -122,7 +122,7 @@ export default function OrganizationsCreateProfile() {
     annualBudget: '',
     projectsCompleted: '',
     
-    // Step 6: Subscription & Services
+    // Step 6: Services
     selectedServices: [] as string[],
   });
 
@@ -729,7 +729,7 @@ export default function OrganizationsCreateProfile() {
               </div>
             )}
 
-            {/* Step 6: Subscription & Services */}
+            {/* Step 6: Services */}
             {currentStep === 6 && (
               <div className="space-y-6">
                 <div>

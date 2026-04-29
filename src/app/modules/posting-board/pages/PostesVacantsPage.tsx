@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams, Navigate } from 'react-router';
 import { PageBanner } from '../../../components/PageBanner';
 import { PageContainer } from '../../../components/PageContainer';
 import { PostingBoardSubMenu } from '../../../components/PostingBoardSubMenu';
@@ -7,10 +7,12 @@ import { JobCard } from '../components/JobCard';
 import { JobContactDialog } from '../components/JobContactDialog';
 import { ContactHistory, ContactHistoryDetailDialog } from '../components/ContactHistory';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import { JobOfferListDTO, JobOfferTypeEnum, JobOfferStatusEnum } from '../types/JobOffer.dto';
 import { ContactHistoryListDTO, ContactHistoryDTO } from '../types/ContactHistory.dto';
 import { getJobOffersByType, getJobOfferById } from '../services/jobOfferService';
 import { getContactHistoryByType, getContactHistoryById } from '../services/contactHistoryService';
+import { hasVacanciesAccess } from '../../../services/permissions.service';
 import { Briefcase, Building2, AlertCircle, Search, Filter, X, MapPin, Calendar, Clock, FileText, CheckCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '../../../components/ui/alert';
 import { Input } from '../../../components/ui/input';
@@ -30,9 +32,15 @@ type TabType = 'projects' | 'internal';
 
 export default function PostesVacantsPage() {
   const { t, language } = useLanguage();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  
+
+  // Redirect organizations back to publish page — vacancies are expert-only
+  if (user && !hasVacanciesAccess(user.accountType)) {
+    return <Navigate to="/posting-board/publish" replace />;
+  }
+
   // Get active tab from URL or default to 'projects'
   const [activeTab, setActiveTab] = useState<TabType>((searchParams.get('tab') as TabType) || 'projects');
   

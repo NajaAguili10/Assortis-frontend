@@ -88,7 +88,7 @@ export default function TrainingSessionEnrollment() {
 
   useEffect(() => {
     if (!session) {
-      navigate('/training/live-sessions');
+      navigate('/training/catalog');
     }
   }, [session, navigate]);
 
@@ -168,7 +168,7 @@ export default function TrainingSessionEnrollment() {
 
       // Redirect after success
       setTimeout(() => {
-        navigate('/training/live-sessions');
+        navigate('/training/catalog');
       }, 1500);
     } catch (error) {
       toast.error(t('training.liveSessions.registration.error.title'), {

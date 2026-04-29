@@ -2,12 +2,11 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { format, isAfter, startOfToday } from 'date-fns';
 import { enUS, es, fr } from 'date-fns/locale';
-import { ArrowDown, ArrowUp, ArrowUpDown, CalendarIcon, ChevronDown, ChevronUp, Clock, DollarSign, Download, Eye, FileText, Globe, Heart, Plus, RotateCcw, Search, SlidersHorizontal, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, CalendarIcon, Check, ChevronDown, ChevronUp, Clock, DollarSign, Download, Eye, FileText, Globe, Heart, Plus, RotateCcw, Search, SlidersHorizontal, Sparkles, Trash2 } from 'lucide-react';
 import { type DateRange } from 'react-day-picker';
 import { useTranslation } from '@app/contexts/LanguageContext';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
-import { TendersSubMenu } from '@app/components/TendersSubMenu';
 import { StatCard } from '@app/components/StatCard';
 import { SectorSubsectorFilter } from '@app/components/SectorSubsectorFilter';
 import { RegionCountryFilter } from '@app/components/RegionCountryFilter';
@@ -37,7 +36,7 @@ import {
 } from '@app/types/tender.dto';
 import { getLocalizedCountryName } from '@app/utils/country-translator';
 
-type AlertsTab = 'projects' | 'awards' | 'shortlists' | 'bin';
+type AlertsTab = 'projects' | 'awards' | 'shortlists' | 'profile' | 'bin';
 type SearchMode = 'allWords' | 'anyWords' | 'exactPhrase' | 'boolean';
 type BudgetMode = 'any' | 'above' | 'below';
 type SortField = 'title' | 'location' | 'donor' | 'budget' | 'published' | 'deadline';
@@ -259,14 +258,16 @@ export default function ActiveTenders() {
     const awards = allTenders.filter(item => item.alertCategory === MatchingAlertCategoryEnum.AWARDS);
     const shortlists = allTenders.filter(item => item.alertCategory === MatchingAlertCategoryEnum.SHORTLISTS);
     const bin = projects.filter(item => discardedIds.has(item.id));
+    const profile = allTenders.filter(item => favouriteIds.has(item.id));
 
-    return { projects, awards, shortlists, bin };
-  }, [allTenders, discardedIds]);
+    return { projects, awards, shortlists, profile, bin };
+  }, [allTenders, discardedIds, favouriteIds]);
 
   const baseRows = useMemo(() => {
     if (activeTab === 'projects') return topByTab.projects.filter(item => !discardedIds.has(item.id));
     if (activeTab === 'awards') return topByTab.awards;
     if (activeTab === 'shortlists') return topByTab.shortlists;
+    if (activeTab === 'profile') return topByTab.profile;
     return topByTab.bin;
   }, [activeTab, topByTab, discardedIds]);
 
@@ -435,6 +436,7 @@ export default function ActiveTenders() {
   const exportCsv = () => {
     const header = [
       t('activeTenders.table.projectTitle'),
+      t('activeTenders.table.sector'),
       t('activeTenders.table.location'),
       t('activeTenders.table.donor'),
       t('activeTenders.table.budget'),
@@ -453,6 +455,7 @@ export default function ActiveTenders() {
       const deadline = format(row.deadline, 'yyyy-MM-dd');
       return [
         row.title,
+        row.sectors.map(sector => t(`sectors.${sector}`)).join(' | '),
         location,
         row.organizationName,
         row.budget.formatted,
@@ -471,7 +474,7 @@ export default function ActiveTenders() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `my-alerts-${activeTab}.csv`;
+    link.download = `matching-projects-${activeTab}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -485,6 +488,44 @@ export default function ActiveTenders() {
     .map(part => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 
+  const getSectorLabel = (sector: SectorEnum) => t(`sectors.${sector}`);
+
+  const renderSectorCell = (row: TenderListDTO) => {
+    const sectorLabels = row.sectors.map(getSectorLabel);
+    const [primarySector] = sectorLabels;
+    const extraCount = sectorLabels.length - 1;
+
+    if (!primarySector) {
+      return <span className="text-gray-400">-</span>;
+    }
+
+    return (
+      <div className="flex min-w-0 items-center gap-1.5">
+        <span className="truncate text-gray-700">{primarySector}</span>
+        {extraCount > 0 && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex h-6 min-w-7 items-center justify-center rounded-full border border-accent/20 bg-accent/10 px-2 text-xs font-semibold text-accent hover:bg-accent/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+                aria-label={t('activeTenders.table.viewAllSectors')}
+              >
+                +{extraCount}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent sideOffset={6} className="max-w-64">
+              <div className="space-y-1 text-left">
+                {sectorLabels.map(label => (
+                  <div key={label}>{label}</div>
+                ))}
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+    );
+  };
+
   const handleDiscard = (id: string) => {
     setDiscardedIds(prev => new Set(prev).add(id));
   };
@@ -495,6 +536,18 @@ export default function ActiveTenders() {
       next.delete(id);
       return next;
     });
+  };
+
+  const saveToProfile = (id: string) => {
+    if (favouriteIds.has(id)) return;
+
+    setFavouriteIds(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      writeSavedProjectIds(Array.from(next));
+      return next;
+    });
+    addToPipeline(id);
   };
 
   const openMyProjectsConfirmation = (id: string) => {
@@ -564,8 +617,6 @@ export default function ActiveTenders() {
         icon={FileText}
         stats={[{ value: kpis.activeTenders.toString(), label: t('tenders.kpis.activeTenders') }]}
       />
-
-      <TendersSubMenu />
 
       <PageContainer className="my-6">
         <div className="px-4 sm:px-5 lg:px-6 py-6">
@@ -948,6 +999,7 @@ export default function ActiveTenders() {
               { id: 'projects', label: t('activeTenders.tabs.projects') },
               { id: 'shortlists', label: t('activeTenders.tabs.shortlists') },
               { id: 'awards', label: t('activeTenders.tabs.awards') },
+              { id: 'profile', label: t('activeTenders.tabs.profile') },
               { id: 'bin', label: t('activeTenders.tabs.bin') },
             ].map(tab => (
               <Button
@@ -972,6 +1024,7 @@ export default function ActiveTenders() {
                   {tab.id === 'projects' ? topByTab.projects.filter(item => !discardedIds.has(item.id)).length :
                     tab.id === 'awards' ? topByTab.awards.length :
                     tab.id === 'shortlists' ? topByTab.shortlists.length :
+                    tab.id === 'profile' ? topByTab.profile.length :
                     topByTab.bin.length}
                 </Badge>
               </Button>
@@ -980,11 +1033,14 @@ export default function ActiveTenders() {
 
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
-              <div className="min-w-[920px]">
-                <div className="grid grid-cols-[2.2fr_1.1fr_1.3fr_0.95fr_0.95fr_0.95fr_1.2fr] items-center gap-2 px-5 py-3.5 border-b border-gray-200 bg-gray-50/80 text-xs font-semibold tracking-wide text-gray-600">
+              <div className="min-w-[1120px]">
+                <div className="grid grid-cols-[2.1fr_1fr_1.05fr_1.25fr_0.9fr_0.9fr_0.9fr_1.45fr] items-center gap-2 px-5 py-3.5 border-b border-gray-200 bg-gray-50/80 text-xs font-semibold tracking-wide text-gray-600">
               <button className={getHeaderClassName('title')} onClick={() => toggleSort('title')}>
                 {t('activeTenders.table.projectTitle')}
                 {renderSortIcon('title')}
+              </button>
+              <button type="button" className={getHeaderClassName()}>
+                {t('activeTenders.table.sector')}
               </button>
               <Popover>
                 <div className="inline-flex items-center gap-1">
@@ -1091,8 +1147,9 @@ export default function ActiveTenders() {
 
                   return (
                     <div key={row.id} className={`px-5 py-4 transition-colors ${rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'} hover:bg-gray-50/80`}>
-                      <div className="grid grid-cols-[2.2fr_1.1fr_1.3fr_0.95fr_0.95fr_0.95fr_1.2fr] gap-2 items-center text-sm">
+                      <div className="grid grid-cols-[2.1fr_1fr_1.05fr_1.25fr_0.9fr_0.9fr_0.9fr_1.45fr] gap-2 items-center text-sm">
                         <div className="font-semibold text-gray-900 leading-snug pr-1">{row.title}</div>
+                        {renderSectorCell(row)}
                         <div className="text-gray-700 leading-snug">{location}</div>
                         <div className="text-gray-700 leading-snug">{row.organizationName}</div>
                         <div className="text-gray-700 font-medium">{row.budget.formatted}</div>
@@ -1130,6 +1187,26 @@ export default function ActiveTenders() {
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent sideOffset={4}>{t('activeTenders.button.discard')}</TooltipContent>
+                                </Tooltip>
+                              )}
+
+                              {activeTab !== 'profile' && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant={favouriteIds.has(row.id) ? 'default' : 'outline'}
+                                      size="sm"
+                                      className="min-h-10 w-10 border-gray-300 p-0"
+                                      aria-label={t(favouriteIds.has(row.id) ? 'activeTenders.button.savedToProfile' : 'activeTenders.button.saveToProfile')}
+                                      onClick={() => saveToProfile(row.id)}
+                                      disabled={favouriteIds.has(row.id)}
+                                    >
+                                      {favouriteIds.has(row.id) ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent sideOffset={4}>
+                                    {t(favouriteIds.has(row.id) ? 'activeTenders.button.savedToProfile' : 'activeTenders.button.saveToProfile')}
+                                  </TooltipContent>
                                 </Tooltip>
                               )}
 
@@ -1171,8 +1248,8 @@ export default function ActiveTenders() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-[2.3fr_1.2fr_1.5fr_1fr_1fr_1fr_1.8fr] gap-3 mt-3 text-xs text-gray-600">
-                        <div className="col-span-4 flex flex-wrap items-center gap-2">
+                      <div className="grid grid-cols-[2.1fr_1fr_1.05fr_1.25fr_0.9fr_0.9fr_0.9fr_1.45fr] gap-3 mt-3 text-xs text-gray-600">
+                        <div className="col-span-5 flex flex-wrap items-center gap-2">
                           <Badge variant="secondary" className="rounded-full border border-blue-100 bg-blue-50 text-blue-700 px-2.5 py-1 font-medium">
                             {formatPillLabel(row.noticeType || NoticeTypeEnum.PROJECT_NOTICE)}
                           </Badge>
