@@ -7,9 +7,9 @@ export const trainingTranslations = {
     // Submenu
     'training.submenu.overview': 'Overview',
     'training.submenu.dashboard': 'Dashboard',
-    'training.submenu.portfolio': 'Portfolio',
+    'training.submenu.portfolio': 'My Trainings',
     'training.submenu.activatedPills': 'Activated Training Pills',
-    'training.submenu.catalog': 'Catalog',
+    'training.submenu.catalog': 'Training Portfolio',
     'training.submenu.myPrograms': 'My Programs',
     'training.submenu.liveSessions': 'Live Sessions',
     'training.submenu.trainers': 'Trainers',
@@ -75,8 +75,12 @@ export const trainingTranslations = {
     'training.certStatus.EXPIRED': 'Expired',
 
     // Catalog
-    'training.catalog.title': 'Training Catalog',
-    'training.catalog.subtitle': 'Browse our comprehensive training courses',
+    'training.catalog.title': 'Training Portfolio',
+    'training.catalog.subtitle': 'Browse all available recorded and live trainings',
+    'training.catalog.type': 'Training Type',
+    'training.catalog.type.recorded': 'Recorded Training',
+    'training.catalog.type.live': 'Live Training',
+    'training.catalog.liveTrainings': 'Live Trainings',
     'training.catalog.search': 'Search courses by title, instructor, or topic',
     'training.catalog.noResults': 'No courses found',
     'training.catalog.noResults.message': 'Try adjusting your search or filters',
@@ -432,8 +436,8 @@ export const trainingTranslations = {
     'training.activated.emptyMessage': 'Purchase a course from the catalogue to start learning.',
 
     // Portfolio
-    'training.portfolio.title': 'Learning Portfolio',
-    'training.portfolio.subtitle': 'Showcase your completed trainings, achievements, and certifications',
+    'training.portfolio.title': 'My Trainings',
+    'training.portfolio.subtitle': 'Track your training history and earned certificates',
     'training.portfolio.completedTrainings': 'Completed Trainings',
     'training.portfolio.certifications': 'Certifications',
     'training.portfolio.achievements': 'Achievements',
@@ -486,9 +490,9 @@ export const trainingTranslations = {
     // Submenu
     'training.submenu.overview': 'Vue d\'ensemble',
     'training.submenu.dashboard': 'Tableau de bord',
-    'training.submenu.portfolio': 'Portfolio',
+    'training.submenu.portfolio': 'Mes Formations',
     'training.submenu.activatedPills': 'Formations activées',
-    'training.submenu.catalog': 'Catalogue',
+    'training.submenu.catalog': 'Portfolio de Formation',
     'training.submenu.myPrograms': 'Mes Programmes',
     'training.submenu.liveSessions': 'Sessions Live',
     'training.submenu.trainers': 'Formateurs',
@@ -554,8 +558,12 @@ export const trainingTranslations = {
     'training.certStatus.EXPIRED': 'Expiré',
 
     // Catalog
-    'training.catalog.title': 'Catalogue de Formation',
-    'training.catalog.subtitle': 'Parcourez nos formations complètes',
+    'training.catalog.title': 'Portfolio de Formation',
+    'training.catalog.subtitle': 'Parcourez toutes les formations disponibles, enregistrées et live',
+    'training.catalog.type': 'Type de formation',
+    'training.catalog.type.recorded': 'Formation enregistrée',
+    'training.catalog.type.live': 'Formation live',
+    'training.catalog.liveTrainings': 'Formations live',
     'training.catalog.search': 'Rechercher par titre, formateur ou sujet',
     'training.catalog.noResults': 'Aucune formation trouvée',
     'training.catalog.noResults.message': 'Essayez d\'ajuster votre recherche ou vos filtres',
@@ -911,8 +919,8 @@ export const trainingTranslations = {
     'training.activated.emptyMessage': 'Achetez une formation depuis le catalogue pour commencer.',
 
     // Portfolio
-    'training.portfolio.title': 'Portfolio d\'apprentissage',
-    'training.portfolio.subtitle': 'Présentez vos formations terminées, vos réalisations et vos certifications',
+    'training.portfolio.title': 'Mes Formations',
+    'training.portfolio.subtitle': 'Suivez votre historique de formation et vos certificats obtenus',
     'training.portfolio.completedTrainings': 'Formations terminées',
     'training.portfolio.certifications': 'Certifications',
     'training.portfolio.achievements': 'Réalisations',
@@ -965,9 +973,9 @@ export const trainingTranslations = {
     // Submenu
     'training.submenu.overview': 'Vista General',
     'training.submenu.dashboard': 'Panel',
-    'training.submenu.portfolio': 'Portafolio',
+    'training.submenu.portfolio': 'Mis Formaciones',
     'training.submenu.activatedPills': 'Formaciones activadas',
-    'training.submenu.catalog': 'Catálogo',
+    'training.submenu.catalog': 'Portafolio de Formación',
     'training.submenu.myPrograms': 'Mis Programas',
     'training.submenu.liveSessions': 'Sesiones en Vivo',
     'training.submenu.trainers': 'Formadores',
@@ -1033,8 +1041,12 @@ export const trainingTranslations = {
     'training.certStatus.EXPIRED': 'Expirado',
 
     // Catalog
-    'training.catalog.title': 'Catálogo de Formación',
-    'training.catalog.subtitle': 'Explore nuestros cursos de formación completos',
+    'training.catalog.title': 'Portafolio de Formación',
+    'training.catalog.subtitle': 'Explore todas las formaciones disponibles, grabadas y en vivo',
+    'training.catalog.type': 'Tipo de formación',
+    'training.catalog.type.recorded': 'Formación grabada',
+    'training.catalog.type.live': 'Formación en vivo',
+    'training.catalog.liveTrainings': 'Formaciones en vivo',
     'training.catalog.search': 'Buscar por título, formador o tema',
     'training.catalog.noResults': 'No se encontraron cursos',
     'training.catalog.noResults.message': 'Intente ajustar su búsqueda o filtros',
@@ -1390,8 +1402,8 @@ export const trainingTranslations = {
     'training.activated.emptyMessage': 'Compre un curso del catálogo para comenzar.',
 
     // Portfolio
-    'training.portfolio.title': 'Portafolio de aprendizaje',
-    'training.portfolio.subtitle': 'Muestre sus formaciones completadas, logros y certificaciones',
+    'training.portfolio.title': 'Mis Formaciones',
+    'training.portfolio.subtitle': 'Siga su historial de formación y certificados obtenidos',
     'training.portfolio.completedTrainings': 'Formaciones completadas',
     'training.portfolio.certifications': 'Certificaciones',
     'training.portfolio.achievements': 'Logros',
