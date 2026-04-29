@@ -59,6 +59,7 @@ export default function PublierOffrePage() {
   // ── Offers state ───────────────────────────────────────────────────────────
   const [publishedOffers, setPublishedOffers] = useState<JobOfferListDTO[]>([]);
   const [isLoadingOffers, setIsLoadingOffers] = useState(false);
+  const [offersError, setOffersError] = useState<string | null>(null);
   const [offerToDelete, setOfferToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -86,6 +87,7 @@ export default function PublierOffrePage() {
   const loadPublishedOffers = async () => {
     if (!user?.id) return;
     setIsLoadingOffers(true);
+    setOffersError(null);
     try {
       const offers = await getJobOffersByRecruiter(user.id);
       const sorted = offers.sort((a, b) =>
@@ -94,6 +96,7 @@ export default function PublierOffrePage() {
       setPublishedOffers(sorted);
     } catch (error) {
       console.error('Error loading published offers:', error);
+      setOffersError(t('monEspace.message.error'));
     } finally {
       setIsLoadingOffers(false);
     }
@@ -374,6 +377,12 @@ export default function PublierOffrePage() {
                       <p className="mt-3 text-gray-500">{t('monEspace.message.loading')}</p>
                     </div>
                   )}
+                  {!isLoadingOffers && offersError && (
+                    <Alert variant="destructive" className="mb-4">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{offersError}</AlertDescription>
+                    </Alert>
+                  )}
                   {!isLoadingOffers && publishedOffers.length === 0 && (
                     <div className="text-center py-10">
                       <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -449,6 +458,12 @@ export default function PublierOffrePage() {
                   <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-accent" />
                   <p className="mt-3 text-gray-500">{t('monEspace.message.loading')}</p>
                 </div>
+              )}
+              {!isLoadingOffers && offersError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{offersError}</AlertDescription>
+                </Alert>
               )}
               {!isLoadingOffers && filteredOffers.length === 0 && (
                 <Alert>
