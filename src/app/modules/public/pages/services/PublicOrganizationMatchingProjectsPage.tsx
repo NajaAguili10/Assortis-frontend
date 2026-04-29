@@ -98,7 +98,6 @@ export default function PublicOrganizationMatchingProjectsPage() {
       servicesOfInterest: form.selectedServices,
       submittedAt: new Date().toISOString(),
     };
-    // TODO: replace with apiClient.post('/organization-interest', payload) when endpoint is ready
     console.info('[OrgInterest] Interest form submitted:', payload);
     setTimeout(() => {
       setSubmitting(false);
@@ -191,6 +190,24 @@ export default function PublicOrganizationMatchingProjectsPage() {
             </div>
           </section>
 
+          {/* Join-Us CTA — visible to unauthenticated visitors only */}
+          {!isAuthenticated && (
+            <section className="rounded-lg border-2 border-dashed border-accent/40 bg-gradient-to-br from-accent/5 via-white to-primary/5 p-6 md:p-10 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="space-y-2 text-center md:text-left">
+                <h3 className="text-2xl font-bold text-primary">{t('services.organization.joinUs.ctaTitle')}</h3>
+                <p className="text-gray-600 max-w-xl">{t('services.organization.joinUs.ctaDescription')}</p>
+              </div>
+              <Button
+                size="lg"
+                className="shrink-0 min-h-11 bg-accent hover:bg-accent/90 text-white"
+                onClick={() => setJoinUsOpen(true)}
+              >
+                {t('services.organization.joinUs.ctaButton')}
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </section>
+          )}
+
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             <div className="rounded-lg border bg-white p-6 md:p-8 space-y-4">
               <h3 className="text-2xl font-bold text-primary">What Is It?</h3>
@@ -231,24 +248,6 @@ export default function PublicOrganizationMatchingProjectsPage() {
               })}
             </div>
           </section>
-
-          {/* Join-Us CTA — visible to unauthenticated visitors only */}
-          {!isAuthenticated && (
-            <section className="rounded-lg border-2 border-dashed border-accent/40 bg-gradient-to-br from-accent/5 via-white to-primary/5 p-6 md:p-10 flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="space-y-2 text-center md:text-left">
-                <h3 className="text-2xl font-bold text-primary">{t('services.organization.joinUs.ctaTitle')}</h3>
-                <p className="text-gray-600 max-w-xl">{t('services.organization.joinUs.ctaDescription')}</p>
-              </div>
-              <Button
-                size="lg"
-                className="shrink-0 min-h-11 bg-accent hover:bg-accent/90 text-white"
-                onClick={() => setJoinUsOpen(true)}
-              >
-                {t('services.organization.joinUs.ctaButton')}
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
-            </section>
-          )}
 
           <section className="rounded-lg border bg-white p-6 md:p-8 space-y-6">
             <h3 className="text-2xl font-bold text-primary">How It Works</h3>
