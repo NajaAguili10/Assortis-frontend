@@ -12,6 +12,7 @@ import { PageContainer } from '@app/components/PageContainer';
 import { ProjectsSubMenu } from '@app/components/ProjectsSubMenu';
 import { SearchSectionTabs, type SearchSectionTab } from '@app/components/SearchSectionTabs';
 import { TendersSubMenu } from '@app/components/TendersSubMenu';
+import { ContactOrganizationDialog } from '@app/components/ContactOrganizationDialog';
 import { Badge } from '@app/components/ui/badge';
 import { Button } from '@app/components/ui/button';
 import { Progress } from '@app/components/ui/progress';
@@ -37,6 +38,7 @@ import {
   Sparkles,
   Lock,
   Star,
+  TrendingDown,
   TrendingUp,
   WandSparkles,
   Download,
@@ -54,8 +56,10 @@ import {
   Bookmark,
   UserPlus,
   Upload,
+  Mail,
 } from 'lucide-react';
 import { ProjectStatusEnum, ProjectPriorityEnum } from '@app/types/project.dto';
+import { aiDiscountSamples, expertPricingBySeniority } from '@app/modules/shared/data/statistics.mock';
 import { canAssignProjectTasks } from '@app/services/permissions.service';
 
 type LifecycleGroupKey = 'early-intelligence' | 'open-procurement' | 'contract-shortlist';
@@ -398,7 +402,7 @@ export default function ProjectDetail() {
     : 'my-alerts';
   const initialAccessSource = locationState.accessSource || (fromMyProjects ? 'my-projects' : pathAccessSource);
   const [activeLifecycleDocId, setActiveLifecycleDocId] = useState('early-intelligence-notice');
-  const [activeDetailTab, setActiveDetailTab] = useState('overview');
+  const [activeDetailTab, setActiveDetailTab] = useState('notice');
   const [projectAccessSource, setProjectAccessSource] = useState<ProjectAccessSource>(initialAccessSource);
   const [generatedResponses, setGeneratedResponses] = useState<Record<string, string>>({});
   const [isGeneratingRefPro, setIsGeneratingRefPro] = useState(false);
@@ -419,6 +423,8 @@ export default function ProjectDetail() {
   const [isUploadingTor, setIsUploadingTor] = useState(false);
   const [isProjectActionDialogOpen, setIsProjectActionDialogOpen] = useState(false);
   const [pendingProjectAction, setPendingProjectAction] = useState<'add' | 'remove'>('add');
+  const [contactOrganization, setContactOrganization] = useState<{ id: string; name: string; projectTitle?: string } | null>(null);
+  const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [availableCredits, setAvailableCredits] = useState(120);
   const [purchasedCvExpertIds, setPurchasedCvExpertIds] = useState<Set<string>>(new Set());
   const [isProjectSaved, setIsProjectSaved] = useState<boolean>(() => {
@@ -427,7 +433,20 @@ export default function ProjectDetail() {
     return savedIds.includes(id) || stateFavorited;
   });
   const [partnerVisibility, setPartnerVisibility] = useState<Record<string, boolean>>(() => readPartnerVisibility());
+  const [pricingPolicy, setPricingPolicy] = useState<'aggressive' | 'competitive' | 'premium'>('competitive');
   const showAlertsHeader = projectAccessSource === 'my-alerts';
+
+  const priceEstimate = useMemo(() => {
+    const avgBase = aiDiscountSamples.reduce((sum, s) => sum + s.initialBudget, 0) / aiDiscountSamples.length;
+    const avgExpertMedian = expertPricingBySeniority.reduce((sum, s) => sum + s.median, 0) / expertPricingBySeniority.length;
+    const discountFactors = { aggressive: 0.82, competitive: 0.88, premium: 0.94 } as const;
+    const factor = discountFactors[pricingPolicy];
+    const central = Math.round(avgBase * factor);
+    const low = Math.round(central * 0.9);
+    const high = Math.round(central * 1.12);
+    const discountPct = Math.round((1 - factor) * 100);
+    return { central, low, high, avgExpertMedian: Math.round(avgExpertMedian), discountPct, sampleCount: aiDiscountSamples.length };
+  }, [pricingPolicy]);
 
   useEffect(() => {
     if (!id) {
@@ -918,6 +937,7 @@ export default function ProjectDetail() {
 
   const budgetUtilization = Math.round((project.budget.spent / project.budget.total) * 100);
   const remainingTasks = Math.max(project.totalTasks - project.tasksCompleted, 0);
+  const taskCompletionPercentage = Math.round((project.tasksCompleted / project.totalTasks) * 100);
   const formatDate = (value: string) =>
     new Date(value).toLocaleDateString('en-GB', {
       day: '2-digit',
@@ -961,6 +981,26 @@ export default function ProjectDetail() {
       />
       {isPartnerVisible(partnerName) ? 'Visible' : 'Hidden'}
     </label>
+  );
+  const openOrganizationContact = (organizationName: string) => {
+    setContactOrganization({
+      id: resolveOrganizationBookmarkId(organizationName),
+      name: organizationName,
+      projectTitle: project.title,
+    });
+    setIsContactDialogOpen(true);
+  };
+  const renderOrganizationContactButton = (organizationName: string) => (
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      className="h-8 border-[#E63462]/30 text-[#E63462] hover:bg-[#FFF1F4] hover:text-[#E63462]"
+      onClick={() => openOrganizationContact(organizationName)}
+    >
+      <Mail className="mr-1.5 h-3.5 w-3.5" />
+      {t('projects.engagement.contact')}
+    </Button>
   );
   const projectPartnerNames = Array.from(new Set([
     ...project.partners,
@@ -1666,6 +1706,15 @@ export default function ProjectDetail() {
             </DialogContent>
           </Dialog>
 
+          <ContactOrganizationDialog
+            open={isContactDialogOpen}
+            onClose={() => {
+              setIsContactDialogOpen(false);
+              setContactOrganization(null);
+            }}
+            organization={contactOrganization}
+          />
+
           <section
             className={`mb-6 overflow-hidden rounded-2xl border p-6 shadow-sm ${
               isProjectSaved
@@ -1729,270 +1778,22 @@ export default function ProjectDetail() {
 
           <div className="mt-6 space-y-6">
             <div className="space-y-6">
-              <section id="project-overview-card" aria-labelledby="project-overview-heading" className="rounded-lg border bg-white p-6" style={{ borderColor: 'rgba(0, 0, 0, 0.1)' }}>
-                <div className="mb-4 flex items-center gap-2">
-                  <Landmark className="h-5 w-5 text-[#E63462]" />
-                  <h2 id="project-overview-heading" className="text-lg font-bold text-[#1E293B]">{t('projects.details.overview')}</h2>
-                </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <article className="rounded-xl border bg-[#F8FAFC] p-4 shadow-sm" style={{ borderColor: 'rgba(0, 0, 0, 0.1)' }}>
-                      <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Published</p>
-                      <p className="mt-2 text-sm font-semibold text-[#1E293B]">{formatDate(project.timeline.startDate)}</p>
-                    </article>
-                    <article className="rounded-xl border bg-[#F8FAFC] p-4 shadow-sm" style={{ borderColor: 'rgba(0, 0, 0, 0.1)' }}>
-                      <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Target className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Deadline</p>
-                      <p className="mt-2 text-sm font-semibold text-[#1E293B]">{formatDate(project.timeline.endDate)}</p>
-                    </article>
-                    <article className="rounded-xl border bg-[#F8FAFC] p-4 shadow-sm" style={{ borderColor: 'rgba(0, 0, 0, 0.1)' }}>
-                      <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><DollarSign className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Budget</p>
-                      <p className="mt-2 text-sm font-semibold text-[#1E293B]">{project.budget.total.toLocaleString()} {project.budget.currency}</p>
-                    </article>
-                    <article className="rounded-xl border bg-[#F8FAFC] p-4 shadow-sm" style={{ borderColor: 'rgba(0, 0, 0, 0.1)' }}>
-                      <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><TrendingUp className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Total Cost</p>
-                      <p className="mt-2 text-sm font-semibold text-[#1E293B]">${project.budget.spent.toLocaleString()}</p>
-                    </article>
-                  </div>
-
-                <div className="mt-4 h-0.5 w-full bg-gradient-to-r from-[#4A5568]/20 via-[#E63462]/25 to-transparent" />
-
-                <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
-                    <div className="space-y-4 rounded-xl border bg-white p-4" style={{ borderColor: 'rgba(0, 0, 0, 0.1)' }}>
-                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div>
-                          <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Briefcase className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Procurement Type</p>
-                          <p className="mt-1 text-sm font-semibold text-[#1E293B]">{t(`projects.type.${project.type}`)}</p>
-                        </div>
-                        <div>
-                          <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.projectSource')}</p>
-                          <p className="mt-1 text-sm font-semibold text-[#1E293B]">{t(`projects.create.source.${project.projectSource}`)}</p>
-                        </div>
-                        <div>
-                          <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Reference</p>
-                          <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.code}</p>
-                        </div>
-                        <div>
-                          <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Target className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.relatedTender')}</p>
-                          <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.relatedTender}</p>
-                        </div>
-                      </div>
-
-                      <div>
-                        <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Building2 className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.leadOrganization')}</p>
-                        <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.leadOrganization}</p>
-                      </div>
-
-                      <div>
-                        <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Building2 className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Funding Agency</p>
-                        <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.donor}</p>
-                      </div>
-
-                      <div>
-                        <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><MapPin className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Countries</p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {project.countries.map((country) => (
-                            <Badge key={country} variant="outline" className="border-[#4A5568]/20 bg-[#F8FAFC] text-[#1E293B]">
-                              {country}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4 rounded-xl border bg-white p-4" style={{ borderColor: 'rgba(0, 0, 0, 0.1)' }}>
-                      <div>
-                        <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Target className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Sectors</p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {(project.sectors && project.sectors.length > 0 ? project.sectors : [project.sector]).map((sector) => (
-                            <Badge key={sector} variant="outline" className="border-[#4A5568]/20 bg-[#F8FAFC] text-[#1E293B]">
-                              {formatLabel(sector)}
-                            </Badge>
-                          ))}
-                        </div>
-                        <ul className="mt-2 space-y-1 text-sm text-[#4A5568]/90">
-                          {project.subsectors.map((subsector) => (
-                            <li key={subsector} className="flex items-start gap-2">
-                              <span className="mt-1.5 inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#E63462' }} />
-                              <span className="text-[#1E293B]">{subsector.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      <div className="rounded-2xl border p-4" style={{ borderColor: 'rgba(0, 0, 0, 0.1)', background: '#F8FAFC' }}>
-                        <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.projectObjectives')}</p>
-                        <p className="mt-2 text-sm leading-relaxed text-[#1E293B]">{project.objectives}</p>
-                      </div>
-
-                      <div className="rounded-2xl border p-4" style={{ borderColor: 'rgba(0, 0, 0, 0.1)', background: '#FFFFFF' }}>
-                        <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Users className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.partnerOrganizations')}</p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {project.partners.filter(isPartnerVisible).map((partner) => (
-                            <div key={partner} className="inline-flex items-center gap-1.5">
-                              <Link to={buildOrganizationDetailPath(partner)} className="inline-flex">
-                                <Badge variant="secondary" className="cursor-pointer border-[#4A5568]/15 bg-white text-[#1E293B] transition-colors hover:border-[#E63462]/30 hover:bg-[#E63462]/10 hover:text-[#E63462]">
-                                  {partner}
-                                </Badge>
-                              </Link>
-                              {renderPartnerVisibilityToggle(partner)}
-                            </div>
-                          ))}
-                          {hiddenProjectPartnerCount > 0 && (
-                            <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={showAllProjectPartners}>
-                              Show all partners ({hiddenProjectPartnerCount} hidden)
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border p-4" style={{ borderColor: 'rgba(0, 0, 0, 0.1)', background: '#F8FAFC' }}>
-                        <div className="mb-3 flex flex-wrap items-center gap-2">
-                          <Badge variant="outline" className="border-[#E63462]/30 bg-[#E63462]/10 text-[#E63462] text-[11px]">
-                            Technical
-                          </Badge>
-                          <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Users className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Most Relevant Technical Partners</p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {project.otherPossiblePartners.filter(isPartnerVisible).map((partner) => (
-                            <div key={partner} className="inline-flex items-center gap-1.5">
-                              <Link to={buildOrganizationDetailPath(partner)} className="inline-flex">
-                                <Badge variant="secondary" className="cursor-pointer border-[#4A5568]/15 bg-white text-[#1E293B] transition-colors hover:border-[#E63462]/30 hover:bg-[#E63462]/10 hover:text-[#E63462]">
-                                  {partner}
-                                </Badge>
-                              </Link>
-                              {renderPartnerVisibilityToggle(partner)}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border p-4" style={{ borderColor: 'rgba(0, 0, 0, 0.1)', background: '#FFFFFF' }}>
-                        <div className="mb-3 flex flex-wrap items-center gap-2">
-                          <Badge variant="outline" className="border-[#4A5568]/30 bg-[#4A5568]/10 text-[#4A5568] text-[11px]">
-                            ICA
-                          </Badge>
-                          <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Users className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Most Relevant Matching ICA Partners</p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {project.mostRelevantIcaPartners.filter(isPartnerVisible).map((partner) => (
-                            <div key={partner} className="inline-flex items-center gap-1.5">
-                              <Link to={buildOrganizationDetailPath(partner)} className="inline-flex">
-                                <Badge variant="secondary" className="cursor-pointer border-[#4A5568]/15 bg-white text-[#1E293B] transition-colors hover:border-[#E63462]/30 hover:bg-[#E63462]/10 hover:text-[#E63462]">
-                                  {partner}
-                                </Badge>
-                              </Link>
-                              {renderPartnerVisibilityToggle(partner)}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-              </section>
-
-              <section id="project-lifecycle-card" className="rounded-lg border bg-white p-6">
-                <div className="mb-4 flex items-center gap-2">
-                  <Route className="h-5 w-5 text-[#E63462]" />
-                  <h2 className="text-lg font-bold text-primary">Project Lifecycle</h2>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 xl:grid-cols-[260px_1fr]">
-                  <nav aria-label="Project lifecycle navigation" className="space-y-4 rounded-lg border bg-slate-50 p-3">
-                    {[
-                      { key: 'early-intelligence' as const, title: 'Early Intelligence', items: lifecycleDocuments.filter((doc) => doc.group === 'early-intelligence') },
-                      { key: 'open-procurement' as const, title: 'Open Procurement', items: lifecycleDocuments.filter((doc) => doc.group === 'open-procurement') },
-                      { key: 'contract-shortlist' as const, title: 'Contract / Shortlist', items: lifecycleDocuments.filter((doc) => doc.group === 'contract-shortlist') },
-                    ].map((section) => (
-                      <div key={section.key}>
-                        <p className="mb-2 text-xs font-semibold capitalize tracking-[0.08em] text-muted-foreground">{section.title}</p>
-                        <div className="space-y-1">
-                          {section.items.map((item) => (
-                            <button
-                              key={item.id}
-                              type="button"
-                              aria-pressed={activeLifecycleDocId === item.id}
-                              onClick={() => {
-                                setActiveLifecycleDocId(item.id);
-                                setActiveDetailTab('overview');
-                              }}
-                              className={`w-full rounded-md border px-3 py-2 text-left text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 ${
-                                activeLifecycleDocId === item.id
-                                  ? 'border-accent/20 bg-secondary text-accent'
-                                  : 'bg-white hover:bg-gray-50'
-                              }`}
-                            >
-                              {item.itemLabel}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </nav>
-
-                  <div className="rounded-lg border p-4">
-                    <p className="text-xs capitalize tracking-[0.08em] text-muted-foreground">{activeLifecycleDoc.sectionLabel}</p>
-                    <h3 className="mt-1 text-base font-semibold text-primary">{activeLifecycleDoc.itemLabel}</h3>
-                    <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{activeLifecycleDoc.description}</p>
-
-                    {activeLifecycleDoc.hasShortlist && (
-                      <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50/60 p-3">
-                        <p className="mb-2 text-sm font-semibold text-primary">Shortlisted Companies / Organizations</p>
-                        <div className="space-y-2">
-                          {project.shortlistedCompanies.map((item, index) => (
-                            <div key={index} className="rounded-md border bg-white p-3 text-sm">
-                              <div className="flex items-center justify-between gap-2">
-                                <Link to={buildOrganizationDetailPath(item.name)} className="font-semibold text-primary underline-offset-2 hover:text-accent hover:underline">
-                                  {item.name}
-                                </Link>
-                                {renderOrganizationBookmarkButton(item.name)}
-                              </div>
-                              <p className="mt-1 text-xs text-muted-foreground">Shortlisted on: {formatDate(item.date)}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {activeLifecycleDoc.hasContract && (
-                      <div className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50/60 p-3">
-                        <p className="mb-2 text-sm font-semibold text-primary">Contract Awarded Companies</p>
-                        <div className="space-y-2">
-                          {project.contractAwardedCompanies.map((item, index) => (
-                            <div key={index} className="rounded-md border bg-white p-3 text-sm">
-                              <div className="flex items-center justify-between gap-2">
-                                <Link to={buildOrganizationDetailPath(item.name)} className="font-semibold text-primary underline-offset-2 hover:text-accent hover:underline">
-                                  {item.name}
-                                </Link>
-                                {renderOrganizationBookmarkButton(item.name)}
-                              </div>
-                              <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                                <span>Date: {formatDate(item.date)}</span>
-                                <span>Budget: {item.budget}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </section>
-
               <section id="project-market-analysis-card" className="rounded-lg border bg-white p-6">
                 <Tabs value={activeDetailTab} onValueChange={setActiveDetailTab}>
                   <TabsList className="mb-4 h-auto w-fit flex-wrap items-center gap-1 rounded-xl bg-slate-100 p-1" aria-label="Project detail tabs">
-                    <TabsTrigger value="overview" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
+                    <TabsTrigger value="notice" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
                       <span className="inline-flex items-center gap-2">
                         <Landmark className="h-4 w-4" aria-hidden />
-                        {t('projects.details.overview')}
+                        {t('projects.details.notice')}
                       </span>
                     </TabsTrigger>
+                    <TabsTrigger value="documents" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm"><span className="inline-flex items-center gap-2"><FileText className="h-4 w-4" aria-hidden />{t('projects.details.documents')}</span></TabsTrigger>
                     <TabsTrigger value="tasks" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
                       <span className="inline-flex items-center gap-2"><CheckCircle className="h-4 w-4" aria-hidden />{t('projects.details.tasks')}</span>
                     </TabsTrigger>
-                    <TabsTrigger value="team-members" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
-                      <span className="inline-flex items-center gap-2"><Users className="h-4 w-4" aria-hidden />{t('projects.details.teamMembers')}</span>
+                    <TabsTrigger value="project-lifecycle" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
+                      <span className="inline-flex items-center gap-2"><Route className="h-4 w-4" aria-hidden />{t('projects.details.projectLifecycle')}</span>
                     </TabsTrigger>
-                    <TabsTrigger value="documents" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm"><span className="inline-flex items-center gap-2"><FileText className="h-4 w-4" aria-hidden />{t('projects.details.documents')}</span></TabsTrigger>
                     <TabsTrigger value="market-analysis" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
                       <span className="inline-flex items-center gap-2">
                         <TrendingUp className="h-4 w-4" aria-hidden />
@@ -2011,13 +1812,271 @@ export default function ProjectDetail() {
                         {t('projects.details.tabs.refPro')}
                       </span>
                     </TabsTrigger>
+                    <TabsTrigger value="team-members" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
+                      <span className="inline-flex items-center gap-2"><Users className="h-4 w-4" aria-hidden />{t('projects.details.teamMembers')}</span>
+                    </TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="overview" className="mt-0">
-                    <h3 className="text-base font-semibold text-primary">{t('common.description')}</h3>
-                    <p className="mt-1 text-xs text-muted-foreground">{activeLifecycleDoc.sectionLabel} · {activeLifecycleDoc.itemLabel}</p>
-                    <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{activeLifecycleDoc.description}</p>
+                  <TabsContent value="notice" className="mt-0">
+                    <div className="space-y-5">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        {[
+                          { label: t('projects.notice.published'), value: formatDate(project.timeline.startDate), icon: FileText },
+                          { label: t('projects.notice.deadline'), value: formatDate(project.timeline.endDate), icon: Target },
+                          { label: t('projects.notice.publishedBudget'), value: `${project.budget.total.toLocaleString()} ${project.budget.currency}`, icon: DollarSign },
+                          { label: t('projects.notice.totalCosts'), value: `${project.budget.spent.toLocaleString()} ${project.budget.currency}`, icon: TrendingUp },
+                          { label: t('projects.details.remaining'), value: `${project.budget.remaining.toLocaleString()} ${project.budget.currency}`, icon: Coins },
+                          { label: t('projects.notice.budgetUtilization'), value: `${budgetUtilization}%`, icon: Landmark },
+                          { label: t('projects.notice.taskProgress'), value: `${project.tasksCompleted}/${project.totalTasks} (${taskCompletionPercentage}%)`, icon: CheckCircle },
+                          { label: t('projects.notice.timelineProgress'), value: `${project.timeline.completionPercentage}%`, icon: Route },
+                        ].map((metric) => {
+                          const MetricIcon = metric.icon;
 
+                          return (
+                            <article key={metric.label} className="rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-4 shadow-sm">
+                              <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]">
+                                <MetricIcon className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />
+                                {metric.label}
+                              </p>
+                              <p className="mt-2 text-sm font-semibold text-[#1E293B]">{metric.value}</p>
+                            </article>
+                          );
+                        })}
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                        <div className="space-y-4 rounded-xl border border-[#4A5568]/15 bg-white p-4">
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                              <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Briefcase className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Procurement Type</p>
+                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{t(`projects.type.${project.type}`)}</p>
+                            </div>
+                            <div>
+                              <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.projectSource')}</p>
+                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{t(`projects.create.source.${project.projectSource}`)}</p>
+                            </div>
+                            <div>
+                              <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Reference</p>
+                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.code}</p>
+                            </div>
+                            <div>
+                              <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Target className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.relatedTender')}</p>
+                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.relatedTender}</p>
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-[#4A5568]/15 bg-[#F8FAFC] p-4">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                              <div>
+                                <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Building2 className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.details.organizations')}</p>
+                                <div className="mt-2 space-y-2 text-sm">
+                                  <p><span className="font-medium text-[#4A5568]">{t('projects.create.leadOrganization')}:</span> <span className="font-semibold text-[#1E293B]">{project.leadOrganization}</span></p>
+                                  <p><span className="font-medium text-[#4A5568]">Funding Agency:</span> <span className="font-semibold text-[#1E293B]">{project.donor}</span></p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div>
+                            <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><MapPin className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Countries</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {project.countries.map((country) => (
+                                <Badge key={country} variant="outline" className="border-[#4A5568]/20 bg-[#F8FAFC] text-[#1E293B]">
+                                  {country}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4 rounded-xl border border-[#4A5568]/15 bg-white p-4">
+                          <div>
+                            <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Target className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Sectors</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {(project.sectors && project.sectors.length > 0 ? project.sectors : [project.sector]).map((sector) => (
+                                <Badge key={sector} variant="outline" className="border-[#4A5568]/20 bg-[#F8FAFC] text-[#1E293B]">
+                                  {formatLabel(sector)}
+                                </Badge>
+                              ))}
+                            </div>
+                            <ul className="mt-2 space-y-1 text-sm text-[#4A5568]/90">
+                              {project.subsectors.map((subsector) => (
+                                <li key={subsector} className="flex items-start gap-2">
+                                  <span className="mt-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[#E63462]" />
+                                  <span className="text-[#1E293B]">{subsector.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+
+                          <div className="rounded-2xl border border-[#4A5568]/15 bg-[#F8FAFC] p-4">
+                            <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.projectObjectives')}</p>
+                            <p className="mt-2 text-sm leading-relaxed text-[#1E293B]">{project.objectives}</p>
+                          </div>
+
+                          <div className="rounded-2xl border border-[#4A5568]/15 bg-white p-4">
+                            <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Users className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.partnerOrganizations')}</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {project.partners.filter(isPartnerVisible).map((partner) => (
+                                <div key={partner} className="inline-flex items-center gap-1.5">
+                                  <Link to={buildOrganizationDetailPath(partner)} className="inline-flex">
+                                    <Badge variant="secondary" className="cursor-pointer border-[#4A5568]/15 bg-white text-[#1E293B] transition-colors hover:border-[#E63462]/30 hover:bg-[#E63462]/10 hover:text-[#E63462]">
+                                      {partner}
+                                    </Badge>
+                                  </Link>
+                                  {renderOrganizationContactButton(partner)}
+                                  {renderPartnerVisibilityToggle(partner)}
+                                </div>
+                              ))}
+                              {hiddenProjectPartnerCount > 0 && (
+                                <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={showAllProjectPartners}>
+                                  Show all partners ({hiddenProjectPartnerCount} hidden)
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="project-lifecycle" className="mt-0">
+                    <div className="rounded-2xl border border-[#4A5568]/15 bg-gradient-to-br from-[#F5F7FA] via-white to-[#FFF1F4] p-4 sm:p-5">
+                      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Route className="h-5 w-5 text-[#E63462]" />
+                            <h3 className="text-base font-semibold text-[#4A5568]">{t('projects.details.projectLifecycle')}</h3>
+                          </div>
+                          <p className="mt-1 text-sm text-[#4A5568]/80">Track stage, workflow state, documents, partners, and delivery progress in one place.</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
+                          <div className="rounded-xl border border-[#4A5568]/15 bg-white p-3">
+                            <p className="text-[#4A5568]/70">Timeline</p>
+                            <p className="mt-1 font-semibold text-[#4A5568]">{project.timeline.completionPercentage}%</p>
+                          </div>
+                          <div className="rounded-xl border border-[#4A5568]/15 bg-white p-3">
+                            <p className="text-[#4A5568]/70">Tasks</p>
+                            <p className="mt-1 font-semibold text-[#4A5568]">{taskCompletionPercentage}%</p>
+                          </div>
+                          <div className="rounded-xl border border-[#4A5568]/15 bg-white p-3">
+                            <p className="text-[#4A5568]/70">Budget</p>
+                            <p className="mt-1 font-semibold text-[#4A5568]">{budgetUtilization}%</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+                        {project.milestones.map((milestone) => (
+                          <div key={milestone.id} className="rounded-xl border border-[#4A5568]/15 bg-white p-3">
+                            <Badge variant="outline" className={milestone.status === 'COMPLETED' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : milestone.status === 'IN_PROGRESS' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-200 bg-slate-50 text-slate-700'}>
+                              {formatLabel(milestone.status)}
+                            </Badge>
+                            <p className="mt-2 text-sm font-semibold text-[#4A5568]">{milestone.title}</p>
+                            <p className="mt-1 text-xs text-[#4A5568]/75">{formatDate(milestone.date)}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[280px_1fr]">
+                        <nav aria-label="Project lifecycle navigation" className="space-y-4 rounded-lg border border-[#4A5568]/15 bg-slate-50 p-3">
+                          {[
+                            { key: 'early-intelligence' as const, title: 'Early Intelligence', items: lifecycleDocuments.filter((doc) => doc.group === 'early-intelligence') },
+                            { key: 'open-procurement' as const, title: 'Open Procurement', items: lifecycleDocuments.filter((doc) => doc.group === 'open-procurement') },
+                            { key: 'contract-shortlist' as const, title: 'Contract / Shortlist', items: lifecycleDocuments.filter((doc) => doc.group === 'contract-shortlist') },
+                          ].map((section) => (
+                            <div key={section.key}>
+                              <p className="mb-2 text-xs font-semibold capitalize tracking-[0.08em] text-muted-foreground">{section.title}</p>
+                              <div className="space-y-1">
+                                {section.items.map((item) => (
+                                  <button
+                                    key={item.id}
+                                    type="button"
+                                    aria-pressed={activeLifecycleDocId === item.id}
+                                    onClick={() => setActiveLifecycleDocId(item.id)}
+                                    className={`w-full rounded-md border px-3 py-2 text-left text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 ${
+                                      activeLifecycleDocId === item.id
+                                        ? 'border-accent/20 bg-secondary text-accent'
+                                        : 'bg-white hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    {item.itemLabel}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </nav>
+
+                        <div className="rounded-lg border border-[#4A5568]/15 bg-white p-4">
+                          <p className="text-xs capitalize tracking-[0.08em] text-muted-foreground">{activeLifecycleDoc.sectionLabel}</p>
+                          <h3 className="mt-1 text-base font-semibold text-primary">{activeLifecycleDoc.itemLabel}</h3>
+                          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{activeLifecycleDoc.description}</p>
+
+                          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            <div className="rounded-xl border bg-[#F8FAFC] p-3">
+                              <p className="text-xs text-muted-foreground">Workflow state</p>
+                              <p className="mt-1 text-sm font-semibold text-primary">{projectOpenClosedLabel}</p>
+                            </div>
+                            <div className="rounded-xl border bg-[#F8FAFC] p-3">
+                              <p className="text-xs text-muted-foreground">Remaining tasks</p>
+                              <p className="mt-1 text-sm font-semibold text-primary">{remainingTasks}</p>
+                            </div>
+                            <div className="rounded-xl border bg-[#F8FAFC] p-3">
+                              <p className="text-xs text-muted-foreground">Active document</p>
+                              <p className="mt-1 text-sm font-semibold text-primary">{activeLifecycleDoc.itemLabel}</p>
+                            </div>
+                          </div>
+
+                          {activeLifecycleDoc.hasShortlist && (
+                            <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50/60 p-3">
+                              <p className="mb-2 text-sm font-semibold text-primary">Shortlisted Companies / Organizations</p>
+                              <div className="space-y-2">
+                                {project.shortlistedCompanies.map((item, index) => (
+                                  <div key={index} className="rounded-md border bg-white p-3 text-sm">
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                      <Link to={buildOrganizationDetailPath(item.name)} className="font-semibold text-primary underline-offset-2 hover:text-accent hover:underline">
+                                        {item.name}
+                                      </Link>
+                                      <div className="flex flex-wrap gap-2">
+                                        {renderOrganizationBookmarkButton(item.name)}
+                                        {renderOrganizationContactButton(item.name)}
+                                      </div>
+                                    </div>
+                                    <p className="mt-1 text-xs text-muted-foreground">Shortlisted on: {formatDate(item.date)}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {activeLifecycleDoc.hasContract && (
+                            <div className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50/60 p-3">
+                              <p className="mb-2 text-sm font-semibold text-primary">Contract Awarded Companies</p>
+                              <div className="space-y-2">
+                                {project.contractAwardedCompanies.map((item, index) => (
+                                  <div key={index} className="rounded-md border bg-white p-3 text-sm">
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                      <Link to={buildOrganizationDetailPath(item.name)} className="font-semibold text-primary underline-offset-2 hover:text-accent hover:underline">
+                                        {item.name}
+                                      </Link>
+                                      <div className="flex flex-wrap gap-2">
+                                        {renderOrganizationBookmarkButton(item.name)}
+                                        {renderOrganizationContactButton(item.name)}
+                                      </div>
+                                    </div>
+                                    <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                                      <span>Date: {formatDate(item.date)}</span>
+                                      <span>Budget: {item.budget}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </TabsContent>
 
                   <TabsContent value="market-analysis" className="mt-0">
@@ -2057,6 +2116,7 @@ export default function ProjectDetail() {
                                   <span>Donor:</span>
                                   <Link to={buildOrganizationDetailPath(item.donor)} className="font-medium text-[#4A5568] underline-offset-2 hover:text-[#E63462] hover:underline">{item.donor}</Link>
                                   {renderOrganizationBookmarkButton(item.donor)}
+                                  {renderOrganizationContactButton(item.donor)}
                                 </div>
                                 <p className="text-xs text-[#4A5568]/80">Budget: {item.budget}</p>
                               </div>
@@ -2075,10 +2135,11 @@ export default function ProjectDetail() {
                         <AccordionContent>
                           <div className="space-y-2">
                             {topCompanies.map((company) => (
-                              <div key={company.id} className="flex items-center justify-between gap-3 rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-3">
-                                <div className="flex items-center gap-2">
+                              <div key={company.id} className="flex flex-col gap-3 rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="flex flex-wrap items-center gap-2">
                                   <Link to={buildOrganizationDetailPath(company.name)} className="text-sm font-medium text-[#4A5568] underline-offset-2 hover:text-[#E63462] hover:underline">{company.name}</Link>
                                   {renderOrganizationBookmarkButton(company.name)}
+                                  {renderOrganizationContactButton(company.name)}
                                 </div>
                                 <p className="text-xs text-right text-[#4A5568]/80">{company.count} contracts/shortlists</p>
                               </div>
@@ -2098,9 +2159,10 @@ export default function ProjectDetail() {
                           <div className="space-y-2">
                             {localCompanies.map((company) => (
                               <div key={company.id} className="rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-3">
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
                                   <Link to={buildOrganizationDetailPath(company.name)} className="text-sm font-medium text-[#4A5568] underline-offset-2 hover:text-[#E63462] hover:underline">{company.name}</Link>
                                   {renderOrganizationBookmarkButton(company.name)}
+                                  {renderOrganizationContactButton(company.name)}
                                 </div>
                                 <p className="text-xs text-[#4A5568]/80">{company.info}</p>
                               </div>
@@ -2151,6 +2213,53 @@ export default function ProjectDetail() {
                                 </div>
                               </div>
                             ))}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      <AccordionItem value="pricing-policy" className="rounded-xl border border-[#4A5568]/15 bg-white px-3">
+                        <AccordionTrigger>
+                          <span className="inline-flex items-center gap-2 text-[#4A5568]">
+                            <TrendingDown className="h-4 w-4 text-[#E63462]" />
+                            {t('projects.details.tabs.pricingPolicy')}
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <div className="space-y-4 pb-1">
+                            <div className="flex flex-wrap items-center gap-3">
+                              <span className="text-sm font-medium text-[#4A5568]">{t('projects.marketAnalysis.pricingPolicy.dropdown')}</span>
+                              <Select value={pricingPolicy} onValueChange={(v) => setPricingPolicy(v as typeof pricingPolicy)}>
+                                <SelectTrigger className="w-44">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="aggressive">{t('projects.marketAnalysis.pricingPolicy.aggressive')}</SelectItem>
+                                  <SelectItem value="competitive">{t('projects.marketAnalysis.pricingPolicy.competitive')}</SelectItem>
+                                  <SelectItem value="premium">{t('projects.marketAnalysis.pricingPolicy.premium')}</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              <div className="rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-3 text-center">
+                                <p className="text-xs text-[#4A5568]/70 mb-1">{t('projects.marketAnalysis.pricingPolicy.estimatedPrice')}</p>
+                                <p className="text-xl font-bold text-[#E63462]">${priceEstimate.central.toLocaleString()}</p>
+                              </div>
+                              <div className="rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-3 text-center">
+                                <p className="text-xs text-[#4A5568]/70 mb-1">{t('projects.marketAnalysis.pricingPolicy.range')}</p>
+                                <p className="text-base font-semibold text-[#4A5568]">${priceEstimate.low.toLocaleString()} – ${priceEstimate.high.toLocaleString()}</p>
+                              </div>
+                              <div className="rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-3 text-center">
+                                <p className="text-xs text-[#4A5568]/70 mb-1">{t('projects.marketAnalysis.pricingPolicy.discountRate')}</p>
+                                <p className="text-base font-semibold text-[#4A5568]">{priceEstimate.discountPct}%</p>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-4 text-xs text-[#4A5568]/70">
+                              <span className="inline-flex items-center gap-1">
+                                <DollarSign className="h-3 w-3" />
+                                {t('projects.marketAnalysis.pricingPolicy.avgExpertRate')}: ${priceEstimate.avgExpertMedian}/day
+                              </span>
+                              <span>{t('projects.marketAnalysis.pricingPolicy.basis').replace('{count}', String(priceEstimate.sampleCount))}</span>
+                            </div>
                           </div>
                         </AccordionContent>
                       </AccordionItem>
@@ -2654,6 +2763,7 @@ export default function ProjectDetail() {
                                           <div className="flex flex-wrap items-center gap-2">
                                             <Link to={buildOrganizationDetailPath(partner.name)} className="text-sm font-semibold text-primary underline-offset-2 hover:text-[#E63462] hover:underline">{partner.name}</Link>
                                             {renderOrganizationBookmarkButton(partner.name)}
+                                            {renderOrganizationContactButton(partner.name)}
                                             {renderPartnerVisibilityToggle(partner.name)}
                                           </div>
                                           <p className="mt-1 text-xs text-muted-foreground">{partner.summary}</p>
@@ -2676,6 +2786,7 @@ export default function ProjectDetail() {
                                       <div className="flex flex-wrap items-center gap-2">
                                         <Link to={buildOrganizationDetailPath(partner.name)} className="text-sm font-semibold leading-tight text-primary underline-offset-2 hover:text-[#E63462] hover:underline">{partner.name}</Link>
                                         {renderOrganizationBookmarkButton(partner.name)}
+                                        {renderOrganizationContactButton(partner.name)}
                                         {renderPartnerVisibilityToggle(partner.name)}
                                       </div>
                                       <p className="mt-1 text-xs text-muted-foreground">{partner.summary}</p>
