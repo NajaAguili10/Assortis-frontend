@@ -1647,19 +1647,23 @@ const Signup = () => {
                   {PRICING_SECTORS.map((sector) => {
                     const isChecked = formData.subscriptionSectors.includes(sector.id);
                     return (
-                      <label
+                      <div
                         key={sector.id}
-                        className={`flex items-center gap-2 rounded-lg border p-3 cursor-pointer transition-all duration-150 select-none ${
-                          isChecked
-                            ? 'border-accent bg-accent/5 shadow-sm'
-                            : 'border-gray-200 hover:border-accent/40 hover:bg-gray-50'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          className="sr-only"
-                          checked={isChecked}
-                          onChange={() => {
+                        role="checkbox"
+                        aria-checked={isChecked}
+                        tabIndex={0}
+                        onClick={() => {
+                          const current = formData.subscriptionSectors;
+                          handleInputChange(
+                            'subscriptionSectors',
+                            isChecked
+                              ? current.filter(id => id !== sector.id)
+                              : [...current, sector.id]
+                          );
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === ' ' || e.key === 'Enter') {
+                            e.preventDefault();
                             const current = formData.subscriptionSectors;
                             handleInputChange(
                               'subscriptionSectors',
@@ -1667,8 +1671,14 @@ const Signup = () => {
                                 ? current.filter(id => id !== sector.id)
                                 : [...current, sector.id]
                             );
-                          }}
-                        />
+                          }
+                        }}
+                        className={`flex items-center gap-2 rounded-lg border p-3 cursor-pointer transition-all duration-150 select-none ${
+                          isChecked
+                            ? 'border-accent bg-accent/5 shadow-sm'
+                            : 'border-gray-200 hover:border-accent/40 hover:bg-gray-50'
+                        }`}
+                      >
                         <div className={`w-4 h-4 rounded flex-shrink-0 border-2 flex items-center justify-center transition-colors ${
                           isChecked ? 'bg-accent border-accent' : 'border-gray-300'
                         }`}>
@@ -1679,7 +1689,7 @@ const Signup = () => {
                         }`}>
                           {t(sector.labelKey)}
                         </span>
-                      </label>
+                      </div>
                     );
                   })}
                 </div>
@@ -1752,17 +1762,23 @@ const Signup = () => {
                     return filtered.map((country) => {
                       const isChecked = formData.subscriptionCountries.includes(country.code);
                       return (
-                        <label
+                        <div
                           key={country.code}
-                          className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors select-none ${
-                            isChecked ? 'bg-accent/5' : 'hover:bg-gray-50'
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            className="sr-only"
-                            checked={isChecked}
-                            onChange={() => {
+                          role="checkbox"
+                          aria-checked={isChecked}
+                          tabIndex={0}
+                          onClick={() => {
+                            const current = formData.subscriptionCountries;
+                            handleInputChange(
+                              'subscriptionCountries',
+                              isChecked
+                                ? current.filter(code => code !== country.code)
+                                : [...current, country.code]
+                            );
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === ' ' || e.key === 'Enter') {
+                              e.preventDefault();
                               const current = formData.subscriptionCountries;
                               handleInputChange(
                                 'subscriptionCountries',
@@ -1770,8 +1786,12 @@ const Signup = () => {
                                   ? current.filter(code => code !== country.code)
                                   : [...current, country.code]
                               );
-                            }}
-                          />
+                            }
+                          }}
+                          className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors select-none ${
+                            isChecked ? 'bg-accent/5' : 'hover:bg-gray-50'
+                          }`}
+                        >
                           <div className={`w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
                             isChecked ? 'bg-accent border-accent' : 'border-gray-300'
                           }`}>
@@ -1780,7 +1800,7 @@ const Signup = () => {
                           <span className={`text-sm ${isChecked ? 'text-accent font-medium' : 'text-gray-700'}`}>
                             {country.name[lang]}
                           </span>
-                        </label>
+                        </div>
                       );
                     });
                   })()}
