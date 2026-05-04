@@ -41,6 +41,7 @@ export default function OrganizationsDatabase() {
   const navigate = useNavigate();
   const {
     organizations,
+    isLoading,
     kpis,
     filters,
     updateFilters,
@@ -149,6 +150,24 @@ export default function OrganizationsDatabase() {
     clearFilters();
   };
 
+  const getTranslatedTypeLabel = (type?: string) => {
+    if (!type) return '-';
+    const translation = t(`organizations.type.${type}`);
+    return translation === `organizations.type.${type}` ? type.replace(/_/g, ' ') : translation;
+  };
+
+  const getTranslatedRegionLabel = (region?: string) => {
+    if (!region) return '-';
+    const translation = t(`organizations.region.${region}`);
+    return translation === `organizations.region.${region}` ? region.replace(/_/g, ' ') : translation;
+  };
+
+  const getLocationLabel = (org: { city?: string | { name: string }; country?: string | { name: string } }) => {
+    const city = typeof org.city === 'string' ? org.city : org.city?.name;
+    const country = typeof org.country === 'string' ? org.country : org.country?.name;
+    return [city, country].filter(Boolean).join(', ') || '-';
+  };
+
   return (
     <div className="min-h-screen">
       {/* Banner */}
@@ -232,7 +251,7 @@ export default function OrganizationsDatabase() {
                     <label className="text-sm font-medium text-gray-700">
                       {t('common.search')}
                     </label>
-                    {organizations.meta.totalItems > 0 && (
+                    {organizations.meta && organizations.meta.totalItems > 0 && (
                       <span className="text-sm font-medium text-accent">
                         {organizations.meta.totalItems === 1 
                           ? `${organizations.meta.totalItems} résultat`
@@ -247,8 +266,9 @@ export default function OrganizationsDatabase() {
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder={t('organizations.filters.search')}
                       className="flex-1"
+                      disabled={isLoading}
                     />
-                    <Button type="submit" size="icon">
+                    <Button type="submit" size="icon" disabled={isLoading}>
                       <Search className="w-4 h-4" />
                     </Button>
                   </form>
@@ -474,17 +494,21 @@ export default function OrganizationsDatabase() {
             {/* Toolbar */}
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm text-muted-foreground">
-                {t('organizations.list.showing', {
-                  from: ((currentPage - 1) * organizations.meta.pageSize + 1).toString(),
-                  to: Math.min(currentPage * organizations.meta.pageSize, organizations.meta.totalItems).toString(),
-                  total: organizations.meta.totalItems.toString()
-                })}
+                {organizations.meta
+                  ? organizations.meta.totalItems > 0
+                    ? t('organizations.list.showing', {
+                        from: ((currentPage - 1) * organizations.meta.pageSize + 1).toString(),
+                        to: Math.min(currentPage * organizations.meta.pageSize, organizations.meta.totalItems).toString(),
+                        total: organizations.meta.totalItems.toString()
+                      })
+                    : `0 ${t('organizations.kpis.totalOrganizations').toLowerCase()}`
+                  : 'Chargement...'}
               </p>
               <div className="flex items-center gap-2">
                 <label className="text-sm text-muted-foreground">
                   {t('common.sort')}:
                 </label>
-                <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)} disabled={isLoading}>
                   <SelectTrigger className="w-48">
                     <SelectValue />
                   </SelectTrigger>
@@ -500,7 +524,11 @@ export default function OrganizationsDatabase() {
             </div>
 
             {/* Organizations Grid */}
-            {organizations.data.length > 0 ? (
+            {isLoading ? (
+              <div className="text-center py-12 bg-white rounded-lg border">
+                <p className="text-muted-foreground">{t('common.loading') || 'Chargement...'}</p>
+              </div>
+            ) : organizations.data.length > 0 ? (
               <div className="grid grid-cols-1 gap-4 mb-6">
                 {organizations.data.map((org) => (
                   <div
@@ -537,27 +565,27 @@ export default function OrganizationsDatabase() {
                     <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
                       <span className="flex items-center gap-1">
                         <Target className="w-4 h-4" />
-                        {t(`organizations.type.${org.type}`)}
+                        {getTranslatedTypeLabel(org.type)}
                       </span>
                       <span className="flex items-center gap-1">
                         <MapPin className="w-4 h-4" />
-                        {org.city}, {org.country}
+                        {getLocationLabel(org)}
                       </span>
                       <span className="flex items-center gap-1">
                         <Briefcase className="w-4 h-4" />
-                        {org.activeProjects} {t('organizations.details.projects')}
+                        {org.activeProjects || 0} {t('organizations.details.projects')}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-2 mb-4">
-                      {org.sectors.slice(0, 3).map((sector, index) => (
+                      {(org.sectors || []).slice(0, 3).map((sector, index) => (
                         <Badge key={`${org.id}-sector-${index}`} variant="secondary">
                           {t(`sectors.${sector}`)}
                         </Badge>
                       ))}
-                      {org.sectors.length > 3 && (
+                      {(org.sectors || []).length > 3 && (
                         <Badge variant="outline">
-                          +{org.sectors.length - 3}
+                          +{(org.sectors || []).length - 3}
                         </Badge>
                       )}
                     </div>
@@ -566,7 +594,7 @@ export default function OrganizationsDatabase() {
                       <div className="flex items-center gap-4 text-sm">
                         <span className="flex items-center gap-1 text-muted-foreground">
                           <Globe className="w-4 h-4" />
-                          {t(`organizations.region.${org.region}`)}
+                          {getTranslatedRegionLabel(org.region)}
                         </span>
                       </div>
                       <Button
@@ -593,13 +621,13 @@ export default function OrganizationsDatabase() {
             )}
 
             {/* Pagination */}
-            {organizations.meta.totalPages > 1 && (
+            {organizations.meta && organizations.meta.totalPages > 1 && (
               <div className="flex items-center justify-between">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setCurrentPage(currentPage - 1)}
-                  disabled={!organizations.meta.hasPreviousPage}
+                  disabled={!organizations.meta.hasPreviousPage || isLoading}
                 >
                   <ChevronLeft className="w-4 h-4 mr-1" />
                   {t('pagination.previous')}
@@ -613,6 +641,7 @@ export default function OrganizationsDatabase() {
                         variant={currentPage === pageNum ? "default" : "outline"}
                         size="sm"
                         onClick={() => setCurrentPage(pageNum)}
+                        disabled={isLoading}
                       >
                         {pageNum}
                       </Button>
@@ -625,6 +654,7 @@ export default function OrganizationsDatabase() {
                         variant={currentPage === organizations.meta.totalPages ? "default" : "outline"}
                         size="sm"
                         onClick={() => setCurrentPage(organizations.meta.totalPages)}
+                        disabled={isLoading}
                       >
                         {organizations.meta.totalPages}
                       </Button>
@@ -635,7 +665,7 @@ export default function OrganizationsDatabase() {
                   variant="outline"
                   size="sm"
                   onClick={() => setCurrentPage(currentPage + 1)}
-                  disabled={!organizations.meta.hasNextPage}
+                  disabled={!organizations.meta.hasNextPage || isLoading}
                 >
                   {t('pagination.next')}
                   <ChevronRight className="w-4 h-4 ml-1" />

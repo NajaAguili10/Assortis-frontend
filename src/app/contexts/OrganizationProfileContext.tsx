@@ -6,8 +6,7 @@ export type OrganizationProfileSectionId =
   | 'contact'
   | 'operations'
   | 'resources'
-  | 'projects'
-  | 'subscription';
+  | 'projects';
 
 export type OrganizationVerificationStatus = 'verified' | 'selfDeclared';
 
@@ -24,7 +23,6 @@ const defaultSectionStatuses: Record<OrganizationProfileSectionId, OrganizationV
   operations: 'verified',
   resources: 'selfDeclared',
   projects: 'verified',
-  subscription: 'selfDeclared',
 };
 
 const defaultValidationState: OrganizationValidationState = {

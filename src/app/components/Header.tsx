@@ -15,6 +15,7 @@ import {
   ShoppingCart,
   LogOut, 
   UserCircle,
+  MessageSquareText,
   HelpCircle,
   Menu,
    X,
@@ -62,7 +63,7 @@ export function Header() {
     return [
       ...(user?.accountType === 'expert'
         ? [{ path: '/matching-opportunities', label: t('matching-opportunities.page.title'), icon: Target }]
-        : [{ path: '/calls', label: t('nav.calls'), icon: FileText }]),
+        : [{ path: '/calls/active', label: t('nav.calls'), icon: FileText }]),
       { path: '/projects', label: t('nav.projects'), icon: BarChart3 },
       { path: '/search', label: t('nav.search') || 'Search', icon: Search },
       ...(isAuthenticated ? [{ path: '/statistics', label: t('nav.statistics'), icon: PieChart }] : []),
@@ -118,6 +119,11 @@ export function Header() {
     navigate('/faq');
   };
 
+  const handleMessagesClick = () => {
+    setUserMenuOpen(false);
+    navigate('/account/messages');
+  };
+
   // Handle logout
   const handleLogout = () => {
     setUserMenuOpen(false);
@@ -144,7 +150,7 @@ export function Header() {
               const Icon = item.icon;
               let isActive = false;
               
-              if (item.path === '/calls') {
+              if (item.path === '/calls/active') {
                 isActive = 
                   location.pathname === '/' || 
                   location.pathname === '/calls' || 
@@ -284,6 +290,14 @@ export function Header() {
                       </button>
 
                       <button
+                        onClick={handleMessagesClick}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer text-left"
+                      >
+                        <MessageSquareText className="h-4 w-4 text-gray-500" />
+                        <span>{t('userMenu.messages')}</span>
+                      </button>
+
+                      <button
                         onClick={handleFAQClick}
                         className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer text-left"
                       >
@@ -343,7 +357,7 @@ export function Header() {
                 const Icon = item.icon;
                 let isActive = false;
                 
-                if (item.path === '/calls') {
+                if (item.path === '/calls/active') {
                   isActive = 
                     location.pathname === '/' || 
                     location.pathname === '/calls' || 
@@ -477,6 +491,16 @@ export function Header() {
                     >
                       <UserCircle className="h-5 w-5" />
                       <span>{t('userMenu.profile')}</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleMessagesClick();
+                        setMobileMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3 py-2 text-base text-gray-600 hover:text-gray-900"
+                    >
+                      <MessageSquareText className="h-5 w-5" />
+                      <span>{t('userMenu.messages')}</span>
                     </button>
                     <button
                       onClick={() => {

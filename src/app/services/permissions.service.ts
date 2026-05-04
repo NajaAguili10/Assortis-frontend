@@ -29,6 +29,15 @@ export const canManageOrganizationAdminActions = (accountType?: AccountType, rol
   return role !== 'organization-user';
 };
 
+export const canCreateProjectItems = (accountType?: AccountType): boolean => {
+  if (!accountType) return false;
+  return ['organization', 'expert', 'admin'].includes(accountType);
+};
+
+export const canAssignProjectTasks = (accountType?: AccountType): boolean => {
+  return accountType === 'organization' || accountType === 'admin';
+};
+
 /**
  * Vérifie si un utilisateur a accès au module Appels d'offres (Tenders)
  */
@@ -94,6 +103,10 @@ export const hasOrganizationsSubMenuAccess = (
   if (subMenu === 'database') {
     return ['organization', 'expert', 'admin'].includes(accountType);
   }
+
+  if (subMenu === 'projectReferences') {
+    return ['organization', 'expert', 'admin'].includes(accountType);
+  }
   
   // Matching et Dossier Matching : Expert, Organization et Admin
   if (subMenu === 'matching' || subMenu === 'matchingDossier') {
@@ -133,6 +146,15 @@ export const hasCreditsAccess = (accountType?: AccountType): boolean => {
 
   // Reserve aux organisations
   return accountType === 'organization';
+};
+
+/**
+ * Vérifie si un utilisateur peut accéder aux Postes Vacants (Job Vacancies).
+ * Réservé aux experts et admins — les organisations n'ont pas accès.
+ */
+export const hasVacanciesAccess = (accountType?: AccountType): boolean => {
+  if (!accountType) return false;
+  return ['expert', 'admin'].includes(accountType);
 };
 
 /**

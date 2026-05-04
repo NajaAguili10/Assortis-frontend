@@ -8,6 +8,7 @@ interface User {
   lastName: string;
   role?: string;
   accountType?: 'expert' | 'organization' | 'admin' | 'public';
+  isSubscribed?: boolean; // true when the user has an active paid subscription
 }
 
 type QuickLoginAccountType = 'expert' | 'organization' | 'organization-user' | 'admin' | 'public';
@@ -178,6 +179,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 ? 'organization-admin'
                 : 'member',
             accountType: resolvedAccountType,
+            isSubscribed: resolvedAccountType !== 'public',
           };
           setUser(mockUser);
           setIsAuthenticated(true);

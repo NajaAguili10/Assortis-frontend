@@ -50,7 +50,7 @@ const Login = () => {
         // Scenario 1: Complete user with payment - Login normally
         await login(email, password);
         setLoading(false);
-        navigate('/account');
+        navigate('/calls/active');
       } else if (authResult.userType === 'incomplete' && authResult.userData) {
         // Scenario 2: Incomplete signup - Show modal to continue registration
         setIncompleteSignupData(authResult.userData as IncompleteSignupData);
@@ -60,30 +60,30 @@ const Login = () => {
 
       // NEW DYNAMIC BACKEND AUTH
       await login(email, password);
-      
+
       // Get user from localStorage to determine role
       const storedUser = localStorage.getItem('assortis_user');
       if (storedUser) {
         const user = JSON.parse(storedUser);
         const role = (user.role || user.accountType || '').toUpperCase();
-        
+
         // Dynamic Role-Based Redirection
         if (role === 'EXPERT') {
-          navigate('/expert-dashboard');
+          navigate('/calls/active');
         } else if (role === 'ADMIN') {
-          navigate('/admin-dashboard');
+          navigate('/calls/active');
         } else if (role === 'ORGANIZATION') {
-          navigate('/organization-dashboard');
+          navigate('/calls/active');
         } else {
-          navigate('/home');
+          navigate('/calls/active');
         }
       } else {
-        navigate('/account');
+        navigate('/calls/active');
       }
-      
+
       setLoading(false);
     } catch (err: any) {
-      setError(err.message || t('auth.login.invalidCredentials'));
+      setError('Username or password incorrect');
       setLoading(false);
     }
   };
@@ -108,7 +108,7 @@ const Login = () => {
 
     try {
       await quickLogin(accountType);
-      navigate('/account');
+      navigate('/calls/active');
     } catch (err: any) {
       setError(err.message || t('auth.login.invalidCredentials'));
     } finally {
@@ -259,8 +259,8 @@ const Login = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">{t('auth.login.password') || 'Password'} *</Label>
-                <Link 
-                  to="/forgot-password" 
+                <Link
+                  to="/forgot-password"
                   className="text-sm hover:underline"
                   style={{ color: 'var(--color-primary)' }}
                 >
@@ -290,8 +290,8 @@ const Login = () => {
 
             <div className="text-center text-sm text-gray-600 pt-4 border-t border-gray-200">
               {t('auth.login.noAccount') || "Don't have an account?"}{' '}
-              <Link 
-                to="/signup" 
+              <Link
+                to="/signup"
                 className="font-medium hover:underline"
                 style={{ color: 'var(--color-primary)' }}
               >
@@ -329,8 +329,8 @@ const Login = () => {
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-gray-600">{t('auth.signup.selectType')}</span>
                     <span className="font-semibold text-primary">
-                      {incompleteSignupData.accountType === 'organization' 
-                        ? t('auth.signup.typeOrganization') 
+                      {incompleteSignupData.accountType === 'organization'
+                        ? t('auth.signup.typeOrganization')
                         : t('auth.signup.typeExpert')}
                     </span>
                   </div>

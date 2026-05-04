@@ -102,6 +102,36 @@ export interface LanguageSkillDTO {
   level: 'NATIVE' | 'FLUENT' | 'ADVANCED' | 'INTERMEDIATE' | 'BASIC';
 }
 
+export type WritingMethodology = 'TA' | 'FWC' | 'Grants';
+export type WritingContribution =
+  | "Reviewing others' contributions"
+  | 'Contributing with technical inputs'
+  | 'Writing methodologies in full'
+  | 'Proofreading and editing';
+export type WritingLanguage = 'English' | 'French' | 'Spanish' | 'Portuguese' | 'German';
+
+export interface WritingExperienceRowDTO {
+  id: string;
+  titleOfTenderProject: string;
+  donor: string;
+  country: string;
+  year: string;
+  indicativePagesWritten: string;
+  result: 'won' | 'lost';
+  referencePersonProjectManager: string;
+  additionalInformation: string;
+}
+
+export interface WritingExperienceDTO {
+  writingMethodologies: WritingMethodology[];
+  writingContributions: WritingContribution[];
+  writingLanguages: WritingLanguage[];
+  comfortableToWriteOn: string;
+  donorProcurementExperience: string;
+  writingComments: string;
+  writingExperienceRows: WritingExperienceRowDTO[];
+}
+
 export interface ExpertProfileDTO {
   id: string;
   firstName: string;
@@ -149,6 +179,8 @@ export interface ExpertProfileDTO {
   
   // Matching
   matchingScore?: number;
+
+  writingExperience?: WritingExperienceDTO;
 }
 
 export interface ExpertListDTO {
@@ -184,6 +216,8 @@ export interface ExpertListDTO {
   lastActive: string;
   
   matchingScore?: number;
+
+  writingExperience?: WritingExperienceDTO;
 }
 
 export interface CVProfileDTO {

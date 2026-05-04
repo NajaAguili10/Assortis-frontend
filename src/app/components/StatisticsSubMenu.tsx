@@ -5,7 +5,6 @@ import { useAuth } from '@app/contexts/AuthContext';
 import { SubMenu } from '@app/components/SubMenu';
 import { hasStatisticsSubMenuAccess, isExpertAccountType } from '@app/services/permissions.service';
 import {
-  BarChart3,
   FolderKanban,
   TrendingUp,
   DollarSign,
@@ -29,6 +28,7 @@ export function StatisticsSubMenu() {
     if (path.startsWith('/statistics/projects-contracts')) return 'projectsContracts';
     if (path.startsWith('/statistics/market-trends')) return 'marketTrends';
     if (path.startsWith('/statistics/pricing-experts')) return 'pricingExperts';
+    if (path.startsWith('/statistics/experts-fees')) return 'expertsFees';
     if (path.startsWith('/statistics/competitors')) return 'competitors';
     if (path.startsWith('/statistics/usage-analytics')) return 'usageAnalytics';
     if (path.startsWith('/statistics/map-insights')) return 'mapInsights';
@@ -37,10 +37,10 @@ export function StatisticsSubMenu() {
 
   const activeTab = getCurrentActive();
 
-  const canAccessDashboard = hasStatisticsSubMenuAccess('dashboard', user?.accountType);
   const canAccessProjectsContracts = hasStatisticsSubMenuAccess('projectsContracts', user?.accountType);
   const canAccessMarketTrends = hasStatisticsSubMenuAccess('marketTrends', user?.accountType);
   const canAccessPricingExperts = hasStatisticsSubMenuAccess('pricingExperts', user?.accountType);
+  const canAccessExpertsFees = hasStatisticsSubMenuAccess('pricingExperts', user?.accountType);
   const canAccessCompetitors = hasStatisticsSubMenuAccess('competitors', user?.accountType);
   const canAccessUsageAnalytics = hasStatisticsSubMenuAccess('usageAnalytics', user?.accountType);
   const canAccessMapInsights = hasStatisticsSubMenuAccess('mapInsights', user?.accountType);
@@ -48,14 +48,7 @@ export function StatisticsSubMenu() {
   // For Expert: map routes to different tab labels
   // For Organization/Admin: use existing labels
   const items = [
-    canAccessDashboard && {
-      label: t('statistics.tabs.dashboard'),
-      icon: BarChart3,
-      active: activeTab === 'dashboard',
-      onClick: () => navigate('/statistics/dashboard'),
-    },
     
-    // Expert: Market Demand | Organization: Projects & Contracts
     canAccessProjectsContracts && {
       label: isExpert ? t('statistics.tabs.marketDemand') : t('statistics.tabs.projectsContracts'),
       icon: FolderKanban,
@@ -71,12 +64,20 @@ export function StatisticsSubMenu() {
       onClick: () => navigate('/statistics/market-trends'),
     },
     
-    // Expert: Pricing & Benchmark | Organization: Pricing & Experts
+    // Expert: Pricing & Benchmark | Organization: Pricing Policy
     canAccessPricingExperts && {
-      label: isExpert ? t('statistics.tabs.pricingBenchmark') : t('statistics.tabs.pricingExperts'),
+      label: isExpert ? t('statistics.tabs.pricingBenchmark') : t('statistics.tabs.pricingPolicy'),
       icon: DollarSign,
       active: activeTab === 'pricingExperts',
       onClick: () => navigate('/statistics/pricing-experts'),
+    },
+
+    // Expert: Hidden | Organization: Experts Fees
+    !isExpert && canAccessExpertsFees && {
+      label: t('statistics.tabs.expertsFees'),
+      icon: Users,
+      active: activeTab === 'expertsFees',
+      onClick: () => navigate('/statistics/experts-fees'),
     },
     
     // Expert: Hidden | Organization: Competitors

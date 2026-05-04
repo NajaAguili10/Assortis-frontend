@@ -21,7 +21,7 @@ import { useOrganizationBookmarks } from '@app/modules/shared/hooks/useOrganizat
 import { OrganizationTypeEnum, OrganizationSectorEnum, RegionEnum, CountryEnum } from '@app/types/organization.dto';
 import { SubSectorEnum, SectorEnum, REGION_COUNTRY_MAP } from '@app/types/tender.dto';
 import { ORGANIZATION_SECTOR_SUBSECTOR_MAP } from '@app/config/organization-sectors.config';
-import { Search, Filter, X, ChevronLeft, ChevronRight, Building2, MapPin, Briefcase, Globe, Target, CheckCircle, ChevronDown, Plus, Bookmark } from 'lucide-react';
+import { Search, Filter, X, ChevronLeft, ChevronRight, Building2, MapPin, Briefcase, Globe, Target, CheckCircle, ChevronDown, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -39,6 +39,10 @@ interface SavedSearchEntry<TPayload> {
   label: string;
   createdAt: string;
   payload: TPayload;
+}
+
+interface OrganizationPartnerState {
+  engagements?: string[];
 }
 
 export default function SearchOrganizationsTabContent() {
@@ -71,9 +75,14 @@ export default function SearchOrganizationsTabContent() {
   const [showRegionFilters, setShowRegionFilters] = useState(false);
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
   const [savedSearches, setSavedSearches] = useState<SavedSearchEntry<OrganizationSavedPayload>[]>([]);
+  const [compatibilityByOrg, setCompatibilityByOrg] = useState<Record<string, number>>({});
+  const [partnerStates, setPartnerStates] = useState<Record<string, OrganizationPartnerState>>({});
+  const [activeTab, setActiveTab] = useState<'results' | 'history'>('results');
   const shouldShowBookmarkButton = user?.accountType !== 'expert';
 
   const storageKey = 'search.tab.saved.organisations';
+  const compatibilityStorageKey = 'search.organisations.compatibility';
+  const partnerStateStorageKey = 'search.organisations.partnerStates';
 
   const availableSubSectors = useMemo(() => {
     if (selectedSectors.length === 0) return [];
@@ -93,6 +102,29 @@ export default function SearchOrganizationsTabContent() {
     }, 300);
     return () => clearTimeout(timeoutId);
   }, [filters.searchQuery, searchQuery, updateFilters]);
+
+  useEffect(() => {
+    try {
+      const storedCompatibility = JSON.parse(localStorage.getItem(compatibilityStorageKey) || '{}');
+      const nextCompatibility = { ...(storedCompatibility || {}) };
+      organizations.data.forEach((org) => {
+        if (!nextCompatibility[org.id]) {
+          nextCompatibility[org.id] = 55 + Math.floor(Math.random() * 44);
+        }
+      });
+      localStorage.setItem(compatibilityStorageKey, JSON.stringify(nextCompatibility));
+      setCompatibilityByOrg(nextCompatibility);
+    } catch {
+      setCompatibilityByOrg({});
+    }
+
+    try {
+      const storedStates = JSON.parse(localStorage.getItem(partnerStateStorageKey) || '{}');
+      setPartnerStates(storedStates || {});
+    } catch {
+      setPartnerStates({});
+    }
+  }, [compatibilityStorageKey, organizations.data.length, partnerStateStorageKey]);
 
   useEffect(() => {
     const q = (searchParams.get('q') || '').trim();
@@ -121,6 +153,33 @@ export default function SearchOrganizationsTabContent() {
     setSelectedRegions([]);
     setSelectedCountries([]);
     clearFilters();
+  };
+
+  const updatePartnerState = (organizationId: string, patch: OrganizationPartnerState) => {
+    const next = {
+      ...partnerStates,
+      [organizationId]: {
+        ...(partnerStates[organizationId] || {}),
+        ...patch,
+      },
+    };
+    localStorage.setItem(partnerStateStorageKey, JSON.stringify(next));
+    setPartnerStates(next);
+  };
+
+  const logEngagement = (organizationId: string) => {
+    const current = partnerStates[organizationId]?.engagements || [];
+    updatePartnerState(organizationId, { engagements: [...current, new Date().toISOString()] });
+  };
+
+  const removeLastEngagement = (organizationId: string) => {
+    const current = partnerStates[organizationId]?.engagements || [];
+    const next = current.slice(0, -1);
+    updatePartnerState(organizationId, { engagements: next.length > 0 ? next : [] });
+  };
+
+  const clearEngagements = (organizationId: string) => {
+    updatePartnerState(organizationId, { engagements: [] });
   };
 
   const readSavedSearches = (): SavedSearchEntry<OrganizationSavedPayload>[] => {
@@ -172,12 +231,12 @@ export default function SearchOrganizationsTabContent() {
       label: searchQuery.trim() || `Saved organisations ${format(now, 'yyyy-MM-dd HH:mm')}`,
       createdAt: now.toISOString(),
       payload: {
-      searchQuery,
-      selectedSectors,
-      selectedSubSectors,
-      selectedRegions,
-      selectedCountries,
-      type: filters.type || [],
+        searchQuery,
+        selectedSectors,
+        selectedSubSectors,
+        selectedRegions,
+        selectedCountries,
+        type: filters.type || [],
       },
     };
 
@@ -376,23 +435,26 @@ export default function SearchOrganizationsTabContent() {
       </div>
 
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm text-muted-foreground">
-            Showing {((currentPage - 1) * organizations.meta.pageSize + 1)}-{Math.min(currentPage * organizations.meta.pageSize, organizations.meta.totalItems)} of {organizations.meta.totalItems}
-          </p>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-muted-foreground">{t('common.sort')}:</label>
-            <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">{t('organizations.sort.newest')}</SelectItem>
-                <SelectItem value="oldest">{t('organizations.sort.oldest')}</SelectItem>
-                <SelectItem value="name">{t('organizations.sort.name')}</SelectItem>
-                <SelectItem value="partnerships">{t('organizations.sort.partnerships')}</SelectItem>
-                <SelectItem value="projects">{t('organizations.sort.projects')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="flex items-center gap-2 mb-4 border-b border-gray-200">
+          <button
+            type="button"
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === 'results' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-primary'}`}
+            onClick={() => setActiveTab('results')}
+          >
+            Search Results
+          </button>
+          <button
+            type="button"
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === 'history' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-primary'}`}
+            onClick={() => setActiveTab('history')}
+          >
+            History
+            {Object.values(partnerStates).filter((s) => (s.engagements?.length ?? 0) > 0).length > 0 && (
+              <span className="ml-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-white text-xs">
+                {Object.values(partnerStates).filter((s) => (s.engagements?.length ?? 0) > 0).length}
+              </span>
+            )}
+          </button>
         </div>
 
         {allOrganizations.length > 0 ? (
@@ -408,16 +470,19 @@ export default function SearchOrganizationsTabContent() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-100">
+                      {compatibilityByOrg[org.id] || 72}% compatibility
+                    </Badge>
                     {shouldShowBookmarkButton && (
                       <Button
                         variant={isBookmarked(org.id) ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => toggleBookmark(org.id)}
-                        aria-label={isBookmarked(org.id) ? t('organizations.actions.removeBookmark') : t('organizations.actions.bookmark')}
+                        aria-label="Add to Partners"
                         className="min-h-9"
                       >
-                        <Bookmark className="w-4 h-4 mr-1.5" />
-                        {isBookmarked(org.id) ? t('organizations.actions.removeBookmark') : t('organizations.actions.bookmark')}
+                        <Plus className="w-4 h-4 mr-1.5" />
+                        {isBookmarked(org.id) ? 'Partner added' : 'Add to Partners'}
                       </Button>
                     )}
                     {org.verificationStatus === 'VERIFIED' && (
@@ -467,9 +532,28 @@ export default function SearchOrganizationsTabContent() {
                   {(org.sectors || []).length > 3 && <Badge variant="outline">+{(org.sectors || []).length - 3}</Badge>}
                 </div>
 
+                <div className="mt-3 flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
+                    onClick={() => logEngagement(org.id)}
+                  >
+                    <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
+                    Worked with this organisation
+                  </Button>
+                  {(partnerStates[org.id]?.engagements?.length ?? 0) > 0 && (
+                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-600 text-white text-xs font-semibold">
+                      {partnerStates[org.id].engagements!.length}
+                    </span>
+                  )}
+                </div>
+
                 <div className="flex items-center justify-between pt-3 border-t">
                   <span className="flex items-center gap-1 text-sm text-muted-foreground"><Globe className="w-4 h-4" />{t(`organizations.region.${org.region}`)}</span>
-                  <Button variant="default" size="sm" onClick={() => navigate(`/search/organizations/${org.id}`)}>{t('actions.viewDetails')}</Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="default" size="sm" onClick={() => navigate(`/search/organizations/${org.id}`)}>{t('actions.viewDetails')}</Button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -536,6 +620,7 @@ export default function SearchOrganizationsTabContent() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+
+    </div >
   );
 }

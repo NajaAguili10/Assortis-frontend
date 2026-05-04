@@ -7,6 +7,7 @@ import { PageContainer } from '@app/components/PageContainer';
 import { OrganizationsSubMenu } from '@app/components/OrganizationsSubMenu';
 import { SearchSectionTabs, type SearchSectionTab } from '@app/components/SearchSectionTabs';
 import { OrganizationVerificationBadge } from '@app/components/OrganizationVerificationBadge';
+import { ContactOrganizationDialog } from '@app/components/ContactOrganizationDialog';
 import { Button } from '@app/components/ui/button';
 import { Badge } from '@app/components/ui/badge';
 import { Progress } from '@app/components/ui/progress';
@@ -39,6 +40,7 @@ export default function OrganizationDetail() {
   const { allOrganizations } = useOrganizations();
   const { isBookmarked, toggleBookmark } = useOrganizationBookmarks();
   const [activeSection, setActiveSection] = useState('information');
+  const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
 
   const searchSection: SearchSectionTab | null = useMemo(() => {
     if (
@@ -512,6 +514,16 @@ export default function OrganizationDetail() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {isSearchContext && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => setIsContactDialogOpen(true)}
+                  >
+                    <Mail className="w-4 h-4 mr-2" />
+                    {t('organisation.contact')}
+                  </Button>
+                )}
                 {shouldShowBookmarkButton && (
                   <Button
                     variant={isBookmarked(organization.id) ? 'default' : 'outline'}
@@ -724,6 +736,14 @@ export default function OrganizationDetail() {
           )}
         </div>
       </PageContainer>
+      <ContactOrganizationDialog
+        open={isContactDialogOpen}
+        onClose={() => setIsContactDialogOpen(false)}
+        organization={{
+          id: organization.id,
+          name: organization.name,
+        }}
+      />
     </div>
   );
 }

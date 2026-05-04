@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { enUS, es, fr } from 'date-fns/locale';
 import { ArrowDown, ArrowUp, ArrowUpDown, Search, Download, FileText, Eye, Pencil } from 'lucide-react';
+import { useNavigate } from 'react-router';
 import { useTranslation } from '@app/contexts/LanguageContext';
 import { ProjectReferenceFicheModal } from '@app/components/ProjectReferenceFicheModal';
 import { PageBanner } from '@app/components/PageBanner';
@@ -170,6 +171,7 @@ const mockProjectReferences: ProjectReferenceRow[] = [
 
 export default function ProjectsReferences() {
   const { t, language } = useTranslation();
+  const navigate = useNavigate();
 
   const [projectReferences, setProjectReferences] = useState<ProjectReferenceRow[]>(mockProjectReferences);
   const [isFicheModalOpen, setIsFicheModalOpen] = useState(false);
@@ -490,7 +492,17 @@ export default function ProjectsReferences() {
                 <h2 className="text-base font-semibold text-primary">Search and filter projects</h2>
                 <p className="text-sm text-gray-600 mt-1">View and manage past and ongoing project references.</p>
               </div>
-              {activeFilterCount > 0 && <Badge variant="secondary">{activeFilterCount} active filters</Badge>}
+              <div className="flex items-center gap-2">
+                {activeFilterCount > 0 && <Badge variant="secondary">{activeFilterCount} active filters</Badge>}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11"
+                  onClick={() => navigate('/organizations/project-references?create=1')}
+                >
+                  {t('projects.actions.createNewReference')}
+                </Button>
+              </div>
             </div>
             <form onSubmit={handleSearch} className="grid grid-cols-1 lg:grid-cols-[1fr_220px_auto_auto_auto] gap-3 mb-4">
               <Input value={searchInput} onChange={event => setSearchInput(event.target.value)} placeholder="Search project title, reference..." className="min-h-11" />

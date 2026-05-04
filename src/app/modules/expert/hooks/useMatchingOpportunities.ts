@@ -3,6 +3,7 @@ import {
   MatchingOpportunityDTO,
   MatchingOpportunitiesContextDTO,
   MatchingOpportunitiesFilterDTO,
+  MatchingProjectsFilterDTO,
   MatchingTenderFiltersDTO,
   MatchingVacancyFiltersDTO,
   OpportunityTypeEnum,
@@ -11,6 +12,9 @@ import {
   SIPInfoDTO,
   PendingMatchDTO,
   MatchingStatsDTO,
+  MatchingProfileDTO,
+  AlertFusionConfigDTO,
+  AlertFrequency,
 } from '@app/types/matchingOpportunities.dto';
 import { ProjectSectorEnum } from '@app/types/project.dto';
 import {
@@ -40,6 +44,7 @@ const MOCK_OPPORTUNITIES: MatchingOpportunityDTO[] = [
     postedDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
     organization: 'African Development Bank',
     location: 'Kenya',
+    matchedViaProfile: 'Africa Agriculture Profile',
   },
   {
     id: 'opp-002',
@@ -58,6 +63,7 @@ const MOCK_OPPORTUNITIES: MatchingOpportunityDTO[] = [
     postedDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
     organization: 'World Bank',
     location: 'Ghana',
+    matchedViaAlert: 'World Bank WASH Alert',
   },
   {
     id: 'opp-003',
@@ -76,6 +82,7 @@ const MOCK_OPPORTUNITIES: MatchingOpportunityDTO[] = [
     postedDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
     organization: 'Global Fund',
     location: 'Uganda',
+    matchedViaProfile: 'Health Systems Profile',
   },
 
   // Contract Awards
@@ -96,6 +103,7 @@ const MOCK_OPPORTUNITIES: MatchingOpportunityDTO[] = [
     postedDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
     organization: 'European Bank for Reconstruction',
     location: 'Morocco',
+    matchedViaAlert: 'Infrastructure Consulting Alert',
     awardCompanies: [
       {
         name: 'Atlas Engineering Group',
@@ -126,6 +134,7 @@ const MOCK_OPPORTUNITIES: MatchingOpportunityDTO[] = [
     postedDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
     organization: 'UNICEF',
     location: 'Senegal',
+    matchedViaProfile: 'Education & Training Profile',
     awardCompanies: [
       {
         name: 'EduTech Advisory',
@@ -206,6 +215,7 @@ const MOCK_OPPORTUNITIES: MatchingOpportunityDTO[] = [
     position: 'Senior Project Manager',
     organization: 'World Bank',
     location: 'Ethiopia',
+    matchedViaProfile: 'Africa Agriculture Profile',
   },
   {
     id: 'opp-009',
@@ -242,6 +252,7 @@ const MOCK_OPPORTUNITIES: MatchingOpportunityDTO[] = [
     position: 'Training Coordinator',
     organization: 'Assortis Platform',
     location: 'Remote',
+    matchedViaAlert: 'Platform Vacancies Alert',
   },
   {
     id: 'opp-011',
@@ -310,8 +321,80 @@ const MOCK_SIP_INFO: SIPInfoDTO = {
   expiryDate: new Date('2027-10-20'),
 };
 
+function readDismissedIds(): string[] {
+  try {
+    const stored = localStorage.getItem('matching.dismissedIds');
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeDismissedIds(ids: string[]) {
+  try {
+    localStorage.setItem('matching.dismissedIds', JSON.stringify(ids));
+  } catch {
+    // ignore
+  }
+}
+
+// --- Saved profiles storage helpers ---
+const MOCK_PROFILES: MatchingProfileDTO[] = [
+  {
+    id: 'profile-001',
+    name: 'Africa Agriculture Profile',
+    sectors: ['AGRICULTURE', 'RURAL_DEVELOPMENT'],
+    countries: ['Kenya', 'Ethiopia', 'Tanzania'],
+    donors: ['African Development Bank', 'World Bank'],
+    keywords: ['agriculture', 'rural development', 'capacity building'],
+    isActive: true,
+    alertFrequency: 'daily',
+    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    matchCount: 3,
+  },
+  {
+    id: 'profile-002',
+    name: 'Health Systems Profile',
+    sectors: ['HEALTH'],
+    countries: ['Uganda', 'Rwanda', 'DRC'],
+    donors: ['Global Fund', 'WHO', 'USAID'],
+    keywords: ['health', 'systems strengthening', 'training'],
+    isActive: true,
+    alertFrequency: 'weekly',
+    createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
+    matchCount: 1,
+  },
+  {
+    id: 'profile-003',
+    name: 'Education & Training Profile',
+    sectors: ['EDUCATION'],
+    countries: ['Senegal', 'Mali', 'Ivory Coast'],
+    donors: ['UNICEF', 'UNESCO', 'AFD'],
+    keywords: ['education', 'curriculum', 'teacher training'],
+    isActive: false,
+    alertFrequency: 'none',
+    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+    matchCount: 1,
+  },
+];
+
+const DEFAULT_ALERT_CONFIG: AlertFusionConfigDTO = {
+  globalFrequency: 'daily',
+  deduplicationEnabled: true,
+  profileSettings: MOCK_PROFILES.map(p => ({
+    profileId: p.id,
+    isEnabled: p.isActive,
+    frequency: p.alertFrequency,
+  })),
+};
+
 export function useMatchingOpportunities() {
   const [savedOpportunityIds, setSavedOpportunityIds] = useState<string[]>([]);
+  const [dismissedIds, setDismissedIds] = useState<string[]>(() => readDismissedIds());
+  const [profiles, setProfiles] = useState<MatchingProfileDTO[]>(MOCK_PROFILES);
+  const [alertConfig, setAlertConfig] = useState<AlertFusionConfigDTO>(DEFAULT_ALERT_CONFIG);
 
   const allOpportunities = useMemo(() => MOCK_OPPORTUNITIES, []);
 
@@ -492,8 +575,118 @@ export function useMatchingOpportunities() {
     });
   };
 
+  const getFilteredMatchingProjects = (filters: MatchingProjectsFilterDTO) => {
+    const now = Date.now();
+    const dateRangeMs: Record<string, number> = {
+      '5days': 5 * 24 * 60 * 60 * 1000,
+      '7days': 7 * 24 * 60 * 60 * 1000,
+      '30days': 30 * 24 * 60 * 60 * 1000,
+    };
+
+    const active = allOpportunities.filter(opp => !dismissedIds.includes(opp.id));
+    let result = active.filter(opp => {
+      if (filters.category !== 'ALL' && opp.type !== filters.category) return false;
+      if (filters.country !== 'ALL' && opp.country !== filters.country) return false;
+      if (filters.minScore > 0 && opp.relevanceScore < filters.minScore) return false;
+
+      // Date range filter
+      if (filters.dateRange === 'custom') {
+        if (filters.customDateFrom) {
+          const from = new Date(filters.customDateFrom).getTime();
+          if (opp.postedDate.getTime() < from) return false;
+        }
+        if (filters.customDateTo) {
+          const to = new Date(filters.customDateTo).getTime() + 24 * 60 * 60 * 1000;
+          if (opp.postedDate.getTime() > to) return false;
+        }
+      } else {
+        const cutoff = now - (dateRangeMs[filters.dateRange] ?? dateRangeMs['5days']);
+        if (opp.postedDate.getTime() < cutoff) return false;
+      }
+
+      return true;
+    });
+    if (filters.sort === 'date') {
+      result = [...result].sort((a, b) => b.postedDate.getTime() - a.postedDate.getTime());
+    } else {
+      result = [...result].sort((a, b) => b.relevanceScore - a.relevanceScore);
+    }
+    return result;
+  };
+
   const getOpportunityById = (opportunityId: string) => {
     return allOpportunities.find(opp => opp.id === opportunityId);
+  };
+
+  const dismissOpportunity = (opportunityId: string) => {
+    setDismissedIds(prev => {
+      const next = prev.includes(opportunityId) ? prev : [...prev, opportunityId];
+      writeDismissedIds(next);
+      return next;
+    });
+  };
+
+  const isDismissed = (opportunityId: string) => dismissedIds.includes(opportunityId);
+
+  const getDismissedOpportunities = () =>
+    allOpportunities.filter(opp => dismissedIds.includes(opp.id));
+
+  // --- Profile CRUD ---
+  const createProfile = (data: Omit<MatchingProfileDTO, 'id' | 'createdAt' | 'matchCount'>) => {
+    const newProfile: MatchingProfileDTO = {
+      ...data,
+      id: `profile-${Date.now()}`,
+      createdAt: new Date(),
+      matchCount: 0,
+    };
+    setProfiles(prev => [...prev, newProfile]);
+    setAlertConfig(prev => ({
+      ...prev,
+      profileSettings: [
+        ...prev.profileSettings,
+        { profileId: newProfile.id, isEnabled: data.isActive, frequency: data.alertFrequency },
+      ],
+    }));
+    return newProfile;
+  };
+
+  const updateProfile = (id: string, data: Partial<Omit<MatchingProfileDTO, 'id' | 'createdAt'>>) => {
+    setProfiles(prev =>
+      prev.map(p => (p.id === id ? { ...p, ...data } : p))
+    );
+  };
+
+  const deleteProfile = (id: string) => {
+    setProfiles(prev => prev.filter(p => p.id !== id));
+    setAlertConfig(prev => ({
+      ...prev,
+      profileSettings: prev.profileSettings.filter(s => s.profileId !== id),
+    }));
+  };
+
+  const getProfileMatches = (profileId: string) => {
+    const profile = profiles.find(p => p.id === profileId);
+    if (!profile) return [];
+    return allOpportunities.filter(
+      opp =>
+        opp.matchedViaProfile === profile.name ||
+        profile.sectors.some(s => opp.sector.includes(s)) ||
+        profile.countries.includes(opp.country)
+    );
+  };
+
+  // --- Alert Fusion ---
+  const updateAlertConfig = (config: Partial<AlertFusionConfigDTO>) => {
+    setAlertConfig(prev => ({ ...prev, ...config }));
+  };
+
+  const updateProfileAlertSettings = (profileId: string, frequency: AlertFrequency, isEnabled: boolean) => {
+    setAlertConfig(prev => ({
+      ...prev,
+      profileSettings: prev.profileSettings.map(s =>
+        s.profileId === profileId ? { ...s, frequency, isEnabled } : s
+      ),
+    }));
   };
 
   const saveOpportunity = (opportunityId: string) => {
@@ -528,11 +721,25 @@ export function useMatchingOpportunities() {
     getFilteredOpportunities,
     getFilteredTenderOpportunities,
     getFilteredVacancyOpportunities,
+    getFilteredMatchingProjects,
     getOpportunityById,
     saveOpportunity,
     removeOpportunity,
     getSavedOpportunities,
     getOpportunitiesByType,
     isSaved: (opportunityId: string) => savedOpportunityIds.includes(opportunityId),
+    dismissOpportunity,
+    isDismissed,
+    getDismissedOpportunities,
+    // Profiles
+    profiles,
+    createProfile,
+    updateProfile,
+    deleteProfile,
+    getProfileMatches,
+    // Alerts
+    alertConfig,
+    updateAlertConfig,
+    updateProfileAlertSettings,
   };
 }

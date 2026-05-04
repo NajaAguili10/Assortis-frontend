@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:8082/api';
+const BASE_URL = "http://localhost:8082/api"
 
 const getHeaders = () => {
   const token = localStorage.getItem('assortis_token');
@@ -45,5 +45,34 @@ export const apiClient = {
     }
 
     return response.json();
+  },
+
+  put: async <T>(endpoint: string, data: any): Promise<T> => {
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status} ${response.statusText}`);
+    }
+
+    return response.json();
+  },
+
+  delete: async (endpoint: string): Promise<void> => {
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status} ${response.statusText}`);
+    }
   },
 };

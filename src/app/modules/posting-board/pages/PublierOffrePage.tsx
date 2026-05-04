@@ -1,16 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
 import { PageBanner } from '../../../components/PageBanner';
 import { PageContainer } from '../../../components/PageContainer';
 import { PostingBoardSubMenu } from '../../../components/PostingBoardSubMenu';
 import { JobForm } from '../components/JobForm';
 import { Button } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/badge';
+import { Input } from '../../../components/ui/input';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../../components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../../components/ui/select';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { JobOfferCreateDTO, JobOfferListDTO, JobOfferStatusEnum } from '../types/JobOffer.dto';
 import { createJobOffer, getJobOffersByRecruiter, deleteJobOffer } from '../services/jobOfferService';
-import { PlusCircle, AlertCircle, Briefcase, MapPin, Calendar, Users, Clock, Eye, Trash2 } from 'lucide-react';
+import {
+  PlusCircle, AlertCircle, Briefcase, MapPin, Calendar, Users,
+  Clock, Eye, Trash2, Edit2, Copy, Search, X,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '../../../components/ui/alert';
 import {
@@ -24,48 +36,67 @@ import {
   AlertDialogTitle,
 } from '../../../components/ui/alert-dialog';
 
+type MainTab = 'publish' | 'jobs';
+
 export default function PublierOffrePage() {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // ── Tab state ──────────────────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<MainTab>(
+    (searchParams.get('tab') as MainTab) || 'publish'
+  );
+
+  // Sync tab state when URL search params change (e.g. sub-menu navigation)
+  useEffect(() => {
+    const tabParam = searchParams.get('tab') as MainTab | null;
+    const next = tabParam === 'jobs' ? 'jobs' : 'publish';
+    setActiveTab(next);
+  }, [searchParams]);
+
+  // ── Offers state ───────────────────────────────────────────────────────────
   const [publishedOffers, setPublishedOffers] = useState<JobOfferListDTO[]>([]);
   const [isLoadingOffers, setIsLoadingOffers] = useState(false);
+  const [offersError, setOffersError] = useState<string | null>(null);
   const [offerToDelete, setOfferToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Load user's published offers
+  // ── Duplicate state ────────────────────────────────────────────────────────
+  const [duplicateData, setDuplicateData] = useState<Partial<JobOfferCreateDTO> | null>(null);
+  const [formKey, setFormKey] = useState(0);
+
+  // ── Search / filter state (Job Offers tab) ─────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('newest');
+
   useEffect(() => {
     if (user?.id && isAuthenticated) {
       loadPublishedOffers();
     }
   }, [user?.id, isAuthenticated]);
 
-  // Scroll to published offers history if hash is present in URL
-  useEffect(() => {
-    if (window.location.hash === '#published-offers-history') {
-      // Add a slight delay to ensure the content is rendered
-      setTimeout(() => {
-        const element = document.getElementById('published-offers-history');
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }, 300);
-    }
-  }, [publishedOffers]);
+  const handleTabChange = (value: string) => {
+    const tab = value as MainTab;
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
 
   const loadPublishedOffers = async () => {
     if (!user?.id) return;
-    
     setIsLoadingOffers(true);
+    setOffersError(null);
     try {
       const offers = await getJobOffersByRecruiter(user.id);
-      // Sort by creation date (newest first) and take only the first 5
-      const sortedOffers = offers.sort((a, b) => 
-        new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()
-      ).slice(0, 5);
-      setPublishedOffers(sortedOffers);
+      const sorted = offers.sort((a, b) =>
+        new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+      );
+      setPublishedOffers(sorted);
     } catch (error) {
       console.error('Error loading published offers:', error);
+      setOffersError(t('monEspace.message.error'));
     } finally {
       setIsLoadingOffers(false);
     }
@@ -76,19 +107,11 @@ export default function PublierOffrePage() {
       toast.error(t('monEspace.message.unauthorized'));
       return;
     }
-
     try {
       await createJobOffer(data, user.id);
       toast.success(t('monEspace.message.publishSuccess'));
-      // Reload published offers to show the new one
+      setDuplicateData(null);
       await loadPublishedOffers();
-      // Scroll to the history section
-      setTimeout(() => {
-        const historySection = document.getElementById('published-offers-history');
-        if (historySection) {
-          historySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }, 100);
     } catch (error) {
       console.error('Error creating job offer:', error);
       toast.error(t('monEspace.message.error'));
@@ -96,17 +119,16 @@ export default function PublierOffrePage() {
   };
 
   const handleCancel = () => {
-    navigate('/posting-board');
+    setDuplicateData(null);
+    setFormKey(k => k + 1);
   };
 
   const handleDeleteOffer = async () => {
     if (!offerToDelete) return;
-    
     setIsDeleting(true);
     try {
       await deleteJobOffer(offerToDelete);
       toast.success(t('monEspace.message.deleteSuccess'));
-      // Reload offers after deletion
       await loadPublishedOffers();
       setOfferToDelete(null);
     } catch (error) {
@@ -117,34 +139,168 @@ export default function PublierOffrePage() {
     }
   };
 
+  // Prefill the create form from an existing offer and switch to Publish tab
+  const handleDuplicate = (offer: JobOfferListDTO) => {
+    const prefilled: Partial<JobOfferCreateDTO> = {
+      jobTitle: offer.jobTitle,
+      location: offer.location,
+      projectTitle: offer.projectTitle,
+      department: offer.department,
+      type: offer.type,
+      duration: offer.duration,
+      description: offer.description,
+      // deadline intentionally cleared – user must pick a new one
+    };
+    setDuplicateData(prefilled);
+    setFormKey(k => k + 1);
+    setActiveTab('publish');
+    setSearchParams({ tab: 'publish' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // ── Filtered offers for Job Offers tab ─────────────────────────────────────
+  const filteredOffers = useMemo(() => {
+    let result = [...publishedOffers];
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(o =>
+        o.jobTitle.toLowerCase().includes(q) ||
+        o.description?.toLowerCase().includes(q) ||
+        o.projectTitle?.toLowerCase().includes(q) ||
+        o.department?.toLowerCase().includes(q) ||
+        o.location?.toLowerCase().includes(q)
+      );
+    }
+    if (statusFilter !== 'all') {
+      result = result.filter(o => o.status === statusFilter);
+    }
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':  return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+        case 'oldest':  return new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime();
+        case 'deadline':return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+        case 'title':   return a.jobTitle.localeCompare(b.jobTitle);
+        default:        return 0;
+      }
+    });
+    return result;
+  }, [publishedOffers, searchQuery, statusFilter, sortBy]);
+
+  const hasActiveFilters = searchQuery.trim() !== '' || statusFilter !== 'all';
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('all');
+    setSortBy('newest');
+  };
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
   const getStatusBadgeColor = (status: JobOfferStatusEnum) => {
     switch (status) {
-      case JobOfferStatusEnum.PUBLISHED:
-        return 'bg-green-50 text-green-700 border-green-200';
-      case JobOfferStatusEnum.DRAFT:
-        return 'bg-gray-50 text-gray-700 border-gray-200';
-      case JobOfferStatusEnum.CLOSED:
-        return 'bg-blue-50 text-blue-700 border-blue-200';
-      case JobOfferStatusEnum.CANCELLED:
-        return 'bg-red-50 text-red-700 border-red-200';
-      default:
-        return 'bg-gray-50 text-gray-700 border-gray-200';
+      case JobOfferStatusEnum.PUBLISHED:  return 'bg-green-50 text-green-700 border-green-200';
+      case JobOfferStatusEnum.DRAFT:      return 'bg-gray-50 text-gray-700 border-gray-200';
+      case JobOfferStatusEnum.CLOSED:     return 'bg-blue-50 text-blue-700 border-blue-200';
+      case JobOfferStatusEnum.CANCELLED:  return 'bg-red-50 text-red-700 border-red-200';
+      default:                            return 'bg-gray-50 text-gray-700 border-gray-200';
     }
   };
 
   const getDeadlineUrgency = (daysRemaining: number) => {
-    if (daysRemaining < 0) {
-      return { text: t('monEspace.deadline.expired'), color: 'text-red-600' };
-    } else if (daysRemaining === 0) {
-      return { text: t('monEspace.deadline.today'), color: 'text-orange-600' };
-    } else {
-      return { 
-        text: t('monEspace.deadline.days', { days: daysRemaining.toString() }), 
-        color: daysRemaining <= 7 ? 'text-orange-600' : 'text-muted-foreground' 
-      };
-    }
+    if (daysRemaining < 0) return { text: t('monEspace.deadline.expired'), color: 'text-red-600' };
+    if (daysRemaining === 0) return { text: t('monEspace.deadline.today'), color: 'text-orange-600' };
+    return {
+      text: t('monEspace.deadline.days', { days: daysRemaining.toString() }),
+      color: daysRemaining <= 7 ? 'text-orange-600' : 'text-muted-foreground',
+    };
   };
 
+  // Shared offer row renderer
+  const renderOfferRow = (offer: JobOfferListDTO, showManageActions: boolean) => {
+    const urgency = getDeadlineUrgency(offer.daysRemaining || 0);
+    return (
+      <div
+        key={offer.id}
+        className="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-all duration-200 bg-white"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-semibold text-primary mb-1 truncate">{offer.jobTitle}</h3>
+                {offer.projectTitle && (
+                  <p className="text-sm text-muted-foreground truncate">{offer.projectTitle}</p>
+                )}
+                {offer.department && (
+                  <p className="text-sm text-muted-foreground truncate">{offer.department}</p>
+                )}
+              </div>
+              <Badge variant="outline" className={getStatusBadgeColor(offer.status)}>
+                {t(`monEspace.job.status.${offer.status.toLowerCase()}`)}
+              </Badge>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <MapPin className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">{offer.location}</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Calendar className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">{t('monEspace.job.published')}: {offer.publishedAt}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+                <span className={`font-medium truncate ${urgency.color}`}>{urgency.text}</span>
+              </div>
+              {(offer.applicationsCount || 0) > 0 && (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Users className="w-4 h-4 flex-shrink-0" />
+                  <span className="truncate">{offer.applicationsCount} {t('monEspace.job.applications')}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <Button
+              variant="ghost" size="sm" className="hover:bg-blue-50"
+              onClick={() => navigate(`/posting-board/detail/${offer.id}`)}
+              title={t('monEspace.action.view')}
+            >
+              <Eye className="w-4 h-4 text-blue-600" />
+            </Button>
+            {showManageActions && (
+              <>
+                <Button
+                  variant="ghost" size="sm" className="hover:bg-amber-50"
+                  onClick={() => navigate(`/posting-board/edit/${offer.id}`)}
+                  title={t('monEspace.action.edit')}
+                >
+                  <Edit2 className="w-4 h-4 text-amber-600" />
+                </Button>
+                <Button
+                  variant="ghost" size="sm" className="hover:bg-violet-50"
+                  onClick={() => handleDuplicate(offer)}
+                  title={t('monEspace.action.duplicate')}
+                >
+                  <Copy className="w-4 h-4 text-violet-600" />
+                </Button>
+                <Button
+                  variant="ghost" size="sm" className="hover:bg-red-50"
+                  onClick={() => setOfferToDelete(offer.id)}
+                  title={t('monEspace.action.delete')}
+                >
+                  <Trash2 className="w-4 h-4 text-red-600" />
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ── Unauthenticated guard ───────────────────────────────────────────────────
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -157,15 +313,14 @@ export default function PublierOffrePage() {
         <PageContainer className="p-6">
           <Alert>
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              {t('monEspace.access.loginRequired')}
-            </AlertDescription>
+            <AlertDescription>{t('monEspace.access.loginRequired')}</AlertDescription>
           </Alert>
         </PageContainer>
       </div>
     );
   }
 
+  // ── Main render ────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50">
       <PageBanner
@@ -173,165 +328,169 @@ export default function PublierOffrePage() {
         title={t('monEspace.banner.publish.title')}
         description={t('monEspace.banner.publish.description')}
       />
-      
       <PostingBoardSubMenu />
 
       <PageContainer className="my-6">
         <div className="px-4 sm:px-5 lg:px-6 py-6">
-          {/* Job Offer Form */}
-          <div className="max-w-4xl mx-auto">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8 mb-8">
-              <JobForm
-                onSubmit={handleSubmit}
-                onCancel={handleCancel}
-                submitLabel={t('monEspace.action.publish')}
-              />
-            </div>
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+            {/* ── Tab 1: Publish Offers ─────────────────────────────────────── */}
+            <TabsContent value="publish" className="space-y-6 mt-6">
+              {/* Duplicate notice */}
+              {duplicateData && (
+                <Alert className="border-violet-200 bg-violet-50">
+                  <Copy className="h-4 w-4 text-violet-600" />
+                  <AlertDescription className="text-violet-700">
+                    {t('monEspace.action.duplicateNotice')}
+                  </AlertDescription>
+                </Alert>
+              )}
 
-            {/* Published Offers History Section */}
-            {publishedOffers.length > 0 && (
-              <div id="published-offers-history" className="mt-8">
+              {/* Create form */}
+              <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8">
+                <JobForm
+                  key={formKey}
+                  onSubmit={handleSubmit}
+                  onCancel={handleCancel}
+                  initialData={duplicateData || undefined}
+                  submitLabel={t('monEspace.action.publish')}
+                />
+              </div>
+
+              {/* Manage offers list */}
+              <div className="max-w-4xl mx-auto">
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  {/* Section Header */}
-                  <div className="mb-6">
+                  <div className="flex items-center justify-between mb-5">
                     <h2 className="text-xl font-bold text-primary flex items-center gap-2">
-                      <Briefcase className="w-6 h-6 text-[#B82547]" />
-                      {t('monEspace.publishedOffers.recentOffers')}
+                      <Briefcase className="w-5 h-5 text-[#B82547]" />
+                      {t('monEspace.tab.manageOffers')}
                     </h2>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {t('monEspace.publishedOffers.description')}
-                    </p>
+                    {publishedOffers.length > 0 && (
+                      <span className="text-sm text-muted-foreground">
+                        {t('monEspace.filter.results', { count: publishedOffers.length.toString() })}
+                      </span>
+                    )}
                   </div>
 
-                  {/* Offers List */}
-                  <div className="space-y-4">
-                    {publishedOffers.map((offer) => {
-                      const urgency = getDeadlineUrgency(offer.daysRemaining || 0);
-                      const hasApplications = (offer.totalApplications || 0) > 0;
-                      
-                      return (
-                        <div
-                          key={offer.id}
-                          className="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-all duration-200 bg-white"
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            {/* Main Content */}
-                            <div className="flex-1 min-w-0">
-                              {/* Title & Status */}
-                              <div className="flex items-start gap-3 mb-3">
-                                <div className="flex-1 min-w-0">
-                                  <h3 className="text-lg font-semibold text-primary mb-1 truncate">
-                                    {offer.jobTitle}
-                                  </h3>
-                                  {offer.projectTitle && (
-                                    <p className="text-sm text-muted-foreground truncate">
-                                      {offer.projectTitle}
-                                    </p>
-                                  )}
-                                  {offer.department && (
-                                    <p className="text-sm text-muted-foreground truncate">
-                                      {offer.department}
-                                    </p>
-                                  )}
-                                </div>
-                                <Badge 
-                                  variant="outline" 
-                                  className={getStatusBadgeColor(offer.status)}
-                                >
-                                  {t(`monEspace.job.status.${offer.status.toLowerCase()}`)}
-                                </Badge>
-                              </div>
-
-                              {/* Offer Details Grid */}
-                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                  <MapPin className="w-4 h-4 flex-shrink-0" />
-                                  <span className="truncate">{offer.location}</span>
-                                </div>
-                                
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                  <Calendar className="w-4 h-4 flex-shrink-0" />
-                                  <span className="truncate">
-                                    {t('monEspace.job.published')}: {offer.publishedAt}
-                                  </span>
-                                </div>
-                                
-                                <div className="flex items-center gap-2">
-                                  <Clock className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
-                                  <span className={`font-medium truncate ${urgency.color}`}>
-                                    {urgency.text}
-                                  </span>
-                                </div>
-                                
-                                {hasApplications && (
-                                  <div className="flex items-center gap-2 text-muted-foreground">
-                                    <Users className="w-4 h-4 flex-shrink-0" />
-                                    <span className="truncate">
-                                      {offer.totalApplications} {t('monEspace.job.applications')}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Action Buttons */}
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="hover:bg-blue-50"
-                                onClick={() => navigate(`/posting-board/detail/${offer.id}`)}
-                                title={t('monEspace.action.view')}
-                              >
-                                <Eye className="w-4 h-4 text-blue-600" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="hover:bg-red-50"
-                                onClick={() => setOfferToDelete(offer.id)}
-                                title={t('monEspace.action.delete')}
-                              >
-                                <Trash2 className="w-4 h-4 text-red-600" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  {isLoadingOffers && (
+                    <div className="text-center py-10">
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-accent" />
+                      <p className="mt-3 text-gray-500">{t('monEspace.message.loading')}</p>
+                    </div>
+                  )}
+                  {!isLoadingOffers && offersError && (
+                    <Alert variant="destructive" className="mb-4">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{offersError}</AlertDescription>
+                    </Alert>
+                  )}
+                  {!isLoadingOffers && publishedOffers.length === 0 && (
+                    <div className="text-center py-10">
+                      <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Briefcase className="w-7 h-7 text-gray-400" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {t('monEspace.publishedOffers.empty.description')}
+                      </p>
+                    </div>
+                  )}
+                  {!isLoadingOffers && publishedOffers.length > 0 && (
+                    <div className="space-y-4">
+                      {publishedOffers.map(offer => renderOfferRow(offer, true))}
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
+            </TabsContent>
 
-            {/* Empty State */}
-            {publishedOffers.length === 0 && !isLoadingOffers && (
-              <div className="mt-8">
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-                  <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Briefcase className="w-8 h-8 text-gray-400" />
+            {/* ── Tab 2: Job Offers ─────────────────────────────────────────── */}
+            <TabsContent value="jobs" className="space-y-6 mt-6">
+              {/* Search + filters bar */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+                <div className="flex flex-col sm:flex-row gap-3 mb-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      type="text"
+                      placeholder={t('monEspace.search.placeholder')}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
                   </div>
-                  <h3 className="text-lg font-semibold text-primary mb-2">
-                    {t('monEspace.publishedOffers.empty')}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {t('monEspace.publishedOffers.empty.description')}
-                  </p>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full sm:w-44">
+                      <SelectValue placeholder={t('monEspace.filters.allStatuses')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t('monEspace.filters.allStatuses')}</SelectItem>
+                      <SelectItem value={JobOfferStatusEnum.PUBLISHED}>{t('monEspace.status.published')}</SelectItem>
+                      <SelectItem value={JobOfferStatusEnum.DRAFT}>{t('monEspace.status.draft')}</SelectItem>
+                      <SelectItem value={JobOfferStatusEnum.CLOSED}>{t('monEspace.status.closed')}</SelectItem>
+                      <SelectItem value={JobOfferStatusEnum.CANCELLED}>{t('monEspace.status.cancelled')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-full sm:w-48">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="newest">{t('monEspace.sort.newest')}</SelectItem>
+                      <SelectItem value="oldest">{t('monEspace.sort.oldest')}</SelectItem>
+                      <SelectItem value="deadline">{t('monEspace.sort.deadline')}</SelectItem>
+                      <SelectItem value="title">{t('monEspace.sort.title')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {hasActiveFilters && (
+                    <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 text-muted-foreground shrink-0">
+                      <X className="w-4 h-4" />
+                      {t('monEspace.filters.clearAll')}
+                    </Button>
+                  )}
                 </div>
+                <p className="text-sm text-muted-foreground">
+                  {t('monEspace.filter.results', { count: filteredOffers.length.toString() })}
+                </p>
               </div>
-            )}
-          </div>
+
+              {/* Offers list */}
+              {isLoadingOffers && (
+                <div className="text-center py-10">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-accent" />
+                  <p className="mt-3 text-gray-500">{t('monEspace.message.loading')}</p>
+                </div>
+              )}
+              {!isLoadingOffers && offersError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{offersError}</AlertDescription>
+                </Alert>
+              )}
+              {!isLoadingOffers && filteredOffers.length === 0 && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    {hasActiveFilters
+                      ? t('monEspace.message.noResults')
+                      : t('monEspace.publishedOffers.empty.description')}
+                  </AlertDescription>
+                </Alert>
+              )}
+              {!isLoadingOffers && filteredOffers.length > 0 && (
+                <div className="space-y-4">
+                  {filteredOffers.map(offer => renderOfferRow(offer, true))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
       </PageContainer>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete confirmation dialog */}
       <AlertDialog open={!!offerToDelete} onOpenChange={() => setOfferToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('monEspace.action.delete')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('monEspace.message.closeConfirm')}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{t('monEspace.message.closeConfirm')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting} onClick={() => setOfferToDelete(null)}>

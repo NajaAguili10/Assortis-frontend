@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Build output (built inside Docker, not needed in context)
+dist/
+build/
+
+# Editor / OS artefacts
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+Thumbs.db
+
+# Environment files (secrets must never be baked into the image)
+.env
+.env.*
+!.env.example
+
+# Git history
+.git/
+.gitignore
+
+# Temporary scripts and fix files
+tmp/
+*.sh
+fix_*.py
+fix_*.js
+add_missing_keys.js
+temp_fix.js
+correct_fr_line.txt
+fix_escape.txt
+fix_offers.py
+fix_organizations.py
+fix_training_translations.py
+hidden_routes.txt
+
+# Tests / CI artefacts
+coverage/
+cypress/

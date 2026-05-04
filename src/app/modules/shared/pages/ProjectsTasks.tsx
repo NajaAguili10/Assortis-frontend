@@ -203,7 +203,7 @@ export default function ProjectsTasks() {
                       <div className="flex items-center flex-wrap gap-4 text-sm">
                         <span className="flex items-center gap-1 text-muted-foreground">
                           <Users className="w-4 h-4" />
-                          {t('projects.tasks.assignedTo')}: {task.assignedTo.join(', ')}
+                          {t('projects.tasks.assignedTo')}: {task.assignedTo.map((a) => a.name).join(', ')}
                         </span>
                         <span className="flex items-center gap-1 text-muted-foreground">
                           <Calendar className="w-4 h-4" />

@@ -1,64 +1,26 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Organization,
   OrganizationKPIs,
   OrganizationFilters,
   PaginatedOrganizations,
-  OrganizationTypeEnum,
-  OrganizationSectorEnum,
-  OrganizationStatusEnum,
-  RegionEnum,
 } from '@app/types/organization.dto';
-import { SubSectorEnum } from '@app/types/tender.dto';
-import { ORGANIZATION_SECTOR_SUBSECTOR_MAP } from '@app/config/organization-sectors.config';
-import { organizationService } from '@app/services/organizationService';
+import { organizationService } from "@/app/services/organizationService";
+import { ORGANIZATION_SECTOR_SUBSECTOR_MAP } from '@/app/config/organization-sectors.config';
 
-// Mock data
-/*
-const mockOrganizations: Organization[] = [
-  {
-    id: '1',
-    name: 'World Health Organization',
-    acronym: 'WHO',
-    type: OrganizationTypeEnum.INTERNATIONAL_ORG,
-    sectors: [OrganizationSectorEnum.HEALTH],
-    subSectors: [SubSectorEnum.PRIMARY_HEALTHCARE, SubSectorEnum.INFECTIOUS_DISEASES, SubSectorEnum.MATERNAL_HEALTH],
-    status: OrganizationStatusEnum.VERIFIED,
-    region: RegionEnum.EUROPE,
-    country: 'Switzerland',
-    city: 'Geneva',
-    description: 'The World Health Organization is a specialized agency of the United Nations responsible for international public health.',
-    email: 'contact@who.int',
-    website: 'https://www.who.int',
-    yearEstablished: 1948,
-    employeeCount: 7000,
-    activeProjects: 142,
-    completedProjects: 856,
-    partnerships: 234,
-    certifications: ['ISO 9001', 'UN Verified'],
-    budget: {
-      amount: 2400000000,
-      currency: 'USD',
-      formatted: '$2.4B',
-    },
-    teamMembers: 7000,
-    createdAt: new Date('2020-01-15'),
-    updatedAt: new Date('2024-02-20'),
-  },
-  // ... rest of mock organizations
-];
-
-const mockKPIs: OrganizationKPIs = {
-  totalOrganizations: 2547,
-  activeOrganizations: 1923,
-  verifiedOrganizations: 876,
-  partnerships: 456,
-  newPartnerships: 18,
-  countriesCovered: 127,
-  invitations: 42,
-  pendingInvitations: 7,
+const defaultMeta = {
+  currentPage: 1,
+  pageSize: 10,
+  totalPages: 1,
+  totalItems: 0,
+  hasNextPage: false,
+  hasPreviousPage: false,
 };
-*/
+
+const defaultOrganizations: PaginatedOrganizations = {
+  data: [],
+  meta: defaultMeta,
+};
 
 const DEFAULT_PAGINATED: PaginatedOrganizations = {
   data: [],
@@ -109,20 +71,20 @@ export function useOrganizations() {
 
     fetchData();
   }, []);
-    /*useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await organizationService.getFilters();
-        setFilters(response);
-      } catch (error) {
-        console.error("Error fetching FILTERS:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  /*useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const response = await organizationService.getFilters();
+      setFilters(response);
+    } catch (error) {
+      console.error("Error fetching FILTERS:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    fetchData();
-  }, []); */
+  fetchData();
+}, []); */
 
 
 
@@ -138,7 +100,6 @@ export function useOrganizations() {
     };
     fetchKPIs();
   }, []);
-
   // Load organizations based on filters
   useEffect(() => {
     if (!isLoading) {
@@ -203,39 +164,44 @@ export function useOrganizations() {
       filtered = filtered.filter((org) => org.country?.code && filters.countries!.includes(org.country.code));
     }
 
-    // Apply sorting
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'newest':
-          return new Date(b.createdAt ?? '').getTime() - new Date(a.createdAt ?? '').getTime();
-        case 'oldest':
-          return new Date(a.createdAt ?? '').getTime() - new Date(b.createdAt ?? '').getTime();
-        case 'name':
-          return a.name.localeCompare(b.name);
-        default:
-          return 0;
-      }
-    });
+    try {
+      // Apply sorting
+      filtered.sort((a, b) => {
+        switch (sortBy) {
+          case 'newest':
+            return new Date(b.createdAt ?? '').getTime() - new Date(a.createdAt ?? '').getTime();
+          case 'oldest':
+            return new Date(a.createdAt ?? '').getTime() - new Date(b.createdAt ?? '').getTime();
+          case 'name':
+            return a.name.localeCompare(b.name);
+          default:
+            return 0;
+        }
+      });
 
-    // Pagination
-    const pageSize = 10;
-    const totalItems = filtered.length;
-    const totalPages = Math.ceil(totalItems / pageSize);
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    const paginatedData = filtered.slice(startIndex, endIndex);
-
-    setOrganizations({
-      data: paginatedData,
-      meta: {
-        currentPage,
-        pageSize,
-        totalPages,
-        totalItems,
-        hasNextPage: currentPage < totalPages,
-        hasPreviousPage: currentPage > 1,
-      },
-    });
+      // Pagination
+      const pageSize = defaultMeta.pageSize;
+      const startIdx = (currentPage - 1) * pageSize;
+      const pagedData = filtered.slice(startIdx, startIdx + pageSize);
+      const totalPages = Math.ceil(filtered.length / pageSize);
+      setOrganizations({
+        data: pagedData,
+        meta: {
+          currentPage,
+          pageSize,
+          totalPages,
+          totalItems: filtered.length,
+          hasNextPage: currentPage < totalPages,
+          hasPreviousPage: currentPage > 1,
+        },
+      });
+    } catch (error) {
+      console.error('Error fetching organizations:', error);
+      setOrganizations(defaultOrganizations);
+      setAllOrganizations([]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const updateFilters = (newFilters: Partial<OrganizationFilters>) => {
@@ -268,6 +234,8 @@ export function useOrganizations() {
 
   return {
     organizations,
+    allOrganizations,
+    isLoading,
     kpis,
     filters,
     updateFilters,
@@ -280,7 +248,5 @@ export function useOrganizations() {
     saveOrganization,
     unsaveOrganization,
     isOrganizationSaved,
-    allOrganizations,
-    isLoading
   };
 }

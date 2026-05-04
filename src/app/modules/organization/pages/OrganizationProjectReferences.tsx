@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import { format } from 'date-fns';
 import { enUS, es, fr } from 'date-fns/locale';
 import { useLanguage } from '@app/contexts/LanguageContext';
@@ -8,7 +8,6 @@ import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
 import { OrganizationsSubMenu } from '@app/components/OrganizationsSubMenu';
 import { OrganizationProjectReferenceFormDialog } from '@app/components/OrganizationProjectReferenceFormDialog';
-import { RestrictedTooltip } from '@app/components/RestrictedTooltip';
 import { RegionCountryFilter } from '@app/components/RegionCountryFilter';
 import { SectorSubsectorFilter } from '@app/components/SectorSubsectorFilter';
 import { Badge } from '@app/components/ui/badge';
@@ -22,7 +21,7 @@ import {
   OrganizationProjectReferenceDTO,
   OrganizationProjectReferenceFormValues,
 } from '@app/modules/organization/types/organizationProjectReference.dto';
-import { canManageOrganizationAdminActions } from '@app/services/permissions.service';
+import { hasOrganizationsSubMenuAccess } from '@app/services/permissions.service';
 import {
   CountryEnum,
   FundingAgencyEnum,
@@ -42,10 +41,10 @@ type SortDirection = 'asc' | 'desc';
 export default function OrganizationProjectReferences() {
   const { t, language } = useLanguage();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { references, metrics, createReference, updateReference } = useOrganizationProjectReferences();
-  const canManage = canManageOrganizationAdminActions(user?.accountType, user?.role);
-  const restrictedActionMessage = t('permissions.organization.adminOnlyAction');
+  const canManage = hasOrganizationsSubMenuAccess('projectReferences', user?.accountType);
   const dateLocale = language === 'fr' ? fr : language === 'es' ? es : enUS;
 
   const [searchInput, setSearchInput] = useState('');
@@ -60,8 +59,16 @@ export default function OrganizationProjectReferences() {
   const [showFilters, setShowFilters] = useState(false);
   const [sortField, setSortField] = useState<SortField>('startDate');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
   const [editingReference, setEditingReference] = useState<OrganizationProjectReferenceDTO | null>(null);
+  const [cloningReference, setCloningReference] = useState<OrganizationProjectReferenceDTO | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('create') === '1' && canManage) {
+      setIsCreateFormOpen(true);
+    }
+  }, [canManage, location.search]);
 
   const filteredFundingAgencies = useMemo(() => {
     if (!fundingAgencySearch.trim()) {
@@ -180,6 +187,13 @@ export default function OrganizationProjectReferences() {
     setEditingReference(null);
   };
 
+  const handleCloneReference = (values: OrganizationProjectReferenceFormValues) => {
+    const reference = createReference({ ...values, title: `${values.title} (Copy)` });
+    toast.success(t('projects.references.actions.clone'));
+    navigate(`/organizations/project-references/${reference.id}`);
+    setCloningReference(null);
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <PageBanner
@@ -210,17 +224,13 @@ export default function OrganizationProjectReferences() {
                   </Badge>
                 )}
                 {canManage ? (
-                  <Button className="min-h-11" onClick={() => setIsCreateDialogOpen(true)}>
+                  <Button className="min-h-11" onClick={() => setIsCreateFormOpen(true)}>
                     {t('organizations.projectReferences.addReference')}
                   </Button>
                 ) : (
-                  <RestrictedTooltip content={restrictedActionMessage}>
-                    <div>
-                      <Button className="min-h-11" disabled>
-                        {t('organizations.projectReferences.addReference')}
-                      </Button>
-                    </div>
-                  </RestrictedTooltip>
+                  <Button className="min-h-11" disabled>
+                    {t('organizations.projectReferences.addReference')}
+                  </Button>
                 )}
               </div>
             </div>
@@ -360,6 +370,23 @@ export default function OrganizationProjectReferences() {
             )}
           </div>
 
+          {isCreateFormOpen && canManage && (
+            <div className="mb-6">
+              <OrganizationProjectReferenceFormDialog
+                inline
+                open
+                mode="create"
+                onOpenChange={(open) => {
+                  setIsCreateFormOpen(open);
+                  if (!open && location.search.includes('create=1')) {
+                    navigate('/organizations/project-references', { replace: true });
+                  }
+                }}
+                onSubmit={handleCreateReference}
+              />
+            </div>
+          )}
+
           <div className="bg-white rounded-xl border border-primary/15 overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <div className="min-w-[1280px]">
@@ -413,9 +440,14 @@ export default function OrganizationProjectReferences() {
                               {t('organizations.projectReferences.table.open')}
                             </Button>
                             {canManage && (
-                              <Button type="button" variant="ghost" size="sm" onClick={() => setEditingReference(reference)}>
-                                {t('common.edit')}
-                              </Button>
+                              <>
+                                <Button type="button" variant="ghost" size="sm" onClick={() => setEditingReference(reference)}>
+                                  {t('common.edit')}
+                                </Button>
+                                <Button type="button" variant="ghost" size="sm" onClick={() => setCloningReference(reference)}>
+                                  {t('projects.references.actions.clone')}
+                                </Button>
+                              </>
                             )}
                           </div>
                         </div>
@@ -431,7 +463,6 @@ export default function OrganizationProjectReferences() {
         </div>
       </PageContainer>
 
-      <OrganizationProjectReferenceFormDialog open={isCreateDialogOpen} mode="create" onOpenChange={setIsCreateDialogOpen} onSubmit={handleCreateReference} />
       <OrganizationProjectReferenceFormDialog
         open={Boolean(editingReference)}
         mode="edit"
@@ -440,6 +471,15 @@ export default function OrganizationProjectReferences() {
           if (!open) setEditingReference(null);
         }}
         onSubmit={handleUpdateReference}
+      />
+      <OrganizationProjectReferenceFormDialog
+        open={Boolean(cloningReference)}
+        mode="create"
+        initialReference={cloningReference}
+        onOpenChange={(open) => {
+          if (!open) setCloningReference(null);
+        }}
+        onSubmit={handleCloneReference}
       />
     </div>
   );

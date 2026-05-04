@@ -262,6 +262,7 @@ export default function ExpertPublicProfile() {
   };
 
   const demo = getDemoData();
+  const writingExperience = expert.writingExperience;
 
   // Dialog states
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
@@ -508,6 +509,92 @@ export default function ExpertPublicProfile() {
                   ))}
                 </div>
               </div>
+
+              {writingExperience && (
+                <div className="bg-white rounded-lg border p-6">
+                  <h2 className="text-lg font-semibold text-primary mb-4 flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    Writing Experience
+                  </h2>
+
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                      <div>
+                        <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Methodologies</p>
+                        <div className="flex flex-wrap gap-2">
+                          {writingExperience.writingMethodologies.map((item) => (
+                            <Badge key={item} variant="secondary">{item}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Contribution</p>
+                        <div className="flex flex-wrap gap-2">
+                          {writingExperience.writingContributions.map((item) => (
+                            <Badge key={item} variant="outline">{item}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Writing languages</p>
+                        <div className="flex flex-wrap gap-2">
+                          {writingExperience.writingLanguages.map((item) => (
+                            <Badge key={item} variant="outline">{item}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                      <div className="rounded-md border bg-slate-50 p-3">
+                        <p className="text-xs font-semibold text-muted-foreground">Expert is comfortable to write on</p>
+                        <p className="mt-1 text-sm text-primary">{writingExperience.comfortableToWriteOn}</p>
+                      </div>
+                      <div className="rounded-md border bg-slate-50 p-3">
+                        <p className="text-xs font-semibold text-muted-foreground">Experience with donors procurement procedures</p>
+                        <p className="mt-1 text-sm text-primary">{writingExperience.donorProcurementExperience}</p>
+                      </div>
+                      <div className="rounded-md border bg-slate-50 p-3">
+                        <p className="text-xs font-semibold text-muted-foreground">Writing experience: comments by experts</p>
+                        <p className="mt-1 text-sm text-primary">{writingExperience.writingComments}</p>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto rounded-md border">
+                      <table className="w-full min-w-[900px] text-left text-sm">
+                        <thead className="bg-slate-50 text-xs uppercase text-muted-foreground">
+                          <tr>
+                            <th className="px-3 py-2">Title of Tender / Project</th>
+                            <th className="px-3 py-2">Donor</th>
+                            <th className="px-3 py-2">Country</th>
+                            <th className="px-3 py-2">Year</th>
+                            <th className="px-3 py-2">Pages</th>
+                            <th className="px-3 py-2">Result</th>
+                            <th className="px-3 py-2">Reference Person / PM</th>
+                            <th className="px-3 py-2">Additional information</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {writingExperience.writingExperienceRows.map((row) => (
+                            <tr key={row.id} className="border-t">
+                              <td className="px-3 py-2 font-medium text-primary">{row.titleOfTenderProject}</td>
+                              <td className="px-3 py-2 text-muted-foreground">{row.donor}</td>
+                              <td className="px-3 py-2 text-muted-foreground">{row.country}</td>
+                              <td className="px-3 py-2 text-muted-foreground">{row.year}</td>
+                              <td className="px-3 py-2 text-muted-foreground">{row.indicativePagesWritten}</td>
+                              <td className="px-3 py-2">
+                                <Badge variant={row.result === 'won' ? 'secondary' : 'outline'}>{row.result}</Badge>
+                              </td>
+                              <td className="px-3 py-2 text-muted-foreground">{row.referencePersonProjectManager}</td>
+                              <td className="px-3 py-2 text-muted-foreground">{row.additionalInformation}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Education */}
               <div className="bg-white rounded-lg border p-6">

@@ -11,6 +11,40 @@ export enum OrganizationTypeEnum {
   RESEARCH_INSTITUTION = 'RESEARCH_INSTITUTION',
   FOUNDATION = 'FOUNDATION',
   CONSORTIUM = 'CONSORTIUM',
+  IT_SERVICES = 'IT_SERVICES',
+  International = 'International Organization',
+}
+
+// Backend API Organization format
+export interface OrganizationBackend {
+  id: number;
+  name: string;
+  acronym?: string;
+  type: string;
+  city?: {
+    id: number;
+    name: string;
+  };
+  country?: {
+    code: string;
+    id: number;
+    name: string;
+  };
+  description?: string;
+  isActive: boolean;
+  verificationStatus: string;
+  website?: string;
+  contactEmail?: string;
+  createdAt: string;
+  updatedAt?: string;
+  legalName?: string;
+  logoUrl?: string;
+  region?: string | null;
+  mainSector?: string | null;
+  employeesCount?: number | null;
+  annualTurnover?: number | null;
+  yearFounded?: number | null;
+  [key: string]: any;
 }
 
 export enum OrganizationSectorEnum {
@@ -36,10 +70,7 @@ export enum OrganizationStatusEnum {
   VERIFIED = 'VERIFIED',
   PENDING = 'PENDING',
   INACTIVE = 'INACTIVE',
-  NOTVERIFIED = 'NOTVERIFIED',
 }
-
-
 
 export enum RegionEnum {
   AFRICA = 'AFRICA',
@@ -71,11 +102,11 @@ export interface OrganizationCertificationDTO {
   id: number;
   certificationName: string;
   issuingOrganization: string;
-  issuedDate: string;    
-  expiryDate: string;    
+  issuedDate: string;
+  expiryDate: string;
   credentialId: string;
   credentialUrl: string;
-  createdAt: string;      
+  createdAt: string;
 }
 export interface Organization {
   id: string;
@@ -147,13 +178,13 @@ export interface Organization {
     id: number;
     name: string;
   };
-  
-  activeProjects:number;
-  teamMembers:number;
+
+  activeProjects: number;
+  teamMembers: number;
   completedProjects: number;
   partnerships: number;
   certifications: OrganizationCertificationDTO[];
-  budget?:number 
+  budget?: number
   sectors: SectorDTO[];
   subSectors?: SubsectorDTO[];
 
@@ -169,6 +200,17 @@ export interface Organization {
   contactName?: string;
   contactTitle?: string;
 }
+export interface PaginatedOrganizations {
+  data: Organization[];
+  meta: {
+    currentPage: number;
+    pageSize: number;
+    totalPages: number;
+    totalItems: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+}
 
 /*export interface Organization {
   id: string;
@@ -177,30 +219,36 @@ export interface Organization {
   type: OrganizationTypeEnum;
   sectors: OrganizationSectorEnum[];
   subSectors?: SubSectorEnum[];
-  status: OrganizationStatusEnum;
-  region: RegionEnum;
-  country: string;
-  city?: string;
-  description: string;
+  status?: string;
+  region?: string;
+  country?: string | { code: string; id: number; name: string };
+  city?: string | { id: number; name: string };
+  description?: string;
   logo?: string;
+  logoUrl?: string;
   website?: string;
-  email: string;
+  email?: string;
+  contactEmail?: string;
   phone?: string;
   yearEstablished?: number;
   employeeCount?: number;
-  activeProjects: number;
-  completedProjects: number;
-  partnerships: number;
-  certifications: string[];
+  activeProjects?: number;
+  completedProjects?: number;
+  partnerships?: number;
+  certifications?: string[];
   budget?: {
     amount: number;
     currency: string;
     formatted: string;
   };
-  teamMembers: number;
-  createdAt: Date;
-  updatedAt: Date;
-}*/
+  teamMembers?: number;
+  createdAt: string | Date;
+  updatedAt?: string | Date;
+  isActive?: boolean;
+  verificationStatus?: string;
+  legalName?: string;
+}
+  */
 
 export interface OrganizationKPIs {
   totalOrganizations: number;
@@ -232,17 +280,7 @@ export interface OrganizationFiltersData {
   status: string;
 }
 
-export interface PaginatedOrganizations {
-  data: Organization[];
-  meta: {
-    currentPage: number;
-    pageSize: number;
-    totalPages: number;
-    totalItems: number;
-    hasNextPage: boolean;
-    hasPreviousPage: boolean;
-  };
-}
+
 
 export enum PartnershipStatusEnum {
   ACTIVE = 'ACTIVE',
