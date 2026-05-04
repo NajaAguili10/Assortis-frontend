@@ -347,6 +347,10 @@ interface TrainingFilters {
   searchQuery?: string;
 }
 
+export type TrainingCatalogItem =
+  | { type: 'recorded'; id: string; course: TrainingCourseDTO }
+  | { type: 'live'; id: string; session: TrainingSessionDTO };
+
 export function useTraining() {
   const [filters, setFilters] = useState<TrainingFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
@@ -436,6 +440,21 @@ export function useTraining() {
     return filteredCourses.slice(start, end);
   }, [filteredCourses, currentPage]);
 
+  const combinedCatalogItems = useMemo<TrainingCatalogItem[]>(() => {
+    return [
+      ...paginatedCourses.map((course) => ({
+        type: 'recorded' as const,
+        id: course.id,
+        course,
+      })),
+      ...filteredSessions.map((session) => ({
+        type: 'live' as const,
+        id: session.id,
+        session,
+      })),
+    ];
+  }, [paginatedCourses, filteredSessions]);
+
   const updateFilters = useCallback((newFilters: Partial<TrainingFilters>) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));
     setCurrentPage(1);
@@ -450,6 +469,7 @@ export function useTraining() {
 
   return {
     courses: paginatedCourses,
+    catalogItems: combinedCatalogItems,
     allCourses: mockCourses,
     programs: filteredPrograms,
     enrolledCourses: filteredPrograms,

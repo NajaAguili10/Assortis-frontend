@@ -79,13 +79,11 @@ import TrainingPortfolio from './modules/shared/pages/TrainingPortfolio';
 import TrainingActivatedPills from './modules/shared/pages/TrainingActivatedPills';
 import TrainingEnrollment from './modules/shared/pages/TrainingEnrollment';
 import TrainingProgramDetails from './modules/shared/pages/TrainingProgramDetails';
-import TrainingLiveSessions from './modules/shared/pages/TrainingLiveSessions';
 import TrainingLiveSessionDetails from './modules/shared/pages/TrainingLiveSessionDetails';
 import TrainingSessionEnrollment from './modules/shared/pages/TrainingSessionEnrollment';
 import TrainingRecordingPlayer from './modules/shared/pages/TrainingRecordingPlayer';
 import TrainingTrainers from './modules/shared/pages/TrainingTrainers';
 import TrainingTrainerDetails from './modules/shared/pages/TrainingTrainerDetails';
-import TrainingCertifications from './modules/shared/pages/TrainingCertifications';
 import TrainingCertificationDetails from './modules/shared/pages/TrainingCertificationDetails';
 import TrainingCertificationEnroll from './modules/shared/pages/TrainingCertificationEnroll';
 import TrainingCheckout from './modules/shared/pages/TrainingCheckout';
@@ -288,14 +286,14 @@ const router = createBrowserRouter([
       { path: 'training/checkout/confirmation', Component: TrainingCheckoutConfirmation },
       { path: 'training/enroll/:courseId', Component: TrainingEnrollment },
       { path: 'training/program-details/:programId', Component: TrainingProgramDetails },
-      { path: 'training/live-sessions', Component: TrainingLiveSessions },
+      { path: 'training/live-sessions', element: <Navigate to="/training/catalog" replace /> },
       { path: 'training/live-session-details/:sessionId', Component: TrainingLiveSessionDetails },
       { path: 'training/session-enroll/:sessionId', Component: TrainingSessionEnrollment },
       { path: 'training/recording-player/:sessionId', Component: TrainingRecordingPlayer },
       { path: 'training/trainers', Component: TrainingTrainers },
       { path: 'training/trainer-details/:trainerId', Component: TrainingTrainerDetails },
-      { path: 'training/certifications', Component: TrainingCertifications },
-      { path: 'training/certifications-history', Component: TrainingCertifications },
+      { path: 'training/certifications', element: <Navigate to="/training/portfolio" replace /> },
+      { path: 'training/certifications-history', element: <Navigate to="/training/portfolio" replace /> },
       { path: 'training/certification-details/:certificationId', Component: TrainingCertificationDetails },
       { path: 'training/certification-enroll/:certificationId', Component: TrainingCertificationEnroll },
       { path: 'excellence', Component: Assistance },

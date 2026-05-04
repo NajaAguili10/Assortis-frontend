@@ -1,14 +1,114 @@
 import { ArrowRight, Building2, CheckCircle2, Compass, FileCheck2, Globe2, Handshake, Layers, Sparkles, Target, Users } from 'lucide-react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
+import { useAuth } from '@app/contexts/AuthContext';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
 import { PublicOrganizationServiceTabs } from '@app/components/PublicOrganizationServiceTabs';
 import { Button } from '@app/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@app/components/ui/dialog';
+import { Input } from '@app/components/ui/input';
+import { Label } from '@app/components/ui/label';
+
+const SERVICES_OPTIONS = [
+  { key: 'matching', labelKey: 'services.organization.joinUs.service.matching' },
+  { key: 'myProjects', labelKey: 'services.organization.joinUs.service.myProjects' },
+  { key: 'search', labelKey: 'services.organization.joinUs.service.search' },
+  { key: 'statistics', labelKey: 'services.organization.joinUs.service.statistics' },
+  { key: 'cvip', labelKey: 'services.organization.joinUs.service.cvip' },
+  { key: 'bidWriters', labelKey: 'services.organization.joinUs.service.bidWriters' },
+] as const;
+
+interface JoinUsFormState {
+  orgName: string;
+  contactPerson: string;
+  email: string;
+  phone: string;
+  country: string;
+  website: string;
+  address: string;
+  selectedServices: string[];
+}
+
+const EMPTY_FORM: JoinUsFormState = {
+  orgName: '',
+  contactPerson: '',
+  email: '',
+  phone: '',
+  country: '',
+  website: '',
+  address: '',
+  selectedServices: [],
+};
 
 export default function PublicOrganizationMatchingProjectsPage() {
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+
+  const [joinUsOpen, setJoinUsOpen] = useState(false);
+  const [form, setForm] = useState<JoinUsFormState>(EMPTY_FORM);
+  const [errors, setErrors] = useState<Partial<Record<keyof JoinUsFormState | 'services', string>>>({});
+  const [submitting, setSubmitting] = useState(false);
+
+  function updateField(field: keyof JoinUsFormState, value: string) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
+  }
+
+  function toggleService(key: string) {
+    setForm((prev) => {
+      const has = prev.selectedServices.includes(key);
+      const updated = has ? prev.selectedServices.filter((s) => s !== key) : [...prev.selectedServices, key];
+      return { ...prev, selectedServices: updated };
+    });
+    if (errors.services) setErrors((prev) => ({ ...prev, services: undefined }));
+  }
+
+  function validate(): boolean {
+    const newErrors: typeof errors = {};
+    if (!form.orgName.trim()) newErrors.orgName = t('services.organization.joinUs.required');
+    if (!form.contactPerson.trim()) newErrors.contactPerson = t('services.organization.joinUs.required');
+    if (!form.email.trim()) {
+      newErrors.email = t('services.organization.joinUs.required');
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      newErrors.email = t('services.organization.joinUs.invalidEmail');
+    }
+    if (!form.country.trim()) newErrors.country = t('services.organization.joinUs.required');
+    if (form.selectedServices.length === 0) newErrors.services = t('services.organization.joinUs.selectAtLeastOne');
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!validate()) return;
+    setSubmitting(true);
+    // Frontend-only capture – structure kept ready for future API wiring
+    const payload = {
+      organizationName: form.orgName.trim(),
+      contactPerson: form.contactPerson.trim(),
+      email: form.email.trim(),
+      phone: form.phone.trim(),
+      country: form.country.trim(),
+      website: form.website.trim(),
+      address: form.address.trim(),
+      servicesOfInterest: form.selectedServices,
+      submittedAt: new Date().toISOString(),
+    };
+    console.info('[OrgInterest] Interest form submitted:', payload);
+    setTimeout(() => {
+      setSubmitting(false);
+      setJoinUsOpen(false);
+      setForm(EMPTY_FORM);
+      setErrors({});
+      toast.success(t('services.organization.joinUs.successTitle'), {
+        description: t('services.organization.joinUs.successMessage'),
+      });
+    }, 600);
+  }
   const features = [
     {
       icon: Target,
@@ -90,6 +190,24 @@ export default function PublicOrganizationMatchingProjectsPage() {
             </div>
           </section>
 
+          {/* Join-Us CTA — visible to unauthenticated visitors only */}
+          {!isAuthenticated && (
+            <section className="rounded-lg border-2 border-dashed border-accent/40 bg-gradient-to-br from-accent/5 via-white to-primary/5 p-6 md:p-10 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="space-y-2 text-center md:text-left">
+                <h3 className="text-2xl font-bold text-primary">{t('services.organization.joinUs.ctaTitle')}</h3>
+                <p className="text-gray-600 max-w-xl">{t('services.organization.joinUs.ctaDescription')}</p>
+              </div>
+              <Button
+                size="lg"
+                className="shrink-0 min-h-11 bg-accent hover:bg-accent/90 text-white"
+                onClick={() => setJoinUsOpen(true)}
+              >
+                {t('services.organization.joinUs.ctaButton')}
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </section>
+          )}
+
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             <div className="rounded-lg border bg-white p-6 md:p-8 space-y-4">
               <h3 className="text-2xl font-bold text-primary">What Is It?</h3>
@@ -167,6 +285,119 @@ export default function PublicOrganizationMatchingProjectsPage() {
           </section>
         </div>
       </PageContainer>
+
+      {/* Join-Us Interest Modal */}
+      <Dialog open={joinUsOpen} onOpenChange={(open) => { if (!open) { setForm(EMPTY_FORM); setErrors({}); } setJoinUsOpen(open); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t('services.organization.joinUs.formTitle')}</DialogTitle>
+            <p className="text-sm text-gray-600 mt-1">{t('services.organization.joinUs.formDescription')}</p>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="joi-orgName">{t('services.organization.joinUs.orgName')} *</Label>
+                <Input
+                  id="joi-orgName"
+                  value={form.orgName}
+                  onChange={(e) => updateField('orgName', e.target.value)}
+                  placeholder={t('services.organization.joinUs.orgName')}
+                />
+                {errors.orgName && <p className="text-xs text-red-500">{errors.orgName}</p>}
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="joi-contactPerson">{t('services.organization.joinUs.contactPerson')} *</Label>
+                <Input
+                  id="joi-contactPerson"
+                  value={form.contactPerson}
+                  onChange={(e) => updateField('contactPerson', e.target.value)}
+                  placeholder={t('services.organization.joinUs.contactPerson')}
+                />
+                {errors.contactPerson && <p className="text-xs text-red-500">{errors.contactPerson}</p>}
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="joi-email">{t('services.organization.joinUs.email')} *</Label>
+                <Input
+                  id="joi-email"
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => updateField('email', e.target.value)}
+                  placeholder="you@organization.com"
+                />
+                {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="joi-phone">{t('services.organization.joinUs.phone')}</Label>
+                <Input
+                  id="joi-phone"
+                  value={form.phone}
+                  onChange={(e) => updateField('phone', e.target.value)}
+                  placeholder="+1 555 000 0000"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="joi-country">{t('services.organization.joinUs.country')} *</Label>
+                <Input
+                  id="joi-country"
+                  value={form.country}
+                  onChange={(e) => updateField('country', e.target.value)}
+                  placeholder={t('services.organization.joinUs.country')}
+                />
+                {errors.country && <p className="text-xs text-red-500">{errors.country}</p>}
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="joi-website">{t('services.organization.joinUs.website')}</Label>
+                <Input
+                  id="joi-website"
+                  value={form.website}
+                  onChange={(e) => updateField('website', e.target.value)}
+                  placeholder="https://yourorganization.com"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="joi-address">{t('services.organization.joinUs.address')}</Label>
+              <Input
+                id="joi-address"
+                value={form.address}
+                onChange={(e) => updateField('address', e.target.value)}
+                placeholder={t('services.organization.joinUs.address')}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('services.organization.joinUs.services')} *</Label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {SERVICES_OPTIONS.map(({ key, labelKey }) => {
+                  const checked = form.selectedServices.includes(key);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => toggleService(key)}
+                      className={`rounded-lg border px-3 py-2 text-sm font-medium text-left transition-colors ${
+                        checked
+                          ? 'border-accent bg-accent/10 text-accent'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-accent/40'
+                      }`}
+                    >
+                      {t(labelKey)}
+                    </button>
+                  );
+                })}
+              </div>
+              {errors.services && <p className="text-xs text-red-500">{errors.services}</p>}
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={() => { setJoinUsOpen(false); setForm(EMPTY_FORM); setErrors({}); }}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting} className="bg-accent hover:bg-accent/90 text-white">
+                {submitting ? t('services.organization.joinUs.submitting') : t('services.organization.joinUs.submit')}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
