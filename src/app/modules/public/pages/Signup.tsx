@@ -25,8 +25,8 @@ import {
   Check,
   CheckCircle2,
   Users,
-  Sparkles,
-  Building,
+  Globe,
+  TrendingUp,
   Mail,
   GraduationCap,
   Briefcase,
@@ -35,7 +35,9 @@ import {
   AlertCircle,
   Save,
   Info,
-  Shield
+  Shield,
+  Tag,
+  Euro,
 } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
@@ -44,6 +46,8 @@ import { EmailVerification } from '@app/components/EmailVerification';
 import { PromoCodeSection } from '@app/components/PromoCodeSection';
 import { PromoCodeData } from '@app/types/promo';
 import { sendConfirmationEmail } from '@app/services/emailService';
+import { COUNTRIES as FULL_COUNTRIES, getCountriesSorted } from '@app/config/countries.config';
+import { PRICING_SECTORS } from '@app/config/pricing-sectors.config';
 import { 
   validateEmail, 
   validatePassword, 
@@ -100,6 +104,11 @@ interface FormData {
   newsletterTenders: boolean;
   newsletterTraining: boolean;
   newsletterJobs: boolean;
+
+  // Subscription configuration (dynamic yearly pricing)
+  subscriptionSectors: string[];
+  subscriptionCountries: string[];
+  subscriptionPrice: number;
 }
 
 // Field validation errors interface
@@ -151,11 +160,47 @@ const COUNTRIES = [
   'Senegal', 'Morocco', 'Côte d\'Ivoire', 'Mali', 'Burkina Faso'
 ];
 
+// ─── Yearly Pricing Matrix ────────────────────────────────────────────────────
+type SectorRange = '1-4' | '5-20' | '21-40' | '41-80' | '81-160' | '161-250' | '251-362';
+type CountryRange = '1' | '2-9' | '10-99' | '100+';
+
+const PRICING_MATRIX: Record<SectorRange, Record<CountryRange, number>> = {
+  '1-4':     { '1': 300,  '2-9': 450,  '10-99': 700,  '100+': 900  },
+  '5-20':    { '1': 400,  '2-9': 550,  '10-99': 800,  '100+': 1000 },
+  '21-40':   { '1': 500,  '2-9': 650,  '10-99': 900,  '100+': 1200 },
+  '41-80':   { '1': 600,  '2-9': 750,  '10-99': 1200, '100+': 1700 },
+  '81-160':  { '1': 700,  '2-9': 1100, '10-99': 1600, '100+': 2200 },
+  '161-250': { '1': 800,  '2-9': 1400, '10-99': 2000, '100+': 2600 },
+  '251-362': { '1': 900,  '2-9': 1800, '10-99': 2500, '100+': 3100 },
+};
+
+function getSectorRange(count: number): SectorRange {
+  if (count <= 4) return '1-4';
+  if (count <= 20) return '5-20';
+  if (count <= 40) return '21-40';
+  if (count <= 80) return '41-80';
+  if (count <= 160) return '81-160';
+  if (count <= 250) return '161-250';
+  return '251-362';
+}
+
+function getCountryRange(count: number): CountryRange {
+  if (count <= 1) return '1';
+  if (count <= 9) return '2-9';
+  if (count <= 99) return '10-99';
+  return '100+';
+}
+
+function calculateYearlyPrice(sectorCount: number, countryCount: number): number {
+  if (sectorCount === 0 || countryCount === 0) return 0;
+  return PRICING_MATRIX[getSectorRange(sectorCount)][getCountryRange(countryCount)];
+}
+
 const Signup = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { signup } = useAuth();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation() as any;
   
   // Check if resuming Phase 2
   const resumePhase2State = location.state as any;
@@ -172,6 +217,7 @@ const Signup = () => {
   const [showCompletionChoice, setShowCompletionChoice] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [completedSteps, setCompletedSteps] = useState<number[]>(shouldResumePhase2 ? [1, 2, 3, 4, 5] : []);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -221,6 +267,10 @@ const Signup = () => {
         newsletterTenders: true,
         newsletterTraining: true,
         newsletterJobs: true,
+
+        subscriptionSectors: [],
+        subscriptionCountries: [],
+        subscriptionPrice: 0,
       };
       
       setTimeout(() => {
@@ -239,7 +289,12 @@ const Signup = () => {
         setTimeout(() => {
           toast.success(t('auth.signup.draftRestored') || 'Your draft has been restored');
         }, 500);
-        return parsed;
+        return {
+          ...parsed,
+          subscriptionSectors: parsed.subscriptionSectors ?? [],
+          subscriptionCountries: parsed.subscriptionCountries ?? [],
+          subscriptionPrice: parsed.subscriptionPrice ?? 0,
+        };
       }
     } catch (error) {
       console.error('Failed to restore draft:', error);
@@ -282,6 +337,10 @@ const Signup = () => {
     newsletterTenders: true,
     newsletterTraining: true,
     newsletterJobs: true,
+
+    subscriptionSectors: [],
+    subscriptionCountries: [],
+    subscriptionPrice: 0,
     };
   });
 
@@ -349,6 +408,10 @@ const Signup = () => {
             newsletterTenders: true,
             newsletterTraining: true,
             newsletterJobs: true,
+
+            subscriptionSectors: [],
+            subscriptionCountries: [],
+            subscriptionPrice: 0,
           });
           
           // Restore progress
@@ -376,6 +439,18 @@ const Signup = () => {
     
     return () => clearTimeout(timer);
   }, [currentStep]);
+
+  // Sync yearly price whenever sector/country selection changes
+  useEffect(() => {
+    const price = calculateYearlyPrice(
+      formData.subscriptionSectors.length,
+      formData.subscriptionCountries.length
+    );
+    if (price !== formData.subscriptionPrice) {
+      setFormData(prev => ({ ...prev, subscriptionPrice: price }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.subscriptionSectors, formData.subscriptionCountries]);
 
   // Clear draft from localStorage
   const clearDraft = () => {
@@ -558,7 +633,7 @@ const Signup = () => {
       return true;
     }
     if (currentStep === 5) {
-      return formData.planType !== null;
+      return formData.subscriptionSectors.length > 0 && formData.subscriptionCountries.length > 0;
     }
     if (currentStep === 6) {
       return isEmailVerified;
@@ -579,9 +654,9 @@ const Signup = () => {
       return;
     }
 
-    // Validate plan selection
-    if (!formData.planType) {
-      setError(t('auth.signup.selectPlan') || 'Please select a plan');
+    // Validate subscription configuration
+    if (formData.subscriptionSectors.length === 0 || formData.subscriptionCountries.length === 0) {
+      setError('Please complete the configuration step (sectors and countries).');
       return;
     }
 
@@ -609,7 +684,7 @@ const Signup = () => {
       });
       
       // Calculate payment amount (considering promo discount)
-      const baseAmount = formData.planType === 'professional' ? 99 : 0;
+      const baseAmount = formData.subscriptionPrice;
       const finalAmount = appliedPromoCode?.discountPercent 
         ? baseAmount - (baseAmount * appliedPromoCode.discountPercent / 100)
         : baseAmount;
@@ -621,7 +696,7 @@ const Signup = () => {
         firstName,
         lastName,
         accountType: formData.accountType!,
-        planType: formData.planType!,
+        planType: formData.planType,
         orgName: formData.accountType === 'organization' ? formData.orgName : undefined,
         amount: finalAmount,
         discountPercent: appliedPromoCode?.discountPercent,
@@ -690,7 +765,7 @@ const Signup = () => {
         firstName,
         lastName,
         accountType: formData.accountType!,
-        planType: formData.planType!,
+        planType: formData.planType,
         orgName: formData.accountType === 'organization' ? formData.orgName : undefined,
         amount: 0, // Amount will be calculated when they complete
         discountPercent: appliedPromoCode?.discountPercent,
@@ -723,98 +798,10 @@ const Signup = () => {
     t('auth.signup.yourInformation'),
     t('auth.signup.accountCredentials'),
     t('auth.signup.newsletterPreferences'),
-    t('auth.signup.selectPlan'),
+    t('auth.signup.configurationPricing'),
     t('auth.signup.verifyEmail'),
     t('payment.title'),
   ];
-
-  const getPlanDetails = (plan: PlanType) => {
-    switch (plan) {
-      case 'org-beginner':
-        return {
-          name: t('offers.plans.orgBeginner'),
-          price: '$49',
-          priceDetail: t('offers.plans.monthly'),
-          icon: Building2,
-          gradient: 'from-blue-500 to-cyan-600',
-          features: [
-            t('offers.features.tendersLimit', { count: 20 }),
-            t('offers.features.aiMatchingBasic'),
-            t('offers.features.expertsLimit', { count: 5 }),
-            t('offers.features.supportEmail'),
-            t('offers.features.analyticsBasic'),
-          ],
-          highlighted: false,
-        };
-      case 'org-professional':
-        return {
-          name: t('offers.plans.orgProfessional'),
-          price: '$99',
-          priceDetail: t('offers.plans.monthly'),
-          icon: Building,
-          gradient: 'from-accent to-red-600',
-          features: [
-            t('offers.features.tendersLimit', { count: 100 }),
-            t('offers.features.aiMatchingAdvanced'),
-            t('offers.features.expertsLimit', { count: 25 }),
-            t('offers.features.supportPriority'),
-            t('offers.features.trainingAccess'),
-            t('offers.features.analyticsAdvanced'),
-          ],
-          highlighted: true,
-        };
-      case 'expert-beginner':
-        return {
-          name: t('offers.plans.expertBeginner'),
-          price: '$29',
-          priceDetail: t('offers.plans.monthly'),
-          icon: User,
-          gradient: 'from-green-500 to-emerald-600',
-          features: [
-            t('offers.features.tendersLimit', { count: 15 }),
-            t('offers.features.aiMatchingBasic'),
-            t('offers.features.projectsBasic'),
-            t('offers.features.supportEmail'),
-            t('offers.features.templates'),
-          ],
-          highlighted: false,
-        };
-      case 'expert-professional':
-        return {
-          name: t('offers.plans.expertProfessional'),
-          price: '$69',
-          priceDetail: t('offers.plans.monthly'),
-          icon: Sparkles,
-          gradient: 'from-purple-500 to-indigo-600',
-          features: [
-            t('offers.features.tendersLimit', { count: 50 }),
-            t('offers.features.aiMatchingAdvanced'),
-            t('offers.features.projectsAdvanced'),
-            t('offers.features.supportPriority'),
-            t('offers.features.trainingAccess'),
-            t('offers.features.analyticsAdvanced'),
-          ],
-          highlighted: true,
-        };
-      default:
-        return null;
-    }
-  };
-
-  const getPlanPrice = (plan: PlanType): number => {
-    switch (plan) {
-      case 'org-beginner':
-        return 49;
-      case 'org-professional':
-        return 99;
-      case 'expert-beginner':
-        return 29;
-      case 'expert-professional':
-        return 69;
-      default:
-        return 0;
-    }
-  };
 
   return (
     <>
@@ -1594,8 +1581,8 @@ const Signup = () => {
             </div>
           )}
 
-          {/* Step 5: Plan Selection */}
-          {currentStep === 5 && (
+          {/* Step 5: Configuration & Pricing */}
+          {currentStep === 5 && !showCompletionChoice && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
               {error && (
                 <Alert variant="destructive" className="mb-6">
@@ -1603,95 +1590,267 @@ const Signup = () => {
                 </Alert>
               )}
 
-              <h3 className="text-xl font-bold text-primary mb-2 text-center">
-                {t('auth.signup.choosePlan')}
-              </h3>
-              
-              <p className="text-center text-gray-600 mb-6">
-                {formData.accountType === 'organization' 
-                  ? t('auth.signup.plansForOrganizations') 
-                  : t('auth.signup.plansForExperts')
-                }
-              </p>
+              {/* Step header */}
+              <div className="text-center mb-6">
+                <h3 className="text-xl font-bold text-primary mb-2">
+                  {t('auth.signup.configurationPricing')}
+                </h3>
+                <p className="text-gray-600 text-sm">
+                  {t('auth.signup.pricingStep.subtitle')}
+                </p>
+              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {(formData.accountType === 'organization' 
-                  ? ['org-beginner', 'org-professional'] 
-                  : ['expert-beginner', 'expert-professional']
-                ).map((plan) => {
-                  const details = getPlanDetails(plan as PlanType);
-                  if (!details) return null;
-                  
-                  const PlanIcon = details.icon;
-                  const isSelected = formData.planType === plan;
-                  
-                  return (
+              {/* ── Sector Selection ─────────────────────────────────────── */}
+              <div className="bg-white rounded-xl border-2 border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-accent/10 rounded-lg p-2">
+                      <Tag className="h-5 w-5 text-accent" strokeWidth={2} />
+                    </div>
+                    <h4 className="text-base font-bold text-primary">
+                      {t('auth.signup.pricingStep.sectorsTitle')}
+                    </h4>
+                  </div>
+                  {formData.subscriptionSectors.length > 0 && (
+                    <Badge className="bg-accent/10 text-accent border-accent/20 font-medium">
+                      {t('auth.signup.pricingStep.selectedSectors', { count: formData.subscriptionSectors.length })}
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Select all / Deselect all */}
+                <div className="flex items-center gap-3 mb-4">
+                  {formData.subscriptionSectors.length === PRICING_SECTORS.length ? (
                     <button
-                      key={plan}
-                      onClick={() => handleInputChange('planType', plan)}
-                      className={`relative bg-white rounded-lg border p-6 transition-all duration-300 text-left h-full flex flex-col ${
-                        isSelected
-                          ? 'border-accent shadow-lg scale-105'
-                          : 'border-gray-200 hover:shadow-lg hover:border-accent/30'
-                      }`}
+                      type="button"
+                      onClick={() => handleInputChange('subscriptionSectors', [])}
+                      className="text-sm font-medium text-accent hover:text-accent/80 underline underline-offset-2 transition-colors"
                     >
-                      {/* Highlighted Badge */}
-                      {details.highlighted && (
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                          <Badge className="bg-accent text-white px-4 py-1 text-xs font-semibold shadow-md">
-                            {t('subscription.recommended')}
-                          </Badge>
-                        </div>
-                      )}
+                      {t('auth.signup.pricingStep.deselectAllSectors')}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleInputChange('subscriptionSectors', PRICING_SECTORS.map(s => s.id))}
+                      className="text-sm font-medium text-accent hover:text-accent/80 underline underline-offset-2 transition-colors"
+                    >
+                      {t('auth.signup.pricingStep.selectAllSectors')}
+                    </button>
+                  )}
+                  <span className="text-xs text-gray-400">
+                    {formData.subscriptionSectors.length} / {PRICING_SECTORS.length}
+                  </span>
+                </div>
 
-                      {/* Selected Badge */}
-                      {isSelected && (
-                        <div className="absolute top-4 right-4">
-                          <div className="bg-accent rounded-full p-1">
-                            <Check className="h-5 w-5 text-white" strokeWidth={3} />
+                {/* Sector grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {PRICING_SECTORS.map((sector) => {
+                    const isChecked = formData.subscriptionSectors.includes(sector.id);
+                    return (
+                      <label
+                        key={sector.id}
+                        className={`flex items-center gap-2 rounded-lg border p-3 cursor-pointer transition-all duration-150 select-none ${
+                          isChecked
+                            ? 'border-accent bg-accent/5 shadow-sm'
+                            : 'border-gray-200 hover:border-accent/40 hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="sr-only"
+                          checked={isChecked}
+                          onChange={() => {
+                            const current = formData.subscriptionSectors;
+                            handleInputChange(
+                              'subscriptionSectors',
+                              isChecked
+                                ? current.filter(id => id !== sector.id)
+                                : [...current, sector.id]
+                            );
+                          }}
+                        />
+                        <div className={`w-4 h-4 rounded flex-shrink-0 border-2 flex items-center justify-center transition-colors ${
+                          isChecked ? 'bg-accent border-accent' : 'border-gray-300'
+                        }`}>
+                          {isChecked && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3.5} />}
+                        </div>
+                        <span className={`text-xs font-medium leading-tight ${
+                          isChecked ? 'text-accent' : 'text-gray-700'
+                        }`}>
+                          {t(sector.labelKey)}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* ── Country Selection ─────────────────────────────────────── */}
+              <div className="bg-white rounded-xl border-2 border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-accent/10 rounded-lg p-2">
+                      <Globe className="h-5 w-5 text-accent" strokeWidth={2} />
+                    </div>
+                    <h4 className="text-base font-bold text-primary">
+                      {t('auth.signup.pricingStep.countriesTitle')}
+                    </h4>
+                  </div>
+                  {formData.subscriptionCountries.length > 0 && (
+                    <Badge className="bg-accent/10 text-accent border-accent/20 font-medium">
+                      {t('auth.signup.pricingStep.selectedCountries', { count: formData.subscriptionCountries.length })}
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Select all / Deselect all + search */}
+                <div className="flex items-center gap-3 mb-3">
+                  {formData.subscriptionCountries.length === FULL_COUNTRIES.length ? (
+                    <button
+                      type="button"
+                      onClick={() => handleInputChange('subscriptionCountries', [])}
+                      className="text-sm font-medium text-accent hover:text-accent/80 underline underline-offset-2 transition-colors"
+                    >
+                      {t('auth.signup.pricingStep.deselectAllCountries')}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleInputChange('subscriptionCountries', FULL_COUNTRIES.map(c => c.code))}
+                      className="text-sm font-medium text-accent hover:text-accent/80 underline underline-offset-2 transition-colors"
+                    >
+                      {t('auth.signup.pricingStep.selectAllCountries')}
+                    </button>
+                  )}
+                  <span className="text-xs text-gray-400">
+                    {formData.subscriptionCountries.length} / {FULL_COUNTRIES.length}
+                  </span>
+                </div>
+
+                {/* Search */}
+                <div className="relative mb-3">
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
+                    placeholder={t('auth.signup.pricingStep.searchCountries')}
+                    value={countrySearch}
+                    onChange={e => setCountrySearch(e.target.value)}
+                  />
+                </div>
+
+                {/* Scrollable country list */}
+                <div className="max-h-56 overflow-y-auto rounded-lg border border-gray-100 divide-y divide-gray-50">
+                  {(() => {
+                    const lang = (language || 'en') as 'en' | 'fr' | 'es';
+                    const sorted = getCountriesSorted(lang);
+                    const filtered = countrySearch.trim()
+                      ? sorted.filter(c =>
+                          c.name[lang].toLowerCase().includes(countrySearch.toLowerCase())
+                        )
+                      : sorted;
+                    return filtered.map((country) => {
+                      const isChecked = formData.subscriptionCountries.includes(country.code);
+                      return (
+                        <label
+                          key={country.code}
+                          className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors select-none ${
+                            isChecked ? 'bg-accent/5' : 'hover:bg-gray-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            className="sr-only"
+                            checked={isChecked}
+                            onChange={() => {
+                              const current = formData.subscriptionCountries;
+                              handleInputChange(
+                                'subscriptionCountries',
+                                isChecked
+                                  ? current.filter(code => code !== country.code)
+                                  : [...current, country.code]
+                              );
+                            }}
+                          />
+                          <div className={`w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
+                            isChecked ? 'bg-accent border-accent' : 'border-gray-300'
+                          }`}>
+                            {isChecked && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3.5} />}
                           </div>
-                        </div>
-                      )}
+                          <span className={`text-sm ${isChecked ? 'text-accent font-medium' : 'text-gray-700'}`}>
+                            {country.name[lang]}
+                          </span>
+                        </label>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
 
-                      {/* Plan Header */}
-                      <div className="mb-6">
-                        <div className={`p-3 rounded-lg inline-flex mb-4 bg-gradient-to-br ${details.gradient}`}>
-                          <PlanIcon className="h-6 w-6 text-white" strokeWidth={2} />
-                        </div>
-                        <h3 className="text-lg font-semibold text-primary mb-2">
-                          {details.name}
-                        </h3>
+              {/* ── Live Pricing Card ─────────────────────────────────────── */}
+              {formData.subscriptionSectors.length > 0 && formData.subscriptionCountries.length > 0 ? (
+                <div className="bg-gradient-to-br from-accent/10 to-primary/10 rounded-xl border-2 border-accent/20 p-6 animate-in fade-in zoom-in-95 duration-300">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      {/* Summary */}
+                      <p className="text-sm text-gray-600 mb-3">
+                        <span className="font-semibold text-primary">{formData.subscriptionSectors.length}</span>{' '}
+                        {t('auth.signup.pricingStep.sectorsTitle').toLowerCase()}{' × '}
+                        <span className="font-semibold text-primary">{formData.subscriptionCountries.length}</span>{' '}
+                        {t('auth.signup.pricingStep.countriesTitle').toLowerCase()}
+                      </p>
+
+                      {/* Pricing tier */}
+                      <div className="flex items-center gap-2 mb-4">
+                        <TrendingUp className="h-4 w-4 text-accent flex-shrink-0" strokeWidth={2} />
+                        <span className="text-xs text-gray-500">
+                          {t('auth.signup.pricingStep.pricingTier', {
+                            sectorRange: getSectorRange(formData.subscriptionSectors.length),
+                            countryRange: getCountryRange(formData.subscriptionCountries.length),
+                          })}
+                        </span>
                       </div>
 
                       {/* Price */}
-                      <div className="mb-6 pb-6 border-b border-gray-100">
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                          {t('auth.signup.pricingStep.yourYearlyPrice')}
+                        </p>
                         <div className="flex items-baseline gap-1">
-                          <span className="text-3xl font-bold text-primary tabular-nums">
-                            {details.price}
+                          <Euro className="h-6 w-6 text-primary mb-1" strokeWidth={2.5} />
+                          <span className="text-4xl font-extrabold text-primary tabular-nums">
+                            {formData.subscriptionPrice.toLocaleString()}
                           </span>
-                          {details.priceDetail && (
-                            <span className="text-gray-600">/ {details.priceDetail}</span>
-                          )}
+                        </div>
+                        <div className="flex items-center gap-4 mt-1">
+                          <p className="text-sm text-accent font-semibold">
+                            {t('auth.signup.pricingStep.billedYearly')}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {t('auth.signup.pricingStep.totalPerYear')}
+                          </p>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Features */}
-                      <ul className="space-y-2.5 flex-1">
-                        {details.features.map((feature, idx) => (
-                          <li key={idx} className="flex items-start gap-2.5">
-                            <div className="flex-shrink-0 mt-0.5">
-                              <Check className="h-4 w-4 text-green-600" strokeWidth={2.5} />
-                            </div>
-                            <span className="text-sm text-gray-700">
-                              {feature}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </button>
-                  );
-                })}
-              </div>
+                    {/* Check badge */}
+                    <div className="bg-accent rounded-full p-3 flex-shrink-0">
+                      <Check className="h-6 w-6 text-white" strokeWidth={3} />
+                    </div>
+                  </div>
+
+                  {/* Subtle note */}
+                  <p className="text-xs text-gray-500 mt-4 pt-3 border-t border-accent/10 flex items-center gap-1">
+                    <Info className="h-3.5 w-3.5 flex-shrink-0" />
+                    {t('auth.signup.pricingStep.priceNote')}
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-xl border-2 border-dashed border-gray-200 p-8 text-center text-gray-400">
+                  <Euro className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">{t('auth.signup.pricingStep.noSelection')}</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -1866,15 +2025,19 @@ const Signup = () => {
                       </div>
                     )}
                     <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-gray-600 text-xs mb-1">{t('auth.confirmation.subscriptionPlan')}</p>
-                      <p className="text-primary font-semibold">{getPlanDetails(formData.planType)?.name}</p>
+                      <p className="text-gray-600 text-xs mb-1">{t('auth.signup.pricingStep.subscriptionSectors')}</p>
+                      <p className="text-primary font-semibold">{formData.subscriptionSectors.length} {t('auth.signup.pricingStep.sectorsTitle').toLowerCase()}</p>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-gray-600 text-xs mb-1">{t('payment.total')}</p>
+                      <p className="text-gray-600 text-xs mb-1">{t('auth.signup.pricingStep.subscriptionCountries')}</p>
+                      <p className="text-primary font-semibold">{formData.subscriptionCountries.length} {t('auth.signup.pricingStep.countriesTitle').toLowerCase()}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <p className="text-gray-600 text-xs mb-1">{t('auth.signup.pricingStep.yearlySubscription')}</p>
                       <p className="text-primary font-semibold text-lg tabular-nums">
-                        ${getPlanPrice(formData.planType)}
+                        {formData.subscriptionPrice.toLocaleString()} €
                         <span className="text-sm text-gray-600 font-normal">
-                          {' '}/{t('offers.plans.monthly')}
+                          {' — '}{t('auth.signup.pricingStep.billedYearly')}
                         </span>
                       </p>
                     </div>
@@ -1945,8 +2108,8 @@ const Signup = () => {
                       )}
                       
                       <div>
-                        <p className="text-gray-600 font-medium mb-1">{t('auth.confirmation.subscriptionPlan')}</p>
-                        <p className="text-primary font-semibold">{getPlanDetails(formData.planType)?.name}</p>
+                        <p className="text-gray-600 font-medium mb-1">{t('auth.signup.pricingStep.yearlySubscription')}</p>
+                        <p className="text-primary font-semibold">{formData.subscriptionPrice.toLocaleString()} € / {t('auth.signup.pricingStep.totalPerYear')}</p>
                       </div>
                     </div>
 
@@ -1963,21 +2126,21 @@ const Signup = () => {
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-gray-600">{t('payment.subtotal')}</span>
                             <span className="text-gray-600 line-through tabular-nums">
-                              ${getPlanPrice(formData.planType)}/{t('offers.plans.monthly')}
+                              {formData.subscriptionPrice.toLocaleString()} €/{t('auth.signup.pricingStep.totalPerYear')}
                             </span>
                           </div>
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-green-600 font-medium">{t('payment.discount')}</span>
                             <span className="text-green-600 font-semibold tabular-nums">
-                              -${(getPlanPrice(formData.planType) * appliedPromoCode.discountPercent / 100).toFixed(2)}
+                              -{(formData.subscriptionPrice * appliedPromoCode.discountPercent / 100).toFixed(2)} €
                             </span>
                           </div>
                           <div className="pt-2 border-t border-gray-200 flex items-center justify-between">
                             <span className="font-semibold text-primary">{t('payment.total')}</span>
                             <span className="font-bold text-xl text-primary tabular-nums">
-                              ${(getPlanPrice(formData.planType) * (1 - appliedPromoCode.discountPercent / 100)).toFixed(2)}
+                              {(formData.subscriptionPrice * (1 - appliedPromoCode.discountPercent / 100)).toFixed(2)} €
                               <span className="text-sm text-gray-600 font-normal">
-                                {' '}/{t('offers.plans.monthly')}
+                                {' — '}{t('auth.signup.pricingStep.billedYearly')}
                               </span>
                             </span>
                           </div>
@@ -2032,16 +2195,16 @@ const Signup = () => {
 
               {/* Payment Form */}
               <div className="bg-white rounded-xl border-2 border-gray-200 p-8">
-                {formData.planType && (
+                {formData.subscriptionPrice > 0 && (
                   <Elements stripe={stripePromise}>
                     <StripePaymentForm
                       amount={
                         appliedPromoCode?.discountPercent
-                          ? getPlanPrice(formData.planType) * 
+                          ? formData.subscriptionPrice *
                             (1 - appliedPromoCode.discountPercent / 100)
-                          : getPlanPrice(formData.planType)
+                          : formData.subscriptionPrice
                       }
-                      planName={getPlanDetails(formData.planType)?.name || ''}
+                      planName={`${formData.subscriptionSectors.length} ${t('auth.signup.pricingStep.sectorsTitle').toLowerCase()} × ${formData.subscriptionCountries.length} ${t('auth.signup.pricingStep.countriesTitle').toLowerCase()}`}
                       onSuccess={handleSubmit}
                       onError={(error) => setError(error)}
                       appliedPromoCode={
