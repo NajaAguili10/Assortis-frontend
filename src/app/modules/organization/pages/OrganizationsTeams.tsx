@@ -24,6 +24,7 @@ import { useOrganizations } from '@app/modules/organization/hooks/useOrganizatio
 import { useNotifications } from '@app/modules/administrator/hooks/useNotifications';
 import { canManageOrganizationAdminActions, isOrganizationUserRole } from '@app/services/permissions.service';
 import { NotificationTypeEnum, NotificationPriorityEnum } from '@app/types/notification.dto';
+
 import { 
   Building2, 
   Users, 
@@ -45,6 +46,8 @@ import {
   Eye,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ExpertDTO } from '../../expert/hooks/useExperts';
+import { expertService } from '@/app/services/expertService';
 
 interface TeamMember {
   id: string;
@@ -72,9 +75,9 @@ const mockOrganization = {
 };
 
 // Mock experts database (same as in OrganizationsInvite)
-const mockExperts: Expert[] = [
+const experts: Expert[] = [
   { id: '1', name: 'Dr. Sarah Johnson', expertise: 'Health & Development', verified: true, email: 'sarah.johnson@expert.com' },
-  { id: '2', name: 'John Smith', expertise: 'Project Management', verified: true, email: 'john.smith@expert.com' },
+  { id: '2', name: 'Naja Smith', expertise: 'Project Management', verified: true, email: 'john.smith@expert.com' },
   { id: '3', name: 'Marie Dupont', expertise: 'Education', verified: true, email: 'marie.dupont@expert.com' },
   { id: '4', name: 'Ahmed Hassan', expertise: 'Infrastructure', verified: true, email: 'ahmed.hassan@expert.com' },
   { id: '5', name: 'Elena Rodriguez', expertise: 'Environment', verified: true, email: 'elena.rodriguez@expert.com' },
@@ -82,6 +85,9 @@ const mockExperts: Expert[] = [
   { id: '7', name: 'Sophie Martin', expertise: 'Social Development', verified: true, email: 'sophie.martin@expert.com' },
   { id: '8', name: 'Omar Al-Rashid', expertise: 'Water & Sanitation', verified: true, email: 'omar.alrashid@expert.com' },
 ];
+
+
+
 
 // Mock team members data
 const mockTeamMembers: TeamMember[] = [
@@ -122,7 +128,7 @@ export default function OrganizationsTeams() {
   
   // Invite dialog state
   const [showInviteDialog, setShowInviteDialog] = useState(false);
-  const [selectedExpert, setSelectedExpert] = useState<Expert | null>(null);
+  const [selectedExpert, setSelectedExpert] = useState<ExpertDTO | null>(null);
   const [newMemberName, setNewMemberName] = useState('');
   const [newMemberEmail, setNewMemberEmail] = useState('');
   const [newMemberRole, setNewMemberRole] = useState<'admin' | 'member' | 'viewer'>('member');
@@ -136,6 +142,23 @@ export default function OrganizationsTeams() {
   const [editName, setEditName] = useState('');
   const [editRole, setEditRole] = useState<'admin' | 'member' | 'viewer'>('member');
   const [editDepartment, setEditDepartment] = useState('');
+  const [experts, setExperts] = useState<ExpertDTO[]>([]);
+
+   
+        React.useEffect(() => {
+  
+         const fetchExperts = async () => {
+        try {
+          const result = await expertService.getAllExperts();
+          setExperts(result);
+        } catch (error) {
+          console.error("Error fetching experts:", error);
+        }
+      };
+          fetchExperts();
+        
+        }, []);
+      
   
   // Delete confirmation state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -175,11 +198,11 @@ export default function OrganizationsTeams() {
   
   // Handle expert selection
   const handleExpertSelection = (expertId: string) => {
-    const expert = mockExperts.find(e => e.id === expertId);
+    const expert = experts.find(e => e.id === expertId);
     if (expert) {
       setSelectedExpert(expert);
-      setNewMemberName(expert.name);
-      setNewMemberEmail(expert.email);
+      setNewMemberName(expert.firstName);
+     // setNewMemberEmail(expert.email);
     }
   };
 
@@ -261,7 +284,7 @@ export default function OrganizationsTeams() {
         });
       }, 1600);
 
-      // ✅ Enregistrer dans l'historique
+      // Enregistrer dans l'historique
       addHistoryEntry({
         type: 'team-invitation',
         expertName: newMemberName,
@@ -670,7 +693,7 @@ export default function OrganizationsTeams() {
                         <SelectValue placeholder={t('organizations.teams.invite.selectExpert.placeholder')} />
                       </SelectTrigger>
                       <SelectContent>
-                        {mockExperts.map((expert) => (
+                        {experts.map((expert) => (
                           <SelectItem key={expert.id} value={expert.id}>
                             <div className="flex items-center gap-2">
                               {expert.verified && <CheckCircle2 className="w-4 h-4 text-green-500" />}

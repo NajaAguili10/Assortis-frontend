@@ -21,12 +21,14 @@ import {
   DollarSign,
   X,
 } from 'lucide-react';
-import type { ExpertDTO } from '../types/assistance.dto';
+
+import { ExpertProfileDTO } from '../modules/expert/types/expert.dto';
+import { ExpertDTO } from '../modules/expert/hooks/useExperts';
 
 interface ExpertProfileDialogProps {
   open: boolean;
   onClose: () => void;
-  expert: ExpertDTO | null;
+  expert: ExpertDTO| null;
 }
 
 export function ExpertProfileDialog({ open, onClose, expert }: ExpertProfileDialogProps) {
@@ -59,7 +61,7 @@ export function ExpertProfileDialog({ open, onClose, expert }: ExpertProfileDial
     }
   };
 
-  const availabilityConfig = getAvailabilityConfig(expert.availability);
+  const availabilityConfig = getAvailabilityConfig(expert.availabilityStatus);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -69,16 +71,16 @@ export function ExpertProfileDialog({ open, onClose, expert }: ExpertProfileDial
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-4 flex-1">
               <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-2xl flex-shrink-0">
-                {expert.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                {expert.firstName.split(' ').map(n => n[0]).join('').toUpperCase()}
               </div>
               <div className="flex-1">
                 <DialogTitle className="text-2xl font-bold text-primary mb-2">
-                  {expert.name}
+                  {expert.lastName}
                 </DialogTitle>
                 <DialogDescription className="text-base text-gray-700 mb-2">
                   {expert.title}
                 </DialogDescription>
-                <p className="text-sm text-muted-foreground mb-3">{expert.organization}</p>
+                <p className="text-sm text-muted-foreground mb-3">{expert.primaryOrganizationName}</p>
                 <Badge variant="outline" className={availabilityConfig.className}>
                   {availabilityConfig.label}
                 </Badge>
@@ -103,21 +105,21 @@ export function ExpertProfileDialog({ open, onClose, expert }: ExpertProfileDial
             <div className="text-center">
               <div className="flex items-center justify-center gap-1 mb-1">
                 <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                <span className="text-2xl font-bold text-primary">{expert.rating}</span>
+                <span className="text-2xl font-bold text-primary">{expert.ratingAvg}</span>
               </div>
               <p className="text-xs text-muted-foreground">{t('assistance.expert.rating')}</p>
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center gap-1 mb-1">
                 <Award className="w-4 h-4 text-primary" />
-                <span className="text-2xl font-bold text-primary">{expert.completedAssignments}</span>
+                <span className="text-2xl font-bold text-primary">{expert.completedMissions}</span>
               </div>
               <p className="text-xs text-muted-foreground">{t('assistance.expert.completedAssignments')}</p>
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center gap-1 mb-1">
                 <Calendar className="w-4 h-4 text-primary" />
-                <span className="text-2xl font-bold text-primary">{expert.yearsOfExperience}</span>
+                <span className="text-2xl font-bold text-primary">{expert.yearsExperience}</span>
               </div>
               <p className="text-xs text-muted-foreground">{t('assistance.expert.yearsExperience')}</p>
             </div>
@@ -139,8 +141,8 @@ export function ExpertProfileDialog({ open, onClose, expert }: ExpertProfileDial
               {t('assistance.expert.expertise')}
             </h3>
             <div className="flex flex-wrap gap-2">
-              {expert.expertise.map((exp) => (
-                <Badge key={exp} variant="secondary" className="text-xs">
+              {expert.experiences.map((exp) => (
+                <Badge key={exp.title} variant="secondary" className="text-xs">
                   {t(`assistance.type.${exp}`)}
                 </Badge>
               ))}
@@ -155,7 +157,7 @@ export function ExpertProfileDialog({ open, onClose, expert }: ExpertProfileDial
             </h3>
             <div className="flex flex-wrap gap-2">
               {expert.sectors.map((sector) => (
-                <Badge key={sector} variant="outline" className="text-xs">
+                <Badge key={sector.sectorName} variant="outline" className="text-xs">
                   {t(`projects.sector.${sector}`)}
                 </Badge>
               ))}
@@ -170,8 +172,8 @@ export function ExpertProfileDialog({ open, onClose, expert }: ExpertProfileDial
             </h3>
             <div className="flex flex-wrap gap-2">
               {expert.languages.map((lang) => (
-                <Badge key={lang} variant="outline" className="text-xs">
-                  {lang}
+                <Badge key={lang.languageName} variant="outline" className="text-xs">
+                  {lang.languageName}
                 </Badge>
               ))}
             </div>
@@ -196,7 +198,7 @@ export function ExpertProfileDialog({ open, onClose, expert }: ExpertProfileDial
               )}
               <div className="flex items-center gap-2 text-sm text-gray-700">
                 <MapPin className="w-4 h-4 text-muted-foreground" />
-                <span>{expert.location.city}, {expert.location.country}</span>
+                <span>{expert.city.name}, {expert.country.name}</span>
               </div>
             </div>
           </div>
@@ -211,7 +213,7 @@ export function ExpertProfileDialog({ open, onClose, expert }: ExpertProfileDial
               <div className="flex flex-wrap gap-2">
                 {expert.certifications.map((cert, index) => (
                   <Badge key={index} variant="outline" className="text-xs bg-blue-50">
-                    {cert}
+                    {cert.name}
                   </Badge>
                 ))}
               </div>

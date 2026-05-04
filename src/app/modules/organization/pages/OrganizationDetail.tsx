@@ -115,13 +115,13 @@ export default function OrganizationDetail() {
       Math.round(
         [
           organization.description,
-          organization.email,
+          organization.contactEmail,
           organization.website,
-          organization.yearEstablished,
-          organization.employeeCount,
-          organization.budget,
+          organization.yearFounded,
+          organization.employeesCount,
+         /* organization.budget,
           organization.teamMembers,
-          organization.certifications?.length,
+          organization.certifications?.length,*/
           organization.subSectors?.length,
         ].filter(Boolean).length * 11,
       ),
@@ -129,7 +129,7 @@ export default function OrganizationDetail() {
   );
 
   const currentSection = sections.find((section) => section.id === activeSection);
-  const currentSectionStatus = organization.status === 'VERIFIED' ? 'verified' : 'selfDeclared';
+  const currentSectionStatus = organization.verificationStatus === 'VERIFIED' ? 'verified' : 'selfDeclared';
   const shouldShowBookmarkButton = user?.accountType !== 'expert';
 
   const renderSearchSectionContent = () => {
@@ -160,12 +160,12 @@ export default function OrganizationDetail() {
                   {t(`organizations.type.${organization.type}`)}
                 </p>
               </div>
-              {organization.yearEstablished && (
+              {organization.yearFounded && (
                 <div className="rounded-lg bg-gray-50 p-4">
                   <p className="mb-1 text-sm text-muted-foreground">
                     {t('organizations.myOrganization.information.established')}
                   </p>
-                  <p className="font-semibold text-primary">{organization.yearEstablished}</p>
+                  <p className="font-semibold text-primary">{organization.yearFounded}</p>
                 </div>
               )}
               {organization.website && (
@@ -196,7 +196,7 @@ export default function OrganizationDetail() {
       case 'contact':
         return (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {organization.email && (
+            {organization.contactEmail && (
               <div className="rounded-lg bg-gray-50 p-4">
                 <div className="mb-1 flex items-center gap-2">
                   <Mail className="h-4 w-4 text-muted-foreground" />
@@ -204,7 +204,7 @@ export default function OrganizationDetail() {
                     {t('organizations.myOrganization.contact.email')}
                   </p>
                 </div>
-                <p className="font-semibold text-primary">{organization.email}</p>
+                <p className="font-semibold text-primary">{organization.contactEmail}</p>
               </div>
             )}
             {organization.website && (
@@ -232,13 +232,13 @@ export default function OrganizationDetail() {
                   {t('organizations.myOrganization.contact.city')}
                 </p>
               </div>
-              <p className="font-semibold text-primary">{organization.city}</p>
+              <p className="font-semibold text-primary">{organization.city.name}</p>
             </div>
             <div className="rounded-lg bg-gray-50 p-4">
               <p className="mb-1 text-sm text-muted-foreground">
                 {t('organizations.myOrganization.contact.country')}
               </p>
-              <p className="font-semibold text-primary">{organization.country}</p>
+              <p className="font-semibold text-primary">{organization.country.name}</p>
             </div>
             <div className="rounded-lg bg-gray-50 p-4 md:col-span-2">
               <div className="mb-1 flex items-center gap-2">
@@ -290,7 +290,7 @@ export default function OrganizationDetail() {
                 </div>
               </div>
             )}
-            {organization.certifications && organization.certifications.length > 0 && (
+           {organization.certifications && organization.certifications.length > 0 && (
               <div className="rounded-lg bg-gray-50 p-4">
                 <div className="mb-2 flex items-center gap-2">
                   <Award className="h-4 w-4 text-muted-foreground" />
@@ -304,7 +304,7 @@ export default function OrganizationDetail() {
                       key={certification}
                       className="border-yellow-200 bg-yellow-50 text-yellow-700"
                     >
-                      {certification}
+                      {certification.certificationName}
                     </Badge>
                   ))}
                 </div>
@@ -319,10 +319,11 @@ export default function OrganizationDetail() {
                       {t('organizations.myOrganization.operations.budget')}
                     </p>
                   </div>
-                  <p className="font-semibold text-primary">{organization.budget.formatted}</p>
+                  <p className="font-semibold text-primary">{organization.budget}</p>
                 </div>
-              )}
-              {organization.employeeCount && (
+              )} 
+              
+              {organization.employeesCount && (
                 <div className="rounded-lg bg-gray-50 p-4">
                   <div className="mb-1 flex items-center gap-2">
                     <Users className="h-4 w-4 text-muted-foreground" />
@@ -330,7 +331,7 @@ export default function OrganizationDetail() {
                       {t('organizations.myOrganization.operations.employees')}
                     </p>
                   </div>
-                  <p className="font-semibold text-primary">{organization.employeeCount.toLocaleString()}</p>
+                  <p className="font-semibold text-primary">{organization.employeesCount.toLocaleString()}</p>
                 </div>
               )}
               <div className="rounded-lg bg-gray-50 p-4">
@@ -344,30 +345,34 @@ export default function OrganizationDetail() {
                   {t(`organizations.region.${organization.region}`)}
                 </p>
               </div>
-            </div>
-          </div>
+            </div> 
+          </div>  
         );
 
       case 'resources':
         return (
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {(organization.teamMembers || organization.employeeCount) && (
+           {(organization.teamMembers || organization.employeesCount) && ( 
+          
                 <div className="rounded-lg bg-gray-50 p-4">
                   <p className="mb-1 text-sm text-muted-foreground">
                     {t('organizations.myOrganization.resources.teamSize')}
                   </p>
-                  <p className="text-2xl font-bold text-primary">
-                    {(organization.teamMembers || organization.employeeCount || 0).toLocaleString()}
-                  </p>
+               <p className="text-2xl font-bold text-primary">
+                   {(organization.teamMembers || organization.employeesCount || 0).toLocaleString()}
+                  </p> 
+              
+                  
                 </div>
+
               )}
               <div className="rounded-lg bg-gray-50 p-4">
                 <p className="mb-1 text-sm text-muted-foreground">
                   {t('organizations.myOrganization.resources.technicalCapacity')}
                 </p>
                 <Badge className="border-green-200 bg-green-50 text-green-700">
-                  {organization.status === 'VERIFIED'
+                  {organization.verificationStatus === 'VERIFIED'
                     ? t('organizations.validation.verified')
                     : t('organizations.validation.selfDeclared')}
                 </Badge>
@@ -393,7 +398,7 @@ export default function OrganizationDetail() {
                 </Badge>
                 {organization.certifications?.map((certification) => (
                   <Badge key={certification} variant="outline">
-                    {certification}
+                    {certification.certificationName}
                   </Badge>
                 ))}
               </div>
@@ -430,7 +435,7 @@ export default function OrganizationDetail() {
                   </p>
                   <DollarSign className="h-5 w-5 text-purple-500" />
                 </div>
-                <p className="text-3xl font-bold text-purple-900">{organization.budget.formatted}</p>
+                <p className="text-3xl font-bold text-purple-900">{organization.budget}</p>
               </div>
             )}
             <div className="rounded-lg bg-gradient-to-br from-orange-50 to-orange-100 p-6">
@@ -497,7 +502,7 @@ export default function OrganizationDetail() {
                     <Badge variant="outline">
                       {t(`organizations.type.${organization.type}`)}
                     </Badge>
-                    {organization.status === 'VERIFIED' && (
+                    {organization.verificationStatus === 'VERIFIED' && (
                       <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                         <CheckCircle className="w-3 h-3 mr-1" />
                         {t('organizations.status.VERIFIED')}
@@ -536,34 +541,34 @@ export default function OrganizationDetail() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="flex items-center gap-2 text-sm">
                 <MapPin className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <span>{organization.city}, {organization.country}</span>
+                <span>{organization.city.name}, {organization.country.name}</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <Globe className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                 <span>{t(`organizations.region.${organization.region}`)}</span>
               </div>
-              {organization.email && (
+              {organization.contactEmail && (
                 <div className="flex items-center gap-2 text-sm">
                   <Mail className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  <span>{organization.email}</span>
+                  <span>{organization.contactEmail}</span>
                 </div>
               )}
-              {organization.yearEstablished && (
+              {organization.yearFounded && (
                 <div className="flex items-center gap-2 text-sm">
                   <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  <span>{t('organizations.details.established')}: {organization.yearEstablished}</span>
+                  <span>{t('organizations.details.established')}: {organization.yearFounded}</span>
                 </div>
               )}
-              {organization.employeeCount && (
+              {organization.employeesCount && (
                 <div className="flex items-center gap-2 text-sm">
                   <Users className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  <span>{organization.employeeCount.toLocaleString()} {t('organizations.details.employees')}</span>
+                  <span>{organization.employeesCount.toLocaleString()} {t('organizations.details.employees')}</span>
                 </div>
               )}
               {organization.budget && (
                 <div className="flex items-center gap-2 text-sm">
                   <DollarSign className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  <span>{t('organizations.details.budget')}: {organization.budget.formatted}</span>
+                  <span>{t('organizations.details.budget')}: {organization.budget}</span>
                 </div>
               )}
             </div>
@@ -653,7 +658,7 @@ export default function OrganizationDetail() {
                     <div className="flex flex-wrap gap-2">
                       {organization.certifications.map((cert) => (
                         <Badge key={cert} variant="outline">
-                          {cert}
+                          {cert.certificationName}
                         </Badge>
                       ))}
                     </div>

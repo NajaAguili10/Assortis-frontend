@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useTranslation } from '../contexts/LanguageContext';
 import { useNotifications } from '@app/modules/administrator/hooks/useNotifications';
 import { NotificationTypeEnum, NotificationPriorityEnum } from '../types/notification.dto';
@@ -26,6 +26,8 @@ import {
   Search,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { organizationService } from '../services/organizationService';
+import { Organization } from '../types/organization.dto';
 
 interface InviteDialogProps {
   open: boolean;
@@ -41,13 +43,15 @@ interface InviteStep {
 }
 
 // Mock data for selection
-const mockOrganizations = [
+/*const mockOrganizations = [
   { id: '1', name: 'UNICEF', type: 'International Organization', verified: true },
   { id: '2', name: 'World Bank', type: 'International Organization', verified: true },
   { id: '3', name: 'Red Cross', type: 'NGO', verified: true },
   { id: '4', name: 'Doctors Without Borders', type: 'NGO', verified: true },
   { id: '5', name: 'UNESCO', type: 'International Organization', verified: true },
-];
+];*/
+
+
 
 const mockExperts = [
   { id: '1', name: 'Dr. Sarah Johnson', expertise: 'Health & Development', verified: true },
@@ -68,6 +72,22 @@ export function InviteDialog({ open, onClose }: InviteDialogProps) {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+const [organizations, setOrganizations] =useState<Organization[]>([]);
+
+
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const response = await organizationService.getAllOrganizations();
+      setOrganizations(response);
+    } catch (error) {
+      console.error("Error fetching organizations:", error);
+    }
+  };
+
+  fetchData();
+}, []);
+
 
   const steps: InviteStep[] = [
     { id: 1, name: t('organizations.invite.step.recipient') },
@@ -126,7 +146,7 @@ export function InviteDialog({ open, onClose }: InviteDialogProps) {
   const canSend = currentStep === 4 && selectedEntity !== null;
 
   const filteredEntities = recipientType === 'organization'
-    ? mockOrganizations.filter(org => 
+    ? organizations.filter(org => 
         org.name.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : mockExperts.filter(expert => 

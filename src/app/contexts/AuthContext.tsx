@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { authService, LoginResponse } from '@app/services/authService';
 
 interface User {
   id: string;
@@ -31,7 +32,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Check for existing session on mount
   useEffect(() => {
     const storedUser = localStorage.getItem('assortis_user');
-    if (storedUser) {
+    const storedToken = localStorage.getItem('assortis_token');
+    if (storedUser && storedToken) {
       try {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
@@ -39,16 +41,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } catch (error) {
         console.error('Error parsing stored user:', error);
         localStorage.removeItem('assortis_user');
+        localStorage.removeItem('assortis_token');
       }
     }
   }, []);
 
   const login = async (email: string, password: string): Promise<void> => {
-    // TODO: Replace with actual API call
-    // Mock authentication for demo
+    /* OLD STATIC AUTH (disabled for dynamic backend auth)
     return new Promise((resolve, reject) => {
       setTimeout(() => {
-        // Simple mock validation
         if (email && password.length >= 6) {
           const mockUser: User = {
             id: '1',
@@ -56,7 +57,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             firstName: email.split('@')[0],
             lastName: 'User',
             role: 'member',
-            accountType: 'organization', // Default to organization for logged-in users
+            accountType: 'organization',
           };
           setUser(mockUser);
           setIsAuthenticated(true);
@@ -67,12 +68,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       }, 500);
     });
+    */
+
+    try {
+      const response: LoginResponse = await authService.login(email, password);
+      const { token, id, email: userEmail, roles } = response;
+      
+      const primaryRole = roles && roles.length > 0 ? roles[0] : 'public';
+      
+      const loggedInUser: User = {
+        id: String(id),
+        email: userEmail,
+        firstName: userEmail.split('@')[0], // Extract first part of email as fallback
+        lastName: 'User',
+        role: primaryRole,
+        accountType: primaryRole.toLowerCase() as any,
+      };
+
+      setUser(loggedInUser);
+      setIsAuthenticated(true);
+      localStorage.setItem('assortis_token', token);
+      localStorage.setItem('assortis_user', JSON.stringify(loggedInUser));
+    } catch (error: any) {
+      throw new Error(error.message || 'Login failed');
+    }
   };
 
   const logout = () => {
     setUser(null);
     setIsAuthenticated(false);
-    localStorage.removeItem('assortis_user');
+    authService.logout();
   };
 
   const signup = async (userData: Partial<User> & { email: string; password: string }): Promise<void> => {
@@ -131,11 +156,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const quickLogin = async (accountType: QuickLoginAccountType): Promise<void> => {
-    // TODO: Replace with actual API call
-    // Mock quick login for demo
+    /* OLD STATIC AUTH (disabled for dynamic backend auth)
     return new Promise((resolve, reject) => {
       setTimeout(() => {
-        // Simple mock validation
         if (accountType) {
           const isOrganizationUser = accountType === 'organization-user';
           const resolvedAccountType = isOrganizationUser ? 'organization' : accountType;
@@ -165,6 +188,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       }, 500);
     });
+    */
+    
+    // Quick login is disabled for production backend auth
+    throw new Error('Quick login is not available in production mode');
   };
 
   return (

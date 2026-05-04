@@ -13,7 +13,10 @@ import {
   RegionEnum,
   AvailabilityEnum,
   CertificationTypeEnum,
+  CertificationDTO,
 } from '../types/expert.dto';
+import React from 'react';
+import { expertService } from '@/app/services/expertService';
 
 // Extended type pour l'usage interne avec champs additionnels
 interface ExpertListDTOInternal extends ExpertListDTO {
@@ -23,9 +26,95 @@ interface ExpertListDTOInternal extends ExpertListDTO {
   availabilityLabel: string;
   rate: string;
 }
+export interface ExpertSectorDTO {
+  sectorName: string;
+  sectorCode: string;
+}
 
+export interface ExpertSkillDTO {
+  skillName: string;
+  level: string;
+}
+
+export interface ExpertLanguageDTO {
+  languageCode: string;
+  languageName: string;
+  proficiency: string;
+}
+
+export interface ExpertEducationDTO {
+  id: number;
+  degree: string;
+  fieldOfStudy: string;
+  institution: string;
+  grade: string;
+  graduationYear: number;
+  country: string;
+  city: string;
+}
+
+export interface ExpertExperienceDTO {
+  id: number;
+  title: string;
+  organization: string;
+  donorName: string;
+  sectorName: string;
+  startDate: string;
+  endDate: string;
+  description: string;
+  country: string;
+  city: string;
+  isCurrent: boolean;
+}
+export interface CountryDTO {
+  id: number;
+  name: string;
+  code: string;
+}
+
+export interface CityDTO {
+  id: number;
+  name: string;
+}
+export interface ExpertDTO {
+  id: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  title: string;
+  email: string;
+  phone: string;
+  bio: string;
+  currentPosition: string;
+  yearsExperience: number;
+  dailyRate: number;
+  hourlyRate: number;
+  currency: string;
+  availabilityStatus: string;
+  availabilityPercentage: number;
+  profileSummary: string;
+  completedMissions: string;
+  completedProjects: number;
+  ratingAvg: number;
+  verificationStatus: string;
+  level: string;
+  country: CountryDTO;
+  city: CityDTO;
+
+  primaryOrganizationName: string;
+  organizationId: string;
+  isBidWriter: boolean;
+  verified: boolean;
+  lastActiveAt: string;
+  sectors: ExpertSectorDTO[];
+  skills: ExpertSkillDTO[];
+  languages: ExpertLanguageDTO[];
+  educations: ExpertEducationDTO[];
+  experiences: ExpertExperienceDTO[];
+  certifications: CertificationDTO[];
+}
 // Mock Data for Experts
-const mockExperts: ExpertListDTOInternal[] = [
+/*const mockExperts: ExpertListDTOInternal[] = [
   {
     id: '1',
     organizationId: 'org-1',
@@ -370,113 +459,136 @@ const mockExperts: ExpertListDTOInternal[] = [
     verified: true,
     lastActive: '2024-02-24T08:20:00Z',
   },
-];
+]; */
 
-// Mock CV Profiles
-const mockCVProfiles: CVProfileDTO[] = [
-  {
-    id: 'cv-1',
-    expertId: '1',
-    fileName: 'Sarah_Johnson_CV.pdf',
-    uploadedDate: '2024-02-15T10:00:00Z',
-    status: 'COMPLETED',
-    extractedData: {
-      name: 'Sarah Johnson',
-      email: 'sarah.johnson@example.com',
-      phone: '+44 20 1234 5678',
-      skills: ['Project Management', 'Stakeholder Engagement', 'M&E'],
-      experience: ['12 years in international development'],
-      education: ['MSc Development Studies'],
-    },
-    matchingScore: 92,
-  },
-  {
-    id: 'cv-2',
-    expertId: '2',
-    fileName: 'Ahmed_Hassan_CV.pdf',
-    uploadedDate: '2024-02-18T14:30:00Z',
-    status: 'COMPLETED',
-    extractedData: {
-      name: 'Ahmed Hassan',
-      email: 'ahmed.hassan@example.com',
-      skills: ['Agricultural Economics', 'Rural Development'],
-      experience: ['15 years in agriculture sector'],
-      education: ['PhD Agricultural Economics'],
-    },
-    matchingScore: 95,
-  },
-  {
-    id: 'cv-3',
-    expertId: '7',
-    fileName: 'John_Smith_CV.pdf',
-    uploadedDate: '2024-02-24T09:15:00Z',
-    status: 'PROCESSING',
-  },
-];
 
-// Mock Matching Results
-const mockMatching: ExpertMatchingDTO[] = [
-  {
-    id: 'match-1',
-    expertId: '1',
-    expert: mockExperts[0],
-    torId: 'tender-1',
-    torTitle: 'Senior Infrastructure Project Manager - East Africa',
-    matchingScore: 94,
-    status: 'PENDING',
-    matchedDate: '2024-02-22T10:00:00Z',
-    matchingReasons: {
-      skills: 95,
-      experience: 98,
-      sector: 90,
-      location: 88,
-      availability: 100,
-    },
-  },
-  {
-    id: 'match-2',
-    expertId: '2',
-    expert: mockExperts[1],
-    torId: 'tender-2',
-    torTitle: 'Agricultural Development Specialist - North Africa',
-    matchingScore: 96,
-    status: 'INVITED',
-    matchedDate: '2024-02-20T14:30:00Z',
-    invitationSent: '2024-02-21T09:00:00Z',
-    matchingReasons: {
-      skills: 97,
-      experience: 99,
-      sector: 100,
-      location: 95,
-      availability: 85,
-    },
-  },
-  {
-    id: 'match-3',
-    expertId: '3',
-    expert: mockExperts[2],
-    torId: 'tender-3',
-    torTitle: 'Public Health Advisor - South America',
-    matchingScore: 89,
-    status: 'ACCEPTED',
-    matchedDate: '2024-02-18T11:15:00Z',
-    invitationSent: '2024-02-19T10:00:00Z',
-    response: '2024-02-20T15:30:00Z',
-    matchingReasons: {
-      skills: 92,
-      experience: 88,
-      sector: 95,
-      location: 75,
-      availability: 100,
-    },
-  },
-];
+
+
+
 
 export const useExperts = () => {
+  const [experts, setExperts] = useState<ExpertDTO[]>([]);
   const [filters, setFilters] = useState<ExpertFiltersDTO>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState<'newest' | 'rating' | 'experience' | 'availability' | 'name'>('newest');
+
+  React.useEffect(() => {
+    const fetchExperts = async () => {
+      try {
+        const result = await expertService.getAllExperts();
+        setExperts(result);
+      } catch (error) {
+        console.error("Error fetching experts:", error);
+      }
+    };
+    fetchExperts();
+  }, []);
+
   const pageSize = 10;
+
+  // Mock CV Profiles
+  const cvProfiles: CVProfileDTO[] = useMemo(() => [
+    {
+      id: 'cv-1',
+      expertId: '1',
+      fileName: 'Sarah_Johnson_CV.pdf',
+      uploadedDate: '2024-02-15T10:00:00Z',
+      status: 'COMPLETED',
+      extractedData: {
+        name: 'Sarah Johnson',
+        email: 'sarah.johnson@example.com',
+        phone: '+44 20 1234 5678',
+        skills: ['Project Management', 'Stakeholder Engagement', 'M&E'],
+        experience: ['12 years in international development'],
+        education: ['MSc Development Studies'],
+      },
+      matchingScore: 92,
+    },
+    {
+      id: 'cv-2',
+      expertId: '2',
+      fileName: 'Ahmed_Hassan_CV.pdf',
+      uploadedDate: '2024-02-18T14:30:00Z',
+      status: 'COMPLETED',
+      extractedData: {
+        name: 'Ahmed Hassan',
+        email: 'ahmed.hassan@example.com',
+        skills: ['Agricultural Economics', 'Rural Development'],
+        experience: ['15 years in agriculture sector'],
+        education: ['PhD Agricultural Economics'],
+      },
+      matchingScore: 95,
+    },
+    {
+      id: 'cv-3',
+      expertId: '7',
+      fileName: 'John_Smith_CV.pdf',
+      uploadedDate: '2024-02-24T09:15:00Z',
+      status: 'PROCESSING',
+    },
+  ], []);
+
+  // Mock Matching Results
+  const matching: ExpertMatchingDTO[] = useMemo(() => {
+    if (experts.length < 3) return [];
+
+    return [
+      {
+        id: 'match-1',
+        expertId: '1',
+        expert: experts[0] as any,
+        torId: 'tender-1',
+        torTitle: 'Senior Infrastructure Project Manager - East Africa',
+        matchingScore: 94,
+        status: 'PENDING',
+        matchedDate: '2024-02-22T10:00:00Z',
+        matchingReasons: {
+          skills: 95,
+          experience: 98,
+          sector: 90,
+          location: 88,
+          availability: 100,
+        },
+      },
+      {
+        id: 'match-2',
+        expertId: '2',
+        expert: experts[1] as any,
+        torId: 'tender-2',
+        torTitle: 'Agricultural Development Specialist - North Africa',
+        matchingScore: 96,
+        status: 'INVITED',
+        matchedDate: '2024-02-20T14:30:00Z',
+        invitationSent: '2024-02-21T09:00:00Z',
+        matchingReasons: {
+          skills: 97,
+          experience: 99,
+          sector: 100,
+          location: 95,
+          availability: 85,
+        },
+      },
+      {
+        id: 'match-3',
+        expertId: '3',
+        expert: experts[2] as any,
+        torId: 'tender-3',
+        torTitle: 'Public Health Advisor - South America',
+        matchingScore: 89,
+        status: 'ACCEPTED',
+        matchedDate: '2024-02-18T11:15:00Z',
+        invitationSent: '2024-02-19T10:00:00Z',
+        response: '2024-02-20T15:30:00Z',
+        matchingReasons: {
+          skills: 92,
+          experience: 88,
+          sector: 95,
+          location: 75,
+          availability: 100,
+        },
+      },
+    ];
+  }, [experts]);
 
   // KPIs
   const kpis: ExpertKPIsDTO = {
@@ -492,7 +604,17 @@ export const useExperts = () => {
 
   // Filter and sort experts
   const filteredExperts = useMemo(() => {
-    let filtered = [...mockExperts];
+    let filtered = experts.map(e => ({
+      ...e,
+      // Mapping for compatibility with existing UI filters/sorting if names differ
+      title: e.currentPosition,
+      bio: e.profileSummary,
+      clientRating: e.ratingAvg,
+      yearsOfExperience: e.yearsExperience,
+      availability: e.availabilityStatus as any,
+      lastActive: e.lastActiveAt,
+      name: e.fullName,
+    }));
 
     // Apply filters
     if (filters.searchQuery) {
@@ -502,31 +624,32 @@ export const useExperts = () => {
           expert.firstName.toLowerCase().includes(query) ||
           expert.lastName.toLowerCase().includes(query) ||
           expert.title.toLowerCase().includes(query) ||
-          expert.bio.toLowerCase().includes(query) ||
-          expert.skills.some((skill) => skill.toLowerCase().includes(query))
+          expert.profileSummary.toLowerCase().includes(query) ||
+          expert.skills.some((skill) => skill.skillName.toLowerCase().includes(query))
       );
     }
 
     if (filters.status && filters.status.length > 0) {
-      filtered = filtered.filter((expert) => filters.status!.includes(expert.status));
+      filtered = filtered.filter((expert) => filters.status!.includes(expert.verificationStatus as any));
     }
 
     if (filters.level && filters.level.length > 0) {
-      filtered = filtered.filter((expert) => filters.level!.includes(expert.level));
+      filtered = filtered.filter((expert) => filters.level!.includes(expert.level as any));
     }
 
     if (filters.sector && filters.sector.length > 0) {
       filtered = filtered.filter((expert) =>
-        expert.sectors.some((sector) => filters.sector!.includes(sector))
+        expert.sectors.some((sector) => filters.sector!.includes(sector.sectorCode as any))
       );
     }
 
     if (filters.region && filters.region.length > 0) {
-      filtered = filtered.filter((expert) => filters.region!.includes(expert.region));
+      // Note: backend ExpertDTO doesn't seem to have region field yet, mapping if needed
+      // filtered = filtered.filter((expert) => filters.region!.includes(expert.region as any));
     }
 
     if (filters.availability && filters.availability.length > 0) {
-      filtered = filtered.filter((expert) => filters.availability!.includes(expert.availability));
+      filtered = filtered.filter((expert) => filters.availability!.includes(expert.availability as any));
     }
 
     if (filters.verified !== undefined) {
@@ -563,14 +686,14 @@ export const useExperts = () => {
         filtered.sort((a, b) => b.yearsOfExperience - a.yearsOfExperience);
         break;
       case 'availability':
-        const availabilityOrder = {
-          [AvailabilityEnum.IMMEDIATE]: 0,
-          [AvailabilityEnum.WITHIN_1_MONTH]: 1,
-          [AvailabilityEnum.WITHIN_3_MONTHS]: 2,
-          [AvailabilityEnum.NOT_AVAILABLE]: 3,
+        const availabilityOrder: Record<string, number> = {
+          'IMMEDIATE': 0,
+          'WITHIN_1_MONTH': 1,
+          'WITHIN_3_MONTHS': 2,
+          'NOT_AVAILABLE': 3,
         };
         filtered.sort(
-          (a, b) => availabilityOrder[a.availability] - availabilityOrder[b.availability]
+          (a, b) => (availabilityOrder[a.availability] ?? 99) - (availabilityOrder[b.availability] ?? 99)
         );
         break;
       case 'name':
@@ -581,7 +704,7 @@ export const useExperts = () => {
     }
 
     return filtered;
-  }, [filters, sortBy]);
+  }, [experts, filters, sortBy]);
 
   // Pagination
   const paginatedExperts: PaginatedResponseDTO<ExpertListDTO> = useMemo(() => {
@@ -638,8 +761,8 @@ export const useExperts = () => {
     setSortBy,
     currentPage,
     setCurrentPage,
-    cvProfiles: mockCVProfiles,
-    matching: mockMatching,
-    allExperts: mockExperts, // For global search
+    cvProfiles: cvProfiles,
+    matching: matching,
+    allExperts: experts, // For global search
   };
 };

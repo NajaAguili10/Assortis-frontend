@@ -6,7 +6,8 @@ export enum TenderStatusEnum {
   PUBLISHED = 'PUBLISHED',
   CLOSED = 'CLOSED',
   AWARDED = 'AWARDED',
-  CANCELLED = 'CANCELLED'
+  CANCELLED = 'CANCELLED',
+  OPEN='OPEN'
 }
 
 // Procurement Type - Type d'approvisionnement

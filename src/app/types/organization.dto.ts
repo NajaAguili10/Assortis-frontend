@@ -1,5 +1,5 @@
 // Organization DTOs for multilingual support
-import { SubSectorEnum } from './tender.dto';
+import { SectorEnum, SubSectorEnum } from './tender.dto';
 
 export enum OrganizationTypeEnum {
   NGO = 'NGO',
@@ -52,58 +52,122 @@ export enum RegionEnum {
   MIDDLE_EAST = 'MIDDLE_EAST',
 }
 
-export interface Organization {
+export enum VerificationStatus {
+  ACTIVE, INACTIVE, VERIFIED, PENDING, NOTVERIFIED
+}
+export interface SectorDTO {
   id: number;
+  name: string;
+  code: string;
+}
+export interface SubsectorDTO {
+  id?: number;
+  code?: string;
+  name?: string;
+  description?: string;
+  sectorId?: number;
+}
+export interface OrganizationCertificationDTO {
+  id: number;
+  certificationName: string;
+  issuingOrganization: string;
+  issuedDate: string;    
+  expiryDate: string;    
+  credentialId: string;
+  credentialUrl: string;
+  createdAt: string;      
+}
+export interface Organization {
+  id: string;
   name: string;
   cleanName?: string;
   legalName?: string;
-  type: string;
+  type?: string;
   registrationNumber?: string;
   yearFounded?: number;
   employeesCount?: number;
   annualTurnover?: number;
+
   website?: string;
   logoUrl?: string;
   description?: string;
+
   validated?: boolean;
   verifiedAt?: string;
+
   ratingAvg?: number;
   latitude?: number;
   longitude?: number;
+
   isPartner?: boolean;
   slogan?: string;
-  contactEmail: string;
+
+
+  contactEmail?: string;
   contactPhone?: string;
   address?: string;
+
   verificationStatus?: string;
   profileValidationStatus?: string;
-  acronym?: string;
-  region?: string;
-  isActive?: boolean;
-  postalCode?: string;
-  equipmentInfrastructure?: string;
-  contactName?: string;
-  contactTitle?: string;
+
+  profileValidatedBy?: {
+    id: number;
+    name?: string;
+  };
+
+  profileValidatedAt?: string;
+
   country?: {
     id: number;
     name: string;
     code: string;
   };
+
   city?: {
     id: number;
     name: string;
   };
+
   mainSector?: {
     id: number;
     name: string;
     code: string;
   };
-  parentId?: number;
-  defaultPaymentMethod?: string;
+
+  typeCode?: {
+    id: number;
+    name: string;
+  };
+
+  parent?: {
+    id: number;
+  };
+
+  defaultPaymentMethod?: {
+    id: number;
+    name: string;
+  };
+  
+  activeProjects:number;
+  teamMembers:number;
+  completedProjects: number;
+  partnerships: number;
+  certifications: OrganizationCertificationDTO[];
+  budget?:number 
+  sectors: SectorDTO[];
+  subSectors?: SubsectorDTO[];
+
   createdAt?: string;
   updatedAt?: string;
-  profileValidatedBy?: string;
-  profileValidatedAt?: string;
+
+  acronym?: string;
+  region?: string;
+  isActive?: boolean;
+  postalCode?: string;
+
+  equipmentInfrastructure?: string;
+  contactName?: string;
+  contactTitle?: string;
 }
 
 /*export interface Organization {
@@ -151,12 +215,21 @@ export interface OrganizationKPIs {
 
 export interface OrganizationFilters {
   searchQuery?: string;
-  type?: OrganizationTypeEnum[];
-  sectors?: OrganizationSectorEnum[];
-  subSectors?: SubSectorEnum[];
-  status?: OrganizationStatusEnum[];
-  region?: RegionEnum[];
-  country?: string[];
+  type?: string[];
+  sectors?: string[];
+  subSectors?: string[];
+  status?: string[];
+  regions?: string[];
+  countries?: string[];
+}
+
+export interface OrganizationFiltersData {
+  type: string[];
+  sectors: { id: number; name: string; code: string }[];
+  subSectors: { id: number; name: string; code: string }[];
+  regions: { id: number; name: string; code: string }[];
+  countries: { id: number; name: string; code: string }[];
+  status: string;
 }
 
 export interface PaginatedOrganizations {
@@ -234,3 +307,10 @@ export interface OrganizationInvitation {
   expiresAt: Date;
   respondedAt?: Date;
 }
+
+import axios from 'axios';
+
+export const getOrganizationFiltersData = async (): Promise<OrganizationFilters> => {
+  const response = await axios.get<OrganizationFilters>('/api/organizations/filters');
+  return response.data;
+};

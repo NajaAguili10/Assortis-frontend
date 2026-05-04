@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { Search, Filter, X, FileText, BarChart3, Users, Building2, GraduationCap, BookOpen, Award, User, ChevronRight, Headphones, FileQuestion, Library, Gift, HelpCircle, Shield } from 'lucide-react';
 import { useLanguage } from '@app/contexts/LanguageContext';
@@ -100,9 +100,9 @@ export default function GlobalSearch() {
     if (!searchQuery) return [];
     const query = searchQuery.toLowerCase();
     return allOrganizations.filter(org =>
-      org.name?.toLowerCase().includes(query) ||
-      org.description?.toLowerCase().includes(query) ||
-      org.country?.toLowerCase().includes(query)
+      (org.name?.toLowerCase().includes(query) ?? false) ||
+      (org.description?.toLowerCase().includes(query) ?? false) ||
+      (org.country?.name?.toLowerCase().includes(query) ?? false)
     ).slice(0, 10);
   }, [allOrganizations, searchQuery]);
 
@@ -321,11 +321,11 @@ export default function GlobalSearch() {
                               <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1">{tender.title}</h3>
                               <p className="text-sm text-gray-500 mb-2 line-clamp-2">{tender.description}</p>
                               <div className="flex items-center gap-3 flex-wrap">
-                                <span className="text-xs text-gray-500">{tender.organization}</span>
+                                <span className="text-xs text-gray-500">{tender.organizationName}</span>
                                 <span className="text-xs text-gray-400">•</span>
-                                <span className="text-xs text-gray-500">{tender.reference}</span>
+                                <span className="text-xs text-gray-500">{tender.referenceNumber}</span>
                                 <Badge variant="outline" className="text-xs">
-                                  {t(`sectors.${tender.sector}`)}
+                                  {t(`sectors.${tender.sectors}`)}
                                 </Badge>
                               </div>
                             </div>
@@ -443,26 +443,26 @@ export default function GlobalSearch() {
                               <User className="h-6 w-6 text-gray-400" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-gray-900 mb-1">{expert.firstName} {expert.lastName}</h3>
+                              <h3 className="font-semibold text-gray-900 mb-1">{expert.fullName}</h3>
                               <p className="text-sm text-gray-500 mb-2">{expert.title}</p>
                               <div className="flex items-center gap-3 flex-wrap">
                                 <span className="text-xs text-gray-500">{expert.city}, {expert.country}</span>
                                 <span className="text-xs text-gray-400">•</span>
-                                <span className="text-xs text-gray-500">{expert.yearsOfExperience} {t('common.years')}</span>
+                                <span className="text-xs text-gray-500">{expert.yearsExperience} {t('common.years')}</span>
                               </div>
                               <div className="flex flex-wrap gap-1 mt-2">
                                 {expert.skills.slice(0, 3).map((skill, idx) => (
                                   <Badge key={idx} variant="outline" className="text-xs">
-                                    {skill}
+                                    {skill.skillName}
                                   </Badge>
                                 ))}
                               </div>
                             </div>
                             <Badge 
-                              variant={expert.status === ExpertStatusEnum.ACTIVE ? 'default' : 'secondary'}
+                              variant={expert.verificationStatus === ExpertStatusEnum.ACTIVE ? 'default' : 'secondary'}
                               className="text-xs flex-shrink-0"
                             >
-                              {t(`experts.status.${expert.status}`)}
+                              {t(`experts.status.${expert.verificationStatus}`)}
                             </Badge>
                           </div>
                         </button>
@@ -507,7 +507,7 @@ export default function GlobalSearch() {
                               <h3 className="font-semibold text-gray-900 mb-1">{org.name}</h3>
                               <p className="text-sm text-gray-500 mb-2 line-clamp-2">{org.description}</p>
                               <div className="flex items-center gap-3 flex-wrap">
-                                <span className="text-xs text-gray-500">{org.country}</span>
+                                <span className="text-xs text-gray-500">{org.country?.name ?? '—'}</span>
                                 <Badge variant="outline" className="text-xs">
                                   {t(`organizations.type.${org.type}`)}
                                 </Badge>
@@ -617,7 +617,7 @@ export default function GlobalSearch() {
                               </div>
                               <p className="text-sm text-gray-500 mb-2 line-clamp-2">{cert.description}</p>
                               <div className="flex items-center gap-3 flex-wrap">
-                                <span className="text-xs text-gray-500">{cert.duration}</span>
+                                <span className="text-xs text-gray-500">{cert.earnedDate}</span>
                                 <Badge variant="outline" className="text-xs">
                                   {t(`training.level.${cert.level}`)}
                                 </Badge>

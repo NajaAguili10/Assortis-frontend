@@ -58,9 +58,9 @@ export default function SearchDashboard() {
   const projects = useMemo(() => {
     if (!normalizedQuery) return [];
     return allProjects.filter((project) =>
-      project.title.toLowerCase().includes(normalizedQuery) ||
-      project.description.toLowerCase().includes(normalizedQuery) ||
-      project.leadOrganization.toLowerCase().includes(normalizedQuery)
+      (project.title?.toLowerCase().includes(normalizedQuery) ?? false) ||
+      (project.description?.toLowerCase().includes(normalizedQuery) ?? false) ||
+      (project.leadOrganization?.toLowerCase().includes(normalizedQuery) ?? false)
     );
   }, [allProjects, normalizedQuery]);
 
@@ -68,9 +68,9 @@ export default function SearchDashboard() {
     if (!normalizedQuery) return [];
     return allTenders.filter((tender) =>
       tender.alertCategory === MatchingAlertCategoryEnum.AWARDS &&
-      (tender.title.toLowerCase().includes(normalizedQuery) ||
-        tender.referenceNumber.toLowerCase().includes(normalizedQuery) ||
-        tender.organizationName.toLowerCase().includes(normalizedQuery))
+      (tender.title?.toLowerCase().includes(normalizedQuery) ?? false) ||
+        (tender.referenceNumber?.toLowerCase().includes(normalizedQuery) ?? false) ||
+        (tender.organizationName?.toLowerCase().includes(normalizedQuery) ?? false)
     );
   }, [allTenders, normalizedQuery]);
 
@@ -78,27 +78,27 @@ export default function SearchDashboard() {
     if (!normalizedQuery) return [];
     return allTenders.filter((tender) =>
       tender.alertCategory === MatchingAlertCategoryEnum.SHORTLISTS &&
-      (tender.title.toLowerCase().includes(normalizedQuery) ||
-        tender.referenceNumber.toLowerCase().includes(normalizedQuery) ||
-        tender.organizationName.toLowerCase().includes(normalizedQuery))
+      (tender.title?.toLowerCase().includes(normalizedQuery) ?? false) ||
+        (tender.referenceNumber?.toLowerCase().includes(normalizedQuery) ?? false) ||
+        (tender.organizationName?.toLowerCase().includes(normalizedQuery) ?? false)
     );
   }, [allTenders, normalizedQuery]);
 
   const organisations = useMemo(() => {
     if (!normalizedQuery) return [];
     return allOrganizations.filter((organization) =>
-      organization.name.toLowerCase().includes(normalizedQuery) ||
-      organization.description.toLowerCase().includes(normalizedQuery) ||
-      organization.country.toLowerCase().includes(normalizedQuery)
+      (organization.name?.toLowerCase().includes(normalizedQuery) ?? false) ||
+      (organization.description?.toLowerCase().includes(normalizedQuery) ?? false) ||
+      (organization.country?.name?.toLowerCase().includes(normalizedQuery) ?? false)
     );
   }, [allOrganizations, normalizedQuery]);
 
   const experts = useMemo(() => {
     if (!normalizedQuery) return [];
     return allExperts.filter((expert) =>
-      `${expert.firstName} ${expert.lastName}`.toLowerCase().includes(normalizedQuery) ||
-      expert.title.toLowerCase().includes(normalizedQuery) ||
-      expert.skills.some((skill) => skill.toLowerCase().includes(normalizedQuery))
+      (`${expert.firstName ?? ''} ${expert.lastName ?? ''}`).toLowerCase().includes(normalizedQuery) ||
+      (expert.title?.toLowerCase().includes(normalizedQuery) ?? false) ||
+      (expert.skills?.some((skill) => skill?.toLowerCase().includes(normalizedQuery)) ?? false)
     );
   }, [allExperts, normalizedQuery]);
 
@@ -319,7 +319,7 @@ export default function SearchDashboard() {
                         className="w-full text-left p-4 hover:bg-gray-50"
                       >
                         <p className="font-medium text-gray-900 line-clamp-1">{item.name}</p>
-                        <p className="text-sm text-gray-500 line-clamp-1">{item.country}</p>
+                        <p className="text-sm text-gray-500 line-clamp-1">{item.country?.name ?? '—'}</p>
                       </button>
                     ))}
                   </div>

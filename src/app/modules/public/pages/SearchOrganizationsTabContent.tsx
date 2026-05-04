@@ -49,6 +49,7 @@ export default function SearchOrganizationsTabContent() {
   const [searchParams] = useSearchParams();
   const {
     organizations,
+    allOrganizations,
     filters,
     updateFilters,
     clearFilters,
@@ -394,9 +395,9 @@ export default function SearchOrganizationsTabContent() {
           </div>
         </div>
 
-        {organizations.data.length > 0 ? (
+        {allOrganizations.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 mb-6">
-            {organizations.data.map((org) => (
+            {allOrganizations.map((org) => (
               <div key={org.id} className="bg-white rounded-lg border p-5 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-start gap-3">
@@ -419,26 +420,51 @@ export default function SearchOrganizationsTabContent() {
                         {isBookmarked(org.id) ? t('organizations.actions.removeBookmark') : t('organizations.actions.bookmark')}
                       </Button>
                     )}
-                    {org.status === 'VERIFIED' && (
+                    {org.verificationStatus === 'VERIFIED' && (
                       <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                         <CheckCircle className="w-3 h-3 mr-1" />
                         {t('organizations.status.VERIFIED')}
                       </Badge>
                     )}
+                    {org.verificationStatus === 'ACTIVE' && (
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        {t('organizations.status.ACTIVE')}
+                      </Badge>
+                    )}
+                      {org.verificationStatus === 'INACTIVE' && (
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        {t('organizations.status.INACTIVE')}
+                      </Badge>
+                    )}
+                     {org.verificationStatus === 'PENDING' && (
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        {t('organizations.status.PENDING')}
+                      </Badge>
+                    )}
+                    {org.verificationStatus === 'NOTVERIFIED' && (
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        {t('organizations.status.NOTVERIFIED')}
+                      </Badge>
+                    )}
                   </div>
+                  
                 </div>
 
                 <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
                   <span className="flex items-center gap-1"><Target className="w-4 h-4" />{t(`organizations.type.${org.type}`)}</span>
-                  <span className="flex items-center gap-1"><MapPin className="w-4 h-4" />{org.city}, {org.country}</span>
-                  <span className="flex items-center gap-1"><Briefcase className="w-4 h-4" />{org.activeProjects} {t('organizations.details.projects')}</span>
+                  <span className="flex items-center gap-1"><MapPin className="w-4 h-4" />{org.city?.name || ''}{org.city?.name && org.country?.name ? ', ' : ''}{org.country?.name || ''}</span>
+                  <span className="flex items-center gap-1"><Briefcase className="w-4 h-4" />{org.activeProjects || 0} {t('organizations.details.projects')}</span>
                 </div>
 
                 <div className="flex items-center gap-2 mb-4">
-                  {org.sectors.slice(0, 3).map((sector, index) => (
-                    <Badge key={`${org.id}-sector-${index}`} variant="secondary">{t(`sectors.${sector}`)}</Badge>
+                  {(org.sectors || []).slice(0, 3).map((sector, index) => (
+                    <Badge key={`${org.id}-sector-${index}`} variant="secondary">{sector?.name || t(`sectors.${sector?.code}`)}</Badge>
                   ))}
-                  {org.sectors.length > 3 && <Badge variant="outline">+{org.sectors.length - 3}</Badge>}
+                  {(org.sectors || []).length > 3 && <Badge variant="outline">+{(org.sectors || []).length - 3}</Badge>}
                 </div>
 
                 <div className="flex items-center justify-between pt-3 border-t">

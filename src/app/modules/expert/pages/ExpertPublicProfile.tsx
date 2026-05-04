@@ -1,4 +1,4 @@
-﻿import { useLanguage } from '@app/contexts/LanguageContext';
+import { useLanguage } from '@app/contexts/LanguageContext';
 import { useAssistanceHistory } from '@app/contexts/AssistanceHistoryContext';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
@@ -382,12 +382,12 @@ export default function ExpertPublicProfile() {
     <div className="min-h-screen">
       <PageBanner
         title={expert.title}
-        description={`${expert.city}, ${expert.country}`}
+        description={`${typeof expert.city === 'object' && expert.city !== null ? (expert.city as any).name : (expert.city || '')}, ${typeof expert.country === 'object' && expert.country !== null ? (expert.country as any).name : (expert.country || '')}`}
         icon={UserCircle}
         stats={[
-          { value: expert.yearsOfExperience.toString(), label: t('experts.stats.yearsExp') },
-          { value: expert.completedMissions.toString(), label: t('experts.stats.completedMissions') },
-          { value: `${expert.clientRating.toFixed(1)}`, label: t('experts.stats.rating') }
+          { value: (expert.yearsExperience || 0).toString(), label: t('experts.stats.yearsExp') },
+          { value: "0", label: t('experts.stats.completedMissions') },
+          { value: `${(expert.ratingAvg || 0).toFixed(1)}`, label: t('experts.stats.rating') }
         ]}
       />
 
@@ -418,7 +418,7 @@ export default function ExpertPublicProfile() {
                 <div className="flex items-center gap-6 text-sm text-muted-foreground mb-4 flex-wrap">
                   <span className="flex items-center gap-2">
                     <MapPin className="w-4 h-4" />
-                    {expert.city}, {expert.country}
+                    {typeof expert.city === 'object' && expert.city !== null ? (expert.city as any).name : (expert.city || '')}, {typeof expert.country === 'object' && expert.country !== null ? (expert.country as any).name : (expert.country || '')}
                   </span>
                   <span className="flex items-center gap-2">
                     <Phone className="w-4 h-4" />
@@ -439,16 +439,16 @@ export default function ExpertPublicProfile() {
               <div className="text-center">
                 <div className="flex items-center justify-center gap-1 mb-1">
                   <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                  <span className="text-2xl font-bold text-primary">{expert.clientRating.toFixed(1)}</span>
+                  <span className="text-2xl font-bold text-primary">{(expert.ratingAvg || 0).toFixed(1)}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">{t('experts.stats.rating')}</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold text-primary mb-1">{expert.completedMissions}</p>
+                <p className="text-2xl font-bold text-primary mb-1">0</p>
                 <p className="text-xs text-muted-foreground">{t('experts.stats.completedMissions')}</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold text-primary mb-1">{expert.yearsOfExperience}</p>
+                <p className="text-2xl font-bold text-primary mb-1">{expert.yearsExperience || 0}</p>
                 <p className="text-xs text-muted-foreground">{t('experts.stats.yearsExp')}</p>
               </div>
               <div className="text-center">
@@ -580,9 +580,9 @@ export default function ExpertPublicProfile() {
                   {t('experts.publicProfile.sectors')}
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  {expert.sectors.map((sector) => (
-                    <Badge key={sector} variant="secondary">
-                      {t(`experts.sector.${sector}`)}
+                  {expert.sectors?.map((sector: any, index: number) => (
+                    <Badge key={index} variant="secondary">
+                      {typeof sector === 'object' ? sector.sectorName || sector.sectorCode : sector}
                     </Badge>
                   ))}
                 </div>
@@ -595,9 +595,9 @@ export default function ExpertPublicProfile() {
                   {t('experts.publicProfile.skills')}
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  {expert.skills.map((skill, index) => (
+                  {expert.skills?.map((skill: any, index: number) => (
                     <Badge key={index} variant="outline">
-                      {skill}
+                      {typeof skill === 'object' ? skill.skillName : skill}
                     </Badge>
                   ))}
                 </div>
@@ -610,11 +610,11 @@ export default function ExpertPublicProfile() {
                   {t('experts.publicProfile.languages')}
                 </h3>
                 <div className="space-y-2">
-                  {expert.languages?.map((lang, index) => (
-                    <div key={`${lang.language}-${index}`} className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">{lang.language}</span>
+                  {expert.languages?.map((lang: any, index: number) => (
+                    <div key={`${lang.languageName || lang.languageCode}-${index}`} className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">{lang.languageName || lang.languageCode}</span>
                       <Badge variant="outline" className="text-xs">
-                        {lang.level}
+                        {lang.proficiency}
                       </Badge>
                     </div>
                   ))}

@@ -13,7 +13,7 @@ import { initializeTestAccounts, authenticateUser, getTestAccounts, type Incompl
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login, quickLogin } = useAuth();
+  const { login } = useAuth();
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,7 +24,8 @@ const Login = () => {
 
   // Initialize test accounts on component mount
   useEffect(() => {
-    initializeTestAccounts();
+    // OLD STATIC AUTH (disabled for dynamic backend auth)
+    // initializeTestAccounts();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,6 +35,7 @@ const Login = () => {
     setLoading(true);
 
     try {
+      /* OLD STATIC AUTH (disabled for dynamic backend auth)
       // Authenticate user using the new service
       const authResult = await authenticateUser(email, password);
 
@@ -54,6 +56,32 @@ const Login = () => {
         setIncompleteSignupData(authResult.userData as IncompleteSignupData);
         setLoading(false);
       }
+      */
+
+      // NEW DYNAMIC BACKEND AUTH
+      await login(email, password);
+      
+      // Get user from localStorage to determine role
+      const storedUser = localStorage.getItem('assortis_user');
+      if (storedUser) {
+        const user = JSON.parse(storedUser);
+        const role = (user.role || user.accountType || '').toUpperCase();
+        
+        // Dynamic Role-Based Redirection
+        if (role === 'EXPERT') {
+          navigate('/expert-dashboard');
+        } else if (role === 'ADMIN') {
+          navigate('/admin-dashboard');
+        } else if (role === 'ORGANIZATION') {
+          navigate('/organization-dashboard');
+        } else {
+          navigate('/home');
+        }
+      } else {
+        navigate('/account');
+      }
+      
+      setLoading(false);
     } catch (err: any) {
       setError(err.message || t('auth.login.invalidCredentials'));
       setLoading(false);
@@ -74,6 +102,7 @@ const Login = () => {
   };
 
   const handleQuickLogin = async (accountType: 'expert' | 'organization' | 'organization-user' | 'admin' | 'public') => {
+    /* OLD STATIC AUTH (disabled for dynamic backend auth)
     setError('');
     setLoading(true);
 
@@ -85,11 +114,13 @@ const Login = () => {
     } finally {
       setLoading(false);
     }
+    */
+    setError('Quick login is disabled for backend authentication.');
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Banni�re Connexion */}
+      {/* Bannire Connexion */}
       <PageBanner
         icon={LogIn}
         title={t('auth.login.banner.title')}
@@ -97,7 +128,7 @@ const Login = () => {
       />
 
       <div className="max-w-3xl mx-auto px-4 py-8">
-        {/* Test Accounts Card */}
+        {/* OLD STATIC AUTH (disabled for dynamic backend auth)
         <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 p-6 mb-6">
           <div className="flex items-center gap-2 mb-3">
             <Sparkles className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
@@ -201,6 +232,7 @@ const Login = () => {
             </Button>
           </div>
         </div>
+        */}
 
         {/* Form Card */}
         <div className="bg-white rounded-xl border-2 border-gray-200 p-8">
@@ -357,7 +389,7 @@ const Login = () => {
           </div>
         )}
 
-        {/* Test Accounts Details Button */}
+        {/* OLD STATIC AUTH (disabled for dynamic backend auth)
         <div className="mt-6 text-center">
           <button
             onClick={() => setShowTestAccounts(!showTestAccounts)}
@@ -366,86 +398,18 @@ const Login = () => {
             {showTestAccounts ? '-' : '+'} {t('auth.login.testAccountsHelp')}
           </button>
         </div>
+        */}
 
-        {/* Test Accounts List */}
+        {/* OLD STATIC AUTH (disabled for dynamic backend auth)
         {showTestAccounts && (
           <div className="mt-6 bg-white rounded-xl border-2 border-gray-200 p-6">
             <h3 className="text-lg font-semibold text-primary mb-4">
               {t('auth.login.testMode')}
             </h3>
-            
-            {/* Complete Accounts */}
-            <div className="mb-6">
-              <h4 className="text-sm font-semibold text-green-600 mb-3 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4" />
-                {t('auth.login.completeAccountsTitle')}
-              </h4>
-              <div className="space-y-2">
-                {(() => {
-                  const testAccounts = getTestAccounts();
-                  return testAccounts.complete.map((account) => (
-                    <div key={account.email} className="bg-green-50 border border-green-200 rounded-lg p-3">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <p className="font-semibold text-sm text-primary">{account.email}</p>
-                          <p className="text-xs text-gray-600 mt-1">Password: {account.password}</p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {account.accountType === 'organization' 
-                              ? t('auth.signup.typeOrganization') 
-                              : account.accountType === 'expert'
-                              ? t('auth.signup.typeExpert')
-                              : account.accountType === 'admin'
-                              ? t('auth.login.loginAsAdmin')
-                              : t('auth.login.loginAsPublic')} � {account.planType}
-                          </p>
-                        </div>
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                          {t('auth.login.statusComplete')}
-                        </span>
-                      </div>
-                    </div>
-                  ));
-                })()}
-              </div>
-            </div>
-
-            {/* Incomplete Accounts */}
-            <div>
-              <h4 className="text-sm font-semibold text-orange-600 mb-3 flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                {t('auth.login.incompleteAccountsTitle')}
-              </h4>
-              <div className="space-y-2">
-                {(() => {
-                  const testAccounts = getTestAccounts();
-                  return testAccounts.incomplete.map((account) => (
-                    <div key={account.email} className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <p className="font-semibold text-sm text-primary">{account.email}</p>
-                          <p className="text-xs text-gray-600 mt-1">Password: {account.password}</p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {account.accountType === 'organization' 
-                              ? t('auth.signup.typeOrganization') 
-                              : account.accountType === 'expert'
-                              ? t('auth.signup.typeExpert')
-                              : account.accountType === 'admin'
-                              ? t('auth.login.loginAsAdmin')
-                              : t('auth.login.loginAsPublic')} � 
-                            {account.planType ? account.planType : t('common.notSet', 'Not set')}
-                          </p>
-                        </div>
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
-                          {t('auth.login.statusIncomplete', { step: account.currentStep })}
-                        </span>
-                      </div>
-                    </div>
-                  ));
-                })()}
-              </div>
-            </div>
+            Rest of test accounts list was here
           </div>
         )}
+        */}
       </div>
     </div>
   );

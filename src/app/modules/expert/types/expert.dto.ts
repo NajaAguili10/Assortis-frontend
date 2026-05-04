@@ -66,13 +66,14 @@ export enum ExpertSectorEnum {
 }
 
 export interface CertificationDTO {
-  id: string;
-  type: CertificationTypeEnum;
+  id: number;
+  issuerName:string;
   name: string;
-  issuedBy: string;
-  issuedDate: string;
-  expiryDate?: string;
-  verified: boolean;
+  issuingOrganization: string;
+  issueDate: string;  
+  expiryDate: string;
+  credentialId: string;
+  credentialUrl: string;
 }
 
 export interface ExperienceDTO {

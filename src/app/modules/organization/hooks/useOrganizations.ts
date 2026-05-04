@@ -60,20 +60,20 @@ const mockKPIs: OrganizationKPIs = {
 };
 */
 
-export function useOrganizations() {
-  const [organizations, setOrganizations] = useState<PaginatedOrganizations>({
-    data: [],
-    meta: {
-      currentPage: 1,
-      pageSize: 10,
-      totalPages: 1,
-      totalItems: 0,
-      hasNextPage: false,
-      hasPreviousPage: false,
-    },
-  });
+const DEFAULT_PAGINATED: PaginatedOrganizations = {
+  data: [],
+  meta: {
+    currentPage: 1,
+    pageSize: 10,
+    totalPages: 0,
+    totalItems: 0,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  },
+};
 
-  const [backendOrganizations, setBackendOrganizations] = useState<Organization[]>([]);
+export function useOrganizations() {
+
   const [kpis, setKpis] = useState<OrganizationKPIs>({
     totalOrganizations: 0,
     activeOrganizations: 0,
@@ -89,44 +89,42 @@ export function useOrganizations() {
   const [currentPage, setCurrentPage] = useState(1);
   const [savedOrganizations, setSavedOrganizations] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
+  /** Raw list fetched from the API — used as the source for client-side filtering. */
+  const [allOrganizations, setAllOrganizations] = useState<Organization[]>([]);
+  /** Paginated & filtered view exposed to consumers. */
+  const [organizations, setOrganizations] = useState<PaginatedOrganizations>(DEFAULT_PAGINATED);
 
-  // Simple getAll useEffect
+
   useEffect(() => {
-    const fetchAll = async () => {
-      setIsLoading(true);
+    const fetchData = async () => {
       try {
-        const data = await organizationService.getAllOrganizations();
-        // Normalize backend data to match frontend Organization interface if needed
-        const normalized: Organization[] = (data as any[]).map(org => ({
-          ...org,
-          id: String(org.id),
-          email: org.contactEmail || org.email || '',
-          phone: org.contactPhone || org.phone || '',
-          employeeCount: org.employeesCount || org.employeeCount || 0,
-          yearEstablished: org.yearFounded || org.yearEstablished || 0,
-          sectors: org.sectors || (org.mainSector ? [org.mainSector.code] : []),
-          createdAt: org.createdAt ? new Date(org.createdAt) : new Date(),
-          updatedAt: org.updatedAt ? new Date(org.updatedAt) : new Date(),
-          activeProjects: org.activeProjects || 0,
-          completedProjects: org.completedProjects || 0,
-          partnerships: org.partnerships || 0,
-          teamMembers: org.teamMembers || 0,
-          certifications: org.certifications || [],
-          status: org.status || (org.isActive ? OrganizationStatusEnum.ACTIVE : OrganizationStatusEnum.INACTIVE),
-          country: org.country?.name || (typeof org.country === 'string' ? org.country : ''),
-          city: org.city?.name || (typeof org.city === 'string' ? org.city : ''),
-          region: org.region || RegionEnum.AFRICA,
-          type: org.type
-        }));
-        setBackendOrganizations(normalized);
+        const response = await organizationService.getAllOrganizations();
+        setAllOrganizations(Array.isArray(response) ? response : []);
       } catch (error) {
-        console.error('Error fetching organizations:', error);
+        console.error("Error fetching organizations:", error);
       } finally {
         setIsLoading(false);
       }
     };
-    fetchAll();
+
+    fetchData();
   }, []);
+    /*useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await organizationService.getFilters();
+        setFilters(response);
+      } catch (error) {
+        console.error("Error fetching FILTERS:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []); */
+
+
 
   // Fetch KPIs separately from backend
   useEffect(() => {
@@ -146,71 +144,74 @@ export function useOrganizations() {
     if (!isLoading) {
       loadOrganizations();
     }
-  }, [filters, sortBy, currentPage, backendOrganizations, isLoading]);
+  }, [filters, sortBy, currentPage, isLoading]);
 
   const loadOrganizations = () => {
-    let filtered = [...backendOrganizations];
+    let filtered = [...allOrganizations];
 
     // Apply filters
     if (filters.searchQuery) {
       const query = filters.searchQuery.toLowerCase();
       filtered = filtered.filter(
         (org) =>
-          org.name.toLowerCase().includes(query) ||
-          org.acronym?.toLowerCase().includes(query) ||
-          org.description.toLowerCase().includes(query)
+          (org.name?.toLowerCase().includes(query) ?? false) ||
+          (org.acronym?.toLowerCase().includes(query) ?? false) ||
+          (org.description?.toLowerCase().includes(query) ?? false)
       );
     }
 
     if (filters.type && filters.type.length > 0) {
-      filtered = filtered.filter((org) => filters.type!.includes(org.type));
+      filtered = filtered.filter((org) => org.type && filters.type!.includes(org.type));
     }
 
     if (filters.sectors && filters.sectors.length > 0) {
-      filtered = filtered.filter((org) =>
-        org.sectors.some((sector) => filters.sectors!.includes(sector as any))
-      );
+      filtered = filtered.filter((org) => {
+        const orgSectorCode = org.mainSector?.code;
+        return orgSectorCode && filters.sectors!.includes(orgSectorCode);
+      });
     }
 
     // SubSectors filter
     if (filters.subSectors && filters.subSectors.length > 0) {
       filtered = filtered.filter((org) => {
-        if (!org.subSectors || org.subSectors.length === 0) {
+        const orgSubSectors: string[] = [];
+        if (orgSubSectors.length === 0) {
           const parentSectors = new Set<string>();
-          filters.subSectors!.forEach((subSector) => {
+          filters.subSectors?.forEach((subSector) => {
             Object.entries(ORGANIZATION_SECTOR_SUBSECTOR_MAP).forEach(([sector, subsectors]) => {
-              if (subsectors.includes(subSector)) {
+              if (subsectors.includes(subSector as any)) {
                 parentSectors.add(sector);
               }
             });
           });
-          return org.sectors.some((sector) => parentSectors.has(sector as any));
+          const orgSectors = org.mainSector?.name ? [org.mainSector.name.toUpperCase()] : [];
+          return orgSectors.some((sector) => parentSectors.has(sector as any));
         }
-        return org.subSectors.some((subSector) => filters.subSectors!.includes(subSector));
+        return orgSubSectors.some((subSector) => filters.subSectors!.includes(subSector as any));
       });
     }
 
     if (filters.status && filters.status.length > 0) {
-      filtered = filtered.filter((org) => filters.status!.includes(org.status));
+      filtered = filtered.filter((org) => org.verificationStatus && filters.status!.includes(org.verificationStatus));
     }
 
-    if (filters.region && filters.region.length > 0) {
-      filtered = filtered.filter((org) => filters.region!.includes(org.region));
+    if (filters.regions && filters.regions.length > 0) {
+      filtered = filtered.filter((org) => org.region && filters.regions!.includes(org.region));
+    }
+
+    if (filters.countries && filters.countries.length > 0) {
+      filtered = filtered.filter((org) => org.country?.code && filters.countries!.includes(org.country.code));
     }
 
     // Apply sorting
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'newest':
-          return b.createdAt.getTime() - a.createdAt.getTime();
+          return new Date(b.createdAt ?? '').getTime() - new Date(a.createdAt ?? '').getTime();
         case 'oldest':
-          return a.createdAt.getTime() - b.createdAt.getTime();
+          return new Date(a.createdAt ?? '').getTime() - new Date(b.createdAt ?? '').getTime();
         case 'name':
           return a.name.localeCompare(b.name);
-        case 'partnerships':
-          return b.partnerships - a.partnerships;
-        case 'projects':
-          return b.activeProjects - a.activeProjects;
         default:
           return 0;
       }
@@ -279,7 +280,7 @@ export function useOrganizations() {
     saveOrganization,
     unsaveOrganization,
     isOrganizationSaved,
-    allOrganizations: backendOrganizations,
+    allOrganizations,
     isLoading
   };
 }
