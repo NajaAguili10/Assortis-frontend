@@ -4,7 +4,7 @@ import { useAssistanceHistory } from '@app/contexts/AssistanceHistoryContext';
 import { useNavigate, useParams } from 'react-router';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
-import { SubMenu } from '@app/components/SubMenu';
+import { TrainingSubMenu } from '@app/components/TrainingSubMenu';
 import { Button } from '@app/components/ui/button';
 import { Input } from '@app/components/ui/input';
 import { Label } from '@app/components/ui/label';
@@ -281,14 +281,7 @@ export default function TrainingEnrollment() {
       />
 
       {/* Sub Menu */}
-      <SubMenu
-        items={[
-          { label: t('training.submenu.catalog'), icon: BookOpen, onClick: () => navigate('/training/catalog') },
-          { label: t('training.submenu.liveSessions'), icon: Video, onClick: () => navigate('/training/live-sessions') },
-          { label: t('training.submenu.trainers'), icon: UserCheck, onClick: () => navigate('/training/trainers') },
-          { label: t('training.submenu.certifications'), icon: Award, onClick: () => navigate('/training/certifications') },
-        ]}
-      />
+      <TrainingSubMenu />
 
       <PageContainer className="my-6">
         <div className="px-4 sm:px-5 lg:px-6 py-6">

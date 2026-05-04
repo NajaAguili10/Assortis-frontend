@@ -121,7 +121,7 @@ export default function TrainingCertificationDetails() {
               variant="default"
               size="lg"
               className="mt-4 bg-[#B82547] hover:bg-[#a01f3c] text-white"
-              onClick={() => navigate('/training/certifications')}
+              onClick={() => navigate('/training/portfolio')}
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               {t('training.certificationDetails.backToCertifications')}

@@ -157,13 +157,13 @@ export function useNotifications() {
       titleKey: 'notifications.certification.awarded.title',
       messageKey: 'notifications.certification.awarded.message',
       params: { certification: 'Advanced Procurement' },
-      link: '/training/certifications',
+      link: '/training/portfolio',
       read: true,
       archived: false,
       createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
       actionable: true,
       actionLabel: 'notifications.action.download',
-      actionLink: '/training/certifications',
+      actionLink: '/training/portfolio',
     },
     {
       id: '11',
@@ -172,13 +172,13 @@ export function useNotifications() {
       titleKey: 'notifications.session.reminder.title',
       messageKey: 'notifications.session.reminder.message',
       params: { session: 'Webinar on Grant Writing', time: '2 hours' },
-      link: '/training/live-sessions',
+      link: '/training/catalog',
       read: false,
       archived: false,
       createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000), // 1 hour ago
       actionable: true,
       actionLabel: 'notifications.action.join',
-      actionLink: '/training/live-sessions',
+      actionLink: '/training/catalog',
     },
     {
       id: '12',

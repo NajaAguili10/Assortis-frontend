@@ -4,7 +4,7 @@ import { useAssistanceHistory } from '@app/contexts/AssistanceHistoryContext';
 import { useNavigate, useParams } from 'react-router';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
-import { SubMenu } from '@app/components/SubMenu';
+import { TrainingSubMenu } from '@app/components/TrainingSubMenu';
 import { Button } from '@app/components/ui/button';
 import { Input } from '@app/components/ui/input';
 import { Badge } from '@app/components/ui/badge';
@@ -111,7 +111,7 @@ export default function TrainingCertificationEnroll() {
       });
 
       setTimeout(() => {
-        navigate('/training/certifications');
+        navigate('/training/portfolio');
       }, 1000);
     } catch (error) {
       toast.error(t('training.certificationEnroll.error.title'), {
@@ -146,14 +146,7 @@ export default function TrainingCertificationEnroll() {
             { value: kpis.enrolledPrograms.toString(), label: t('training.stats.enrolledPrograms') }
           ]}
         />
-        <SubMenu
-          items={[
-            { label: t('training.submenu.catalog'), icon: BookOpen, onClick: () => navigate('/training/catalog') },
-            { label: t('training.submenu.liveSessions'), icon: Video, onClick: () => navigate('/training/live-sessions') },
-            { label: t('training.submenu.trainers'), icon: UserCheck, onClick: () => navigate('/training/trainers') },
-            { label: t('training.submenu.certifications'), active: true, icon: Award },
-          ]}
-        />
+        <TrainingSubMenu />
         <PageContainer className="my-6">
           <div className="text-center py-12 bg-white rounded-lg border">
             <Award className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
@@ -163,7 +156,7 @@ export default function TrainingCertificationEnroll() {
               variant="default"
               size="lg"
               className="mt-4 bg-[#B82547] hover:bg-[#a01f3c] text-white"
-              onClick={() => navigate('/training/certifications')}
+              onClick={() => navigate('/training/portfolio')}
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               {t('training.certificationDetails.backToCertifications')}
@@ -185,14 +178,7 @@ export default function TrainingCertificationEnroll() {
         ]}
       />
 
-      <SubMenu
-        items={[
-          { label: t('training.submenu.catalog'), icon: BookOpen, onClick: () => navigate('/training/catalog') },
-          { label: t('training.submenu.liveSessions'), icon: Video, onClick: () => navigate('/training/live-sessions') },
-          { label: t('training.submenu.trainers'), icon: UserCheck, onClick: () => navigate('/training/trainers') },
-          { label: t('training.submenu.certifications'), active: true, icon: Award },
-        ]}
-      />
+      <TrainingSubMenu />
 
       <PageContainer className="my-6">
         <div className="px-4 sm:px-5 lg:px-6 py-6">
@@ -200,7 +186,7 @@ export default function TrainingCertificationEnroll() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate('/training/certifications')}
+            onClick={() => navigate('/training/portfolio')}
             className="mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />

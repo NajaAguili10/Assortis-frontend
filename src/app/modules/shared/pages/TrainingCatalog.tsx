@@ -8,10 +8,11 @@ import { SectorSubsectorFilter } from '@app/components/SectorSubsectorFilter';
 import { Button } from '@app/components/ui/button';
 import { Input } from '@app/components/ui/input';
 import { Badge } from '@app/components/ui/badge';
+import { Progress } from '@app/components/ui/progress';
 import { Popover, PopoverContent, PopoverTrigger } from '@app/components/ui/popover';
 import { useTraining } from '@app/hooks/useTraining';
 import { useTrainingCommerce } from '@app/contexts/TrainingCommerceContext';
-import { TrainingLevelEnum, TrainingFormatEnum, TrainingCourseDTO } from '@app/types/training.dto';
+import { TrainingLevelEnum, TrainingFormatEnum, TrainingCourseDTO, SessionStatusEnum } from '@app/types/training.dto';
 import { SectorEnum, SubSectorEnum, SECTOR_SUBSECTOR_MAP } from '@app/types/tender.dto';
 import {
   GraduationCap,
@@ -28,18 +29,23 @@ import {
   Clock,
   Calendar,
   Globe,
+  Info,
+  Play,
   TrendingUp,
 } from 'lucide-react';
+
+type CatalogTrainingType = 'recorded' | 'live';
 
 export default function TrainingCatalog() {
   const { t } = useLanguage();
   const navigate = useNavigate();
-  const { courses, kpis, filters, updateFilters, clearFilters, activeFiltersCount } = useTraining();
+  const { courses, sessions, kpis, filters, updateFilters, clearFilters, activeFiltersCount } = useTraining();
   const { addToCart } = useTrainingCommerce();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSectors, setSelectedSectors] = useState<SectorEnum[]>([]);
   const [selectedSubSectors, setSelectedSubSectors] = useState<SubSectorEnum[]>([]);
   const [hoveredSector, setHoveredSector] = useState<SectorEnum | null>(null);
+  const [selectedTypes, setSelectedTypes] = useState<CatalogTrainingType[]>(['recorded', 'live']);
   
   // Enrollment Dialog states
   const [enrollmentDialogOpen, setEnrollmentDialogOpen] = useState(false);
@@ -112,6 +118,35 @@ export default function TrainingCatalog() {
     updateFilters({ certificationAvailable: withCertification });
   };
 
+  const handleTypeFilter = (type: CatalogTrainingType) => {
+    setSelectedTypes((current) => {
+      if (current.includes(type) && current.length === 1) {
+        return current;
+      }
+      return current.includes(type)
+        ? current.filter((item) => item !== type)
+        : [...current, type];
+    });
+  };
+
+  const getSessionStatusColor = (status: SessionStatusEnum) => {
+    switch (status) {
+      case SessionStatusEnum.SCHEDULED:
+        return 'bg-blue-50 text-blue-700 border-blue-200';
+      case SessionStatusEnum.LIVE:
+        return 'bg-red-50 text-red-700 border-red-200';
+      case SessionStatusEnum.ENDED:
+        return 'bg-green-50 text-green-700 border-green-200';
+      case SessionStatusEnum.CANCELLED:
+        return 'bg-gray-50 text-gray-700 border-gray-200';
+      default:
+        return '';
+    }
+  };
+
+  const showRecordedTrainings = selectedTypes.includes('recorded');
+  const showLiveTrainings = selectedTypes.includes('live');
+
   return (
     <div className="min-h-screen">
       <PageBanner
@@ -152,6 +187,40 @@ export default function TrainingCatalog() {
                 </form>
 
                 <div className="flex items-center gap-2 flex-wrap">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <BookOpen className="w-4 h-4 mr-2" />
+                        {t('training.catalog.type')}
+                        <Badge className="ml-2" variant="secondary">{selectedTypes.length}</Badge>
+                        <ChevronDown className="w-4 h-4 ml-2" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72" align="start">
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-sm mb-3">{t('training.catalog.type')}</h4>
+                        <Button
+                          variant={showRecordedTrainings ? 'default' : 'outline'}
+                          size="sm"
+                          className="w-full justify-start text-xs"
+                          onClick={() => handleTypeFilter('recorded')}
+                        >
+                          {showRecordedTrainings && <CheckCircle className="w-3 h-3 mr-2" />}
+                          {t('training.catalog.type.recorded')}
+                        </Button>
+                        <Button
+                          variant={showLiveTrainings ? 'default' : 'outline'}
+                          size="sm"
+                          className="w-full justify-start text-xs"
+                          onClick={() => handleTypeFilter('live')}
+                        >
+                          {showLiveTrainings && <CheckCircle className="w-3 h-3 mr-2" />}
+                          {t('training.catalog.type.live')}
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+
                   {/* Level Filter */}
                   <Popover>
                     <PopoverTrigger asChild>
@@ -325,7 +394,7 @@ export default function TrainingCatalog() {
           </div>
 
           {/* Courses Grid */}
-          {courses.length > 0 ? (
+          {showRecordedTrainings && courses.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {courses.map((course) => (
                 <div key={course.id} className="bg-white rounded-lg border hover:shadow-md transition-shadow flex flex-col">
@@ -337,6 +406,9 @@ export default function TrainingCatalog() {
                       </Badge>
                       <Badge variant="secondary" className="text-xs">
                         {t(`training.format.${course.format}`)}
+                      </Badge>
+                      <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200 text-xs">
+                        {t('training.catalog.type.recorded')}
                       </Badge>
                       {course.certificate && (
                         <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 text-xs">
@@ -453,7 +525,109 @@ export default function TrainingCatalog() {
                 </div>
               ))}
             </div>
-          ) : (
+          ) : showRecordedTrainings && !showLiveTrainings ? (
+            <div className="text-center py-12 bg-white rounded-lg border">
+              <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-primary mb-1">{t('training.catalog.noResults')}</h3>
+              <p className="text-sm text-muted-foreground">{t('training.catalog.noResults.message')}</p>
+            </div>
+          ) : null}
+
+          {showLiveTrainings && sessions.length > 0 && (
+            <div className={showRecordedTrainings && courses.length > 0 ? 'mt-8' : ''}>
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-primary">{t('training.catalog.liveTrainings')}</h3>
+                <p className="text-sm text-muted-foreground">{t('training.liveSessions.subtitle')}</p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                {sessions.map((session) => (
+                  <div key={session.id} className="bg-white rounded-lg border p-5 hover:shadow-md transition-shadow">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 bg-pink-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Video className="w-6 h-6 text-pink-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <Badge variant="outline" className="bg-pink-50 text-pink-700 border-pink-200 text-xs">
+                            {t('training.catalog.type.live')}
+                          </Badge>
+                          <Badge variant="outline" className={getSessionStatusColor(session.status)}>
+                            {session.status === SessionStatusEnum.LIVE && (
+                              <span className="w-2 h-2 bg-red-500 rounded-full mr-1 animate-pulse" />
+                            )}
+                            {t(`training.sessionStatus.${session.status}`)}
+                          </Badge>
+                          {session.recordingUrl && (
+                            <Badge variant="secondary" className="text-xs">
+                              {t('training.liveSessions.recording')}
+                            </Badge>
+                          )}
+                        </div>
+
+                        <h3 className="font-semibold text-primary mb-1">{session.topic}</h3>
+                        <p className="text-sm text-muted-foreground mb-3">{session.courseTitle}</p>
+                        <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{session.description}</p>
+
+                        <div className="grid grid-cols-2 gap-3 mb-4">
+                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <Calendar className="w-4 h-4 flex-shrink-0" />
+                            <span className="truncate">{new Date(session.date).toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <Clock className="w-4 h-4 flex-shrink-0" />
+                            <span className="truncate">{session.duration} {t('training.certifications.minutes')}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <Users className="w-4 h-4 flex-shrink-0" />
+                            <span className="truncate">{session.registeredCount} / {session.maxCapacity}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <Globe className="w-4 h-4 flex-shrink-0" />
+                            <span className="truncate">{session.language}</span>
+                          </div>
+                        </div>
+
+                        <Progress value={(session.registeredCount / session.maxCapacity) * 100} className="h-1 mb-4" />
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/training/live-session-details/${session.id}`)}
+                          >
+                            <Info className="w-4 h-4 mr-2" />
+                            {t('training.actions.viewDetails')}
+                          </Button>
+                          {session.status === SessionStatusEnum.ENDED && session.recordingUrl ? (
+                            <Button
+                              size="sm"
+                              className="bg-[#B82547] hover:bg-[#a01f3c] text-white"
+                              onClick={() => navigate(`/training/recording-player/${session.id}`)}
+                            >
+                              <Play className="w-4 h-4 mr-2" />
+                              {t('training.actions.watchRecording')}
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              className="bg-[#B82547] hover:bg-[#a01f3c] text-white"
+                              onClick={() => navigate(`/training/session-enroll/${session.id}`)}
+                              disabled={session.status === SessionStatusEnum.CANCELLED}
+                            >
+                              {session.status === SessionStatusEnum.LIVE ? t('training.actions.joinLiveSession') : t('training.actions.register')}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {((showRecordedTrainings && courses.length === 0) || !showRecordedTrainings) && showLiveTrainings && sessions.length === 0 && (
             <div className="text-center py-12 bg-white rounded-lg border">
               <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
               <h3 className="text-lg font-semibold text-primary mb-1">{t('training.catalog.noResults')}</h3>
