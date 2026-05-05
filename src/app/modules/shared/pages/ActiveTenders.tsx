@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { format, isAfter, startOfToday } from 'date-fns';
+import { format, startOfToday } from 'date-fns';
 import { enUS, es, fr } from 'date-fns/locale';
-import { ArrowDown, ArrowUp, ArrowUpDown, CalendarIcon, Check, ChevronDown, ChevronUp, Clock, DollarSign, Download, Eye, FileText, Globe, Heart, Plus, RotateCcw, Search, SlidersHorizontal, Sparkles, Trash2 } from 'lucide-react';
-import { type DateRange } from 'react-day-picker';
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronDown, ChevronUp, Clock, DollarSign, Download, Eye, FileText, Globe, Heart, Plus, RotateCcw, Search, SlidersHorizontal, Sparkles, Trash2 } from 'lucide-react';
 import { useTranslation } from '@app/contexts/LanguageContext';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
@@ -18,7 +17,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tool
 import { Popover, PopoverContent, PopoverTrigger } from '@app/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@app/components/ui/select';
 import { Separator } from '@app/components/ui/separator';
-import { Calendar } from '@app/components/ui/calendar';
 import { useTenders } from '@app/hooks/useTenders';
 import { usePipeline } from '@app/modules/expert/hooks/usePipeline';
 import {
@@ -87,9 +85,6 @@ export default function ActiveTenders() {
   const [searchMode, setSearchMode] = useState<SearchMode>('allWords');
   const [selectedProcurementTypes, setSelectedProcurementTypes] = useState<ProcurementTypeEnum[]>([]);
   const [selectedNoticeTypes, setSelectedNoticeTypes] = useState<NoticeTypeEnum[]>([]);
-  const [publishedFrom, setPublishedFrom] = useState<Date | undefined>(undefined);
-  const [publishedTo, setPublishedTo] = useState<Date | undefined>(undefined);
-  const [publishToTooltipOpen, setPublishToTooltipOpen] = useState(false);
   const [budgetMode, setBudgetMode] = useState<BudgetMode>('any');
   const [budgetValue, setBudgetValue] = useState<string>('');
   const [hideMultiCountry, setHideMultiCountry] = useState(false);
@@ -112,27 +107,6 @@ export default function ActiveTenders() {
 
   const today = startOfToday();
   const dateLocale = language === 'fr' ? fr : language === 'es' ? es : enUS;
-
-  const handlePublishedFromSelect = (date: Date | undefined) => {
-    if (!date) {
-      setPublishedFrom(undefined);
-      setPublishedTo(undefined);
-      return;
-    }
-
-    if (isAfter(date, today)) {
-      return;
-    }
-
-    setPublishedFrom(date);
-    if (publishedTo && isAfter(date, publishedTo)) {
-      setPublishedTo(undefined);
-    }
-  };
-
-  const handlePublishedToSelect = (range: DateRange | undefined) => {
-    setPublishedTo(range?.to);
-  };
 
   const quickDays = useMemo(() => {
     return Array.from({ length: 5 }, (_, index) => {
@@ -237,8 +211,6 @@ export default function ActiveTenders() {
   const clearFilters = () => {
     setSelectedProcurementTypes([]);
     setSelectedNoticeTypes([]);
-    setPublishedFrom(undefined);
-    setPublishedTo(undefined);
     setBudgetMode('any');
     setBudgetValue('');
     setHideMultiCountry(false);
@@ -315,9 +287,6 @@ export default function ActiveTenders() {
         return false;
       }
 
-      if (publishedFrom && row.publishedDate && row.publishedDate < publishedFrom) return false;
-      if (publishedTo && row.publishedDate && row.publishedDate > publishedTo) return false;
-
       if (!Number.isNaN(budgetNumber) && budgetValue) {
         if (budgetMode === 'above' && row.budget.amount < budgetNumber) return false;
         if (budgetMode === 'below' && row.budget.amount > budgetNumber) return false;
@@ -350,8 +319,6 @@ export default function ActiveTenders() {
     language,
     locationFilters,
     passesSearch,
-    publishedFrom,
-    publishedTo,
     searchQuery,
     selectedCountries,
     selectedFundingAgencies,
@@ -589,8 +556,6 @@ export default function ActiveTenders() {
   const activeFilterCount = [
     selectedProcurementTypes.length,
     selectedNoticeTypes.length,
-    publishedFrom ? 1 : 0,
-    publishedTo ? 1 : 0,
     budgetValue ? 1 : 0,
     hideMultiCountry ? 1 : 0,
     selectedSectors.length,
@@ -794,65 +759,6 @@ export default function ActiveTenders() {
                     </PopoverContent>
                   </Popover>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="justify-start min-h-11">
-                          <CalendarIcon className="h-4 w-4 mr-2" />
-                          {publishedFrom ? format(publishedFrom, 'P', { locale: dateLocale }) : t('activeTenders.filters.publishFrom')}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={publishedFrom}
-                          onSelect={handlePublishedFromSelect}
-                          initialFocus
-                          disabled={[{ after: today }]}
-                          defaultMonth={publishedFrom ?? today}
-                        />
-                      </PopoverContent>
-                    </Popover>
-
-                    {publishedFrom ? (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" className="justify-start min-h-11">
-                            <CalendarIcon className="h-4 w-4 mr-2" />
-                            {publishedTo ? format(publishedTo, 'P', { locale: dateLocale }) : t('activeTenders.filters.publishTo')}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="range"
-                            selected={{ from: publishedFrom, to: publishedTo }}
-                            onSelect={handlePublishedToSelect}
-                            initialFocus
-                            disabled={[{ before: publishedFrom }]}
-                            defaultMonth={publishedTo ?? publishedFrom ?? today}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    ) : (
-                      <Tooltip open={publishToTooltipOpen} onOpenChange={setPublishToTooltipOpen}>
-                        <TooltipTrigger asChild>
-                          <span className="inline-flex w-full">
-                            <Button
-                              variant="outline"
-                              className="justify-start min-h-11 cursor-not-allowed"
-                              type="button"
-                              aria-disabled="true"
-                              onClick={() => setPublishToTooltipOpen(true)}
-                            >
-                              <CalendarIcon className="h-4 w-4 mr-2" />
-                              {t('activeTenders.filters.publishTo')}
-                            </Button>
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent sideOffset={8}>{t('activeTenders.filters.publishToTooltip')}</TooltipContent>
-                      </Tooltip>
-                    )}
-                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-[170px_1fr] gap-3">

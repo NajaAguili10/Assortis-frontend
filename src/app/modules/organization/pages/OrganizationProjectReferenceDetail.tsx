@@ -18,7 +18,7 @@ import { useOrganizationProjectReferences } from '@app/modules/organization/hook
 import { OrganizationProjectReferenceFormValues } from '@app/modules/organization/types/organizationProjectReference.dto';
 import { canManageOrganizationAdminActions } from '@app/services/permissions.service';
 import { getLocalizedCountryName } from '@app/utils/country-translator';
-import { ArrowLeft, CalendarRange, FileText, Globe2, Landmark, Layers3, UserRound } from 'lucide-react';
+import { ArrowLeft, CalendarRange, CheckCircle2, FileText, Globe2, Landmark, Layers3, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function OrganizationProjectReferenceDetail() {
@@ -60,10 +60,19 @@ export default function OrganizationProjectReferenceDetail() {
     toast.success(t('organizations.projectReferences.updateSuccess'));
   };
 
+  const handleValidateReference = () => {
+    updateReference(reference.id, { ...reference, status: 'verified' });
+    toast.success(t('organizations.projectReferences.validateSuccess'));
+  };
+
+  const formatOptionalDate = (value?: string) => {
+    return value ? format(new Date(value), 'dd MMM yyyy', { locale: dateLocale }) : 'Not set';
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <PageBanner
-        title={reference.title}
+        title={reference.title || t('organizations.projectReferences.form.projectTitle')}
         description={t('organizations.projectReferences.detailSubtitle')}
         icon={FileText}
         stats={[
@@ -83,7 +92,15 @@ export default function OrganizationProjectReferenceDetail() {
               {t('organizations.actions.backToList')}
             </Button>
             {canManage ? (
-              <Button onClick={() => setIsEditDialogOpen(true)}>{t('common.edit')}</Button>
+              <div className="flex items-center gap-2">
+                {reference.status === 'notVerified' && (
+                  <Button onClick={handleValidateReference}>
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    {t('organizations.projectReferences.validateAction')}
+                  </Button>
+                )}
+                <Button variant="outline" onClick={() => setIsEditDialogOpen(true)}>{t('common.edit')}</Button>
+              </div>
             ) : (
               <RestrictedTooltip content={restrictedActionMessage}>
                 <div>
@@ -99,11 +116,11 @@ export default function OrganizationProjectReferenceDetail() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <CardTitle className="text-base text-primary">{t('organizations.projectReferences.detailOverview')}</CardTitle>
-                    <p className="text-sm text-gray-600 mt-1">{reference.summary}</p>
+                    <p className="text-sm text-gray-600 mt-1">{reference.summary || 'Additional details can be completed later.'}</p>
                   </div>
                   <Badge
-                    variant={reference.status === 'ongoing' ? 'default' : 'secondary'}
-                    className={reference.status === 'ongoing' ? 'rounded-full' : 'rounded-full bg-blue-100 text-blue-800 border-blue-200'}
+                    variant={reference.status === 'notVerified' ? 'secondary' : 'default'}
+                    className={reference.status === 'notVerified' ? 'rounded-full bg-amber-100 text-amber-800 border-amber-200' : 'rounded-full bg-emerald-100 text-emerald-800 border-emerald-200'}
                   >
                     {t(`organizations.projectReferences.status.${reference.status}`)}
                   </Badge>
@@ -112,7 +129,7 @@ export default function OrganizationProjectReferenceDetail() {
               <CardContent className="space-y-6">
                 <div>
                   <h3 className="text-sm font-semibold text-gray-900 mb-2">{t('organizations.projectReferences.fields.description')}</h3>
-                  <p className="text-sm leading-7 text-gray-700">{reference.description}</p>
+                  <p className="text-sm leading-7 text-gray-700">{reference.description || 'No detailed description yet.'}</p>
                 </div>
 
                 <Separator />
@@ -153,9 +170,9 @@ export default function OrganizationProjectReferenceDetail() {
                       {t('organizations.projectReferences.detailTimeline')}
                     </div>
                     <p className="text-sm text-gray-700">
-                      {format(new Date(reference.startDate), 'dd MMM yyyy', { locale: dateLocale })}
+                      {formatOptionalDate(reference.startDate)}
                       {' - '}
-                      {format(new Date(reference.endDate), 'dd MMM yyyy', { locale: dateLocale })}
+                      {formatOptionalDate(reference.endDate)}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                       {t('organizations.projectReferences.fields.lastUpdated')}: {format(new Date(reference.updatedAt), 'dd MMM yyyy', { locale: dateLocale })}

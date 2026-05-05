@@ -2,8 +2,6 @@ import React from 'react';
 import { useTranslation } from '@app/contexts/LanguageContext';
 import { SubMenu } from '@app/components/SubMenu';
 import { useLocation, useNavigate } from 'react-router';
-import { useAuth } from '@app/contexts/AuthContext';
-import { canManageOrganizationAdminActions } from '@app/services/permissions.service';
 import {
   User,
   Shield,
@@ -11,7 +9,6 @@ import {
   LayoutDashboard,
   Layers,
   CreditCard,
-  Users,
 } from 'lucide-react';
 
 interface AccountSubMenuProps {
@@ -24,11 +21,8 @@ export function AccountSubMenu({ activeTab, onTabChange, mode = 'account-tabs' }
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
 
   if (mode === 'profile-settings') {
-    const canManage = canManageOrganizationAdminActions(user?.accountType, user?.role);
-
     const isHomeRoute =
       location.pathname === '/account' ||
       location.pathname === '/compte-utilisateur';
@@ -40,8 +34,6 @@ export function AccountSubMenu({ activeTab, onTabChange, mode = 'account-tabs' }
       location.pathname === '/compte-utilisateur/abonnement' ||
       location.pathname === '/account/member-area' ||
       location.pathname === '/compte-utilisateur/espace-membre';
-
-    const isTeamsRoute = location.pathname.startsWith('/account/teams');
 
     const isSecurityRoute =
       location.pathname === '/account/security' ||
@@ -64,6 +56,18 @@ export function AccountSubMenu({ activeTab, onTabChange, mode = 'account-tabs' }
         onClick: () => navigate('/account'),
       },
       {
+        label: t('account.nav.profile'),
+        icon: User,
+        active: isProfileRoute,
+        onClick: () => navigate('/account/profile'),
+      },
+      {
+        label: t('account.nav.security'),
+        icon: Shield,
+        active: isSecurityRoute,
+        onClick: () => navigate('/account/security'),
+      },
+      {
         label: t('account.nav.mySelection'),
         icon: Layers,
         active: isMySelectionRoute,
@@ -75,33 +79,11 @@ export function AccountSubMenu({ activeTab, onTabChange, mode = 'account-tabs' }
         active: isSubscriptionRoute,
         onClick: () => navigate('/account/subscription'),
       },
-      ...(canManage
-        ? [
-            {
-              label: t('account.nav.teams'),
-              icon: Users,
-              active: isTeamsRoute,
-              onClick: () => navigate('/account/teams'),
-            },
-          ]
-        : []),
-      {
-        label: t('account.nav.security'),
-        icon: Shield,
-        active: isSecurityRoute,
-        onClick: () => navigate('/compte-utilisateur/security'),
-      },
       {
         label: t('account.nav.resources'),
         icon: Library,
         active: isResourcesRoute,
-        onClick: () => navigate('/compte-utilisateur/resources'),
-      },
-      {
-        label: t('account.nav.profile'),
-        icon: User,
-        active: isProfileRoute,
-        onClick: () => navigate('/compte-utilisateur'),
+        onClick: () => navigate('/account/resources'),
       },
     ];
 

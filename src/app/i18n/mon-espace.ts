@@ -113,8 +113,8 @@ export const monEspaceTranslations = {
 
     // Posting Board tabs
     'monEspace.tab.publishOffers': 'Publish Offers',
-    'monEspace.tab.jobOffers': 'Job Offers',
-    'monEspace.tab.manageOffers': 'Manage Your Offers',
+    'monEspace.tab.jobOffers': 'Manage Job Offers',
+    'monEspace.tab.manageOffers': 'Manage Job Offers',
 
     // Delete confirmation
     'monEspace.message.closeConfirm': 'Are you sure you want to delete this job offer? This action cannot be undone.',
@@ -496,8 +496,8 @@ export const monEspaceTranslations = {
 
     // Posting Board tabs
     'monEspace.tab.publishOffers': 'Publier des Offres',
-    'monEspace.tab.jobOffers': "Offres d'Emploi",
-    'monEspace.tab.manageOffers': 'Gérer Vos Offres',
+    'monEspace.tab.jobOffers': "Gérer les offres d'emploi",
+    'monEspace.tab.manageOffers': 'Gérer les offres d’emploi',
 
     // Delete confirmation
     'monEspace.message.closeConfirm': "Êtes-vous sûr de vouloir supprimer cette offre d'emploi ? Cette action est irréversible.",
@@ -890,8 +890,8 @@ export const monEspaceTranslations = {
 
     // Posting Board tabs
     'monEspace.tab.publishOffers': 'Publicar Ofertas',
-    'monEspace.tab.jobOffers': 'Ofertas de Empleo',
-    'monEspace.tab.manageOffers': 'Gestionar Sus Ofertas',
+    'monEspace.tab.jobOffers': 'Gestionar ofertas de empleo',
+    'monEspace.tab.manageOffers': 'Gestionar ofertas de empleo',
 
     // Delete confirmation
     'monEspace.message.closeConfirm': '¿Está seguro de que desea eliminar esta oferta de empleo? Esta acción no se puede deshacer.',

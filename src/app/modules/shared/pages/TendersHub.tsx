@@ -4,7 +4,6 @@ import { useLanguage } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
-import { TendersSubMenu } from '@app/components/TendersSubMenu';
 import { OrganizationTendersLanding } from '@app/components/OrganizationTendersLanding';
 import { StatCard } from '@app/components/StatCard';
 import { TenderFeatureCard } from '@app/components/TenderFeatureCard';
@@ -59,9 +58,6 @@ export default function TendersHub() {
           { value: kpis.activeTenders.toString(), label: t('tenders.kpis.activeTenders') }
         ] : []}
       />
-
-      {/* Sub Menu */}
-      <TendersSubMenu />
 
       {/* Contenu selon les permissions */}
       {!hasAccess ? (

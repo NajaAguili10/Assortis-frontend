@@ -17,8 +17,10 @@ import {
 } from 'lucide-react';
 import { type DateRange } from 'react-day-picker';
 import { useLanguage } from '@app/contexts/LanguageContext';
+import { useAuth } from '@app/contexts/AuthContext';
 import { SectorSubsectorFilter } from '@app/components/SectorSubsectorFilter';
 import { RegionCountryFilter } from '@app/components/RegionCountryFilter';
+import { SaveSearchDialog } from '@app/components/SaveSearchDialog';
 import { Badge } from '@app/components/ui/badge';
 import { Button } from '@app/components/ui/button';
 import { Input } from '@app/components/ui/input';
@@ -35,6 +37,7 @@ import {
   DialogTitle,
 } from '@app/components/ui/dialog';
 import { useTenders } from '@app/hooks/useTenders';
+import { savedSearchService, type SavedSearchType } from '@app/services/savedSearchService';
 import {
   CountryEnum,
   FundingAgencyEnum,
@@ -103,6 +106,7 @@ interface SavedAlertPreference {
 
 export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentProps) {
   const { t, language } = useLanguage();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { allTenders } = useTenders();
@@ -135,6 +139,7 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
   const [locationFilters, setLocationFilters] = useState<string[]>([]);
   const [donorFilters, setDonorFilters] = useState<string[]>([]);
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
+  const [isSaveSearchDialogOpen, setIsSaveSearchDialogOpen] = useState(false);
   const [savedSearches, setSavedSearches] = useState<SavedSearchEntry<AlertsSavedPayload>[]>([]);
   const [hasSearched, setHasSearched] = useState(tab !== 'projects');
   const [alertPreferences, setAlertPreferences] = useState<SavedAlertPreference[]>([]);
@@ -280,17 +285,24 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
   };
 
   const readSavedSearches = (): SavedSearchEntry<AlertsSavedPayload>[] => {
+    const unified = savedSearchService.list(user?.id, tab as SavedSearchType).map((item) => ({
+      id: item.id,
+      label: item.name,
+      createdAt: item.created_at,
+      payload: item.filters as AlertsSavedPayload,
+    }));
     const raw = localStorage.getItem(storageKey);
-    if (!raw) return [];
+    if (!raw) return unified;
 
     try {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        return parsed.filter(item => item && item.payload);
+        const legacy = parsed.filter(item => item && item.payload);
+        return [...unified, ...legacy.filter((item) => !unified.some((saved) => saved.id === item.id))];
       }
 
       if (parsed && typeof parsed === 'object') {
-        return [{
+        return [...unified, {
           id: `legacy-${tab}`,
           label: `Saved ${tab}`,
           createdAt: new Date().toISOString(),
@@ -298,10 +310,10 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
         }];
       }
     } catch {
-      return [];
+      return unified;
     }
 
-    return [];
+    return unified;
   };
 
   const applySavedSearch = (payload: AlertsSavedPayload) => {
@@ -331,6 +343,16 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
     setHasSearched(true);
   };
 
+  useEffect(() => {
+    const savedSearchId = searchParams.get('savedSearchId');
+    if (!savedSearchId) return;
+    const saved = savedSearchService.get(savedSearchId);
+    if (saved?.context.type === tab) {
+      applySavedSearch(saved.filters as AlertsSavedPayload);
+      toast.success('Search loaded');
+    }
+  }, [searchParams, tab]);
+
   const buildPayload = (): AlertsSavedPayload => ({
       showFilters,
       showSectorFilters,
@@ -357,11 +379,24 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
       donorFilters,
   });
 
-  const saveSearch = () => {
+  const buildSummary = () => [
+    searchQuery ? `Keywords: ${searchQuery}` : '',
+    selectedProcurementTypes.length ? `Procurement: ${selectedProcurementTypes.length}` : '',
+    selectedNoticeTypes.length ? `Notice types: ${selectedNoticeTypes.length}` : '',
+    selectedSectors.length ? `Sectors: ${selectedSectors.length}` : '',
+    selectedSubSectors.length ? `Subsectors: ${selectedSubSectors.length}` : '',
+    selectedCountries.length ? `Countries: ${selectedCountries.length}` : '',
+    selectedRegions.length ? `Regions: ${selectedRegions.length}` : '',
+    selectedFundingAgencies.length ? `Donors: ${selectedFundingAgencies.length}` : '',
+    budgetValue ? `Budget ${budgetMode}: ${budgetValue}` : '',
+    publishedFrom ? `From: ${format(publishedFrom, 'yyyy-MM-dd')}` : '',
+    publishedTo ? `To: ${format(publishedTo, 'yyyy-MM-dd')}` : '',
+  ].filter(Boolean);
+
+  const saveSearch = (name: string) => {
     const existing = readSavedSearches();
     const now = new Date();
-    const labelBase = (searchInput || searchQuery).trim();
-    const label = labelBase || `Saved ${tab} ${format(now, 'yyyy-MM-dd HH:mm')}`;
+    const label = name.trim() || `Saved ${tab} ${format(now, 'yyyy-MM-dd HH:mm')}`;
     const nextEntry: SavedSearchEntry<AlertsSavedPayload> = {
       id: `saved-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
       label,
@@ -369,9 +404,21 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
       payload: buildPayload(),
     };
 
-    const next = [nextEntry, ...existing];
-    localStorage.setItem(storageKey, JSON.stringify(next));
-    setSavedSearches(next);
+    savedSearchService.save({
+      userId: user?.id,
+      name: label,
+      filters: nextEntry.payload,
+      context: {
+        type: tab as SavedSearchType,
+        route: `/search/${tab}`,
+        label: tab.charAt(0).toUpperCase() + tab.slice(1),
+        summary: buildSummary(),
+        language,
+        accountType: user?.accountType,
+      },
+    });
+    setSavedSearches(readSavedSearches());
+    setIsSaveSearchDialogOpen(false);
     toast.success('Search saved');
   };
 
@@ -381,6 +428,23 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
   };
 
   const updateSavedSearch = (entry: SavedSearchEntry<AlertsSavedPayload>) => {
+    if (entry.id.startsWith('saved-search-')) {
+      savedSearchService.update(entry.id, {
+        name: entry.label,
+        filters: buildPayload(),
+        context: {
+          type: tab as SavedSearchType,
+          route: `/search/${tab}`,
+          label: tab.charAt(0).toUpperCase() + tab.slice(1),
+          summary: buildSummary(),
+          language,
+          accountType: user?.accountType,
+        },
+      });
+      setSavedSearches(readSavedSearches());
+      toast.success('Saved search updated');
+      return;
+    }
     const next = readSavedSearches().map((item) =>
       item.id === entry.id ? { ...item, label: entry.label, payload: buildPayload() } : item
     );
@@ -390,6 +454,11 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
   };
 
   const deleteSavedSearch = (id: string) => {
+    if (id.startsWith('saved-search-')) {
+      savedSearchService.remove(id);
+      setSavedSearches(readSavedSearches());
+      return;
+    }
     const next = readSavedSearches().filter((entry) => entry.id !== id);
     localStorage.setItem(storageKey, JSON.stringify(next));
     setSavedSearches(next);
@@ -683,7 +752,7 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
             <Download className="h-4 w-4 mr-2" />
             {t('activeTenders.action.csv')}
           </Button>
-          <Button type="button" variant="outline" className="min-h-11" onClick={saveSearch}>
+          <Button type="button" variant="outline" className="min-h-11" onClick={() => setIsSaveSearchDialogOpen(true)}>
             Save Search
           </Button>
           <Button type="button" variant="outline" className="min-h-11" onClick={openLoadSearchDialog}>
@@ -1312,6 +1381,12 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
           )}
         </DialogContent>
       </Dialog>
+      <SaveSearchDialog
+        open={isSaveSearchDialogOpen}
+        defaultName={(searchInput || searchQuery).trim() || `Saved ${tab} search`}
+        onOpenChange={setIsSaveSearchDialogOpen}
+        onSave={saveSearch}
+      />
     </div>
   );
 }

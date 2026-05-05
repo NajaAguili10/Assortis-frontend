@@ -119,7 +119,6 @@ import SearchAwardsPage from './modules/public/pages/SearchAwardsPage';
 import SearchShortlistsPage from './modules/public/pages/SearchShortlistsPage';
 import SearchOrganisationsPage from './modules/public/pages/SearchOrganisationsPage';
 import SearchExpertsPage from './modules/public/pages/SearchExpertsPage';
-import SearchMyExpertsPage from './modules/public/pages/SearchMyExpertsPage';
 import SearchBidWritersPage from './modules/public/pages/SearchBidWritersPage';
 import AskForQuotePage from './modules/public/pages/AskForQuotePage';
 import PublicProjectsServicePage from './modules/public/pages/services/PublicProjectsServicePage';
@@ -307,6 +306,7 @@ const router = createBrowserRouter([
       { path: 'statistics/projects-contracts', Component: StatisticsProjectsContracts },
       { path: 'statistics/market-trends', Component: StatisticsMarketTrends },
       { path: 'statistics/pricing-experts', Component: StatisticsPricingExperts },
+      { path: 'statistics/policy', element: <Navigate to="/statistics/pricing-experts" replace /> },
       { path: 'statistics/experts-fees', Component: StatisticsExpertsFees },
       { path: 'statistics/competitors', Component: StatisticsCompetitors },
       { path: 'statistics/usage-analytics', Component: StatisticsUsageAnalytics },
@@ -347,7 +347,6 @@ const router = createBrowserRouter([
       { path: 'search/organisations', Component: SearchOrganisationsPage },
       { path: 'search/organizations', element: <Navigate to="/search/organisations" replace /> },
       { path: 'search/experts', Component: SearchExpertsPage },
-      { path: 'search/my-experts', Component: SearchMyExpertsPage },
       { path: 'search/bid-writers', Component: SearchBidWritersPage },
       { path: 'search/calls/:id', Component: ProjectDetail },
       { path: 'search/projects/:id', Component: ProjectDetail },

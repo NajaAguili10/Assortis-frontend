@@ -356,50 +356,6 @@ export default function PublierOffrePage() {
                 />
               </div>
 
-              {/* Manage offers list */}
-              <div className="max-w-4xl mx-auto">
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <div className="flex items-center justify-between mb-5">
-                    <h2 className="text-xl font-bold text-primary flex items-center gap-2">
-                      <Briefcase className="w-5 h-5 text-[#B82547]" />
-                      {t('monEspace.tab.manageOffers')}
-                    </h2>
-                    {publishedOffers.length > 0 && (
-                      <span className="text-sm text-muted-foreground">
-                        {t('monEspace.filter.results', { count: publishedOffers.length.toString() })}
-                      </span>
-                    )}
-                  </div>
-
-                  {isLoadingOffers && (
-                    <div className="text-center py-10">
-                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-accent" />
-                      <p className="mt-3 text-gray-500">{t('monEspace.message.loading')}</p>
-                    </div>
-                  )}
-                  {!isLoadingOffers && offersError && (
-                    <Alert variant="destructive" className="mb-4">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{offersError}</AlertDescription>
-                    </Alert>
-                  )}
-                  {!isLoadingOffers && publishedOffers.length === 0 && (
-                    <div className="text-center py-10">
-                      <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Briefcase className="w-7 h-7 text-gray-400" />
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {t('monEspace.publishedOffers.empty.description')}
-                      </p>
-                    </div>
-                  )}
-                  {!isLoadingOffers && publishedOffers.length > 0 && (
-                    <div className="space-y-4">
-                      {publishedOffers.map(offer => renderOfferRow(offer, true))}
-                    </div>
-                  )}
-                </div>
-              </div>
             </TabsContent>
 
             {/* ── Tab 2: Job Offers ─────────────────────────────────────────── */}

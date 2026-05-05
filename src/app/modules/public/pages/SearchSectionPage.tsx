@@ -6,7 +6,6 @@ import { SearchSectionTabs, type SearchSectionTab } from '@app/components/Search
 import SearchAlertsTabContent from '@app/modules/public/pages/SearchAlertsTabContent';
 import SearchOrganizationsTabContent from '@app/modules/public/pages/SearchOrganizationsTabContent';
 import SearchExpertsTabContent from '@app/modules/public/pages/SearchExpertsTabContent';
-import SearchMyExpertsContent from '@app/modules/public/pages/SearchMyExpertsContent';
 import SearchMapTabContent from '@app/modules/public/pages/SearchMapTabContent';
 
 type SectionType = SearchSectionTab;
@@ -39,7 +38,6 @@ export default function SearchSectionPage({ section }: SearchSectionPageProps) {
           {section === 'organisations' && <SearchOrganizationsTabContent />}
 
           {section === 'experts' && <SearchExpertsTabContent mode="experts" />}
-          {section === 'my-experts' && <SearchMyExpertsContent />}
           {section === 'bid-writers' && <SearchExpertsTabContent mode="bid-writers" />}
         </div>
       </PageContainer>

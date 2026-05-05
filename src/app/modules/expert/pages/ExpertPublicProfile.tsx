@@ -65,14 +65,12 @@ export default function ExpertPublicProfile() {
   // Detect search context from navigation state first, then fallback to pathname.
   const searchSection: SearchSectionTab | null = useMemo(() => {
     const stateSection = (location.state as { searchSection?: SearchSectionTab } | null)?.searchSection;
-    if (stateSection === 'my-experts' || stateSection === 'experts' || stateSection === 'bid-writers') {
+    if (stateSection === 'experts' || stateSection === 'bid-writers') {
       return stateSection;
     }
 
     if (location.pathname.startsWith('/search/bid-writers/')) {
       return 'bid-writers';
-    } else if (location.pathname.startsWith('/search/my-experts/')) {
-      return 'my-experts';
     } else if (location.pathname.startsWith('/search/experts/')) {
       return 'experts';
     }

@@ -7,7 +7,7 @@ import {
 } from '@app/types/tender.dto';
 import { ReferenceTypeEnum } from '@app/types/project.dto';
 
-export type OrganizationProjectReferenceStatus = 'ongoing' | 'completed';
+export type OrganizationProjectReferenceStatus = 'notVerified' | 'verified';
 export type OrganizationProjectDocumentType = 'tor' | 'report';
 
 export interface OrganizationProjectReferenceDocumentDTO {

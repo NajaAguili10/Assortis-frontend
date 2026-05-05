@@ -12,8 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@app/components/ui/badge';
 import { Separator } from '@app/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@app/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tooltip';
 import { useOrganizations } from '@app/modules/organization/hooks/useOrganizations';
-import { OrganizationTypeEnum, OrganizationStatusEnum, OrganizationSectorEnum, RegionEnum, CountryEnum } from '@app/types/organization.dto';
+import { Organization, OrganizationTypeEnum, OrganizationStatusEnum, OrganizationSectorEnum, RegionEnum, CountryEnum } from '@app/types/organization.dto';
 import { SubSectorEnum, SectorEnum } from '@app/types/tender.dto';
 import { ORGANIZATION_SECTOR_SUBSECTOR_MAP } from '@app/config/organization-sectors.config';
 import { REGION_COUNTRY_MAP } from '@app/types/tender.dto';
@@ -26,15 +27,47 @@ import {
   ChevronRight,
   Building2,
   MapPin,
-  Users,
   Briefcase,
   Globe,
   Target,
   CheckCircle,
   ChevronDown,
   UserPlus,
+  Handshake,
+  CalendarDays,
+  Users2,
+  Star,
+  Layers,
+  ExternalLink,
+  Clock,
+  Mail,
+  Award,
+  TrendingUp,
 } from 'lucide-react';
 import { getLocalizedCountryName } from '@app/utils/country-translator';
+
+type EmployeeSizeFilter = 'micro' | 'small' | 'medium' | 'large';
+
+/** Compute a 0–5 profile completeness score based on present fields. */
+function computeProfileScore(org: Organization): number {
+  return [
+    (org.description?.length ?? 0) > 50,
+    !!org.website,
+    (org.sectors?.length ?? 0) > 0,
+    !!org.employeeCount,
+    !!org.yearEstablished,
+  ].filter(Boolean).length;
+}
+
+function matchesEmployeeSize(org: Organization, size: EmployeeSizeFilter | null): boolean {
+  if (!size) return true;
+  const n = org.employeeCount ?? 0;
+  if (size === 'micro') return n > 0 && n < 10;
+  if (size === 'small') return n >= 10 && n < 50;
+  if (size === 'medium') return n >= 50 && n < 200;
+  if (size === 'large') return n >= 200;
+  return true;
+}
 
 export default function OrganizationsDatabase() {
   const { t } = useLanguage();
@@ -62,6 +95,8 @@ export default function OrganizationsDatabase() {
   const [selectedRegions, setSelectedRegions] = useState<RegionEnum[]>([]);
   const [selectedCountries, setSelectedCountries] = useState<CountryEnum[]>([]);
   const [hoveredSector, setHoveredSector] = useState<SectorEnum | null>(null);
+  const [selectedStatuses, setSelectedStatuses] = useState<OrganizationStatusEnum[]>([]);
+  const [selectedEmployeeSize, setSelectedEmployeeSize] = useState<EmployeeSizeFilter | null>(null);
   
   // State for filters visibility toggle
   const [showFilters, setShowFilters] = useState(true);
@@ -77,6 +112,12 @@ export default function OrganizationsDatabase() {
     });
     return [...new Set(subSectors)]; // Remove duplicates
   }, [selectedSectors]);
+
+  // Client-side filter for employee size (not a server filter)
+  const displayedOrganizations = useMemo(() => {
+    if (!selectedEmployeeSize) return organizations.data;
+    return organizations.data.filter(org => matchesEmployeeSize(org, selectedEmployeeSize));
+  }, [organizations.data, selectedEmployeeSize]);
 
   // Debounced search effect
   useEffect(() => {
@@ -108,6 +149,14 @@ export default function OrganizationsDatabase() {
       ? currentRegions.filter(r => r !== region)
       : [...currentRegions, region];
     updateFilters({ region: newRegions.length > 0 ? newRegions : undefined });
+  };
+
+  const handleStatusFilter = (status: OrganizationStatusEnum) => {
+    const newStatuses = selectedStatuses.includes(status)
+      ? selectedStatuses.filter(s => s !== status)
+      : [...selectedStatuses, status];
+    setSelectedStatuses(newStatuses);
+    updateFilters({ status: newStatuses.length > 0 ? newStatuses : undefined });
   };
 
   const handleSectorFilter = (sector: OrganizationSectorEnum) => {
@@ -147,6 +196,8 @@ export default function OrganizationsDatabase() {
     setSearchQuery('');
     setSelectedSectors([]);
     setSelectedSubSectors([]);
+    setSelectedStatuses([]);
+    setSelectedEmployeeSize(null);
     clearFilters();
   };
 
@@ -167,6 +218,9 @@ export default function OrganizationsDatabase() {
     const country = typeof org.country === 'string' ? org.country : org.country?.name;
     return [city, country].filter(Boolean).join(', ') || '-';
   };
+
+  // Total including client-side filters (status handled by server, employee size is local)
+  const totalActiveFiltersCount = activeFiltersCount + (selectedEmployeeSize ? 1 : 0);
 
   return (
     <div className="min-h-screen">
@@ -211,12 +265,12 @@ export default function OrganizationsDatabase() {
                 <h3 className="text-lg font-semibold text-primary">
                   {t('organizations.filters.title') || t('common.filter')}
                 </h3>
-                {activeFiltersCount > 0 && (
-                  <Badge variant="secondary">{activeFiltersCount}</Badge>
+                {totalActiveFiltersCount > 0 && (
+                  <Badge variant="secondary">{totalActiveFiltersCount}</Badge>
                 )}
               </div>
               <div className="flex items-center gap-2">
-                {activeFiltersCount > 0 && (
+                {totalActiveFiltersCount > 0 && (
                   <Button variant="ghost" size="sm" onClick={handleClearFilters}>
                     <X className="w-4 h-4 mr-1" />
                     {t('filters.clear') || t('organizations.filters.clear')}
@@ -325,6 +379,57 @@ export default function OrganizationsDatabase() {
                   </div>
                 </div>
 
+                {/* Filters Row 1b: Status + Employee Size */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  {/* Status Filter */}
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">
+                      {t('organizations.filters.status')}
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.values(OrganizationStatusEnum).map((status) => (
+                        <button
+                          key={status}
+                          type="button"
+                          onClick={() => handleStatusFilter(status)}
+                          className={[
+                            'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
+                            selectedStatuses.includes(status)
+                              ? 'bg-primary text-white border-primary'
+                              : 'bg-white text-gray-700 border-gray-200 hover:border-primary hover:text-primary',
+                          ].join(' ')}
+                        >
+                          {t(`organizations.status.${status}`)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Employee Size Filter */}
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">
+                      {t('organizations.filters.employeeSize')}
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {(['micro', 'small', 'medium', 'large'] as EmployeeSizeFilter[]).map((size) => (
+                        <button
+                          key={size}
+                          type="button"
+                          onClick={() => setSelectedEmployeeSize(selectedEmployeeSize === size ? null : size)}
+                          className={[
+                            'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
+                            selectedEmployeeSize === size
+                              ? 'bg-primary text-white border-primary'
+                              : 'bg-white text-gray-700 border-gray-200 hover:border-primary hover:text-primary',
+                          ].join(' ')}
+                        >
+                          {t(`organizations.filters.employeeSize.${size}`)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
                 {/* Filters Row 2: Secteur & Sous-secteur - ASSORTIS RED & BLACK DESIGN */}
                 <div className="grid grid-cols-1 gap-4 mb-4">
                   <SectorSubsectorFilter
@@ -411,7 +516,7 @@ export default function OrganizationsDatabase() {
                 </div>
 
                 {/* Active Filters Display */}
-                {activeFiltersCount > 0 && (
+                {totalActiveFiltersCount > 0 && (
                   <div className="mt-5 pt-5 border-t border-gray-200">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-medium text-gray-700">
@@ -426,6 +531,24 @@ export default function OrganizationsDatabase() {
                           />
                         </Badge>
                       ))}
+                      {selectedStatuses.map((status) => (
+                        <Badge key={status} variant="secondary" className="gap-1">
+                          {t(`organizations.status.${status}`)}
+                          <X
+                            className="w-3 h-3 cursor-pointer hover:text-destructive"
+                            onClick={() => handleStatusFilter(status)}
+                          />
+                        </Badge>
+                      ))}
+                      {selectedEmployeeSize && (
+                        <Badge variant="secondary" className="gap-1">
+                          {t(`organizations.filters.employeeSize.${selectedEmployeeSize}`)}
+                          <X
+                            className="w-3 h-3 cursor-pointer hover:text-destructive"
+                            onClick={() => setSelectedEmployeeSize(null)}
+                          />
+                        </Badge>
+                      )}
                       {selectedSectors.map((sector) => (
                         <Badge key={sector} variant="secondary" className="gap-1">
                           {t(`sectors.${sector}`)}
@@ -528,85 +651,330 @@ export default function OrganizationsDatabase() {
               <div className="text-center py-12 bg-white rounded-lg border">
                 <p className="text-muted-foreground">{t('common.loading') || 'Chargement...'}</p>
               </div>
-            ) : organizations.data.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4 mb-6">
-                {organizations.data.map((org) => (
-                  <div
-                    key={org.id}
-                    className="bg-white rounded-lg border p-5 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-start gap-3">
-                        <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <Building2 className="w-6 h-6 text-blue-500" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-primary mb-1">
-                            {org.name}
-                            {org.acronym && (
-                              <span className="text-sm text-muted-foreground ml-2">
-                                ({org.acronym})
+            ) : displayedOrganizations.length > 0 ? (
+              <div className="grid grid-cols-1 gap-5 mb-6">
+                {displayedOrganizations.map((org) => {
+                  const score = computeProfileScore(org);
+                  const sharedSectors = selectedSectors.filter(s =>
+                    (org.sectors || []).includes(s as unknown as string)
+                  );
+                  const countryName = typeof org.country === 'string'
+                    ? org.country
+                    : org.country?.name ?? '';
+                  const totalEngagements = (org.partnerships ?? 0) + (org.activeProjects ?? 0) + (org.completedProjects ?? 0);
+                  const lastUpdated = org.updatedAt
+                    ? new Date(org.updatedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+                    : null;
+                  const initials = org.name
+                    .split(' ')
+                    .slice(0, 2)
+                    .map((w: string) => w[0]?.toUpperCase() ?? '')
+                    .join('');
+                  const statusColors: Record<string, string> = {
+                    VERIFIED: 'bg-green-100 text-green-700 border-green-300',
+                    ACTIVE: 'bg-blue-100 text-blue-700 border-blue-300',
+                    PENDING: 'bg-amber-100 text-amber-700 border-amber-300',
+                    INACTIVE: 'bg-gray-100 text-gray-500 border-gray-300',
+                  };
+                  const statusColor = statusColors[org.status ?? ''] ?? 'bg-gray-100 text-gray-500 border-gray-300';
+                  const yearsActive = org.yearEstablished ? new Date().getFullYear() - org.yearEstablished : null;
+
+                  return (
+                    <div
+                      key={org.id}
+                      className="bg-white rounded-xl border border-gray-200 hover:border-primary/30 hover:shadow-lg transition-all duration-200 overflow-hidden"
+                    >
+                      {/* Main body: 2-column on desktop */}
+                      <div className="p-5 flex flex-col md:flex-row gap-5">
+
+                        {/* ── LEFT: Identity ── */}
+                        <div className="flex-1 min-w-0">
+
+                          {/* Name + avatar row */}
+                          <div className="flex items-start gap-4 mb-3">
+                            {/* Avatar */}
+                            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary/10 to-primary/25 border border-primary/15 flex items-center justify-center flex-shrink-0 text-primary font-bold text-lg select-none overflow-hidden">
+                              {org.logoUrl
+                                ? <img src={org.logoUrl} alt={org.name} className="w-full h-full object-cover" />
+                                : initials || <Building2 className="w-6 h-6" />
+                              }
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              {/* Name + acronym */}
+                              <div className="flex flex-wrap items-baseline gap-2 mb-1.5">
+                                <h3 className="font-bold text-gray-900 text-base leading-tight">{org.name}</h3>
+                                {org.acronym && (
+                                  <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded tracking-wide">
+                                    {org.acronym}
+                                  </span>
+                                )}
+                                {org.legalName && org.legalName !== org.name && (
+                                  <span className="text-xs text-gray-400 italic">{org.legalName}</span>
+                                )}
+                              </div>
+
+                              {/* Badges row: type + status + profile score */}
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge variant="secondary" className="text-xs font-medium gap-1">
+                                  <Target className="w-3 h-3" />
+                                  {getTranslatedTypeLabel(org.type)}
+                                </Badge>
+                                {org.status && (
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border ${statusColor}`}>
+                                    {org.status === 'VERIFIED' && <CheckCircle className="w-3 h-3" />}
+                                    {t(`organizations.status.${org.status}`)}
+                                  </span>
+                                )}
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="flex items-center gap-0.5 cursor-default">
+                                      {Array.from({ length: 5 }).map((_, i) => (
+                                        <Star
+                                          key={i}
+                                          className={`w-3 h-3 ${i < score ? 'text-amber-400 fill-amber-400' : 'text-gray-200 fill-gray-200'}`}
+                                        />
+                                      ))}
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent sideOffset={4}>
+                                    {t('organizations.card.profileScore')}: {score}/5
+                                  </TooltipContent>
+                                </Tooltip>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Description */}
+                          {org.description && (
+                            <p className="text-sm text-gray-600 line-clamp-2 mb-3 leading-relaxed">
+                              {org.description}
+                            </p>
+                          )}
+
+                          {/* Meta: location / region / year / employees / website */}
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground mb-3">
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-3.5 h-3.5" />
+                              {getLocationLabel(org)}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Globe className="w-3.5 h-3.5" />
+                              {getTranslatedRegionLabel(org.region)}
+                              {countryName && ` · ${countryName}`}
+                            </span>
+                            {org.yearEstablished && (
+                              <span className="flex items-center gap-1">
+                                <CalendarDays className="w-3.5 h-3.5" />
+                                {t('organizations.card.established')} {org.yearEstablished}
+                                {yearsActive !== null && yearsActive > 0 && (
+                                  <span className="text-gray-400 ml-0.5">({yearsActive} ans)</span>
+                                )}
                               </span>
                             )}
-                          </h3>
-                          <p className="text-sm text-muted-foreground line-clamp-2">
-                            {org.description}
-                          </p>
+                            {org.employeeCount && (
+                              <span className="flex items-center gap-1">
+                                <Users2 className="w-3.5 h-3.5" />
+                                ~{org.employeeCount} {t('organizations.card.employees')}
+                              </span>
+                            )}
+                            {org.website && (
+                              <a
+                                href={org.website.startsWith('http') ? org.website : `https://${org.website}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 text-primary hover:underline"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                {org.website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
+                              </a>
+                            )}
+                            {org.contactEmail && (
+                              <span className="flex items-center gap-1">
+                                <Mail className="w-3.5 h-3.5" />
+                                {org.contactEmail}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Sectors */}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {(org.sectors || []).slice(0, 4).map((sector, index) => {
+                              const isShared = selectedSectors.includes(sector as unknown as OrganizationSectorEnum);
+                              return (
+                                <Badge
+                                  key={`${org.id}-sector-${index}`}
+                                  variant={isShared ? 'default' : 'secondary'}
+                                  className={`text-xs ${isShared ? 'bg-primary/10 text-primary border border-primary/20' : ''}`}
+                                >
+                                  {isShared && <Layers className="w-3 h-3 mr-1" />}
+                                  {t(`sectors.${sector}`)}
+                                </Badge>
+                              );
+                            })}
+                            {(org.sectors || []).length > 4 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{(org.sectors || []).length - 4}
+                              </Badge>
+                            )}
+                            {sharedSectors.length > 0 && (
+                              <span className="text-xs text-emerald-600 font-medium flex items-center gap-1 ml-1">
+                                <Layers className="w-3 h-3" />
+                                {sharedSectors.length} {t('organizations.card.sharedSectors')}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Certifications */}
+                          {org.certifications && org.certifications.length > 0 && (
+                            <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                              <Award className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                              {org.certifications.slice(0, 3).map((cert, i) => (
+                                <span key={i} className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded">
+                                  {cert}
+                                </span>
+                              ))}
+                              {org.certifications.length > 3 && (
+                                <span className="text-xs text-amber-600">+{org.certifications.length - 3}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* ── Vertical divider ── */}
+                        <div className="hidden md:block w-px bg-gray-100 self-stretch flex-shrink-0" />
+
+                        {/* ── RIGHT: Collaboration Stats Panel ── */}
+                        <div className="md:w-60 flex-shrink-0">
+                          <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 h-full flex flex-col">
+                            {/* Panel header */}
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide flex items-center gap-1.5">
+                                <Handshake className="w-3.5 h-3.5 text-primary" />
+                                {t('organizations.card.collaborationHistory')}
+                              </span>
+                              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${totalEngagements > 0 ? 'bg-primary text-white' : 'bg-gray-200 text-gray-500'}`}>
+                                {totalEngagements}
+                              </span>
+                            </div>
+
+                            {/* Stat rows */}
+                            <div className="space-y-2.5 flex-1">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-xs text-gray-600">
+                                  <div className="w-6 h-6 rounded-md bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                    <Handshake className="w-3.5 h-3.5 text-blue-600" />
+                                  </div>
+                                  <span>{t('organizations.card.partnerships')}</span>
+                                </div>
+                                <span className="text-sm font-bold text-blue-700">{org.partnerships ?? 0}</span>
+                              </div>
+
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-xs text-gray-600">
+                                  <div className="w-6 h-6 rounded-md bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                                    <Briefcase className="w-3.5 h-3.5 text-emerald-600" />
+                                  </div>
+                                  <span>{t('organizations.card.activeProjects')}</span>
+                                </div>
+                                <span className="text-sm font-bold text-emerald-600">{org.activeProjects ?? 0}</span>
+                              </div>
+
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-xs text-gray-600">
+                                  <div className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center flex-shrink-0">
+                                    <CheckCircle className="w-3.5 h-3.5 text-gray-500" />
+                                  </div>
+                                  <span>{t('organizations.card.completedProjects')}</span>
+                                </div>
+                                <span className="text-sm font-bold text-gray-700">{org.completedProjects ?? 0}</span>
+                              </div>
+                            </div>
+
+                            {/* Activity distribution bar */}
+                            <div className="mt-3 pt-3 border-t border-gray-200">
+                              <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
+                                <span className="flex items-center gap-1">
+                                  <TrendingUp className="w-3 h-3" />
+                                  {t('organizations.card.distribution')}
+                                </span>
+                                <span className="text-emerald-600 font-semibold">
+                                  {org.activeProjects ?? 0} actifs
+                                </span>
+                              </div>
+                              <div className="h-2 bg-gray-200 rounded-full overflow-hidden flex">
+                                {totalEngagements > 0 ? (
+                                  <>
+                                    <div
+                                      className="h-full bg-blue-400 transition-all"
+                                      style={{ width: `${((org.partnerships ?? 0) / totalEngagements) * 100}%` }}
+                                      title={`${t('organizations.card.partnerships')}: ${org.partnerships ?? 0}`}
+                                    />
+                                    <div
+                                      className="h-full bg-emerald-500 transition-all"
+                                      style={{ width: `${((org.activeProjects ?? 0) / totalEngagements) * 100}%` }}
+                                      title={`${t('organizations.card.activeProjects')}: ${org.activeProjects ?? 0}`}
+                                    />
+                                    <div
+                                      className="h-full bg-gray-400 transition-all"
+                                      style={{ width: `${((org.completedProjects ?? 0) / totalEngagements) * 100}%` }}
+                                      title={`${t('organizations.card.completedProjects')}: ${org.completedProjects ?? 0}`}
+                                    />
+                                  </>
+                                ) : (
+                                  <div className="h-full w-full bg-gray-200" />
+                                )}
+                              </div>
+                              {totalEngagements > 0 && (
+                                <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-400">
+                                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />Partenariats</span>
+                                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />Actifs</span>
+                                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />Terminés</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Last engagement */}
+                            {lastUpdated && (
+                              <div className="mt-2.5 pt-2.5 border-t border-gray-200 flex items-center gap-1.5 text-xs text-gray-500">
+                                <Clock className="w-3.5 h-3.5 flex-shrink-0" />
+                                <span>
+                                  {t('organizations.card.lastEngagement')}:{' '}
+                                  <span className="font-semibold text-gray-700">{lastUpdated}</span>
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      {org.status === 'VERIFIED' && (
-                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                          <CheckCircle className="w-3 h-3 mr-1" />
-                          {t('organizations.status.VERIFIED')}
-                        </Badge>
-                      )}
-                    </div>
 
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
-                      <span className="flex items-center gap-1">
-                        <Target className="w-4 h-4" />
-                        {getTranslatedTypeLabel(org.type)}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-4 h-4" />
-                        {getLocationLabel(org)}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Briefcase className="w-4 h-4" />
-                        {org.activeProjects || 0} {t('organizations.details.projects')}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 mb-4">
-                      {(org.sectors || []).slice(0, 3).map((sector, index) => (
-                        <Badge key={`${org.id}-sector-${index}`} variant="secondary">
-                          {t(`sectors.${sector}`)}
-                        </Badge>
-                      ))}
-                      {(org.sectors || []).length > 3 && (
-                        <Badge variant="outline">
-                          +{(org.sectors || []).length - 3}
-                        </Badge>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between pt-3 border-t">
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className="flex items-center gap-1 text-muted-foreground">
-                          <Globe className="w-4 h-4" />
-                          {getTranslatedRegionLabel(org.region)}
-                        </span>
+                      {/* ── Card footer ── */}
+                      <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                          {org.budget?.formatted && (
+                            <span className="font-medium text-gray-700">{org.budget.formatted}</span>
+                          )}
+                          {org.teamMembers && (
+                            <span className="flex items-center gap-1">
+                              <Users2 className="w-3.5 h-3.5" />
+                              {org.teamMembers} membres
+                            </span>
+                          )}
+                        </div>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="text-xs flex-shrink-0"
+                          onClick={() => navigate(`/organizations/${org.id}`)}
+                        >
+                          {t('actions.viewDetails')}
+                          <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                        </Button>
                       </div>
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => navigate(`/organizations/${org.id}`)}
-                      >
-                        {t('actions.viewDetails')}
-                      </Button>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-12 bg-white rounded-lg border">

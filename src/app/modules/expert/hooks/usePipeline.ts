@@ -1,4 +1,5 @@
-﻿import { useState, useCallback } from 'react';
+﻿import { useState, useCallback, useEffect } from 'react';
+import { useAuth } from '@app/contexts/AuthContext';
 import { SubmissionStatusEnum } from '@app/types/tender.dto';
 
 export interface PipelineStage {
@@ -22,7 +23,7 @@ export const RESULT_STAGES = {
   DISCARDED: 'discarded',
 } as const;
 
-interface PipelineItem {
+export interface PipelineItem {
   tenderId: string;
   stage: string;
   addedAt: string;
@@ -34,13 +35,155 @@ interface PipelineItem {
   resultStage?: typeof RESULT_STAGES[keyof typeof RESULT_STAGES]; // Final result (won/lost/withdrawn)
   resultDate?: string; // Date when final result was set
   awardValue?: number; // Actual contract value if won
+  tenderTitle?: string;
+  tenderReference?: string;
+  organizationName?: string;
+  memberOrganizationId?: number;
+  memberOrganizationName?: string;
+  memberUserNames?: string[];
+  country?: string;
+  donor?: string;
+  status?: string;
+  priority?: string;
+  role?: string;
+  roleSought?: string;
+  progressPercent?: number;
+  expectedValue?: number;
+  currency?: string;
+  matchScore?: number;
+  aiRecommendation?: boolean;
+  deadline?: string;
+  sectors?: string[];
+  source?: 'backend' | 'local';
 }
 
-export function usePipeline() {
-  const [pipelineItems, setPipelineItems] = useState<PipelineItem[]>(() => {
+interface BackendPipelineResponse {
+  data?: Array<{
+    tenderId: number;
+    memberOrganizationId?: number;
+    memberOrganizationName?: string;
+    memberUserNames?: string[];
+    tenderTitle?: string;
+    tenderReference?: string;
+    publishedByOrganizationName?: string;
+    country?: string;
+    donor?: string;
+    status?: string;
+    stage?: string;
+    priority?: string;
+    role?: string;
+    roleSought?: string;
+    notes?: string;
+    progressPercent?: number;
+    probability?: number;
+    expectedValue?: number;
+    currency?: string;
+    matchScore?: number;
+    aiRecommendation?: boolean;
+    deadline?: string;
+    addedAt?: string;
+    updatedAt?: string;
+    sectors?: string[];
+  }>;
+}
+
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+
+const mapBackendStage = (stage?: string): string => {
+  const normalized = (stage || '').toLowerCase().replace(/[_\s-]+/g, '');
+  if (['qualification', 'qualified', 'analysis', 'analyzing'].includes(normalized)) return 'analyzing';
+  if (['proposal', 'preparing', 'preparingproposal'].includes(normalized)) return 'preparing';
+  if (['ready', 'readytosubmit'].includes(normalized)) return 'ready';
+  if (['submitted', 'submission'].includes(normalized)) return 'submitted';
+  return 'interested';
+};
+
+const readStoredPipelineItems = (): PipelineItem[] => {
+  try {
     const stored = localStorage.getItem('pipeline_items');
     return stored ? JSON.parse(stored) : [];
-  });
+  } catch {
+    return [];
+  }
+};
+
+const mergePipelineItems = (backendItems: PipelineItem[], localItems: PipelineItem[]) => {
+  const itemsByTender = new Map<string, PipelineItem>();
+  backendItems.forEach(item => itemsByTender.set(item.tenderId, item));
+  localItems.forEach(item => itemsByTender.set(item.tenderId, { ...item, source: item.source || 'local' }));
+  return Array.from(itemsByTender.values());
+};
+
+export function usePipeline() {
+  const { user } = useAuth();
+  const [pipelineItems, setPipelineItems] = useState<PipelineItem[]>(() => readStoredPipelineItems());
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const fetchPipeline = async () => {
+      const params = new URLSearchParams({
+        page: '0',
+        size: '200',
+        sort: 'updatedAt,desc',
+      });
+
+      try {
+        const response = await fetch(`${BASE_URL}/projects/pipeline?${params.toString()}`, {
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(user?.email ? { 'X-User-Email': user.email } : {}),
+            ...(user?.role ? { 'X-User-Role': user.role } : {}),
+          },
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = (await response.json()) as BackendPipelineResponse;
+        const backendItems: PipelineItem[] = (payload.data || []).map(item => ({
+          tenderId: String(item.tenderId),
+          stage: mapBackendStage(item.stage),
+          addedAt: item.addedAt || item.updatedAt || new Date().toISOString(),
+          lastModified: item.updatedAt,
+          notes: item.notes,
+          probability: item.probability ?? 50,
+          tenderTitle: item.tenderTitle,
+          tenderReference: item.tenderReference,
+          organizationName: item.publishedByOrganizationName,
+          memberOrganizationId: item.memberOrganizationId,
+          memberOrganizationName: item.memberOrganizationName,
+          memberUserNames: item.memberUserNames,
+          country: item.country,
+          donor: item.donor,
+          status: item.status,
+          priority: item.priority,
+          role: item.role,
+          roleSought: item.roleSought,
+          progressPercent: item.progressPercent,
+          expectedValue: item.expectedValue,
+          currency: item.currency,
+          matchScore: item.matchScore,
+          aiRecommendation: item.aiRecommendation,
+          deadline: item.deadline,
+          sectors: item.sectors,
+          source: 'backend',
+        }));
+
+        setPipelineItems(prev => mergePipelineItems(backendItems, prev.filter(item => item.source !== 'backend')));
+      } catch {
+        if (!controller.signal.aborted) {
+          setPipelineItems(readStoredPipelineItems());
+        }
+      }
+    };
+
+    fetchPipeline();
+
+    return () => controller.abort();
+  }, [user?.email, user?.role]);
 
   const addToPipeline = useCallback((tenderId: string, stage: string = 'interested', notes?: string, probability: number = 50) => {
     setPipelineItems((prev) => {
@@ -340,3 +483,4 @@ export function usePipeline() {
     getDiscardedOpportunities,
   };
 }
+

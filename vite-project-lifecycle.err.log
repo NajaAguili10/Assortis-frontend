@@ -1,0 +1,2400 @@
+[2m4:07:41 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.kpi.totalProjects" in object literal[33m
+348|      'statistics.kpi.averagePricing': 'Tarifa promedio mercado',
+349|      'statistics.kpi.opportunities': 'Oportunidades',
+350|      'statistics.kpi.totalProjects': 'Proyectos totales',
+   |      ^
+351|      'statistics.kpi.totalContracts': 'Contratos totales',
+352|      'statistics.kpi.shortlists': 'Shortlists',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:41 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.kpi.totalContracts" in object literal[33m
+349|      'statistics.kpi.opportunities': 'Oportunidades',
+350|      'statistics.kpi.totalProjects': 'Proyectos totales',
+351|      'statistics.kpi.totalContracts': 'Contratos totales',
+   |      ^
+352|      'statistics.kpi.shortlists': 'Shortlists',
+353|      'statistics.kpi.winRate': 'Tasa de exito',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:41 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.kpi.shortlists" in object literal[33m
+350|      'statistics.kpi.totalProjects': 'Proyectos totales',
+351|      'statistics.kpi.totalContracts': 'Contratos totales',
+352|      'statistics.kpi.shortlists': 'Shortlists',
+   |      ^
+353|      'statistics.kpi.winRate': 'Tasa de exito',
+354|      'statistics.kpi.shortlists.expert': 'Oportunidades emparejadas',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:41 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.kpi.winRate" in object literal[33m
+351|      'statistics.kpi.totalContracts': 'Contratos totales',
+352|      'statistics.kpi.shortlists': 'Shortlists',
+353|      'statistics.kpi.winRate': 'Tasa de exito',
+   |      ^
+354|      'statistics.kpi.shortlists.expert': 'Oportunidades emparejadas',
+355|      'statistics.kpi.winRate.expert': 'Tasa de exito de licitaciones',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:41 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.pricingExperts.title" in object literal[33m
+354|      'statistics.kpi.shortlists.expert': 'Oportunidades emparejadas',
+355|      'statistics.kpi.winRate.expert': 'Tasa de exito de licitaciones',
+356|      'statistics.pricingExperts.title': 'Politica de precios',
+   |      ^
+357|      'statistics.pricingPolicy.title': 'Politica de precios',
+358|      'statistics.pricingPolicy.aiSection': 'Analisis de descuentos con IA',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:41 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.projectsContracts.title" in object literal[33m
+372|      'statistics.expertsFees.domainDesc': 'Tarifas diarias de expertos por dominio y nivel de seniority.',
+373|      'statistics.expertsFees.countryDesc': 'Tarifas diarias medias y numero de expertos por pais.',
+374|      'statistics.projectsContracts.title': 'Desglose de proyectos y contratos',
+   |      ^
+375|      'statistics.marketTrends.title': 'Dinamica de mercado por sector, pais y donante',
+376|      'statistics.competitors.title': 'Panorama competitivo',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:41 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.marketTrends.title" in object literal[33m
+373|      'statistics.expertsFees.countryDesc': 'Tarifas diarias medias y numero de expertos por pais.',
+374|      'statistics.projectsContracts.title': 'Desglose de proyectos y contratos',
+375|      'statistics.marketTrends.title': 'Dinamica de mercado por sector, pais y donante',
+   |      ^
+376|      'statistics.competitors.title': 'Panorama competitivo',
+377|      'statistics.usageAnalytics.title': 'Analitica de uso de servicios',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.competitors.title" in object literal[33m
+374|      'statistics.projectsContracts.title': 'Desglose de proyectos y contratos',
+375|      'statistics.marketTrends.title': 'Dinamica de mercado por sector, pais y donante',
+376|      'statistics.competitors.title': 'Panorama competitivo',
+   |      ^
+377|      'statistics.usageAnalytics.title': 'Analitica de uso de servicios',
+378|      'statistics.mapInsights.title': 'Mapa de insights geograficos',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.usageAnalytics.title" in object literal[33m
+375|      'statistics.marketTrends.title': 'Dinamica de mercado por sector, pais y donante',
+376|      'statistics.competitors.title': 'Panorama competitivo',
+377|      'statistics.usageAnalytics.title': 'Analitica de uso de servicios',
+   |      ^
+378|      'statistics.mapInsights.title': 'Mapa de insights geograficos',
+379|      'statistics.dashboard.section.performance': 'Resumen de rendimiento',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.mapInsights.title" in object literal[33m
+376|      'statistics.competitors.title': 'Panorama competitivo',
+377|      'statistics.usageAnalytics.title': 'Analitica de uso de servicios',
+378|      'statistics.mapInsights.title': 'Mapa de insights geograficos',
+   |      ^
+379|      'statistics.dashboard.section.performance': 'Resumen de rendimiento',
+380|      'statistics.dashboard.section.highlights': 'Destacados',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.dashboard.section.performance" in object literal[33m
+377|      'statistics.usageAnalytics.title': 'Analitica de uso de servicios',
+378|      'statistics.mapInsights.title': 'Mapa de insights geograficos',
+379|      'statistics.dashboard.section.performance': 'Resumen de rendimiento',
+   |      ^
+380|      'statistics.dashboard.section.highlights': 'Destacados',
+381|      'statistics.dashboard.section.quickInsights': 'Insights rapidos',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.dashboard.section.highlights" in object literal[33m
+378|      'statistics.mapInsights.title': 'Mapa de insights geograficos',
+379|      'statistics.dashboard.section.performance': 'Resumen de rendimiento',
+380|      'statistics.dashboard.section.highlights': 'Destacados',
+   |      ^
+381|      'statistics.dashboard.section.quickInsights': 'Insights rapidos',
+382|      'statistics.filters.sector': 'Sector',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.dashboard.section.quickInsights" in object literal[33m
+379|      'statistics.dashboard.section.performance': 'Resumen de rendimiento',
+380|      'statistics.dashboard.section.highlights': 'Destacados',
+381|      'statistics.dashboard.section.quickInsights': 'Insights rapidos',
+   |      ^
+382|      'statistics.filters.sector': 'Sector',
+383|      'statistics.filters.country': 'Pais',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.filters.sector" in object literal[33m
+380|      'statistics.dashboard.section.highlights': 'Destacados',
+381|      'statistics.dashboard.section.quickInsights': 'Insights rapidos',
+382|      'statistics.filters.sector': 'Sector',
+   |      ^
+383|      'statistics.filters.country': 'Pais',
+384|      'statistics.filters.donor': 'Donante',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.filters.country" in object literal[33m
+381|      'statistics.dashboard.section.quickInsights': 'Insights rapidos',
+382|      'statistics.filters.sector': 'Sector',
+383|      'statistics.filters.country': 'Pais',
+   |      ^
+384|      'statistics.filters.donor': 'Donante',
+385|      'statistics.filters.seniority': 'Seniority',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.filters.donor" in object literal[33m
+382|      'statistics.filters.sector': 'Sector',
+383|      'statistics.filters.country': 'Pais',
+384|      'statistics.filters.donor': 'Donante',
+   |      ^
+385|      'statistics.filters.seniority': 'Seniority',
+386|      'statistics.filters.reset': 'Restablecer filtros',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.filters.seniority" in object literal[33m
+383|      'statistics.filters.country': 'Pais',
+384|      'statistics.filters.donor': 'Donante',
+385|      'statistics.filters.seniority': 'Seniority',
+   |      ^
+386|      'statistics.filters.reset': 'Restablecer filtros',
+387|      'statistics.charts.projectsOverTime': 'Proyectos en el tiempo',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.filters.reset" in object literal[33m
+384|      'statistics.filters.donor': 'Donante',
+385|      'statistics.filters.seniority': 'Seniority',
+386|      'statistics.filters.reset': 'Restablecer filtros',
+   |      ^
+387|      'statistics.charts.projectsOverTime': 'Proyectos en el tiempo',
+388|      'statistics.charts.projectsOverTimeDesc': 'Evolucion mensual de proyectos y contratos.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.projectsOverTime" in object literal[33m
+385|      'statistics.filters.seniority': 'Seniority',
+386|      'statistics.filters.reset': 'Restablecer filtros',
+387|      'statistics.charts.projectsOverTime': 'Proyectos en el tiempo',
+   |      ^
+388|      'statistics.charts.projectsOverTimeDesc': 'Evolucion mensual de proyectos y contratos.',
+389|      'statistics.charts.distributionSector': 'Distribucion por sector',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.projectsOverTimeDesc" in object literal[33m
+386|      'statistics.filters.reset': 'Restablecer filtros',
+387|      'statistics.charts.projectsOverTime': 'Proyectos en el tiempo',
+388|      'statistics.charts.projectsOverTimeDesc': 'Evolucion mensual de proyectos y contratos.',
+   |      ^
+389|      'statistics.charts.distributionSector': 'Distribucion por sector',
+390|      'statistics.charts.distributionSectorDesc': 'Participacion actual por sector de actividad.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.distributionSector" in object literal[33m
+387|      'statistics.charts.projectsOverTime': 'Proyectos en el tiempo',
+388|      'statistics.charts.projectsOverTimeDesc': 'Evolucion mensual de proyectos y contratos.',
+389|      'statistics.charts.distributionSector': 'Distribucion por sector',
+   |      ^
+390|      'statistics.charts.distributionSectorDesc': 'Participacion actual por sector de actividad.',
+391|      'statistics.charts.countryDistribution': 'Distribucion por pais',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.distributionSectorDesc" in object literal[33m
+388|      'statistics.charts.projectsOverTimeDesc': 'Evolucion mensual de proyectos y contratos.',
+389|      'statistics.charts.distributionSector': 'Distribucion por sector',
+390|      'statistics.charts.distributionSectorDesc': 'Participacion actual por sector de actividad.',
+   |      ^
+391|      'statistics.charts.countryDistribution': 'Distribucion por pais',
+392|      'statistics.charts.countryDistributionDesc': 'Paises principales por volumen de proyectos.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.countryDistribution" in object literal[33m
+389|      'statistics.charts.distributionSector': 'Distribucion por sector',
+390|      'statistics.charts.distributionSectorDesc': 'Participacion actual por sector de actividad.',
+391|      'statistics.charts.countryDistribution': 'Distribucion por pais',
+   |      ^
+392|      'statistics.charts.countryDistributionDesc': 'Paises principales por volumen de proyectos.',
+393|      'statistics.charts.donorEvolution': 'Evolucion de donantes',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.countryDistributionDesc" in object literal[33m
+390|      'statistics.charts.distributionSectorDesc': 'Participacion actual por sector de actividad.',
+391|      'statistics.charts.countryDistribution': 'Distribucion por pais',
+392|      'statistics.charts.countryDistributionDesc': 'Paises principales por volumen de proyectos.',
+   |      ^
+393|      'statistics.charts.donorEvolution': 'Evolucion de donantes',
+394|      'statistics.charts.donorEvolutionDesc': 'Comparacion del impulso de los donantes principales.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.donorEvolution" in object literal[33m
+391|      'statistics.charts.countryDistribution': 'Distribucion por pais',
+392|      'statistics.charts.countryDistributionDesc': 'Paises principales por volumen de proyectos.',
+393|      'statistics.charts.donorEvolution': 'Evolucion de donantes',
+   |      ^
+394|      'statistics.charts.donorEvolutionDesc': 'Comparacion del impulso de los donantes principales.',
+395|      'statistics.charts.pricingRange': 'Rangos de tarifas de expertos',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.donorEvolutionDesc" in object literal[33m
+392|      'statistics.charts.countryDistributionDesc': 'Paises principales por volumen de proyectos.',
+393|      'statistics.charts.donorEvolution': 'Evolucion de donantes',
+394|      'statistics.charts.donorEvolutionDesc': 'Comparacion del impulso de los donantes principales.',
+   |      ^
+395|      'statistics.charts.pricingRange': 'Rangos de tarifas de expertos',
+396|      'statistics.charts.pricingRangeDesc': 'Tarifas minima, mediana y maxima por seniority.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.pricingRange" in object literal[33m
+393|      'statistics.charts.donorEvolution': 'Evolucion de donantes',
+394|      'statistics.charts.donorEvolutionDesc': 'Comparacion del impulso de los donantes principales.',
+395|      'statistics.charts.pricingRange': 'Rangos de tarifas de expertos',
+   |      ^
+396|      'statistics.charts.pricingRangeDesc': 'Tarifas minima, mediana y maxima por seniority.',
+397|      'statistics.charts.competitorLosses': 'Frecuencia de perdidas frente a competidores',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.pricingRangeDesc" in object literal[33m
+394|      'statistics.charts.donorEvolutionDesc': 'Comparacion del impulso de los donantes principales.',
+395|      'statistics.charts.pricingRange': 'Rangos de tarifas de expertos',
+396|      'statistics.charts.pricingRangeDesc': 'Tarifas minima, mediana y maxima por seniority.',
+   |      ^
+397|      'statistics.charts.competitorLosses': 'Frecuencia de perdidas frente a competidores',
+398|      'statistics.charts.competitorLossesDesc': 'Cuantas licitaciones se pierden frente a cada competidor.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.competitorLosses" in object literal[33m
+395|      'statistics.charts.pricingRange': 'Rangos de tarifas de expertos',
+396|      'statistics.charts.pricingRangeDesc': 'Tarifas minima, mediana y maxima por seniority.',
+397|      'statistics.charts.competitorLosses': 'Frecuencia de perdidas frente a competidores',
+   |      ^
+398|      'statistics.charts.competitorLossesDesc': 'Cuantas licitaciones se pierden frente a cada competidor.',
+399|      'statistics.charts.servicesUsage': 'Uso de servicios activos',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.competitorLossesDesc" in object literal[33m
+396|      'statistics.charts.pricingRangeDesc': 'Tarifas minima, mediana y maxima por seniority.',
+397|      'statistics.charts.competitorLosses': 'Frecuencia de perdidas frente a competidores',
+398|      'statistics.charts.competitorLossesDesc': 'Cuantas licitaciones se pierden frente a cada competidor.',
+   |      ^
+399|      'statistics.charts.servicesUsage': 'Uso de servicios activos',
+400|      'statistics.charts.servicesUsageDesc': 'Distribucion actual entre servicios usados y no usados.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.servicesUsage" in object literal[33m
+397|      'statistics.charts.competitorLosses': 'Frecuencia de perdidas frente a competidores',
+398|      'statistics.charts.competitorLossesDesc': 'Cuantas licitaciones se pierden frente a cada competidor.',
+399|      'statistics.charts.servicesUsage': 'Uso de servicios activos',
+   |      ^
+400|      'statistics.charts.servicesUsageDesc': 'Distribucion actual entre servicios usados y no usados.',
+401|      'statistics.highlights.topSectors': 'Sectores principales',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.servicesUsageDesc" in object literal[33m
+398|      'statistics.charts.competitorLossesDesc': 'Cuantas licitaciones se pierden frente a cada competidor.',
+399|      'statistics.charts.servicesUsage': 'Uso de servicios activos',
+400|      'statistics.charts.servicesUsageDesc': 'Distribucion actual entre servicios usados y no usados.',
+   |      ^
+401|      'statistics.highlights.topSectors': 'Sectores principales',
+402|      'statistics.highlights.topCountries': 'Paises principales',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.highlights.topSectors" in object literal[33m
+399|      'statistics.charts.servicesUsage': 'Uso de servicios activos',
+400|      'statistics.charts.servicesUsageDesc': 'Distribucion actual entre servicios usados y no usados.',
+401|      'statistics.highlights.topSectors': 'Sectores principales',
+   |      ^
+402|      'statistics.highlights.topCountries': 'Paises principales',
+403|    },
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.highlights.topCountries" in object literal[33m
+400|      'statistics.charts.servicesUsageDesc': 'Distribucion actual entre servicios usados y no usados.',
+401|      'statistics.highlights.topSectors': 'Sectores principales',
+402|      'statistics.highlights.topCountries': 'Paises principales',
+   |      ^
+403|    },
+404|  };
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.nav.mySelection" in object literal[33m
+459|      // Navigation (nouvelles sections)
+460|      'account.nav.home': 'Accueil',
+461|      'account.nav.mySelection': 'Ma Sélection & Alertes',
+   |      ^
+462|      'account.nav.subscription': 'Abonnement',
+463|      'account.nav.teams': 'Équipes',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.nav.subscription" in object literal[33m
+460|      'account.nav.home': 'Accueil',
+461|      'account.nav.mySelection': 'Ma Sélection & Alertes',
+462|      'account.nav.subscription': 'Abonnement',
+   |      ^
+463|      'account.nav.teams': 'Équipes',
+464|      'account.nav.security': 'Sécurité',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.nav.teams" in object literal[33m
+461|      'account.nav.mySelection': 'Ma Sélection & Alertes',
+462|      'account.nav.subscription': 'Abonnement',
+463|      'account.nav.teams': 'Équipes',
+   |      ^
+464|      'account.nav.security': 'Sécurité',
+465|      'account.nav.resources': 'Ressources',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.nav.security" in object literal[33m
+462|      'account.nav.subscription': 'Abonnement',
+463|      'account.nav.teams': 'Équipes',
+464|      'account.nav.security': 'Sécurité',
+   |      ^
+465|      'account.nav.resources': 'Ressources',
+466|      'account.nav.profile': 'Paramètres du profil',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.nav.resources" in object literal[33m
+463|      'account.nav.teams': 'Équipes',
+464|      'account.nav.security': 'Sécurité',
+465|      'account.nav.resources': 'Ressources',
+   |      ^
+466|      'account.nav.profile': 'Paramètres du profil',
+467|  
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.nav.profile" in object literal[33m
+464|      'account.nav.security': 'Sécurité',
+465|      'account.nav.resources': 'Ressources',
+466|      'account.nav.profile': 'Paramètres du profil',
+   |      ^
+467|  
+468|      // Page d'accueil
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.banner.title" in object literal[33m
+467|  
+468|      // Page d'accueil
+469|      'account.home.banner.title': 'Mon Compte',
+   |      ^
+470|      'account.home.banner.description': 'Votre tableau de bord personnel — aperçu, activité et accès rapide.',
+471|      'account.home.welcome': 'Bienvenue',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.banner.description" in object literal[33m
+468|      // Page d'accueil
+469|      'account.home.banner.title': 'Mon Compte',
+470|      'account.home.banner.description': 'Votre tableau de bord personnel — aperçu, activité et accès rapide.',
+   |      ^
+471|      'account.home.welcome': 'Bienvenue',
+472|      'account.home.accountType.organization': 'Compte Organisation',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.welcome" in object literal[33m
+469|      'account.home.banner.title': 'Mon Compte',
+470|      'account.home.banner.description': 'Votre tableau de bord personnel — aperçu, activité et accès rapide.',
+471|      'account.home.welcome': 'Bienvenue',
+   |      ^
+472|      'account.home.accountType.organization': 'Compte Organisation',
+473|      'account.home.accountType.expert': 'Compte Expert',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.accountType.organization" in object literal[33m
+470|      'account.home.banner.description': 'Votre tableau de bord personnel — aperçu, activité et accès rapide.',
+471|      'account.home.welcome': 'Bienvenue',
+472|      'account.home.accountType.organization': 'Compte Organisation',
+   |      ^
+473|      'account.home.accountType.expert': 'Compte Expert',
+474|      'account.home.accountType.admin': 'Compte Administrateur',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.accountType.expert" in object literal[33m
+471|      'account.home.welcome': 'Bienvenue',
+472|      'account.home.accountType.organization': 'Compte Organisation',
+473|      'account.home.accountType.expert': 'Compte Expert',
+   |      ^
+474|      'account.home.accountType.admin': 'Compte Administrateur',
+475|      'account.home.stats.projects': 'Projets Actifs',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.accountType.admin" in object literal[33m
+472|      'account.home.accountType.organization': 'Compte Organisation',
+473|      'account.home.accountType.expert': 'Compte Expert',
+474|      'account.home.accountType.admin': 'Compte Administrateur',
+   |      ^
+475|      'account.home.stats.projects': 'Projets Actifs',
+476|      'account.home.stats.matches': 'Nouvelles Correspondances',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.stats.projects" in object literal[33m
+473|      'account.home.accountType.expert': 'Compte Expert',
+474|      'account.home.accountType.admin': 'Compte Administrateur',
+475|      'account.home.stats.projects': 'Projets Actifs',
+   |      ^
+476|      'account.home.stats.matches': 'Nouvelles Correspondances',
+477|      'account.home.stats.alerts': 'Alertes Actives',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.stats.matches" in object literal[33m
+474|      'account.home.accountType.admin': 'Compte Administrateur',
+475|      'account.home.stats.projects': 'Projets Actifs',
+476|      'account.home.stats.matches': 'Nouvelles Correspondances',
+   |      ^
+477|      'account.home.stats.alerts': 'Alertes Actives',
+478|      'account.home.stats.invitations': 'Invitations en attente',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.stats.alerts" in object literal[33m
+475|      'account.home.stats.projects': 'Projets Actifs',
+476|      'account.home.stats.matches': 'Nouvelles Correspondances',
+477|      'account.home.stats.alerts': 'Alertes Actives',
+   |      ^
+478|      'account.home.stats.invitations': 'Invitations en attente',
+479|      'account.home.quickLinks.title': 'Accès Rapide',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.stats.invitations" in object literal[33m
+476|      'account.home.stats.matches': 'Nouvelles Correspondances',
+477|      'account.home.stats.alerts': 'Alertes Actives',
+478|      'account.home.stats.invitations': 'Invitations en attente',
+   |      ^
+479|      'account.home.quickLinks.title': 'Accès Rapide',
+480|      'account.home.quickLinks.mySelection': 'Ma Sélection & Alertes',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.quickLinks.title" in object literal[33m
+477|      'account.home.stats.alerts': 'Alertes Actives',
+478|      'account.home.stats.invitations': 'Invitations en attente',
+479|      'account.home.quickLinks.title': 'Accès Rapide',
+   |      ^
+480|      'account.home.quickLinks.mySelection': 'Ma Sélection & Alertes',
+481|      'account.home.quickLinks.subscription': 'Abonnement',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.quickLinks.mySelection" in object literal[33m
+478|      'account.home.stats.invitations': 'Invitations en attente',
+479|      'account.home.quickLinks.title': 'Accès Rapide',
+480|      'account.home.quickLinks.mySelection': 'Ma Sélection & Alertes',
+   |      ^
+481|      'account.home.quickLinks.subscription': 'Abonnement',
+482|      'account.home.quickLinks.teams': 'Équipes',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.quickLinks.subscription" in object literal[33m
+479|      'account.home.quickLinks.title': 'Accès Rapide',
+480|      'account.home.quickLinks.mySelection': 'Ma Sélection & Alertes',
+481|      'account.home.quickLinks.subscription': 'Abonnement',
+   |      ^
+482|      'account.home.quickLinks.teams': 'Équipes',
+483|      'account.home.quickLinks.profile': 'Modifier le profil',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.quickLinks.teams" in object literal[33m
+480|      'account.home.quickLinks.mySelection': 'Ma Sélection & Alertes',
+481|      'account.home.quickLinks.subscription': 'Abonnement',
+482|      'account.home.quickLinks.teams': 'Équipes',
+   |      ^
+483|      'account.home.quickLinks.profile': 'Modifier le profil',
+484|      'account.home.quickLinks.security': 'Sécurité',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.quickLinks.profile" in object literal[33m
+481|      'account.home.quickLinks.subscription': 'Abonnement',
+482|      'account.home.quickLinks.teams': 'Équipes',
+483|      'account.home.quickLinks.profile': 'Modifier le profil',
+   |      ^
+484|      'account.home.quickLinks.security': 'Sécurité',
+485|      'account.home.quickLinks.matching': 'Opportunités de matching',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.quickLinks.security" in object literal[33m
+482|      'account.home.quickLinks.teams': 'Équipes',
+483|      'account.home.quickLinks.profile': 'Modifier le profil',
+484|      'account.home.quickLinks.security': 'Sécurité',
+   |      ^
+485|      'account.home.quickLinks.matching': 'Opportunités de matching',
+486|      'account.home.quickLinks.projects': 'Mes Projets',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.quickLinks.matching" in object literal[33m
+483|      'account.home.quickLinks.profile': 'Modifier le profil',
+484|      'account.home.quickLinks.security': 'Sécurité',
+485|      'account.home.quickLinks.matching': 'Opportunités de matching',
+   |      ^
+486|      'account.home.quickLinks.projects': 'Mes Projets',
+487|      'account.home.editProfile': 'Modifier le profil',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.quickLinks.projects" in object literal[33m
+484|      'account.home.quickLinks.security': 'Sécurité',
+485|      'account.home.quickLinks.matching': 'Opportunités de matching',
+486|      'account.home.quickLinks.projects': 'Mes Projets',
+   |      ^
+487|      'account.home.editProfile': 'Modifier le profil',
+488|      'account.home.manageAccount': 'Gérer le compte',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.editProfile" in object literal[33m
+485|      'account.home.quickLinks.matching': 'Opportunités de matching',
+486|      'account.home.quickLinks.projects': 'Mes Projets',
+487|      'account.home.editProfile': 'Modifier le profil',
+   |      ^
+488|      'account.home.manageAccount': 'Gérer le compte',
+489|  
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.manageAccount" in object literal[33m
+486|      'account.home.quickLinks.projects': 'Mes Projets',
+487|      'account.home.editProfile': 'Modifier le profil',
+488|      'account.home.manageAccount': 'Gérer le compte',
+   |      ^
+489|  
+490|      // Ma Sélection & Alertes
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.banner.title" in object literal[33m
+489|  
+490|      // Ma Sélection & Alertes
+491|      'account.mySelection.banner.title': 'Ma Sélection & Alertes',
+   |      ^
+492|      'account.mySelection.banner.description': 'Gérez vos profils de recherche et vos préférences d\'alertes en un seul endroit.',
+493|      'account.mySelection.profiles.title': 'Profils de recherche',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.banner.description" in object literal[33m
+490|      // Ma Sélection & Alertes
+491|      'account.mySelection.banner.title': 'Ma Sélection & Alertes',
+492|      'account.mySelection.banner.description': 'Gérez vos profils de recherche et vos préférences d\'alertes en un seul endroit.',
+   |      ^
+493|      'account.mySelection.profiles.title': 'Profils de recherche',
+494|      'account.mySelection.profiles.description': 'Chaque profil définit vos critères de correspondance. Les alertes sont liées à chaque profil.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.profiles.title" in object literal[33m
+491|      'account.mySelection.banner.title': 'Ma Sélection & Alertes',
+492|      'account.mySelection.banner.description': 'Gérez vos profils de recherche et vos préférences d\'alertes en un seul endroit.',
+493|      'account.mySelection.profiles.title': 'Profils de recherche',
+   |      ^
+494|      'account.mySelection.profiles.description': 'Chaque profil définit vos critères de correspondance. Les alertes sont liées à chaque profil.',
+495|      'account.mySelection.profiles.new': 'Nouveau profil',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.profiles.description" in object literal[33m
+492|      'account.mySelection.banner.description': 'Gérez vos profils de recherche et vos préférences d\'alertes en un seul endroit.',
+493|      'account.mySelection.profiles.title': 'Profils de recherche',
+494|      'account.mySelection.profiles.description': 'Chaque profil définit vos critères de correspondance. Les alertes sont liées à chaque profil.',
+   |      ^
+495|      'account.mySelection.profiles.new': 'Nouveau profil',
+496|      'account.mySelection.profiles.empty': 'Aucun profil pour l\'instant. Créez votre premier profil de recherche pour recevoir des correspondances.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.profiles.new" in object literal[33m
+493|      'account.mySelection.profiles.title': 'Profils de recherche',
+494|      'account.mySelection.profiles.description': 'Chaque profil définit vos critères de correspondance. Les alertes sont liées à chaque profil.',
+495|      'account.mySelection.profiles.new': 'Nouveau profil',
+   |      ^
+496|      'account.mySelection.profiles.empty': 'Aucun profil pour l\'instant. Créez votre premier profil de recherche pour recevoir des correspondances.',
+497|      'account.mySelection.profiles.editTitle': 'Modifier le profil',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.profiles.empty" in object literal[33m
+494|      'account.mySelection.profiles.description': 'Chaque profil définit vos critères de correspondance. Les alertes sont liées à chaque profil.',
+495|      'account.mySelection.profiles.new': 'Nouveau profil',
+496|      'account.mySelection.profiles.empty': 'Aucun profil pour l\'instant. Créez votre premier profil de recherche pour recevoir des correspondances.',
+   |      ^
+497|      'account.mySelection.profiles.editTitle': 'Modifier le profil',
+498|      'account.mySelection.alerts.title': 'Paramètres des alertes',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.profiles.editTitle" in object literal[33m
+495|      'account.mySelection.profiles.new': 'Nouveau profil',
+496|      'account.mySelection.profiles.empty': 'Aucun profil pour l\'instant. Créez votre premier profil de recherche pour recevoir des correspondances.',
+497|      'account.mySelection.profiles.editTitle': 'Modifier le profil',
+   |      ^
+498|      'account.mySelection.alerts.title': 'Paramètres des alertes',
+499|      'account.mySelection.alerts.globalFrequency': 'Fréquence globale des alertes',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.alerts.title" in object literal[33m
+496|      'account.mySelection.profiles.empty': 'Aucun profil pour l\'instant. Créez votre premier profil de recherche pour recevoir des correspondances.',
+497|      'account.mySelection.profiles.editTitle': 'Modifier le profil',
+498|      'account.mySelection.alerts.title': 'Paramètres des alertes',
+   |      ^
+499|      'account.mySelection.alerts.globalFrequency': 'Fréquence globale des alertes',
+500|      'account.mySelection.alerts.deduplication': 'Activer la déduplication',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.alerts.globalFrequency" in object literal[33m
+497|      'account.mySelection.profiles.editTitle': 'Modifier le profil',
+498|      'account.mySelection.alerts.title': 'Paramètres des alertes',
+499|      'account.mySelection.alerts.globalFrequency': 'Fréquence globale des alertes',
+   |      ^
+500|      'account.mySelection.alerts.deduplication': 'Activer la déduplication',
+501|      'account.mySelection.alerts.deduplication.desc': 'Évitez de recevoir des correspondances en double entre profils.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.alerts.deduplication" in object literal[33m
+498|      'account.mySelection.alerts.title': 'Paramètres des alertes',
+499|      'account.mySelection.alerts.globalFrequency': 'Fréquence globale des alertes',
+500|      'account.mySelection.alerts.deduplication': 'Activer la déduplication',
+   |      ^
+501|      'account.mySelection.alerts.deduplication.desc': 'Évitez de recevoir des correspondances en double entre profils.',
+502|      'account.mySelection.alerts.perProfile': 'Alertes par profil',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.alerts.deduplication.desc" in object literal[33m
+499|      'account.mySelection.alerts.globalFrequency': 'Fréquence globale des alertes',
+500|      'account.mySelection.alerts.deduplication': 'Activer la déduplication',
+501|      'account.mySelection.alerts.deduplication.desc': 'Évitez de recevoir des correspondances en double entre profils.',
+   |      ^
+502|      'account.mySelection.alerts.perProfile': 'Alertes par profil',
+503|      'account.mySelection.alerts.saveSettings': 'Enregistrer les paramètres',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.alerts.perProfile" in object literal[33m
+500|      'account.mySelection.alerts.deduplication': 'Activer la déduplication',
+501|      'account.mySelection.alerts.deduplication.desc': 'Évitez de recevoir des correspondances en double entre profils.',
+502|      'account.mySelection.alerts.perProfile': 'Alertes par profil',
+   |      ^
+503|      'account.mySelection.alerts.saveSettings': 'Enregistrer les paramètres',
+504|  
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.alerts.saveSettings" in object literal[33m
+501|      'account.mySelection.alerts.deduplication.desc': 'Évitez de recevoir des correspondances en double entre profils.',
+502|      'account.mySelection.alerts.perProfile': 'Alertes par profil',
+503|      'account.mySelection.alerts.saveSettings': 'Enregistrer les paramètres',
+   |      ^
+504|  
+505|      // Abonnement
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.banner.title" in object literal[33m
+504|  
+505|      // Abonnement
+506|      'account.subscription.banner.title': 'Abonnement & Crédits',
+   |      ^
+507|      'account.subscription.banner.description': 'Gérez votre plan, facturation et crédits CV en un seul endroit.',
+508|      'account.subscription.plan.title': 'Plan actuel',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.banner.description" in object literal[33m
+505|      // Abonnement
+506|      'account.subscription.banner.title': 'Abonnement & Crédits',
+507|      'account.subscription.banner.description': 'Gérez votre plan, facturation et crédits CV en un seul endroit.',
+   |      ^
+508|      'account.subscription.plan.title': 'Plan actuel',
+509|      'account.subscription.plan.status': 'Statut',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.title" in object literal[33m
+506|      'account.subscription.banner.title': 'Abonnement & Crédits',
+507|      'account.subscription.banner.description': 'Gérez votre plan, facturation et crédits CV en un seul endroit.',
+508|      'account.subscription.plan.title': 'Plan actuel',
+   |      ^
+509|      'account.subscription.plan.status': 'Statut',
+510|      'account.subscription.plan.renewal': 'Prochain renouvellement',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.status" in object literal[33m
+507|      'account.subscription.banner.description': 'Gérez votre plan, facturation et crédits CV en un seul endroit.',
+508|      'account.subscription.plan.title': 'Plan actuel',
+509|      'account.subscription.plan.status': 'Statut',
+   |      ^
+510|      'account.subscription.plan.renewal': 'Prochain renouvellement',
+511|      'account.subscription.plan.billing': 'Cycle de facturation',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.renewal" in object literal[33m
+508|      'account.subscription.plan.title': 'Plan actuel',
+509|      'account.subscription.plan.status': 'Statut',
+510|      'account.subscription.plan.renewal': 'Prochain renouvellement',
+   |      ^
+511|      'account.subscription.plan.billing': 'Cycle de facturation',
+512|      'account.subscription.plan.monthly': 'Mensuel',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.billing" in object literal[33m
+509|      'account.subscription.plan.status': 'Statut',
+510|      'account.subscription.plan.renewal': 'Prochain renouvellement',
+511|      'account.subscription.plan.billing': 'Cycle de facturation',
+   |      ^
+512|      'account.subscription.plan.monthly': 'Mensuel',
+513|      'account.subscription.plan.yearly': 'Annuel',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.monthly" in object literal[33m
+510|      'account.subscription.plan.renewal': 'Prochain renouvellement',
+511|      'account.subscription.plan.billing': 'Cycle de facturation',
+512|      'account.subscription.plan.monthly': 'Mensuel',
+   |      ^
+513|      'account.subscription.plan.yearly': 'Annuel',
+514|      'account.subscription.plan.status.active': 'Actif',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.yearly" in object literal[33m
+511|      'account.subscription.plan.billing': 'Cycle de facturation',
+512|      'account.subscription.plan.monthly': 'Mensuel',
+513|      'account.subscription.plan.yearly': 'Annuel',
+   |      ^
+514|      'account.subscription.plan.status.active': 'Actif',
+515|      'account.subscription.plan.status.inactive': 'Inactif',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.status.active" in object literal[33m
+512|      'account.subscription.plan.monthly': 'Mensuel',
+513|      'account.subscription.plan.yearly': 'Annuel',
+514|      'account.subscription.plan.status.active': 'Actif',
+   |      ^
+515|      'account.subscription.plan.status.inactive': 'Inactif',
+516|      'account.subscription.plan.status.pending': 'En attente',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.status.inactive" in object literal[33m
+513|      'account.subscription.plan.yearly': 'Annuel',
+514|      'account.subscription.plan.status.active': 'Actif',
+515|      'account.subscription.plan.status.inactive': 'Inactif',
+   |      ^
+516|      'account.subscription.plan.status.pending': 'En attente',
+517|      'account.subscription.plan.upgrade': 'Améliorer le plan',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.status.pending" in object literal[33m
+514|      'account.subscription.plan.status.active': 'Actif',
+515|      'account.subscription.plan.status.inactive': 'Inactif',
+516|      'account.subscription.plan.status.pending': 'En attente',
+   |      ^
+517|      'account.subscription.plan.upgrade': 'Améliorer le plan',
+518|      'account.subscription.plan.downgrade': 'Changer de plan',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.upgrade" in object literal[33m
+515|      'account.subscription.plan.status.inactive': 'Inactif',
+516|      'account.subscription.plan.status.pending': 'En attente',
+517|      'account.subscription.plan.upgrade': 'Améliorer le plan',
+   |      ^
+518|      'account.subscription.plan.downgrade': 'Changer de plan',
+519|      'account.subscription.plan.adminOnly': 'Seuls les administrateurs peuvent gérer le plan d\'abonnement.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.downgrade" in object literal[33m
+516|      'account.subscription.plan.status.pending': 'En attente',
+517|      'account.subscription.plan.upgrade': 'Améliorer le plan',
+518|      'account.subscription.plan.downgrade': 'Changer de plan',
+   |      ^
+519|      'account.subscription.plan.adminOnly': 'Seuls les administrateurs peuvent gérer le plan d\'abonnement.',
+520|      'account.subscription.credits.title': 'Crédits CV',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.adminOnly" in object literal[33m
+517|      'account.subscription.plan.upgrade': 'Améliorer le plan',
+518|      'account.subscription.plan.downgrade': 'Changer de plan',
+519|      'account.subscription.plan.adminOnly': 'Seuls les administrateurs peuvent gérer le plan d\'abonnement.',
+   |      ^
+520|      'account.subscription.credits.title': 'Crédits CV',
+521|      'account.subscription.credits.available': 'Disponibles',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.credits.title" in object literal[33m
+518|      'account.subscription.plan.downgrade': 'Changer de plan',
+519|      'account.subscription.plan.adminOnly': 'Seuls les administrateurs peuvent gérer le plan d\'abonnement.',
+520|      'account.subscription.credits.title': 'Crédits CV',
+   |      ^
+521|      'account.subscription.credits.available': 'Disponibles',
+522|      'account.subscription.credits.used': 'Utilisés',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.credits.available" in object literal[33m
+519|      'account.subscription.plan.adminOnly': 'Seuls les administrateurs peuvent gérer le plan d\'abonnement.',
+520|      'account.subscription.credits.title': 'Crédits CV',
+521|      'account.subscription.credits.available': 'Disponibles',
+   |      ^
+522|      'account.subscription.credits.used': 'Utilisés',
+523|      'account.subscription.credits.buyPack': 'Acheter des crédits',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.credits.used" in object literal[33m
+520|      'account.subscription.credits.title': 'Crédits CV',
+521|      'account.subscription.credits.available': 'Disponibles',
+522|      'account.subscription.credits.used': 'Utilisés',
+   |      ^
+523|      'account.subscription.credits.buyPack': 'Acheter des crédits',
+524|      'account.subscription.credits.adminOnly': 'Seuls les administrateurs peuvent acheter des crédits.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.credits.buyPack" in object literal[33m
+521|      'account.subscription.credits.available': 'Disponibles',
+522|      'account.subscription.credits.used': 'Utilisés',
+523|      'account.subscription.credits.buyPack': 'Acheter des crédits',
+   |      ^
+524|      'account.subscription.credits.adminOnly': 'Seuls les administrateurs peuvent acheter des crédits.',
+525|      'account.subscription.credits.lowBalance': 'Solde faible — achetez un pack pour continuer à débloquer des experts.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.credits.adminOnly" in object literal[33m
+522|      'account.subscription.credits.used': 'Utilisés',
+523|      'account.subscription.credits.buyPack': 'Acheter des crédits',
+524|      'account.subscription.credits.adminOnly': 'Seuls les administrateurs peuvent acheter des crédits.',
+   |      ^
+525|      'account.subscription.credits.lowBalance': 'Solde faible — achetez un pack pour continuer à débloquer des experts.',
+526|  
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.credits.lowBalance" in object literal[33m
+523|      'account.subscription.credits.buyPack': 'Acheter des crédits',
+524|      'account.subscription.credits.adminOnly': 'Seuls les administrateurs peuvent acheter des crédits.',
+525|      'account.subscription.credits.lowBalance': 'Solde faible — achetez un pack pour continuer à débloquer des experts.',
+   |      ^
+526|  
+527|      // Équipes
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.banner.title" in object literal[33m
+526|  
+527|      // Équipes
+528|      'account.teams.banner.title': 'Gestion des équipes',
+   |      ^
+529|      'account.teams.banner.description': 'Créez des équipes, gérez les membres et attribuez des rôles.',
+530|      'account.teams.adminOnly': 'Seuls les administrateurs peuvent gérer les équipes. Contactez votre administrateur pour effectuer des modifications.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.banner.description" in object literal[33m
+527|      // Équipes
+528|      'account.teams.banner.title': 'Gestion des équipes',
+529|      'account.teams.banner.description': 'Créez des équipes, gérez les membres et attribuez des rôles.',
+   |      ^
+530|      'account.teams.adminOnly': 'Seuls les administrateurs peuvent gérer les équipes. Contactez votre administrateur pour effectuer des modifications.',
+531|      'account.teams.createTeam': 'Créer une équipe',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.adminOnly" in object literal[33m
+528|      'account.teams.banner.title': 'Gestion des équipes',
+529|      'account.teams.banner.description': 'Créez des équipes, gérez les membres et attribuez des rôles.',
+530|      'account.teams.adminOnly': 'Seuls les administrateurs peuvent gérer les équipes. Contactez votre administrateur pour effectuer des modifications.',
+   |      ^
+531|      'account.teams.createTeam': 'Créer une équipe',
+532|      'account.teams.addMember': 'Ajouter un membre',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.createTeam" in object literal[33m
+529|      'account.teams.banner.description': 'Créez des équipes, gérez les membres et attribuez des rôles.',
+530|      'account.teams.adminOnly': 'Seuls les administrateurs peuvent gérer les équipes. Contactez votre administrateur pour effectuer des modifications.',
+531|      'account.teams.createTeam': 'Créer une équipe',
+   |      ^
+532|      'account.teams.addMember': 'Ajouter un membre',
+533|      'account.teams.empty': 'Aucun membre dans l\'équipe pour l\'instant.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.addMember" in object literal[33m
+530|      'account.teams.adminOnly': 'Seuls les administrateurs peuvent gérer les équipes. Contactez votre administrateur pour effectuer des modifications.',
+531|      'account.teams.createTeam': 'Créer une équipe',
+532|      'account.teams.addMember': 'Ajouter un membre',
+   |      ^
+533|      'account.teams.empty': 'Aucun membre dans l\'équipe pour l\'instant.',
+534|      'account.teams.members': 'Membres de l\'équipe',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.empty" in object literal[33m
+531|      'account.teams.createTeam': 'Créer une équipe',
+532|      'account.teams.addMember': 'Ajouter un membre',
+533|      'account.teams.empty': 'Aucun membre dans l\'équipe pour l\'instant.',
+   |      ^
+534|      'account.teams.members': 'Membres de l\'équipe',
+535|      'account.teams.role': 'Rôle',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.members" in object literal[33m
+532|      'account.teams.addMember': 'Ajouter un membre',
+533|      'account.teams.empty': 'Aucun membre dans l\'équipe pour l\'instant.',
+534|      'account.teams.members': 'Membres de l\'équipe',
+   |      ^
+535|      'account.teams.role': 'Rôle',
+536|      'account.teams.roles.admin': 'Administrateur',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.role" in object literal[33m
+533|      'account.teams.empty': 'Aucun membre dans l\'équipe pour l\'instant.',
+534|      'account.teams.members': 'Membres de l\'équipe',
+535|      'account.teams.role': 'Rôle',
+   |      ^
+536|      'account.teams.roles.admin': 'Administrateur',
+537|      'account.teams.roles.member': 'Membre',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.roles.admin" in object literal[33m
+534|      'account.teams.members': 'Membres de l\'équipe',
+535|      'account.teams.role': 'Rôle',
+536|      'account.teams.roles.admin': 'Administrateur',
+   |      ^
+537|      'account.teams.roles.member': 'Membre',
+538|      'account.teams.roles.viewer': 'Lecteur',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.roles.member" in object literal[33m
+535|      'account.teams.role': 'Rôle',
+536|      'account.teams.roles.admin': 'Administrateur',
+537|      'account.teams.roles.member': 'Membre',
+   |      ^
+538|      'account.teams.roles.viewer': 'Lecteur',
+539|      'account.teams.status': 'Statut',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.roles.viewer" in object literal[33m
+536|      'account.teams.roles.admin': 'Administrateur',
+537|      'account.teams.roles.member': 'Membre',
+538|      'account.teams.roles.viewer': 'Lecteur',
+   |      ^
+539|      'account.teams.status': 'Statut',
+540|      'account.teams.status.active': 'Actif',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.status" in object literal[33m
+537|      'account.teams.roles.member': 'Membre',
+538|      'account.teams.roles.viewer': 'Lecteur',
+539|      'account.teams.status': 'Statut',
+   |      ^
+540|      'account.teams.status.active': 'Actif',
+541|      'account.teams.status.pending': 'En attente',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.status.active" in object literal[33m
+538|      'account.teams.roles.viewer': 'Lecteur',
+539|      'account.teams.status': 'Statut',
+540|      'account.teams.status.active': 'Actif',
+   |      ^
+541|      'account.teams.status.pending': 'En attente',
+542|      'account.teams.removeMember': 'Retirer',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.status.pending" in object literal[33m
+539|      'account.teams.status': 'Statut',
+540|      'account.teams.status.active': 'Actif',
+541|      'account.teams.status.pending': 'En attente',
+   |      ^
+542|      'account.teams.removeMember': 'Retirer',
+543|      'account.teams.inviteByEmail': 'Inviter par email',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.removeMember" in object literal[33m
+540|      'account.teams.status.active': 'Actif',
+541|      'account.teams.status.pending': 'En attente',
+542|      'account.teams.removeMember': 'Retirer',
+   |      ^
+543|      'account.teams.inviteByEmail': 'Inviter par email',
+544|      'account.teams.sendInvite': 'Envoyer l\'invitation',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.inviteByEmail" in object literal[33m
+541|      'account.teams.status.pending': 'En attente',
+542|      'account.teams.removeMember': 'Retirer',
+543|      'account.teams.inviteByEmail': 'Inviter par email',
+   |      ^
+544|      'account.teams.sendInvite': 'Envoyer l\'invitation',
+545|      'account.teams.invite.success': 'Invitation envoyée avec succès.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.sendInvite" in object literal[33m
+542|      'account.teams.removeMember': 'Retirer',
+543|      'account.teams.inviteByEmail': 'Inviter par email',
+544|      'account.teams.sendInvite': 'Envoyer l\'invitation',
+   |      ^
+545|      'account.teams.invite.success': 'Invitation envoyée avec succès.',
+546|      'account.teams.remove.success': 'Membre retiré.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.invite.success" in object literal[33m
+543|      'account.teams.inviteByEmail': 'Inviter par email',
+544|      'account.teams.sendInvite': 'Envoyer l\'invitation',
+545|      'account.teams.invite.success': 'Invitation envoyée avec succès.',
+   |      ^
+546|      'account.teams.remove.success': 'Membre retiré.',
+547|      'account.teams.role.updated': 'Rôle mis à jour.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.remove.success" in object literal[33m
+544|      'account.teams.sendInvite': 'Envoyer l\'invitation',
+545|      'account.teams.invite.success': 'Invitation envoyée avec succès.',
+546|      'account.teams.remove.success': 'Membre retiré.',
+   |      ^
+547|      'account.teams.role.updated': 'Rôle mis à jour.',
+548|    },
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.role.updated" in object literal[33m
+545|      'account.teams.invite.success': 'Invitation envoyée avec succès.',
+546|      'account.teams.remove.success': 'Membre retiré.',
+547|      'account.teams.role.updated': 'Rôle mis à jour.',
+   |      ^
+548|    },
+549|    es: {
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "projects.status.PLANNING" in object literal[33m
+539|      
+540|      // Status
+541|      'projects.status.PLANNING': 'Planning',
+   |      ^
+542|      'projects.status.ACTIVE': 'Active',
+543|      'projects.status.ON_HOLD': 'On Hold',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/projects.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "projects.status.ACTIVE" in object literal[33m
+540|      // Status
+541|      'projects.status.PLANNING': 'Planning',
+542|      'projects.status.ACTIVE': 'Active',
+   |      ^
+543|      'projects.status.ON_HOLD': 'On Hold',
+544|      'projects.status.COMPLETED': 'Completed',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/projects.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "projects.status.ON_HOLD" in object literal[33m
+541|      'projects.status.PLANNING': 'Planning',
+542|      'projects.status.ACTIVE': 'Active',
+543|      'projects.status.ON_HOLD': 'On Hold',
+   |      ^
+544|      'projects.status.COMPLETED': 'Completed',
+545|      'projects.status.CANCELLED': 'Cancelled',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/projects.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "projects.status.COMPLETED" in object literal[33m
+542|      'projects.status.ACTIVE': 'Active',
+543|      'projects.status.ON_HOLD': 'On Hold',
+544|      'projects.status.COMPLETED': 'Completed',
+   |      ^
+545|      'projects.status.CANCELLED': 'Cancelled',
+546|      'projects.status.ARCHIVED': 'Archived',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/projects.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "projects.status.CANCELLED" in object literal[33m
+543|      'projects.status.ON_HOLD': 'On Hold',
+544|      'projects.status.COMPLETED': 'Completed',
+545|      'projects.status.CANCELLED': 'Cancelled',
+   |      ^
+546|      'projects.status.ARCHIVED': 'Archived',
+547|      
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/projects.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "projects.status.ARCHIVED" in object literal[33m
+544|      'projects.status.COMPLETED': 'Completed',
+545|      'projects.status.CANCELLED': 'Cancelled',
+546|      'projects.status.ARCHIVED': 'Archived',
+   |      ^
+547|      
+548|      // Priority
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/projects.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "projects.tasks.assignedTo" in object literal[33m
+784|      'projects.tasks.status.REVIEW': 'Review',
+785|      'projects.tasks.status.COMPLETED': 'Completed',
+786|      'projects.tasks.assignedTo': 'Assigned to',
+   |      ^
+787|      'projects.tasks.startDate': 'Start date',
+788|      'projects.tasks.dueDate': 'Due date',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/projects.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "projects.status.PLANNING" in object literal[33m
+1451|      
+1452|      // Status
+1453|      'projects.status.PLANNING': 'Planification',
+   |      ^
+1454|      'projects.status.ACTIVE': 'Actif',
+1455|      'projects.status.ON_HOLD': 'En attente',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/projects.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "projects.status.ACTIVE" in object literal[33m
+1452|      // Status
+1453|      'projects.status.PLANNING': 'Planification',
+1454|      'projects.status.ACTIVE': 'Actif',
+   |      ^
+1455|      'projects.status.ON_HOLD': 'En attente',
+1456|      'projects.status.COMPLETED': 'ComplÃ©tÃ©',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/projects.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "projects.status.ON_HOLD" in object literal[33m
+1453|      'projects.status.PLANNING': 'Planification',
+1454|      'projects.status.ACTIVE': 'Actif',
+1455|      'projects.status.ON_HOLD': 'En attente',
+   |      ^
+1456|      'projects.status.COMPLETED': 'ComplÃ©tÃ©',
+1457|      'projects.status.CANCELLED': 'AnnulÃ©',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/projects.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "projects.status.COMPLETED" in object literal[33m
+1454|      'projects.status.ACTIVE': 'Actif',
+1455|      'projects.status.ON_HOLD': 'En attente',
+1456|      'projects.status.COMPLETED': 'ComplÃ©tÃ©',
+   |      ^
+1457|      'projects.status.CANCELLED': 'AnnulÃ©',
+1458|      'projects.status.ARCHIVED': 'ArchivÃ©',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/projects.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "projects.status.CANCELLED" in object literal[33m
+1455|      'projects.status.ON_HOLD': 'En attente',
+1456|      'projects.status.COMPLETED': 'ComplÃ©tÃ©',
+1457|      'projects.status.CANCELLED': 'AnnulÃ©',
+   |      ^
+1458|      'projects.status.ARCHIVED': 'ArchivÃ©',
+1459|      
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/projects.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "projects.status.ARCHIVED" in object literal[33m
+1456|      'projects.status.COMPLETED': 'ComplÃ©tÃ©',
+1457|      'projects.status.CANCELLED': 'AnnulÃ©',
+1458|      'projects.status.ARCHIVED': 'ArchivÃ©',
+   |      ^
+1459|      
+1460|      // Priority
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/projects.ts[39m
+[2m4:07:42 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "projects.tasks.assignedTo" in object literal[33m
+1696|      'projects.tasks.status.REVIEW': 'RÃ©vision',
+1697|      'projects.tasks.status.COMPLETED': 'TerminÃ©',
+1698|      'projects.tasks.assignedTo': 'AssignÃ© Ã ',
+   |      ^
+1699|      'projects.tasks.startDate': 'Date de dÃ©but',
+1700|      'projects.tasks.dueDate': 'Date d\'Ã©chÃ©ance',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/projects.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.nav.mySelection" in object literal[33m
+459|      // Navigation (nouvelles sections)
+460|      'account.nav.home': 'Mon tableau de bord',
+461|      'account.nav.mySelection': 'Ma Sélection & Alertes',
+   |      ^
+462|      'account.nav.subscription': 'Abonnement',
+463|      'account.nav.teams': 'Équipes',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.nav.subscription" in object literal[33m
+460|      'account.nav.home': 'Mon tableau de bord',
+461|      'account.nav.mySelection': 'Ma Sélection & Alertes',
+462|      'account.nav.subscription': 'Abonnement',
+   |      ^
+463|      'account.nav.teams': 'Équipes',
+464|      'account.nav.security': 'Sécurité',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.nav.teams" in object literal[33m
+461|      'account.nav.mySelection': 'Ma Sélection & Alertes',
+462|      'account.nav.subscription': 'Abonnement',
+463|      'account.nav.teams': 'Équipes',
+   |      ^
+464|      'account.nav.security': 'Sécurité',
+465|      'account.nav.resources': 'Ressources',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.nav.security" in object literal[33m
+462|      'account.nav.subscription': 'Abonnement',
+463|      'account.nav.teams': 'Équipes',
+464|      'account.nav.security': 'Sécurité',
+   |      ^
+465|      'account.nav.resources': 'Ressources',
+466|      'account.nav.profile': 'Paramètres du profil',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.nav.resources" in object literal[33m
+463|      'account.nav.teams': 'Équipes',
+464|      'account.nav.security': 'Sécurité',
+465|      'account.nav.resources': 'Ressources',
+   |      ^
+466|      'account.nav.profile': 'Paramètres du profil',
+467|  
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.nav.profile" in object literal[33m
+464|      'account.nav.security': 'Sécurité',
+465|      'account.nav.resources': 'Ressources',
+466|      'account.nav.profile': 'Paramètres du profil',
+   |      ^
+467|  
+468|      // Page d'accueil
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.banner.title" in object literal[33m
+467|  
+468|      // Page d'accueil
+469|      'account.home.banner.title': 'Mon Compte',
+   |      ^
+470|      'account.home.banner.description': 'Votre tableau de bord personnel — aperçu, activité et accès rapide.',
+471|      'account.home.welcome': 'Bienvenue',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.banner.description" in object literal[33m
+468|      // Page d'accueil
+469|      'account.home.banner.title': 'Mon Compte',
+470|      'account.home.banner.description': 'Votre tableau de bord personnel — aperçu, activité et accès rapide.',
+   |      ^
+471|      'account.home.welcome': 'Bienvenue',
+472|      'account.home.accountType.organization': 'Compte Organisation',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.welcome" in object literal[33m
+469|      'account.home.banner.title': 'Mon Compte',
+470|      'account.home.banner.description': 'Votre tableau de bord personnel — aperçu, activité et accès rapide.',
+471|      'account.home.welcome': 'Bienvenue',
+   |      ^
+472|      'account.home.accountType.organization': 'Compte Organisation',
+473|      'account.home.accountType.expert': 'Compte Expert',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.accountType.organization" in object literal[33m
+470|      'account.home.banner.description': 'Votre tableau de bord personnel — aperçu, activité et accès rapide.',
+471|      'account.home.welcome': 'Bienvenue',
+472|      'account.home.accountType.organization': 'Compte Organisation',
+   |      ^
+473|      'account.home.accountType.expert': 'Compte Expert',
+474|      'account.home.accountType.admin': 'Compte Administrateur',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.accountType.expert" in object literal[33m
+471|      'account.home.welcome': 'Bienvenue',
+472|      'account.home.accountType.organization': 'Compte Organisation',
+473|      'account.home.accountType.expert': 'Compte Expert',
+   |      ^
+474|      'account.home.accountType.admin': 'Compte Administrateur',
+475|      'account.home.stats.projects': 'Projets Actifs',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.accountType.admin" in object literal[33m
+472|      'account.home.accountType.organization': 'Compte Organisation',
+473|      'account.home.accountType.expert': 'Compte Expert',
+474|      'account.home.accountType.admin': 'Compte Administrateur',
+   |      ^
+475|      'account.home.stats.projects': 'Projets Actifs',
+476|      'account.home.stats.matches': 'Nouvelles Correspondances',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.stats.projects" in object literal[33m
+473|      'account.home.accountType.expert': 'Compte Expert',
+474|      'account.home.accountType.admin': 'Compte Administrateur',
+475|      'account.home.stats.projects': 'Projets Actifs',
+   |      ^
+476|      'account.home.stats.matches': 'Nouvelles Correspondances',
+477|      'account.home.stats.alerts': 'Alertes Actives',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.stats.matches" in object literal[33m
+474|      'account.home.accountType.admin': 'Compte Administrateur',
+475|      'account.home.stats.projects': 'Projets Actifs',
+476|      'account.home.stats.matches': 'Nouvelles Correspondances',
+   |      ^
+477|      'account.home.stats.alerts': 'Alertes Actives',
+478|      'account.home.stats.invitations': 'Invitations en attente',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.stats.alerts" in object literal[33m
+475|      'account.home.stats.projects': 'Projets Actifs',
+476|      'account.home.stats.matches': 'Nouvelles Correspondances',
+477|      'account.home.stats.alerts': 'Alertes Actives',
+   |      ^
+478|      'account.home.stats.invitations': 'Invitations en attente',
+479|      'account.home.quickLinks.title': 'Accès Rapide',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.stats.invitations" in object literal[33m
+476|      'account.home.stats.matches': 'Nouvelles Correspondances',
+477|      'account.home.stats.alerts': 'Alertes Actives',
+478|      'account.home.stats.invitations': 'Invitations en attente',
+   |      ^
+479|      'account.home.quickLinks.title': 'Accès Rapide',
+480|      'account.home.quickLinks.mySelection': 'Ma Sélection & Alertes',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.quickLinks.title" in object literal[33m
+477|      'account.home.stats.alerts': 'Alertes Actives',
+478|      'account.home.stats.invitations': 'Invitations en attente',
+479|      'account.home.quickLinks.title': 'Accès Rapide',
+   |      ^
+480|      'account.home.quickLinks.mySelection': 'Ma Sélection & Alertes',
+481|      'account.home.quickLinks.subscription': 'Abonnement',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.quickLinks.mySelection" in object literal[33m
+478|      'account.home.stats.invitations': 'Invitations en attente',
+479|      'account.home.quickLinks.title': 'Accès Rapide',
+480|      'account.home.quickLinks.mySelection': 'Ma Sélection & Alertes',
+   |      ^
+481|      'account.home.quickLinks.subscription': 'Abonnement',
+482|      'account.home.quickLinks.teams': 'Équipes',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.quickLinks.subscription" in object literal[33m
+479|      'account.home.quickLinks.title': 'Accès Rapide',
+480|      'account.home.quickLinks.mySelection': 'Ma Sélection & Alertes',
+481|      'account.home.quickLinks.subscription': 'Abonnement',
+   |      ^
+482|      'account.home.quickLinks.teams': 'Équipes',
+483|      'account.home.quickLinks.profile': 'Modifier le profil',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.quickLinks.teams" in object literal[33m
+480|      'account.home.quickLinks.mySelection': 'Ma Sélection & Alertes',
+481|      'account.home.quickLinks.subscription': 'Abonnement',
+482|      'account.home.quickLinks.teams': 'Équipes',
+   |      ^
+483|      'account.home.quickLinks.profile': 'Modifier le profil',
+484|      'account.home.quickLinks.security': 'Sécurité',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.quickLinks.profile" in object literal[33m
+481|      'account.home.quickLinks.subscription': 'Abonnement',
+482|      'account.home.quickLinks.teams': 'Équipes',
+483|      'account.home.quickLinks.profile': 'Modifier le profil',
+   |      ^
+484|      'account.home.quickLinks.security': 'Sécurité',
+485|      'account.home.quickLinks.matching': 'Opportunités de matching',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.quickLinks.security" in object literal[33m
+482|      'account.home.quickLinks.teams': 'Équipes',
+483|      'account.home.quickLinks.profile': 'Modifier le profil',
+484|      'account.home.quickLinks.security': 'Sécurité',
+   |      ^
+485|      'account.home.quickLinks.matching': 'Opportunités de matching',
+486|      'account.home.quickLinks.projects': 'Mes Projets',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.quickLinks.matching" in object literal[33m
+483|      'account.home.quickLinks.profile': 'Modifier le profil',
+484|      'account.home.quickLinks.security': 'Sécurité',
+485|      'account.home.quickLinks.matching': 'Opportunités de matching',
+   |      ^
+486|      'account.home.quickLinks.projects': 'Mes Projets',
+487|      'account.home.editProfile': 'Modifier le profil',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.quickLinks.projects" in object literal[33m
+484|      'account.home.quickLinks.security': 'Sécurité',
+485|      'account.home.quickLinks.matching': 'Opportunités de matching',
+486|      'account.home.quickLinks.projects': 'Mes Projets',
+   |      ^
+487|      'account.home.editProfile': 'Modifier le profil',
+488|      'account.home.manageAccount': 'Gérer le compte',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.editProfile" in object literal[33m
+485|      'account.home.quickLinks.matching': 'Opportunités de matching',
+486|      'account.home.quickLinks.projects': 'Mes Projets',
+487|      'account.home.editProfile': 'Modifier le profil',
+   |      ^
+488|      'account.home.manageAccount': 'Gérer le compte',
+489|  
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.home.manageAccount" in object literal[33m
+486|      'account.home.quickLinks.projects': 'Mes Projets',
+487|      'account.home.editProfile': 'Modifier le profil',
+488|      'account.home.manageAccount': 'Gérer le compte',
+   |      ^
+489|  
+490|      // Ma Sélection & Alertes
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.banner.title" in object literal[33m
+489|  
+490|      // Ma Sélection & Alertes
+491|      'account.mySelection.banner.title': 'Ma Sélection & Alertes',
+   |      ^
+492|      'account.mySelection.banner.description': 'Gérez vos profils de recherche et vos préférences d\'alertes en un seul endroit.',
+493|      'account.mySelection.profiles.title': 'Profils de recherche',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.banner.description" in object literal[33m
+490|      // Ma Sélection & Alertes
+491|      'account.mySelection.banner.title': 'Ma Sélection & Alertes',
+492|      'account.mySelection.banner.description': 'Gérez vos profils de recherche et vos préférences d\'alertes en un seul endroit.',
+   |      ^
+493|      'account.mySelection.profiles.title': 'Profils de recherche',
+494|      'account.mySelection.profiles.description': 'Chaque profil définit vos critères de correspondance. Les alertes sont liées à chaque profil.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.profiles.title" in object literal[33m
+491|      'account.mySelection.banner.title': 'Ma Sélection & Alertes',
+492|      'account.mySelection.banner.description': 'Gérez vos profils de recherche et vos préférences d\'alertes en un seul endroit.',
+493|      'account.mySelection.profiles.title': 'Profils de recherche',
+   |      ^
+494|      'account.mySelection.profiles.description': 'Chaque profil définit vos critères de correspondance. Les alertes sont liées à chaque profil.',
+495|      'account.mySelection.profiles.new': 'Nouveau profil',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.profiles.description" in object literal[33m
+492|      'account.mySelection.banner.description': 'Gérez vos profils de recherche et vos préférences d\'alertes en un seul endroit.',
+493|      'account.mySelection.profiles.title': 'Profils de recherche',
+494|      'account.mySelection.profiles.description': 'Chaque profil définit vos critères de correspondance. Les alertes sont liées à chaque profil.',
+   |      ^
+495|      'account.mySelection.profiles.new': 'Nouveau profil',
+496|      'account.mySelection.profiles.empty': 'Aucun profil pour l\'instant. Créez votre premier profil de recherche pour recevoir des correspondances.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.profiles.new" in object literal[33m
+493|      'account.mySelection.profiles.title': 'Profils de recherche',
+494|      'account.mySelection.profiles.description': 'Chaque profil définit vos critères de correspondance. Les alertes sont liées à chaque profil.',
+495|      'account.mySelection.profiles.new': 'Nouveau profil',
+   |      ^
+496|      'account.mySelection.profiles.empty': 'Aucun profil pour l\'instant. Créez votre premier profil de recherche pour recevoir des correspondances.',
+497|      'account.mySelection.profiles.editTitle': 'Modifier le profil',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.profiles.empty" in object literal[33m
+494|      'account.mySelection.profiles.description': 'Chaque profil définit vos critères de correspondance. Les alertes sont liées à chaque profil.',
+495|      'account.mySelection.profiles.new': 'Nouveau profil',
+496|      'account.mySelection.profiles.empty': 'Aucun profil pour l\'instant. Créez votre premier profil de recherche pour recevoir des correspondances.',
+   |      ^
+497|      'account.mySelection.profiles.editTitle': 'Modifier le profil',
+498|      'account.mySelection.alerts.title': 'Paramètres des alertes',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.profiles.editTitle" in object literal[33m
+495|      'account.mySelection.profiles.new': 'Nouveau profil',
+496|      'account.mySelection.profiles.empty': 'Aucun profil pour l\'instant. Créez votre premier profil de recherche pour recevoir des correspondances.',
+497|      'account.mySelection.profiles.editTitle': 'Modifier le profil',
+   |      ^
+498|      'account.mySelection.alerts.title': 'Paramètres des alertes',
+499|      'account.mySelection.alerts.globalFrequency': 'Fréquence globale des alertes',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.alerts.title" in object literal[33m
+496|      'account.mySelection.profiles.empty': 'Aucun profil pour l\'instant. Créez votre premier profil de recherche pour recevoir des correspondances.',
+497|      'account.mySelection.profiles.editTitle': 'Modifier le profil',
+498|      'account.mySelection.alerts.title': 'Paramètres des alertes',
+   |      ^
+499|      'account.mySelection.alerts.globalFrequency': 'Fréquence globale des alertes',
+500|      'account.mySelection.alerts.deduplication': 'Activer la déduplication',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.alerts.globalFrequency" in object literal[33m
+497|      'account.mySelection.profiles.editTitle': 'Modifier le profil',
+498|      'account.mySelection.alerts.title': 'Paramètres des alertes',
+499|      'account.mySelection.alerts.globalFrequency': 'Fréquence globale des alertes',
+   |      ^
+500|      'account.mySelection.alerts.deduplication': 'Activer la déduplication',
+501|      'account.mySelection.alerts.deduplication.desc': 'Évitez de recevoir des correspondances en double entre profils.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.alerts.deduplication" in object literal[33m
+498|      'account.mySelection.alerts.title': 'Paramètres des alertes',
+499|      'account.mySelection.alerts.globalFrequency': 'Fréquence globale des alertes',
+500|      'account.mySelection.alerts.deduplication': 'Activer la déduplication',
+   |      ^
+501|      'account.mySelection.alerts.deduplication.desc': 'Évitez de recevoir des correspondances en double entre profils.',
+502|      'account.mySelection.alerts.perProfile': 'Alertes par profil',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.alerts.deduplication.desc" in object literal[33m
+499|      'account.mySelection.alerts.globalFrequency': 'Fréquence globale des alertes',
+500|      'account.mySelection.alerts.deduplication': 'Activer la déduplication',
+501|      'account.mySelection.alerts.deduplication.desc': 'Évitez de recevoir des correspondances en double entre profils.',
+   |      ^
+502|      'account.mySelection.alerts.perProfile': 'Alertes par profil',
+503|      'account.mySelection.alerts.saveSettings': 'Enregistrer les paramètres',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.alerts.perProfile" in object literal[33m
+500|      'account.mySelection.alerts.deduplication': 'Activer la déduplication',
+501|      'account.mySelection.alerts.deduplication.desc': 'Évitez de recevoir des correspondances en double entre profils.',
+502|      'account.mySelection.alerts.perProfile': 'Alertes par profil',
+   |      ^
+503|      'account.mySelection.alerts.saveSettings': 'Enregistrer les paramètres',
+504|  
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.mySelection.alerts.saveSettings" in object literal[33m
+501|      'account.mySelection.alerts.deduplication.desc': 'Évitez de recevoir des correspondances en double entre profils.',
+502|      'account.mySelection.alerts.perProfile': 'Alertes par profil',
+503|      'account.mySelection.alerts.saveSettings': 'Enregistrer les paramètres',
+   |      ^
+504|  
+505|      // Abonnement
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.banner.title" in object literal[33m
+504|  
+505|      // Abonnement
+506|      'account.subscription.banner.title': 'Abonnement & Crédits',
+   |      ^
+507|      'account.subscription.banner.description': 'Gérez votre plan, facturation et crédits CV en un seul endroit.',
+508|      'account.subscription.plan.title': 'Plan actuel',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.banner.description" in object literal[33m
+505|      // Abonnement
+506|      'account.subscription.banner.title': 'Abonnement & Crédits',
+507|      'account.subscription.banner.description': 'Gérez votre plan, facturation et crédits CV en un seul endroit.',
+   |      ^
+508|      'account.subscription.plan.title': 'Plan actuel',
+509|      'account.subscription.plan.status': 'Statut',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.title" in object literal[33m
+506|      'account.subscription.banner.title': 'Abonnement & Crédits',
+507|      'account.subscription.banner.description': 'Gérez votre plan, facturation et crédits CV en un seul endroit.',
+508|      'account.subscription.plan.title': 'Plan actuel',
+   |      ^
+509|      'account.subscription.plan.status': 'Statut',
+510|      'account.subscription.plan.renewal': 'Prochain renouvellement',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.status" in object literal[33m
+507|      'account.subscription.banner.description': 'Gérez votre plan, facturation et crédits CV en un seul endroit.',
+508|      'account.subscription.plan.title': 'Plan actuel',
+509|      'account.subscription.plan.status': 'Statut',
+   |      ^
+510|      'account.subscription.plan.renewal': 'Prochain renouvellement',
+511|      'account.subscription.plan.billing': 'Cycle de facturation',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.renewal" in object literal[33m
+508|      'account.subscription.plan.title': 'Plan actuel',
+509|      'account.subscription.plan.status': 'Statut',
+510|      'account.subscription.plan.renewal': 'Prochain renouvellement',
+   |      ^
+511|      'account.subscription.plan.billing': 'Cycle de facturation',
+512|      'account.subscription.plan.monthly': 'Mensuel',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.billing" in object literal[33m
+509|      'account.subscription.plan.status': 'Statut',
+510|      'account.subscription.plan.renewal': 'Prochain renouvellement',
+511|      'account.subscription.plan.billing': 'Cycle de facturation',
+   |      ^
+512|      'account.subscription.plan.monthly': 'Mensuel',
+513|      'account.subscription.plan.yearly': 'Annuel',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.monthly" in object literal[33m
+510|      'account.subscription.plan.renewal': 'Prochain renouvellement',
+511|      'account.subscription.plan.billing': 'Cycle de facturation',
+512|      'account.subscription.plan.monthly': 'Mensuel',
+   |      ^
+513|      'account.subscription.plan.yearly': 'Annuel',
+514|      'account.subscription.plan.status.active': 'Actif',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.yearly" in object literal[33m
+511|      'account.subscription.plan.billing': 'Cycle de facturation',
+512|      'account.subscription.plan.monthly': 'Mensuel',
+513|      'account.subscription.plan.yearly': 'Annuel',
+   |      ^
+514|      'account.subscription.plan.status.active': 'Actif',
+515|      'account.subscription.plan.status.inactive': 'Inactif',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.status.active" in object literal[33m
+512|      'account.subscription.plan.monthly': 'Mensuel',
+513|      'account.subscription.plan.yearly': 'Annuel',
+514|      'account.subscription.plan.status.active': 'Actif',
+   |      ^
+515|      'account.subscription.plan.status.inactive': 'Inactif',
+516|      'account.subscription.plan.status.pending': 'En attente',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.status.inactive" in object literal[33m
+513|      'account.subscription.plan.yearly': 'Annuel',
+514|      'account.subscription.plan.status.active': 'Actif',
+515|      'account.subscription.plan.status.inactive': 'Inactif',
+   |      ^
+516|      'account.subscription.plan.status.pending': 'En attente',
+517|      'account.subscription.plan.upgrade': 'Améliorer le plan',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.status.pending" in object literal[33m
+514|      'account.subscription.plan.status.active': 'Actif',
+515|      'account.subscription.plan.status.inactive': 'Inactif',
+516|      'account.subscription.plan.status.pending': 'En attente',
+   |      ^
+517|      'account.subscription.plan.upgrade': 'Améliorer le plan',
+518|      'account.subscription.plan.downgrade': 'Changer de plan',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.upgrade" in object literal[33m
+515|      'account.subscription.plan.status.inactive': 'Inactif',
+516|      'account.subscription.plan.status.pending': 'En attente',
+517|      'account.subscription.plan.upgrade': 'Améliorer le plan',
+   |      ^
+518|      'account.subscription.plan.downgrade': 'Changer de plan',
+519|      'account.subscription.plan.adminOnly': 'Seuls les administrateurs peuvent gérer le plan d\'abonnement.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.downgrade" in object literal[33m
+516|      'account.subscription.plan.status.pending': 'En attente',
+517|      'account.subscription.plan.upgrade': 'Améliorer le plan',
+518|      'account.subscription.plan.downgrade': 'Changer de plan',
+   |      ^
+519|      'account.subscription.plan.adminOnly': 'Seuls les administrateurs peuvent gérer le plan d\'abonnement.',
+520|      'account.subscription.credits.title': 'Crédits CV',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.plan.adminOnly" in object literal[33m
+517|      'account.subscription.plan.upgrade': 'Améliorer le plan',
+518|      'account.subscription.plan.downgrade': 'Changer de plan',
+519|      'account.subscription.plan.adminOnly': 'Seuls les administrateurs peuvent gérer le plan d\'abonnement.',
+   |      ^
+520|      'account.subscription.credits.title': 'Crédits CV',
+521|      'account.subscription.credits.available': 'Disponibles',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.credits.title" in object literal[33m
+518|      'account.subscription.plan.downgrade': 'Changer de plan',
+519|      'account.subscription.plan.adminOnly': 'Seuls les administrateurs peuvent gérer le plan d\'abonnement.',
+520|      'account.subscription.credits.title': 'Crédits CV',
+   |      ^
+521|      'account.subscription.credits.available': 'Disponibles',
+522|      'account.subscription.credits.used': 'Utilisés',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.credits.available" in object literal[33m
+519|      'account.subscription.plan.adminOnly': 'Seuls les administrateurs peuvent gérer le plan d\'abonnement.',
+520|      'account.subscription.credits.title': 'Crédits CV',
+521|      'account.subscription.credits.available': 'Disponibles',
+   |      ^
+522|      'account.subscription.credits.used': 'Utilisés',
+523|      'account.subscription.credits.buyPack': 'Acheter des crédits',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.credits.used" in object literal[33m
+520|      'account.subscription.credits.title': 'Crédits CV',
+521|      'account.subscription.credits.available': 'Disponibles',
+522|      'account.subscription.credits.used': 'Utilisés',
+   |      ^
+523|      'account.subscription.credits.buyPack': 'Acheter des crédits',
+524|      'account.subscription.credits.adminOnly': 'Seuls les administrateurs peuvent acheter des crédits.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.credits.buyPack" in object literal[33m
+521|      'account.subscription.credits.available': 'Disponibles',
+522|      'account.subscription.credits.used': 'Utilisés',
+523|      'account.subscription.credits.buyPack': 'Acheter des crédits',
+   |      ^
+524|      'account.subscription.credits.adminOnly': 'Seuls les administrateurs peuvent acheter des crédits.',
+525|      'account.subscription.credits.lowBalance': 'Solde faible — achetez un pack pour continuer à débloquer des experts.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.credits.adminOnly" in object literal[33m
+522|      'account.subscription.credits.used': 'Utilisés',
+523|      'account.subscription.credits.buyPack': 'Acheter des crédits',
+524|      'account.subscription.credits.adminOnly': 'Seuls les administrateurs peuvent acheter des crédits.',
+   |      ^
+525|      'account.subscription.credits.lowBalance': 'Solde faible — achetez un pack pour continuer à débloquer des experts.',
+526|  
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.subscription.credits.lowBalance" in object literal[33m
+523|      'account.subscription.credits.buyPack': 'Acheter des crédits',
+524|      'account.subscription.credits.adminOnly': 'Seuls les administrateurs peuvent acheter des crédits.',
+525|      'account.subscription.credits.lowBalance': 'Solde faible — achetez un pack pour continuer à débloquer des experts.',
+   |      ^
+526|  
+527|      // Équipes
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.banner.title" in object literal[33m
+526|  
+527|      // Équipes
+528|      'account.teams.banner.title': 'Gestion des équipes',
+   |      ^
+529|      'account.teams.banner.description': 'Créez des équipes, gérez les membres et attribuez des rôles.',
+530|      'account.teams.adminOnly': 'Seuls les administrateurs peuvent gérer les équipes. Contactez votre administrateur pour effectuer des modifications.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.banner.description" in object literal[33m
+527|      // Équipes
+528|      'account.teams.banner.title': 'Gestion des équipes',
+529|      'account.teams.banner.description': 'Créez des équipes, gérez les membres et attribuez des rôles.',
+   |      ^
+530|      'account.teams.adminOnly': 'Seuls les administrateurs peuvent gérer les équipes. Contactez votre administrateur pour effectuer des modifications.',
+531|      'account.teams.createTeam': 'Créer une équipe',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.adminOnly" in object literal[33m
+528|      'account.teams.banner.title': 'Gestion des équipes',
+529|      'account.teams.banner.description': 'Créez des équipes, gérez les membres et attribuez des rôles.',
+530|      'account.teams.adminOnly': 'Seuls les administrateurs peuvent gérer les équipes. Contactez votre administrateur pour effectuer des modifications.',
+   |      ^
+531|      'account.teams.createTeam': 'Créer une équipe',
+532|      'account.teams.addMember': 'Ajouter un membre',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.createTeam" in object literal[33m
+529|      'account.teams.banner.description': 'Créez des équipes, gérez les membres et attribuez des rôles.',
+530|      'account.teams.adminOnly': 'Seuls les administrateurs peuvent gérer les équipes. Contactez votre administrateur pour effectuer des modifications.',
+531|      'account.teams.createTeam': 'Créer une équipe',
+   |      ^
+532|      'account.teams.addMember': 'Ajouter un membre',
+533|      'account.teams.empty': 'Aucun membre dans l\'équipe pour l\'instant.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.addMember" in object literal[33m
+530|      'account.teams.adminOnly': 'Seuls les administrateurs peuvent gérer les équipes. Contactez votre administrateur pour effectuer des modifications.',
+531|      'account.teams.createTeam': 'Créer une équipe',
+532|      'account.teams.addMember': 'Ajouter un membre',
+   |      ^
+533|      'account.teams.empty': 'Aucun membre dans l\'équipe pour l\'instant.',
+534|      'account.teams.members': 'Membres de l\'équipe',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.empty" in object literal[33m
+531|      'account.teams.createTeam': 'Créer une équipe',
+532|      'account.teams.addMember': 'Ajouter un membre',
+533|      'account.teams.empty': 'Aucun membre dans l\'équipe pour l\'instant.',
+   |      ^
+534|      'account.teams.members': 'Membres de l\'équipe',
+535|      'account.teams.role': 'Rôle',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.members" in object literal[33m
+532|      'account.teams.addMember': 'Ajouter un membre',
+533|      'account.teams.empty': 'Aucun membre dans l\'équipe pour l\'instant.',
+534|      'account.teams.members': 'Membres de l\'équipe',
+   |      ^
+535|      'account.teams.role': 'Rôle',
+536|      'account.teams.roles.admin': 'Administrateur',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.role" in object literal[33m
+533|      'account.teams.empty': 'Aucun membre dans l\'équipe pour l\'instant.',
+534|      'account.teams.members': 'Membres de l\'équipe',
+535|      'account.teams.role': 'Rôle',
+   |      ^
+536|      'account.teams.roles.admin': 'Administrateur',
+537|      'account.teams.roles.member': 'Membre',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.roles.admin" in object literal[33m
+534|      'account.teams.members': 'Membres de l\'équipe',
+535|      'account.teams.role': 'Rôle',
+536|      'account.teams.roles.admin': 'Administrateur',
+   |      ^
+537|      'account.teams.roles.member': 'Membre',
+538|      'account.teams.roles.viewer': 'Lecteur',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.roles.member" in object literal[33m
+535|      'account.teams.role': 'Rôle',
+536|      'account.teams.roles.admin': 'Administrateur',
+537|      'account.teams.roles.member': 'Membre',
+   |      ^
+538|      'account.teams.roles.viewer': 'Lecteur',
+539|      'account.teams.status': 'Statut',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.roles.viewer" in object literal[33m
+536|      'account.teams.roles.admin': 'Administrateur',
+537|      'account.teams.roles.member': 'Membre',
+538|      'account.teams.roles.viewer': 'Lecteur',
+   |      ^
+539|      'account.teams.status': 'Statut',
+540|      'account.teams.status.active': 'Actif',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.status" in object literal[33m
+537|      'account.teams.roles.member': 'Membre',
+538|      'account.teams.roles.viewer': 'Lecteur',
+539|      'account.teams.status': 'Statut',
+   |      ^
+540|      'account.teams.status.active': 'Actif',
+541|      'account.teams.status.pending': 'En attente',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.status.active" in object literal[33m
+538|      'account.teams.roles.viewer': 'Lecteur',
+539|      'account.teams.status': 'Statut',
+540|      'account.teams.status.active': 'Actif',
+   |      ^
+541|      'account.teams.status.pending': 'En attente',
+542|      'account.teams.removeMember': 'Retirer',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.status.pending" in object literal[33m
+539|      'account.teams.status': 'Statut',
+540|      'account.teams.status.active': 'Actif',
+541|      'account.teams.status.pending': 'En attente',
+   |      ^
+542|      'account.teams.removeMember': 'Retirer',
+543|      'account.teams.inviteByEmail': 'Inviter par email',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.removeMember" in object literal[33m
+540|      'account.teams.status.active': 'Actif',
+541|      'account.teams.status.pending': 'En attente',
+542|      'account.teams.removeMember': 'Retirer',
+   |      ^
+543|      'account.teams.inviteByEmail': 'Inviter par email',
+544|      'account.teams.sendInvite': 'Envoyer l\'invitation',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.inviteByEmail" in object literal[33m
+541|      'account.teams.status.pending': 'En attente',
+542|      'account.teams.removeMember': 'Retirer',
+543|      'account.teams.inviteByEmail': 'Inviter par email',
+   |      ^
+544|      'account.teams.sendInvite': 'Envoyer l\'invitation',
+545|      'account.teams.invite.success': 'Invitation envoyée avec succès.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.sendInvite" in object literal[33m
+542|      'account.teams.removeMember': 'Retirer',
+543|      'account.teams.inviteByEmail': 'Inviter par email',
+544|      'account.teams.sendInvite': 'Envoyer l\'invitation',
+   |      ^
+545|      'account.teams.invite.success': 'Invitation envoyée avec succès.',
+546|      'account.teams.remove.success': 'Membre retiré.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.invite.success" in object literal[33m
+543|      'account.teams.inviteByEmail': 'Inviter par email',
+544|      'account.teams.sendInvite': 'Envoyer l\'invitation',
+545|      'account.teams.invite.success': 'Invitation envoyée avec succès.',
+   |      ^
+546|      'account.teams.remove.success': 'Membre retiré.',
+547|      'account.teams.role.updated': 'Rôle mis à jour.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.remove.success" in object literal[33m
+544|      'account.teams.sendInvite': 'Envoyer l\'invitation',
+545|      'account.teams.invite.success': 'Invitation envoyée avec succès.',
+546|      'account.teams.remove.success': 'Membre retiré.',
+   |      ^
+547|      'account.teams.role.updated': 'Rôle mis à jour.',
+548|    },
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:14:50 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "account.teams.role.updated" in object literal[33m
+545|      'account.teams.invite.success': 'Invitation envoyée avec succès.',
+546|      'account.teams.remove.success': 'Membre retiré.',
+547|      'account.teams.role.updated': 'Rôle mis à jour.',
+   |      ^
+548|    },
+549|    es: {
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/account.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.kpi.totalProjects" in object literal[33m
+354|      'statistics.kpi.averagePricing': 'Tarifa promedio mercado',
+355|      'statistics.kpi.opportunities': 'Oportunidades',
+356|      'statistics.kpi.totalProjects': 'Proyectos totales',
+   |      ^
+357|      'statistics.kpi.totalContracts': 'Contratos totales',
+358|      'statistics.kpi.shortlists': 'Shortlists',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.kpi.totalContracts" in object literal[33m
+355|      'statistics.kpi.opportunities': 'Oportunidades',
+356|      'statistics.kpi.totalProjects': 'Proyectos totales',
+357|      'statistics.kpi.totalContracts': 'Contratos totales',
+   |      ^
+358|      'statistics.kpi.shortlists': 'Shortlists',
+359|      'statistics.kpi.winRate': 'Tasa de exito',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.kpi.shortlists" in object literal[33m
+356|      'statistics.kpi.totalProjects': 'Proyectos totales',
+357|      'statistics.kpi.totalContracts': 'Contratos totales',
+358|      'statistics.kpi.shortlists': 'Shortlists',
+   |      ^
+359|      'statistics.kpi.winRate': 'Tasa de exito',
+360|      'statistics.kpi.shortlists.expert': 'Oportunidades emparejadas',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.kpi.winRate" in object literal[33m
+357|      'statistics.kpi.totalContracts': 'Contratos totales',
+358|      'statistics.kpi.shortlists': 'Shortlists',
+359|      'statistics.kpi.winRate': 'Tasa de exito',
+   |      ^
+360|      'statistics.kpi.shortlists.expert': 'Oportunidades emparejadas',
+361|      'statistics.kpi.winRate.expert': 'Tasa de exito de licitaciones',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.pricingExperts.title" in object literal[33m
+360|      'statistics.kpi.shortlists.expert': 'Oportunidades emparejadas',
+361|      'statistics.kpi.winRate.expert': 'Tasa de exito de licitaciones',
+362|      'statistics.pricingExperts.title': 'Politica de precios',
+   |      ^
+363|      'statistics.pricingPolicy.title': 'Politica de precios',
+364|      'statistics.pricingPolicy.aiSection': 'Analisis de descuentos con IA',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.projectsContracts.title" in object literal[33m
+378|      'statistics.expertsFees.domainDesc': 'Tarifas diarias de expertos por dominio y nivel de seniority.',
+379|      'statistics.expertsFees.countryDesc': 'Tarifas diarias medias y numero de expertos por pais.',
+380|      'statistics.projectsContracts.title': 'Desglose de proyectos y contratos',
+   |      ^
+381|      'statistics.marketTrends.title': 'Dinamica de mercado por sector, pais y donante',
+382|      'statistics.competitors.title': 'Panorama competitivo',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.marketTrends.title" in object literal[33m
+379|      'statistics.expertsFees.countryDesc': 'Tarifas diarias medias y numero de expertos por pais.',
+380|      'statistics.projectsContracts.title': 'Desglose de proyectos y contratos',
+381|      'statistics.marketTrends.title': 'Dinamica de mercado por sector, pais y donante',
+   |      ^
+382|      'statistics.competitors.title': 'Panorama competitivo',
+383|      'statistics.usageAnalytics.title': 'Analitica de uso de servicios',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.competitors.title" in object literal[33m
+380|      'statistics.projectsContracts.title': 'Desglose de proyectos y contratos',
+381|      'statistics.marketTrends.title': 'Dinamica de mercado por sector, pais y donante',
+382|      'statistics.competitors.title': 'Panorama competitivo',
+   |      ^
+383|      'statistics.usageAnalytics.title': 'Analitica de uso de servicios',
+384|      'statistics.mapInsights.title': 'Mapa de insights geograficos',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.usageAnalytics.title" in object literal[33m
+381|      'statistics.marketTrends.title': 'Dinamica de mercado por sector, pais y donante',
+382|      'statistics.competitors.title': 'Panorama competitivo',
+383|      'statistics.usageAnalytics.title': 'Analitica de uso de servicios',
+   |      ^
+384|      'statistics.mapInsights.title': 'Mapa de insights geograficos',
+385|      'statistics.dashboard.section.performance': 'Resumen de rendimiento',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.mapInsights.title" in object literal[33m
+382|      'statistics.competitors.title': 'Panorama competitivo',
+383|      'statistics.usageAnalytics.title': 'Analitica de uso de servicios',
+384|      'statistics.mapInsights.title': 'Mapa de insights geograficos',
+   |      ^
+385|      'statistics.dashboard.section.performance': 'Resumen de rendimiento',
+386|      'statistics.dashboard.section.highlights': 'Destacados',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.dashboard.section.performance" in object literal[33m
+383|      'statistics.usageAnalytics.title': 'Analitica de uso de servicios',
+384|      'statistics.mapInsights.title': 'Mapa de insights geograficos',
+385|      'statistics.dashboard.section.performance': 'Resumen de rendimiento',
+   |      ^
+386|      'statistics.dashboard.section.highlights': 'Destacados',
+387|      'statistics.dashboard.section.quickInsights': 'Insights rapidos',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.dashboard.section.highlights" in object literal[33m
+384|      'statistics.mapInsights.title': 'Mapa de insights geograficos',
+385|      'statistics.dashboard.section.performance': 'Resumen de rendimiento',
+386|      'statistics.dashboard.section.highlights': 'Destacados',
+   |      ^
+387|      'statistics.dashboard.section.quickInsights': 'Insights rapidos',
+388|      'statistics.filters.sector': 'Sector',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.dashboard.section.quickInsights" in object literal[33m
+385|      'statistics.dashboard.section.performance': 'Resumen de rendimiento',
+386|      'statistics.dashboard.section.highlights': 'Destacados',
+387|      'statistics.dashboard.section.quickInsights': 'Insights rapidos',
+   |      ^
+388|      'statistics.filters.sector': 'Sector',
+389|      'statistics.filters.country': 'Pais',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.filters.sector" in object literal[33m
+386|      'statistics.dashboard.section.highlights': 'Destacados',
+387|      'statistics.dashboard.section.quickInsights': 'Insights rapidos',
+388|      'statistics.filters.sector': 'Sector',
+   |      ^
+389|      'statistics.filters.country': 'Pais',
+390|      'statistics.filters.donor': 'Donante',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.filters.country" in object literal[33m
+387|      'statistics.dashboard.section.quickInsights': 'Insights rapidos',
+388|      'statistics.filters.sector': 'Sector',
+389|      'statistics.filters.country': 'Pais',
+   |      ^
+390|      'statistics.filters.donor': 'Donante',
+391|      'statistics.filters.seniority': 'Seniority',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.filters.donor" in object literal[33m
+388|      'statistics.filters.sector': 'Sector',
+389|      'statistics.filters.country': 'Pais',
+390|      'statistics.filters.donor': 'Donante',
+   |      ^
+391|      'statistics.filters.seniority': 'Seniority',
+392|      'statistics.filters.reset': 'Restablecer filtros',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.filters.seniority" in object literal[33m
+389|      'statistics.filters.country': 'Pais',
+390|      'statistics.filters.donor': 'Donante',
+391|      'statistics.filters.seniority': 'Seniority',
+   |      ^
+392|      'statistics.filters.reset': 'Restablecer filtros',
+393|      'statistics.charts.projectsOverTime': 'Proyectos en el tiempo',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.filters.reset" in object literal[33m
+390|      'statistics.filters.donor': 'Donante',
+391|      'statistics.filters.seniority': 'Seniority',
+392|      'statistics.filters.reset': 'Restablecer filtros',
+   |      ^
+393|      'statistics.charts.projectsOverTime': 'Proyectos en el tiempo',
+394|      'statistics.charts.projectsOverTimeDesc': 'Evolucion mensual de proyectos y contratos.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.projectsOverTime" in object literal[33m
+391|      'statistics.filters.seniority': 'Seniority',
+392|      'statistics.filters.reset': 'Restablecer filtros',
+393|      'statistics.charts.projectsOverTime': 'Proyectos en el tiempo',
+   |      ^
+394|      'statistics.charts.projectsOverTimeDesc': 'Evolucion mensual de proyectos y contratos.',
+395|      'statistics.charts.distributionSector': 'Distribucion por sector',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.projectsOverTimeDesc" in object literal[33m
+392|      'statistics.filters.reset': 'Restablecer filtros',
+393|      'statistics.charts.projectsOverTime': 'Proyectos en el tiempo',
+394|      'statistics.charts.projectsOverTimeDesc': 'Evolucion mensual de proyectos y contratos.',
+   |      ^
+395|      'statistics.charts.distributionSector': 'Distribucion por sector',
+396|      'statistics.charts.distributionSectorDesc': 'Participacion actual por sector de actividad.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.distributionSector" in object literal[33m
+393|      'statistics.charts.projectsOverTime': 'Proyectos en el tiempo',
+394|      'statistics.charts.projectsOverTimeDesc': 'Evolucion mensual de proyectos y contratos.',
+395|      'statistics.charts.distributionSector': 'Distribucion por sector',
+   |      ^
+396|      'statistics.charts.distributionSectorDesc': 'Participacion actual por sector de actividad.',
+397|      'statistics.charts.countryDistribution': 'Distribucion por pais',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.distributionSectorDesc" in object literal[33m
+394|      'statistics.charts.projectsOverTimeDesc': 'Evolucion mensual de proyectos y contratos.',
+395|      'statistics.charts.distributionSector': 'Distribucion por sector',
+396|      'statistics.charts.distributionSectorDesc': 'Participacion actual por sector de actividad.',
+   |      ^
+397|      'statistics.charts.countryDistribution': 'Distribucion por pais',
+398|      'statistics.charts.countryDistributionDesc': 'Paises principales por volumen de proyectos.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.countryDistribution" in object literal[33m
+395|      'statistics.charts.distributionSector': 'Distribucion por sector',
+396|      'statistics.charts.distributionSectorDesc': 'Participacion actual por sector de actividad.',
+397|      'statistics.charts.countryDistribution': 'Distribucion por pais',
+   |      ^
+398|      'statistics.charts.countryDistributionDesc': 'Paises principales por volumen de proyectos.',
+399|      'statistics.charts.donorEvolution': 'Evolucion de donantes',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.countryDistributionDesc" in object literal[33m
+396|      'statistics.charts.distributionSectorDesc': 'Participacion actual por sector de actividad.',
+397|      'statistics.charts.countryDistribution': 'Distribucion por pais',
+398|      'statistics.charts.countryDistributionDesc': 'Paises principales por volumen de proyectos.',
+   |      ^
+399|      'statistics.charts.donorEvolution': 'Evolucion de donantes',
+400|      'statistics.charts.donorEvolutionDesc': 'Comparacion del impulso de los donantes principales.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.donorEvolution" in object literal[33m
+397|      'statistics.charts.countryDistribution': 'Distribucion por pais',
+398|      'statistics.charts.countryDistributionDesc': 'Paises principales por volumen de proyectos.',
+399|      'statistics.charts.donorEvolution': 'Evolucion de donantes',
+   |      ^
+400|      'statistics.charts.donorEvolutionDesc': 'Comparacion del impulso de los donantes principales.',
+401|      'statistics.charts.pricingRange': 'Rangos de tarifas de expertos',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.donorEvolutionDesc" in object literal[33m
+398|      'statistics.charts.countryDistributionDesc': 'Paises principales por volumen de proyectos.',
+399|      'statistics.charts.donorEvolution': 'Evolucion de donantes',
+400|      'statistics.charts.donorEvolutionDesc': 'Comparacion del impulso de los donantes principales.',
+   |      ^
+401|      'statistics.charts.pricingRange': 'Rangos de tarifas de expertos',
+402|      'statistics.charts.pricingRangeDesc': 'Tarifas minima, mediana y maxima por seniority.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.pricingRange" in object literal[33m
+399|      'statistics.charts.donorEvolution': 'Evolucion de donantes',
+400|      'statistics.charts.donorEvolutionDesc': 'Comparacion del impulso de los donantes principales.',
+401|      'statistics.charts.pricingRange': 'Rangos de tarifas de expertos',
+   |      ^
+402|      'statistics.charts.pricingRangeDesc': 'Tarifas minima, mediana y maxima por seniority.',
+403|      'statistics.charts.competitorLosses': 'Frecuencia de perdidas frente a competidores',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.pricingRangeDesc" in object literal[33m
+400|      'statistics.charts.donorEvolutionDesc': 'Comparacion del impulso de los donantes principales.',
+401|      'statistics.charts.pricingRange': 'Rangos de tarifas de expertos',
+402|      'statistics.charts.pricingRangeDesc': 'Tarifas minima, mediana y maxima por seniority.',
+   |      ^
+403|      'statistics.charts.competitorLosses': 'Frecuencia de perdidas frente a competidores',
+404|      'statistics.charts.competitorLossesDesc': 'Cuantas licitaciones se pierden frente a cada competidor.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.competitorLosses" in object literal[33m
+401|      'statistics.charts.pricingRange': 'Rangos de tarifas de expertos',
+402|      'statistics.charts.pricingRangeDesc': 'Tarifas minima, mediana y maxima por seniority.',
+403|      'statistics.charts.competitorLosses': 'Frecuencia de perdidas frente a competidores',
+   |      ^
+404|      'statistics.charts.competitorLossesDesc': 'Cuantas licitaciones se pierden frente a cada competidor.',
+405|      'statistics.charts.servicesUsage': 'Uso de servicios activos',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.competitorLossesDesc" in object literal[33m
+402|      'statistics.charts.pricingRangeDesc': 'Tarifas minima, mediana y maxima por seniority.',
+403|      'statistics.charts.competitorLosses': 'Frecuencia de perdidas frente a competidores',
+404|      'statistics.charts.competitorLossesDesc': 'Cuantas licitaciones se pierden frente a cada competidor.',
+   |      ^
+405|      'statistics.charts.servicesUsage': 'Uso de servicios activos',
+406|      'statistics.charts.servicesUsageDesc': 'Distribucion actual entre servicios usados y no usados.',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.servicesUsage" in object literal[33m
+403|      'statistics.charts.competitorLosses': 'Frecuencia de perdidas frente a competidores',
+404|      'statistics.charts.competitorLossesDesc': 'Cuantas licitaciones se pierden frente a cada competidor.',
+405|      'statistics.charts.servicesUsage': 'Uso de servicios activos',
+   |      ^
+406|      'statistics.charts.servicesUsageDesc': 'Distribucion actual entre servicios usados y no usados.',
+407|      'statistics.highlights.topSectors': 'Sectores principales',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.charts.servicesUsageDesc" in object literal[33m
+404|      'statistics.charts.competitorLossesDesc': 'Cuantas licitaciones se pierden frente a cada competidor.',
+405|      'statistics.charts.servicesUsage': 'Uso de servicios activos',
+406|      'statistics.charts.servicesUsageDesc': 'Distribucion actual entre servicios usados y no usados.',
+   |      ^
+407|      'statistics.highlights.topSectors': 'Sectores principales',
+408|      'statistics.highlights.topCountries': 'Paises principales',
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.highlights.topSectors" in object literal[33m
+405|      'statistics.charts.servicesUsage': 'Uso de servicios activos',
+406|      'statistics.charts.servicesUsageDesc': 'Distribucion actual entre servicios usados y no usados.',
+407|      'statistics.highlights.topSectors': 'Sectores principales',
+   |      ^
+408|      'statistics.highlights.topCountries': 'Paises principales',
+409|    },
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m
+[2m4:16:16 PM[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "statistics.highlights.topCountries" in object literal[33m
+406|      'statistics.charts.servicesUsageDesc': 'Distribucion actual entre servicios usados y no usados.',
+407|      'statistics.highlights.topSectors': 'Sectores principales',
+408|      'statistics.highlights.topCountries': 'Paises principales',
+   |      ^
+409|    },
+410|  };
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/USER/Documents/GitHub/Assortis-frontend/src/app/i18n/statistics.ts[39m

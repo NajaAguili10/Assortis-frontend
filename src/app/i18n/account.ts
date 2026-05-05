@@ -140,7 +140,7 @@ export const accountTranslations = {
     'account.validation.password.invalidFields': 'Please correct the password errors before saving',
 
     // Navigation (new sections)
-    'account.nav.home': 'Home',
+    'account.nav.home': 'My Dashboard',
     'account.nav.mySelection': 'My Selection & Alerts',
     'account.nav.subscription': 'Subscription',
     'account.nav.teams': 'Teams',
@@ -457,7 +457,7 @@ export const accountTranslations = {
     'account.validation.password.invalidFields': 'Veuillez corriger les erreurs de mot de passe avant de sauvegarder',
 
     // Navigation (nouvelles sections)
-    'account.nav.home': 'Accueil',
+    'account.nav.home': 'Mon tableau de bord',
     'account.nav.mySelection': 'Ma Sélection & Alertes',
     'account.nav.subscription': 'Abonnement',
     'account.nav.teams': 'Équipes',

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { Button } from '@app/components/ui/button';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@app/components/ui/accordion';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@app/components/ui/dialog';
 import { Input } from '@app/components/ui/input';
 import { Label } from '@app/components/ui/label';
@@ -33,6 +34,7 @@ interface OrganizationProjectReferenceFormDialogProps {
   onOpenChange?: (open: boolean) => void;
   onSubmit: (values: OrganizationProjectReferenceFormValues) => void;
   inline?: boolean;
+  quickMode?: boolean;
 }
 
 const getInitialValues = (): OrganizationProjectReferenceFormValues => ({
@@ -48,7 +50,7 @@ const getInitialValues = (): OrganizationProjectReferenceFormValues => ({
   donor: FundingAgencyEnum.WORLD_BANK,
   startDate: '',
   endDate: '',
-  status: 'ongoing',
+  status: 'notVerified',
   documents: [],
 });
 
@@ -59,6 +61,7 @@ export function OrganizationProjectReferenceFormDialog({
   onOpenChange,
   onSubmit,
   inline = false,
+  quickMode = false,
 }: OrganizationProjectReferenceFormDialogProps) {
   const { t, language } = useLanguage();
   const [formValues, setFormValues] = useState<OrganizationProjectReferenceFormValues>(getInitialValues());
@@ -128,6 +131,24 @@ export function OrganizationProjectReferenceFormDialog({
   };
 
   const handleSubmit = () => {
+    if (quickMode) {
+      if (!formValues.title.trim() || !formValues.client.trim()) {
+        toast.error(t('organizations.projectReferences.form.validation.required'));
+        return;
+      }
+
+      onSubmit({
+        ...formValues,
+        status: 'notVerified',
+        referenceType,
+        url: referenceType === ReferenceTypeEnum.LINK ? url : undefined,
+      });
+      if (!inline) {
+        onOpenChange?.(false);
+      }
+      return;
+    }
+
     const requiredFields = [
       formValues.title.trim(),
       formValues.summary.trim(),
@@ -162,33 +183,56 @@ export function OrganizationProjectReferenceFormDialog({
               : t('organizations.projectReferences.form.editTitle')}
           </DialogTitle>
           <DialogDescription>
-            {t('organizations.projectReferences.form.description')}
+            {quickMode ? 'You can complete additional details later' : t('organizations.projectReferences.form.description')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Reference Type Toggle */}
-          <div className="space-y-2">
-            <Label>{t('projects.references.type.DOCUMENT')}</Label>
-            <div className="flex gap-2">
-              {[ReferenceTypeEnum.DOCUMENT, ReferenceTypeEnum.LINK, ReferenceTypeEnum.FILE, ReferenceTypeEnum.NOTE].map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setReferenceType(type)}
-                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                    referenceType === type
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                  }`}
-                >
-                  {t(`projects.references.type.${type}`)}
-                </button>
-              ))}
+          {quickMode && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+              You can complete additional details later
             </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="title">{t('organizations.projectReferences.form.projectTitle')} *</Label>
+            <Input id="title" value={formValues.title} onChange={event => setField('title', event.target.value)} />
           </div>
 
-          {referenceType === ReferenceTypeEnum.LINK && (
+          <div className="space-y-2">
+            <Label htmlFor="client">{t('organizations.projectReferences.form.client')} *</Label>
+            <Input id="client" value={formValues.client} onChange={event => setField('client', event.target.value)} />
+          </div>
+
+          <Accordion type="single" collapsible className="space-y-3">
+            <AccordionItem value="more-details" className="rounded-lg border border-gray-200 bg-white px-4">
+              <AccordionTrigger className="hover:no-underline">
+                {quickMode ? 'More details' : t('organizations.projectReferences.form.description')}
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-6">
+                  {/* Reference Type Toggle */}
+                  <div className="space-y-2">
+                    <Label>{t('projects.references.type.DOCUMENT')}</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {[ReferenceTypeEnum.DOCUMENT, ReferenceTypeEnum.LINK, ReferenceTypeEnum.FILE, ReferenceTypeEnum.NOTE].map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setReferenceType(type)}
+                          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                            referenceType === type
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                          }`}
+                        >
+                          {t(`projects.references.type.${type}`)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {referenceType === ReferenceTypeEnum.LINK && (
             <div className="space-y-2">
               <Label htmlFor="refUrl">{t('projects.references.url')}</Label>
               <Input
@@ -199,7 +243,7 @@ export function OrganizationProjectReferenceFormDialog({
                 placeholder={t('projects.references.urlPlaceholder')}
               />
             </div>
-          )}
+                  )}
 
           <div className="grid gap-5 md:grid-cols-2">
             <div className="space-y-2">
@@ -218,16 +262,11 @@ export function OrganizationProjectReferenceFormDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ongoing">{t('organizations.projectReferences.status.ongoing')}</SelectItem>
-                  <SelectItem value="completed">{t('organizations.projectReferences.status.completed')}</SelectItem>
+                  <SelectItem value="notVerified">{t('organizations.projectReferences.status.notVerified')}</SelectItem>
+                  <SelectItem value="verified">{t('organizations.projectReferences.status.verified')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="title">{t('organizations.projectReferences.form.projectTitle')}</Label>
-            <Input id="title" value={formValues.title} onChange={event => setField('title', event.target.value)} />
           </div>
 
           <div className="space-y-2">
@@ -304,10 +343,6 @@ export function OrganizationProjectReferenceFormDialog({
 
           <div className="grid gap-5 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="client">{t('organizations.projectReferences.form.client')}</Label>
-              <Input id="client" value={formValues.client} onChange={event => setField('client', event.target.value)} />
-            </div>
-            <div className="space-y-2">
               <Label>{t('organizations.projectReferences.form.donor')}</Label>
               <Select value={formValues.donor} onValueChange={(value: FundingAgencyEnum) => setField('donor', value)}>
                 <SelectTrigger>
@@ -348,6 +383,10 @@ export function OrganizationProjectReferenceFormDialog({
               setField('documents', formValues.documents.filter(document => document.id !== documentId));
             }}
           />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
 
         <DialogFooter className="mt-2">

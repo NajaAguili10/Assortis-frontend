@@ -28,6 +28,7 @@ export function StatisticsSubMenu() {
     if (path.startsWith('/statistics/projects-contracts')) return 'projectsContracts';
     if (path.startsWith('/statistics/market-trends')) return 'marketTrends';
     if (path.startsWith('/statistics/pricing-experts')) return 'pricingExperts';
+    if (path.startsWith('/statistics/policy')) return 'pricingExperts';
     if (path.startsWith('/statistics/experts-fees')) return 'expertsFees';
     if (path.startsWith('/statistics/competitors')) return 'competitors';
     if (path.startsWith('/statistics/usage-analytics')) return 'usageAnalytics';
@@ -64,9 +65,9 @@ export function StatisticsSubMenu() {
       onClick: () => navigate('/statistics/market-trends'),
     },
     
-    // Expert: Pricing & Benchmark | Organization: Pricing Policy
+    // Pricing and policy share one page.
     canAccessPricingExperts && {
-      label: isExpert ? t('statistics.tabs.pricingBenchmark') : t('statistics.tabs.pricingPolicy'),
+      label: t('statistics.tabs.pricingPolicy'),
       icon: DollarSign,
       active: activeTab === 'pricingExperts',
       onClick: () => navigate('/statistics/pricing-experts'),
@@ -82,26 +83,26 @@ export function StatisticsSubMenu() {
     
     // Expert: Hidden | Organization: Competitors
     !isExpert && canAccessCompetitors && {
-      label: t('statistics.tabs.competitors'),
+      label: t('statistics.tabs.competitorsMap'),
       icon: ShieldAlert,
       active: activeTab === 'competitors',
       onClick: () => navigate('/statistics/competitors'),
     },
-    
+
+    // Expert: Peer Insights | Organization: Map Insights
+    canAccessMapInsights && {
+      label: isExpert ? t('statistics.tabs.peerInsights') : t('statistics.tabs.insights'),
+      icon: isExpert ? Users : Globe,
+      active: activeTab === 'mapInsights',
+      onClick: () => navigate('/statistics/map-insights'),
+    },
+
     // Expert: My Insights | Organization: Usage Analytics
     canAccessUsageAnalytics && {
       label: isExpert ? t('statistics.tabs.myInsights') : t('statistics.tabs.usageAnalytics'),
       icon: Activity,
       active: activeTab === 'usageAnalytics',
       onClick: () => navigate('/statistics/usage-analytics'),
-    },
-    
-    // Expert: Peer Insights | Organization: Map Insights
-    canAccessMapInsights && {
-      label: isExpert ? t('statistics.tabs.peerInsights') : t('statistics.tabs.mapInsights'),
-      icon: isExpert ? Users : Globe,
-      active: activeTab === 'mapInsights',
-      onClick: () => navigate('/statistics/map-insights'),
     },
   ].filter(Boolean);
 

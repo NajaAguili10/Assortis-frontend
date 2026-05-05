@@ -106,6 +106,13 @@ const calculateMultiCurrencyTotal = (
   const currencyTotals = new Map<CurrencyEnum, number>();
 
   opportunities.forEach((item) => {
+    if (typeof item.expectedValue === 'number') {
+      const currency = (item.currency || 'USD') as CurrencyEnum;
+      const weightedValue = (item.expectedValue * (item.probability || 50)) / 100;
+      currencyTotals.set(currency, (currencyTotals.get(currency) || 0) + weightedValue);
+      return;
+    }
+
     // Try to find in tenders first
     let tender = allTenders.find((t) => t.id === item.tenderId);
     
@@ -202,6 +209,7 @@ export default function Pipeline() {
 
   // State for filters and dialogs
   const [selectedStage, setSelectedStage] = useState<string | 'all'>('all');
+  const [selectedMemberUser, setSelectedMemberUser] = useState<string | 'all'>('all');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [viewMode, setViewMode] = useState<ViewMode>('active');
   const [searchQuery, setSearchQuery] = useState('');
@@ -234,6 +242,41 @@ export default function Pipeline() {
 
     return itemsToShow
       .map(item => {
+        if (item.tenderTitle) {
+          return {
+            id: item.tenderId,
+            tenderId: item.tenderId,
+            tenderTitle: item.tenderTitle,
+            tenderReference: item.tenderReference || item.tenderId,
+            organizationName: item.organizationName || item.memberOrganizationName || 'N/A',
+            memberOrganizationName: item.memberOrganizationName,
+            memberOrganizationId: item.memberOrganizationId,
+            memberUserNames: item.memberUserNames || [],
+            stage: item.stage,
+            probability: item.probability || 50,
+            expectedValue: {
+              amount: item.expectedValue || 0,
+              currency: (item.currency || 'USD') as any,
+              formatted: item.expectedValue ? `${item.currency || 'USD'} ${Number(item.expectedValue).toLocaleString()}` : `${item.currency || 'USD'} 0`,
+            },
+            deadline: item.deadline ? new Date(item.deadline) : new Date(),
+            lastActivity: new Date(item.lastModified || item.addedAt),
+            addedAt: new Date(item.addedAt),
+            status: item.status,
+            sectors: item.sectors || [],
+            notes: item.notes,
+            resultStage: item.resultStage,
+            resultDate: item.resultDate ? new Date(item.resultDate) : undefined,
+            awardValue: item.awardValue,
+            matchScore: item.matchScore,
+            role: item.role,
+            roleSought: item.roleSought,
+            progressPercent: item.progressPercent,
+            isToR: false,
+            isProject: false,
+          };
+        }
+
         // Try to find in tenders first (My Alerts items)
         let tender = allTenders.find(t => t.id === item.tenderId);
         let isToR = false;
@@ -293,10 +336,32 @@ export default function Pipeline() {
       .filter((t): t is NonNullable<typeof t> => t !== null);
   }, [pipelineItems, allTenders, allToRs, allProjects, viewMode, getActiveOpportunities, getWonOpportunities]);
 
+  const memberUserOptions = useMemo(() => {
+    const names = new Set<string>();
+    pipelineTenders.forEach((tender) => {
+      if (Array.isArray(tender.memberUserNames) && tender.memberUserNames.length > 0) {
+        tender.memberUserNames.forEach((name: string) => {
+          if (name.trim()) names.add(name.trim());
+        });
+      } else if (tender.memberOrganizationName) {
+        names.add(tender.memberOrganizationName);
+      }
+    });
+    return Array.from(names).sort((left, right) => left.localeCompare(right));
+  }, [pipelineTenders]);
+
   // Calculate stages with real data (only for active opportunities)
   const stages = useMemo(() => {
     const activeItems = getActiveOpportunities();
     const activeTenders = activeItems.map(item => {
+      if (typeof item.expectedValue === 'number') {
+        return {
+          stage: item.stage,
+          value: item.expectedValue,
+          probability: item.probability || 50,
+        };
+      }
+
       // Try to find in tenders first
       let tender = allTenders.find(t => t.id === item.tenderId);
       
@@ -362,13 +427,21 @@ export default function Pipeline() {
       filtered = filtered.filter((t) => t.stage === selectedStage);
     }
 
+    if (selectedMemberUser !== 'all') {
+      filtered = filtered.filter((t) => (
+        Array.isArray(t.memberUserNames) && t.memberUserNames.includes(selectedMemberUser)
+      ) || t.memberOrganizationName === selectedMemberUser);
+    }
+
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter((t) => 
         t.tenderTitle.toLowerCase().includes(query) ||
         t.tenderReference.toLowerCase().includes(query) ||
-        t.organizationName.toLowerCase().includes(query)
+        t.organizationName.toLowerCase().includes(query) ||
+        (t.memberOrganizationName || '').toLowerCase().includes(query) ||
+        (t.memberUserNames || []).some((name: string) => name.toLowerCase().includes(query))
       );
     }
 
@@ -386,7 +459,7 @@ export default function Pipeline() {
     }
 
     return filtered;
-  }, [selectedStage, pipelineTenders, searchQuery, sortBy, viewMode]);
+  }, [selectedStage, selectedMemberUser, pipelineTenders, searchQuery, sortBy, viewMode]);
 
   // Calculate KPIs
   const activeOpportunities = getActiveOpportunities();
@@ -655,7 +728,7 @@ export default function Pipeline() {
 
           {/* Filters and Search */}
           <div className="mb-6">
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
               <div className="flex-1 w-full sm:w-auto">
                 <Input
                   type="search"
@@ -665,7 +738,19 @@ export default function Pipeline() {
                   className="w-full"
                 />
               </div>
-              <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="flex flex-col sm:flex-row items-center gap-2 w-full lg:w-auto">
+                <Select value={selectedMemberUser} onValueChange={setSelectedMemberUser}>
+                  <SelectTrigger className="w-full sm:w-[240px]">
+                    <Briefcase className="w-4 h-4 mr-2" />
+                    <SelectValue placeholder="Filter by user" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All users</SelectItem>
+                    {memberUserOptions.map((name) => (
+                      <SelectItem key={name} value={name}>{name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
                   <SelectTrigger className="w-full sm:w-[200px]">
                     <SortAsc className="w-4 h-4 mr-2" />
@@ -783,6 +868,15 @@ export default function Pipeline() {
                             </span>
                             <span>•</span>
                             <span>{tender.tenderReference}</span>
+                            {tender.memberOrganizationName && (
+                              <>
+                                <span>•</span>
+                                <span className="flex items-center gap-1 font-medium text-primary">
+                                  <Briefcase className="w-4 h-4" />
+                                  Member pipeline: {tender.memberOrganizationName}
+                                </span>
+                              </>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 flex-wrap">
                             {tender.sectors.map((sector) => (
@@ -866,13 +960,25 @@ export default function Pipeline() {
                           <TrendingUp className="w-4 h-4" />
                           {t('pipeline.lastActivity')}: {tender.lastActivity.toLocaleDateString()}
                         </span>
-                        {tender.resultDate && (
-                          <span className="flex items-center gap-1">
-                            <CheckCircle2 className="w-4 h-4" />
-                            Result: {tender.resultDate.toLocaleDateString()}
-                          </span>
-                        )}
-                      </div>
+                          {tender.resultDate && (
+                            <span className="flex items-center gap-1">
+                              <CheckCircle2 className="w-4 h-4" />
+                              Result: {tender.resultDate.toLocaleDateString()}
+                            </span>
+                          )}
+                          {typeof tender.matchScore === 'number' && (
+                            <span className="flex items-center gap-1">
+                              <Award className="w-4 h-4" />
+                              Match score: {Math.round(tender.matchScore)}%
+                            </span>
+                          )}
+                          {tender.roleSought && (
+                            <span className="flex items-center gap-1">
+                              <Briefcase className="w-4 h-4" />
+                              Role: {tender.roleSought}
+                            </span>
+                          )}
+                        </div>
 
                       <div className="flex items-center gap-2 flex-wrap">
                         <Button

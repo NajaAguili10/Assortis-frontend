@@ -1,7 +1,9 @@
-import { useState } from 'react';
-import { Layers, Bell, BellOff, Settings2, ShieldCheck, UserCircle2, Plus, Check, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
+import { Layers, Bell, BellOff, Settings2, ShieldCheck, UserCircle2, Plus, Check, X, Search, Play, Trash2, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from '@app/contexts/LanguageContext';
+import { useAuth } from '@app/contexts/AuthContext';
 import { AccountSubMenu } from '@app/components/AccountSubMenu';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
@@ -18,6 +20,7 @@ import {
 } from '@app/components/ui/select';
 import { useMatchingOpportunities } from '@app/modules/expert/hooks/useMatchingOpportunities';
 import { AlertFrequency } from '@app/types/matchingOpportunities.dto';
+import { savedSearchService, type SavedSearch } from '@app/services/savedSearchService';
 
 const FREQUENCY_KEYS: Record<AlertFrequency, string> = {
   realtime: 'matching-opportunities.alerts.frequency.realtime',
@@ -136,6 +139,8 @@ function ProfileForm({ initial, onSave, onCancel, t }: ProfileFormProps) {
 
 export default function MySelectionAlertsPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const {
     profiles,
     alertConfig,
@@ -154,6 +159,46 @@ export default function MySelectionAlertsPage() {
   const [globalFreq, setGlobalFreq] = useState<AlertFrequency>(alertConfig.globalFrequency);
   const [dedup, setDedup] = useState(alertConfig.deduplicationEnabled);
   const [isDirty, setIsDirty] = useState(false);
+  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>(() => savedSearchService.list(user?.id));
+  const [editingSavedSearchId, setEditingSavedSearchId] = useState<string | null>(null);
+  const [editingSavedSearchName, setEditingSavedSearchName] = useState('');
+
+  const refreshSavedSearches = () => {
+    setSavedSearches(savedSearchService.list(user?.id));
+  };
+
+  const runSavedSearch = (search: SavedSearch) => {
+    navigate(`${search.context.route}?savedSearchId=${encodeURIComponent(search.id)}`);
+  };
+
+  const deleteSavedSearch = (id: string) => {
+    savedSearchService.remove(id);
+    refreshSavedSearches();
+    toast.success('Saved search deleted');
+  };
+
+  const toggleSavedSearchAlerts = (id: string) => {
+    savedSearchService.toggleAlerts(id);
+    refreshSavedSearches();
+  };
+
+  const startRenameSavedSearch = (search: SavedSearch) => {
+    setEditingSavedSearchId(search.id);
+    setEditingSavedSearchName(search.name);
+  };
+
+  const saveRenamedSearch = () => {
+    if (!editingSavedSearchId || !editingSavedSearchName.trim()) return;
+    savedSearchService.update(editingSavedSearchId, { name: editingSavedSearchName });
+    setEditingSavedSearchId(null);
+    setEditingSavedSearchName('');
+    refreshSavedSearches();
+    toast.success('Saved search updated');
+  };
+
+  useEffect(() => {
+    refreshSavedSearches();
+  }, [user?.id]);
 
   const getProfileSetting = (profileId: string) =>
     alertConfig.profileSettings.find(s => s.profileId === profileId) ?? {
@@ -227,6 +272,69 @@ export default function MySelectionAlertsPage() {
         <div className="px-4 sm:px-5 lg:px-6 py-6 space-y-8">
 
           {/* ── Profiles section ── */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Search className="h-5 w-5 text-primary" />
+                    Saved Searches
+                  </CardTitle>
+                  <CardDescription className="mt-1">Searches saved from the public search pages, linked to your profile.</CardDescription>
+                </div>
+                <Badge variant="outline">{savedSearches.length}</Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {savedSearches.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-6 text-center">
+                  No saved searches yet. Use Save Search from a search page to add one here.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {savedSearches.map((search) => (
+                    <div key={search.id} className="rounded-lg border bg-white p-4">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0 flex-1">
+                          {editingSavedSearchId === search.id ? (
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                              <input className="h-9 flex-1 rounded-md border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" value={editingSavedSearchName} onChange={(event) => setEditingSavedSearchName(event.target.value)} />
+                              <Button size="sm" onClick={saveRenamedSearch}>Save</Button>
+                              <Button size="sm" variant="outline" onClick={() => setEditingSavedSearchId(null)}>Cancel</Button>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="font-medium text-sm text-primary">{search.name}</p>
+                                <Badge variant="outline" className="capitalize">{search.context.label}</Badge>
+                                {search.alertsEnabled ? <Badge className="bg-amber-50 text-amber-700 border-0 gap-1"><Bell className="h-3 w-3" /> Alerts on</Badge> : <Badge className="bg-gray-100 text-gray-500 border-0 gap-1"><BellOff className="h-3 w-3" /> Alerts off</Badge>}
+                              </div>
+                              <p className="mt-1 text-xs text-muted-foreground">Saved {new Date(search.created_at).toLocaleString()}</p>
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                {(search.context.summary?.length ? search.context.summary : ['No filters selected']).slice(0, 8).map((item) => (
+                                  <Badge key={item} variant="secondary" className="text-xs">{item}</Badge>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button size="sm" variant="outline" onClick={() => runSavedSearch(search)}><Play className="mr-1.5 h-3.5 w-3.5" />Run</Button>
+                          <Button size="sm" variant="outline" onClick={() => startRenameSavedSearch(search)}><Pencil className="mr-1.5 h-3.5 w-3.5" />Edit</Button>
+                          <Button size="sm" variant="outline" onClick={() => toggleSavedSearchAlerts(search.id)}>
+                            {search.alertsEnabled ? <BellOff className="mr-1.5 h-3.5 w-3.5" /> : <Bell className="mr-1.5 h-3.5 w-3.5" />}
+                            {search.alertsEnabled ? 'Disable alerts' : 'Enable alerts'}
+                          </Button>
+                          <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => deleteSavedSearch(search.id)}><Trash2 className="h-4 w-4" /></Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between gap-3 flex-wrap">

@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useSearchParams } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
+import { useAuth } from '@app/contexts/AuthContext';
 import { useCVCredits } from '@app/contexts/CVCreditsContext';
 import CVCreditsSummaryCard from '@app/components/CVCreditsSummaryCard';
+import { SaveSearchDialog } from '@app/components/SaveSearchDialog';
 import { SectorSubsectorFilter } from '@app/components/SectorSubsectorFilter';
 import { RegionCountryFilter } from '@app/components/RegionCountryFilter';
 import { Button } from '@app/components/ui/button';
@@ -23,7 +25,9 @@ import {
   DialogTitle,
 } from '@app/components/ui/dialog';
 import { useExperts } from '@app/modules/expert/hooks/useExperts';
+import { ExpertsSearchFiltersWorkspace } from '@app/modules/expert/pages/ExpertsDatabase';
 import { generateCV } from '@app/modules/expert/services/cvGenerator.service';
+import { savedSearchService, type SavedSearchType } from '@app/services/savedSearchService';
 import type { ExpertProfile } from '@app/modules/expert/services/expertsData.service';
 import { ExpertStatusEnum, type WritingContribution, type WritingLanguage, type WritingMethodology } from '@app/modules/expert/types/expert.dto';
 import { SECTOR_SUBSECTOR_MAP } from '@app/config/subsectors.config';
@@ -89,8 +93,9 @@ const isBidWriter = (expert: { title?: string; bio?: string; skills?: string[] }
   return /bid|proposal|tender|writer/.test(haystack);
 };
 
-export default function SearchExpertsTabContent({ mode }: SearchExpertsTabContentProps) {
+function LegacySearchExpertsTabContent({ mode }: SearchExpertsTabContentProps) {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { experts } = useExperts();
   const {
@@ -122,6 +127,7 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
   const [savedSearches, setSavedSearches] = useState<SavedSearchEntry<ExpertsSavedPayload>[]>([]);
   const [hasSearched, setHasSearched] = useState(mode !== 'experts');
   const [showSavedSearchesPanel, setShowSavedSearchesPanel] = useState(false);
+  const [isSaveSearchDialogOpen, setIsSaveSearchDialogOpen] = useState(false);
   const [saveSearchName, setSaveSearchName] = useState('');
   const [editingSearchId, setEditingSearchId] = useState<string | null>(null);
   const [editingSearchName, setEditingSearchName] = useState('');
@@ -369,17 +375,25 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
   };
 
   const readSavedSearches = (): SavedSearchEntry<ExpertsSavedPayload>[] => {
+    const unifiedType = mode === 'bid-writers' ? 'bid-writers' : 'experts';
+    const unified = savedSearchService.list(user?.id, unifiedType as SavedSearchType).map((item) => ({
+      id: item.id,
+      label: item.name,
+      createdAt: item.created_at,
+      payload: item.filters as ExpertsSavedPayload,
+    }));
     const raw = localStorage.getItem(storageKey);
-    if (!raw) return [];
+    if (!raw) return unified;
 
     try {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        return parsed.filter(item => item && item.payload);
+        const legacy = parsed.filter(item => item && item.payload);
+        return [...unified, ...legacy.filter((item) => !unified.some((saved) => saved.id === item.id))];
       }
 
       if (parsed && typeof parsed === 'object') {
-        return [{
+        return [...unified, {
           id: `legacy-${mode}`,
           label: `Saved ${mode}`,
           createdAt: new Date().toISOString(),
@@ -387,10 +401,10 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
         }];
       }
     } catch {
-      return [];
+      return unified;
     }
 
-    return [];
+    return unified;
   };
 
   const applySavedSearch = (payload: ExpertsSavedPayload) => {
@@ -410,40 +424,77 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
     setHasSearched(true);
   };
 
-  const saveSearch = () => {
-    const label = saveSearchName.trim();
+  useEffect(() => {
+    const savedSearchId = searchParams.get('savedSearchId');
+    if (!savedSearchId) return;
+    const expectedType = mode === 'bid-writers' ? 'bid-writers' : 'experts';
+    const saved = savedSearchService.get(savedSearchId);
+    if (saved?.context.type === expectedType) {
+      applySavedSearch(saved.filters as ExpertsSavedPayload);
+      toast.success('Search loaded');
+    }
+  }, [searchParams, mode]);
+
+  const buildPayload = (): ExpertsSavedPayload => ({
+    searchQuery,
+    selectedSectors,
+    selectedSubSectors,
+    selectedRegions,
+    selectedCountries,
+    selectedExperience,
+    sourceFilter,
+    selectedWritingMethodologies,
+    selectedWritingContributions,
+    selectedWritingLanguages,
+    comfortableToWriteOnQuery,
+    donorProcurementQuery,
+    writingCommentsQuery,
+  });
+
+  const buildSummary = () => [
+    searchQuery ? `Keywords: ${searchQuery}` : '',
+    selectedSectors.length ? `Sectors: ${selectedSectors.length}` : '',
+    selectedSubSectors.length ? `Subsectors: ${selectedSubSectors.length}` : '',
+    selectedCountries.length ? `Countries: ${selectedCountries.length}` : '',
+    selectedRegions.length ? `Regions: ${selectedRegions.length}` : '',
+    selectedExperience.length ? `Experience: ${selectedExperience.length}` : '',
+    sourceFilter !== 'all' ? `Source: ${sourceFilter.replace(/-/g, ' ')}` : '',
+    selectedWritingMethodologies.length ? `Methodologies: ${selectedWritingMethodologies.length}` : '',
+    selectedWritingLanguages.length ? `Languages: ${selectedWritingLanguages.length}` : '',
+  ].filter(Boolean);
+
+  const saveSearch = (providedName?: string) => {
+    const label = (providedName || saveSearchName).trim();
     if (!label) {
       toast.error('Enter a search name');
       return;
     }
 
-    const existing = readSavedSearches();
     const now = new Date();
     const entry: SavedSearchEntry<ExpertsSavedPayload> = {
       id: `saved-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
       label,
       createdAt: now.toISOString(),
-      payload: {
-        searchQuery,
-        selectedSectors,
-        selectedSubSectors,
-        selectedRegions,
-        selectedCountries,
-        selectedExperience,
-        sourceFilter,
-        selectedWritingMethodologies,
-        selectedWritingContributions,
-        selectedWritingLanguages,
-        comfortableToWriteOnQuery,
-        donorProcurementQuery,
-        writingCommentsQuery,
-      },
+      payload: buildPayload(),
     };
 
-    const next = [entry, ...existing];
-    localStorage.setItem(storageKey, JSON.stringify(next));
-    setSavedSearches(next);
+    const type = mode === 'bid-writers' ? 'bid-writers' : 'experts';
+    savedSearchService.save({
+      userId: user?.id,
+      name: label,
+      filters: entry.payload,
+      context: {
+        type,
+        route: type === 'bid-writers' ? '/search/bid-writers' : '/search/experts',
+        label: type === 'bid-writers' ? 'Bid Writers' : 'Experts',
+        summary: buildSummary(),
+        language: undefined,
+        accountType: user?.accountType,
+      },
+    });
+    setSavedSearches(readSavedSearches());
     setSaveSearchName('');
+    setIsSaveSearchDialogOpen(false);
     toast.success('Search saved');
   };
 
@@ -456,6 +507,25 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
     const nextLabel = editingSearchName.trim();
     if (!nextLabel) {
       toast.error('Enter a search name');
+      return;
+    }
+    if (entry.id.startsWith('saved-search-')) {
+      const type = mode === 'bid-writers' ? 'bid-writers' : 'experts';
+      savedSearchService.update(entry.id, {
+        name: nextLabel,
+        filters: buildPayload(),
+        context: {
+          type,
+          route: type === 'bid-writers' ? '/search/bid-writers' : '/search/experts',
+          label: type === 'bid-writers' ? 'Bid Writers' : 'Experts',
+          summary: buildSummary(),
+          accountType: user?.accountType,
+        },
+      });
+      setSavedSearches(readSavedSearches());
+      setEditingSearchId(null);
+      setEditingSearchName('');
+      toast.success('Saved search updated');
       return;
     }
     const next = readSavedSearches().map((item) =>
@@ -474,6 +544,11 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
   };
 
   const deleteSavedSearch = (id: string) => {
+    if (id.startsWith('saved-search-')) {
+      savedSearchService.remove(id);
+      setSavedSearches(readSavedSearches());
+      return;
+    }
     const next = readSavedSearches().filter((entry) => entry.id !== id);
     localStorage.setItem(storageKey, JSON.stringify(next));
     setSavedSearches(next);
@@ -636,6 +711,9 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
             {showFilters ? 'Hide filters' : 'Show filters'}
           </Button>
           <Button variant="default" size="sm" onClick={handleRunSearch}>Search</Button>
+          <Button variant="outline" size="sm" onClick={() => setIsSaveSearchDialogOpen(true)}>
+            Save Search
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setShowSavedSearchesPanel((prev) => !prev)}>
             Saved Experts Searches
           </Button>
@@ -1261,6 +1339,13 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
         </DialogContent>
       </Dialog>
 
+      <SaveSearchDialog
+        open={isSaveSearchDialogOpen}
+        defaultName={searchQuery.trim() || `Saved ${mode} search`}
+        onOpenChange={setIsSaveSearchDialogOpen}
+        onSave={saveSearch}
+      />
+
       {(mode !== 'experts' || hasSearched) && filteredExperts.length === 0 && (
         <div className="text-center py-12 bg-white rounded-lg border">
           <Search className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
@@ -1271,4 +1356,12 @@ export default function SearchExpertsTabContent({ mode }: SearchExpertsTabConten
       )}
     </div>
   );
+}
+
+export default function SearchExpertsTabContent({ mode }: SearchExpertsTabContentProps) {
+  if (mode === 'experts') {
+    return <ExpertsSearchFiltersWorkspace />;
+  }
+
+  return <LegacySearchExpertsTabContent mode={mode} />;
 }
