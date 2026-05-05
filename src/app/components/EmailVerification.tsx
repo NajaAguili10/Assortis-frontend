@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { authService } from '../services/authService';
 import { useTranslation } from '../contexts/LanguageContext';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -42,15 +43,15 @@ export function EmailVerification({ email, onVerified }: EmailVerificationProps)
     setIsResending(true);
     
     try {
-      // Simulate sending email
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Real API call to send verification email
+      await authService.sendVerification(email);
       
       setEmailSent(true);
       setTimeLeft(120);
       setCanResend(false);
       setError('');
-    } catch (err) {
-      setError(t('verification.error.sendFailed') || 'Failed to send verification email');
+    } catch (err: any) {
+      setError(err.response?.data?.message || t('verification.error.sendFailed') || 'Failed to send verification email');
     } finally {
       setIsResending(false);
     }
@@ -72,20 +73,16 @@ export function EmailVerification({ email, onVerified }: EmailVerificationProps)
     setIsVerifying(true);
 
     try {
-      // Simulate verification (in production, call backend API)
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Real verification API call
+      await authService.verifyEmail(email, code);
       
-      if (code === VERIFICATION_CODE) {
-        setShowSuccess(true);
-        // Short delay to show success message before calling onVerified
-        setTimeout(() => {
-          onVerified();
-        }, 800);
-      } else {
-        setError(t('verification.error.invalid') || 'Invalid verification code');
-      }
-    } catch (err) {
-      setError(t('verification.error.generic') || 'Verification failed. Please try again.');
+      setShowSuccess(true);
+      // Short delay to show success message before calling onVerified
+      setTimeout(() => {
+        onVerified();
+      }, 800);
+    } catch (err: any) {
+      setError(err.response?.data?.message || t('verification.error.invalid') || 'Invalid verification code');
     } finally {
       setIsVerifying(false);
     }
@@ -153,7 +150,7 @@ export function EmailVerification({ email, onVerified }: EmailVerificationProps)
         </div>
       </div>
 
-      {/* Info Box */}
+      {/* Info Box (Test Mode) - Commented out for real verification
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-xs text-blue-800 mb-2 font-semibold">
           {t('verification.testMode')}
@@ -162,6 +159,7 @@ export function EmailVerification({ email, onVerified }: EmailVerificationProps)
           {t('verification.testCode')}: <span className="font-mono font-bold">123456</span>
         </p>
       </div>
+      */}
 
       {/* Code Input */}
       <div className="space-y-2">

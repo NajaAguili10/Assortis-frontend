@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router';
+import { useNavigate, Link, useLocation } from 'react-router';
+import { toast } from 'sonner';
 import { useAuth } from '@app/contexts/AuthContext';
 import { useTranslation } from '@app/contexts/LanguageContext';
 import { Button } from '@app/components/ui/button';
@@ -22,11 +23,23 @@ const Login = () => {
   const [incompleteSignupData, setIncompleteSignupData] = useState<IncompleteSignupData | null>(null);
   const [showTestAccounts, setShowTestAccounts] = useState(false);
 
+  const location = useLocation();
+
   // Initialize test accounts on component mount
   useEffect(() => {
     // OLD STATIC AUTH (disabled for dynamic backend auth)
     // initializeTestAccounts();
   }, []);
+
+  // Check for successful registration
+  useEffect(() => {
+    const state = location.state as any;
+    if (state?.registeredSuccessfully) {
+      toast.success('Account Created Successfully!');
+      // Clear the state so the toast doesn't appear again on refresh
+      navigate('/login', { replace: true, state: {} });
+    }
+  }, [location, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

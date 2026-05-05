@@ -13,6 +13,18 @@ export const authService = {
     return apiClient.post<LoginResponse>('/auth/login', { email, password });
   },
 
+  register: async (formData: any): Promise<any> => {
+    return apiClient.post('/auth/register', formData);
+  },
+
+  sendVerification: async (email: string): Promise<any> => {
+    return apiClient.post('/auth/send-verification', { email });
+  },
+
+  verifyEmail: async (email: string, code: string): Promise<any> => {
+    return apiClient.post('/auth/verify-email', { email, code });
+  },
+
   logout: () => {
     localStorage.removeItem('assortis_token');
     localStorage.removeItem('assortis_user');

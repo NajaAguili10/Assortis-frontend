@@ -1,6 +1,7 @@
-﻿import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router';
 import { useAuth } from '@app/contexts/AuthContext';
+import { authService } from '@app/services/authService';
 import { useTranslation } from '@app/contexts/LanguageContext';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
@@ -676,12 +677,7 @@ const Signup = () => {
         lastName = formData.lastName;
       }
 
-      await signup({
-        firstName,
-        lastName,
-        email,
-        password: formData.password,
-      });
+      await authService.register(formData);
       
       // Calculate payment amount (considering promo discount)
       const baseAmount = formData.subscriptionPrice;
@@ -709,17 +705,8 @@ const Signup = () => {
       // Clear draft on successful registration
       clearDraft();
       
-      // Redirect to confirmation page with user data
-      navigate('/signup-confirmation', {
-        state: {
-          email: email,
-          accountType: formData.accountType,
-          planType: formData.planType,
-          firstName: firstName,
-          lastName: lastName,
-          orgName: formData.orgName,
-        }
-      });
+      // Navigate to login with success state
+      navigate('/login', { state: { registeredSuccessfully: true } });
     } catch (err: any) {
       setError(err.message || 'Signup failed. Please try again.');
     } finally {
@@ -751,12 +738,7 @@ const Signup = () => {
       }
 
       // Save user data (pre-registration)
-      await signup({
-        firstName,
-        lastName,
-        email,
-        password: formData.password,
-      });
+      await authService.register(formData);
 
       // Send completion email with link to continue registration
       await sendConfirmationEmail({
@@ -774,18 +756,8 @@ const Signup = () => {
       // Clear draft on pre-registration
       clearDraft();
 
-      // Redirect to confirmation page with "complete later" message
-      navigate('/signup-confirmation', {
-        state: {
-          email: email,
-          accountType: formData.accountType,
-          planType: formData.planType,
-          firstName: firstName,
-          lastName: lastName,
-          orgName: formData.orgName,
-          completeLater: true, // Flag to show different message
-        }
-      });
+      // Navigate to login with success state
+      navigate('/login', { state: { registeredSuccessfully: true } });
     } catch (err: any) {
       setError(err.message || 'Failed to save registration. Please try again.');
     } finally {
