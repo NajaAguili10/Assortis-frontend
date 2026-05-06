@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+import { API_BASE_URL } from '@app/config/api.config';
 
 export interface ProjectReferenceTemplateOption {
   format: string;
@@ -30,7 +30,7 @@ function readFileName(response: Response) {
 
 export const projectReferenceGenerationService = {
   async getTemplates(): Promise<ProjectReferenceTemplateOption[]> {
-    const response = await fetch(`${BASE_URL}/project-references/templates`, {
+    const response = await fetch(`${API_BASE_URL}/project-references/templates`, {
       method: 'GET',
       headers: { Accept: 'application/json' },
     });
@@ -43,7 +43,7 @@ export const projectReferenceGenerationService = {
   },
 
   async downloadReference(projectId: string | number, format: string): Promise<GeneratedReferenceDownload> {
-    const response = await fetch(`${BASE_URL}/project-references/${encodeURIComponent(projectId)}/download?format=${encodeURIComponent(format)}`, {
+    const response = await fetch(`${API_BASE_URL}/project-references/${encodeURIComponent(projectId)}/download?format=${encodeURIComponent(format)}`, {
       method: 'GET',
       headers: {
         Accept: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

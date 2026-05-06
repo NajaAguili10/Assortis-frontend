@@ -1,5 +1,6 @@
 ﻿import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '@app/contexts/AuthContext';
+import { API_BASE_URL } from '@app/config/api.config';
 import { SubmissionStatusEnum } from '@app/types/tender.dto';
 
 export interface PipelineStage {
@@ -87,8 +88,6 @@ interface BackendPipelineResponse {
   }>;
 }
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-
 const mapBackendStage = (stage?: string): string => {
   const normalized = (stage || '').toLowerCase().replace(/[_\s-]+/g, '');
   if (['qualification', 'qualified', 'analysis', 'analyzing'].includes(normalized)) return 'analyzing';
@@ -129,7 +128,7 @@ export function usePipeline() {
       });
 
       try {
-        const response = await fetch(`${BASE_URL}/projects/pipeline?${params.toString()}`, {
+        const response = await fetch(`${API_BASE_URL}/projects/pipeline?${params.toString()}`, {
           signal: controller.signal,
           headers: {
             'Content-Type': 'application/json',

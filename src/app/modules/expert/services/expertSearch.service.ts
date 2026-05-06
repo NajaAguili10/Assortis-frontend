@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+import { API_BASE_URL } from '@app/config/api.config';
 
 export interface ExpertSearchFilters {
   firstName?: string;
@@ -95,7 +95,7 @@ export async function searchExperts(filters: ExpertSearchFilters, page: number, 
   params.set('size', String(size));
   params.set('sort', sort);
 
-  const response = await fetch(`${BASE_URL}/experts/search?${params.toString()}`, {
+  const response = await fetch(`${API_BASE_URL}/experts/search?${params.toString()}`, {
     method: 'GET',
     headers: { Accept: 'application/json' },
   });
@@ -141,7 +141,7 @@ export function buildExpertPreviewFromSearchResult(expert: ExpertSearchResult): 
 
 export async function getExpertPreview(expertId: number, fallbackExpert?: ExpertSearchResult) {
   try {
-    const response = await fetch(`${BASE_URL}/experts/${encodeURIComponent(String(expertId))}/preview`, {
+    const response = await fetch(`${API_BASE_URL}/experts/${encodeURIComponent(String(expertId))}/preview`, {
       method: 'GET',
       headers: { Accept: 'application/json' },
     });
