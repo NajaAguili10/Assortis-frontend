@@ -1,5 +1,4 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
 import { useAssistanceHistory } from '@app/contexts/AssistanceHistoryContext';
@@ -24,6 +23,7 @@ import { useOrganizations } from '@app/modules/organization/hooks/useOrganizatio
 import { useNotifications } from '@app/modules/administrator/hooks/useNotifications';
 import { canManageOrganizationAdminActions, isOrganizationUserRole } from '@app/services/permissions.service';
 import { NotificationTypeEnum, NotificationPriorityEnum } from '@app/types/notification.dto';
+import { apiClient } from '@app/api/apiClient';
 
 import { 
   Building2, 
@@ -41,8 +41,6 @@ import {
   CheckCircle2,
   AlertCircle,
   X,
-  Briefcase,
-  User,
   Eye,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -59,56 +57,73 @@ interface TeamMember {
   status: 'active' | 'pending' | 'inactive';
 }
 
-interface Expert {
+interface OrganizationSummary {
   id: string;
   name: string;
-  email: string;
-  expertise: string;
-  verified: boolean;
+  type: string;
 }
 
-// Mock organization data
-const mockOrganization = {
-  id: '1',
-  name: 'UNICEF',
-  type: 'International Organization'
+interface BackendTeamMember {
+  userId: number | string;
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
+  role?: string | null;
+  admin?: boolean | null;
+  department?: string | null;
+  status?: string | null;
+  joinedAt?: string | null;
+}
+
+interface TeamMembersResponse {
+  organization?: {
+    id?: number | string | null;
+    name?: string | null;
+    type?: string | null;
+  } | null;
+  members?: BackendTeamMember[];
+}
+
+const mapBackendRole = (role?: string | null, isAdmin?: boolean | null): TeamMember['role'] => {
+  if (isAdmin) return 'admin';
+
+  const normalizedRole = (role || '').toLowerCase();
+  if (normalizedRole.includes('admin') || normalizedRole.includes('manager') || normalizedRole.includes('owner')) {
+    return 'admin';
+  }
+  if (normalizedRole.includes('viewer') || normalizedRole.includes('observer')) {
+    return 'viewer';
+  }
+
+  return 'member';
 };
 
-// Mock experts database (same as in OrganizationsInvite)
-const experts: Expert[] = [
-  { id: '1', name: 'Dr. Sarah Johnson', expertise: 'Health & Development', verified: true, email: 'sarah.johnson@expert.com' },
-  { id: '2', name: 'Naja Smith', expertise: 'Project Management', verified: true, email: 'john.smith@expert.com' },
-  { id: '3', name: 'Marie Dupont', expertise: 'Education', verified: true, email: 'marie.dupont@expert.com' },
-  { id: '4', name: 'Ahmed Hassan', expertise: 'Infrastructure', verified: true, email: 'ahmed.hassan@expert.com' },
-  { id: '5', name: 'Elena Rodriguez', expertise: 'Environment', verified: true, email: 'elena.rodriguez@expert.com' },
-  { id: '6', name: 'Dr. Michael Brown', expertise: 'Public Health', verified: true, email: 'michael.brown@expert.com' },
-  { id: '7', name: 'Sophie Martin', expertise: 'Social Development', verified: true, email: 'sophie.martin@expert.com' },
-  { id: '8', name: 'Omar Al-Rashid', expertise: 'Water & Sanitation', verified: true, email: 'omar.alrashid@expert.com' },
-];
+const mapBackendStatus = (status?: string | null): TeamMember['status'] => {
+  const normalizedStatus = (status || '').toLowerCase();
+  if (normalizedStatus === 'pending') return 'pending';
+  if (normalizedStatus === 'inactive' || normalizedStatus === 'disabled') return 'inactive';
+  return 'active';
+};
 
+const mapBackendTeamMember = (member: BackendTeamMember): TeamMember => {
+  const name = [member.firstName, member.lastName].filter(Boolean).join(' ').trim();
 
-
-
-// Mock team members data
-const mockTeamMembers: TeamMember[] = [
-  { id: '1', name: 'Sarah Johnson', email: 'sarah.j@unicef.org', role: 'admin', department: 'Management', joinedDate: '2023-01-15', status: 'active' },
-  { id: '2', name: 'John Smith', email: 'john.s@unicef.org', role: 'member', department: 'Operations', joinedDate: '2023-03-20', status: 'active' },
-  { id: '3', name: 'Marie Dupont', email: 'marie.d@unicef.org', role: 'member', department: 'Finance', joinedDate: '2023-05-10', status: 'active' },
-  { id: '4', name: 'Ahmed Hassan', email: 'ahmed.h@unicef.org', role: 'member', department: 'Programs', joinedDate: '2023-07-08', status: 'active' },
-  { id: '5', name: 'Elena Rodriguez', email: 'elena.r@unicef.org', role: 'viewer', department: 'Communications', joinedDate: '2023-09-12', status: 'pending' },
-  { id: '6', name: 'David Chen', email: 'david.c@unicef.org', role: 'member', department: 'IT', joinedDate: '2023-11-05', status: 'active' },
-  { id: '7', name: 'Lisa Anderson', email: 'lisa.a@unicef.org', role: 'member', department: 'HR', joinedDate: '2024-01-18', status: 'active' },
-  { id: '8', name: 'Carlos Martinez', email: 'carlos.m@unicef.org', role: 'viewer', department: 'Legal', joinedDate: '2024-03-22', status: 'inactive' },
-];
-
-const departments = ['Management', 'Operations', 'Finance', 'Programs', 'Communications', 'IT', 'HR', 'Legal'];
+  return {
+    id: String(member.userId),
+    name: name || member.email || String(member.userId),
+    email: member.email || '',
+    role: mapBackendRole(member.role, member.admin),
+    department: member.department || '',
+    joinedDate: member.joinedAt ? member.joinedAt.split('T')[0] : '',
+    status: mapBackendStatus(member.status),
+  };
+};
 
 // Maximum number of invitations allowed
 const MAX_INVITATIONS = 2;
 
 export default function OrganizationsTeams() {
   const { t } = useLanguage();
-  const navigate = useNavigate();
   const { user } = useAuth();
   const { kpis } = useOrganizations();
   const { addNotification } = useNotifications();
@@ -117,7 +132,10 @@ export default function OrganizationsTeams() {
   const canManageAdminActions = canManageOrganizationAdminActions(user?.accountType, user?.role);
   const restrictedActionMessage = t('permissions.organization.adminOnlyAction');
   
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(mockTeamMembers);
+  const [organization, setOrganization] = useState<OrganizationSummary | null>(null);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [isLoadingTeamMembers, setIsLoadingTeamMembers] = useState(false);
+  const [teamMembersError, setTeamMembersError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -144,10 +162,10 @@ export default function OrganizationsTeams() {
   const [editDepartment, setEditDepartment] = useState('');
   const [experts, setExperts] = useState<ExpertDTO[]>([]);
 
-   
-        React.useEffect(() => {
-  
-         const fetchExperts = async () => {
+  console.log('🔥 USER:', user);
+
+  useEffect(() => {
+    const fetchExperts = async () => {
         try {
           const result = await expertService.getAllExperts();
           setExperts(result);
@@ -155,9 +173,66 @@ export default function OrganizationsTeams() {
           console.error("Error fetching experts:", error);
         }
       };
-          fetchExperts();
-        
-        }, []);
+    fetchExperts();
+  }, []);
+
+  useEffect(() => {
+    console.log('🔥 STATE teamMembers:', teamMembers);
+  }, [teamMembers]);
+
+  useEffect(() => {
+    if (!user) {
+      setTeamMembers([]);
+      setOrganization(null);
+      setIsLoadingTeamMembers(false);
+      return;
+    }
+
+    let isMounted = true;
+
+    const fetchTeamMembers = async () => {
+      setIsLoadingTeamMembers(true);
+      setTeamMembersError(null);
+
+      try {
+        const response = await apiClient.get<TeamMembersResponse>('/team-members');
+
+        console.log('🔥 API RESPONSE:', response);
+        console.log('🔥 MEMBERS RAW:', response.members);
+
+        if (!isMounted) return;
+
+        setOrganization(response.organization ? {
+          id: String(response.organization.id ?? ''),
+          name: response.organization.name || '',
+          type: response.organization.type || '',
+        } : null);
+       // setTeamMembers((response.members || []).map(mapBackendTeamMember));
+        const mapped = (response.members || []).map(mapBackendTeamMember);
+
+        console.log('🔥 MAPPED MEMBERS:', mapped);
+
+        setTeamMembers(mapped);
+
+      } catch (error) {
+        console.error('Error fetching team members:', error);
+        if (!isMounted) return;
+
+        setTeamMembers([]);
+        setTeamMembersError(error instanceof Error ? error.message : t('organizations.teams.noResults'));
+      } finally {
+        if (isMounted) {
+          setIsLoadingTeamMembers(false);
+        }
+      }
+    };
+
+    fetchTeamMembers();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [t, user]);
       
   
   // Delete confirmation state
@@ -176,6 +251,8 @@ export default function OrganizationsTeams() {
     
     return matchesSearch && matchesRole && matchesStatus;
   });
+
+  const departments = Array.from(new Set(teamMembers.map(member => member.department).filter(Boolean))).sort();
 
   const resetInviteForm = () => {
     setSelectedExpert(null);
@@ -201,8 +278,8 @@ export default function OrganizationsTeams() {
     const expert = experts.find(e => e.id === expertId);
     if (expert) {
       setSelectedExpert(expert);
-      setNewMemberName(expert.firstName);
-     // setNewMemberEmail(expert.email);
+      setNewMemberName(expert.fullName || [expert.firstName, expert.lastName].filter(Boolean).join(' '));
+      setNewMemberEmail(expert.email || '');
     }
   };
 
@@ -289,7 +366,7 @@ export default function OrganizationsTeams() {
         type: 'team-invitation',
         expertName: newMemberName,
         expertRole: t(`organizations.teams.role.${newMemberRole}`),
-        title: `${t('organizations.teams.invite.member')} - ${mockOrganization.name}`,
+        title: `${t('organizations.teams.invite.member')} - ${organization?.name || ''}`,
         message: newMemberMessage || undefined,
         status: 'sent',
       });
@@ -563,7 +640,21 @@ export default function OrganizationsTeams() {
 
             {/* Members List */}
             <div className="divide-y">
-              {filteredMembers.length > 0 ? (
+              {isLoadingTeamMembers ? (
+                <div className="p-12 text-center">
+                  <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">
+                    {t('common.loading')}
+                  </p>
+                </div>
+              ) : teamMembersError ? (
+                <div className="p-12 text-center">
+                  <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">
+                    {teamMembersError}
+                  </p>
+                </div>
+              ) : filteredMembers.length > 0 ? (
                 filteredMembers.map((member) => (
                   <div
                     key={member.id}
@@ -655,8 +746,8 @@ export default function OrganizationsTeams() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground font-medium">{t('organizations.teams.invite.organizationLabel')}</p>
-                    <h4 className="text-lg font-bold text-primary">{mockOrganization.name}</h4>
-                    <p className="text-xs text-muted-foreground">{mockOrganization.type}</p>
+                    <h4 className="text-lg font-bold text-primary">{organization?.name}</h4>
+                    <p className="text-xs text-muted-foreground">{organization?.type}</p>
                   </div>
                 </div>
                 
@@ -697,8 +788,8 @@ export default function OrganizationsTeams() {
                           <SelectItem key={expert.id} value={expert.id}>
                             <div className="flex items-center gap-2">
                               {expert.verified && <CheckCircle2 className="w-4 h-4 text-green-500" />}
-                              <span>{expert.name}</span>
-                              <span className="text-xs text-muted-foreground">({expert.expertise})</span>
+                              <span>{expert.fullName || [expert.firstName, expert.lastName].filter(Boolean).join(' ')}</span>
+                              <span className="text-xs text-muted-foreground">({expert.title || expert.currentPosition})</span>
                             </div>
                           </SelectItem>
                         ))}
@@ -819,7 +910,7 @@ export default function OrganizationsTeams() {
                         </p>
                         <div className="bg-white rounded px-3 py-2 mt-2 border border-blue-200">
                           <p className="text-xs font-mono text-blue-900">
-                            https://assortis.app/join/{mockOrganization.id}?role={mapRoleToOrgRole(newMemberRole)}
+                            https://assortis.app/join/{organization?.id}?role={mapRoleToOrgRole(newMemberRole)}
                           </p>
                         </div>
                       </div>
