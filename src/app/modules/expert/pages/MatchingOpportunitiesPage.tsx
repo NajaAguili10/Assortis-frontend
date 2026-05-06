@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router';
 import {
   Award,
   Briefcase,
@@ -65,6 +66,7 @@ function toggleInArray<T>(arr: T[], value: T): T[] {
 
 export default function MatchingOpportunitiesPage() {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
   const {
     pendingMatches,
     saveOpportunity,
@@ -74,8 +76,24 @@ export default function MatchingOpportunitiesPage() {
     getFilteredVacancyOpportunities,
   } = useMatchingOpportunities();
 
+  const getInitialTab = (): OpportunityTypeEnum => {
+    const type = searchParams.get('type');
+    if (type === 'shortlist') return OpportunityTypeEnum.SHORTLIST;
+    if (type === 'contract') return OpportunityTypeEnum.CONTRACT_AWARD;
+    if (type === 'vacancy') return OpportunityTypeEnum.PROJECT_VACANCY;
+    return OpportunityTypeEnum.OPEN_PROJECT;
+  };
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<OpportunityTypeEnum>(OpportunityTypeEnum.OPEN_PROJECT);
+  const [activeTab, setActiveTab] = useState<OpportunityTypeEnum>(getInitialTab);
+
+  useEffect(() => {
+    const type = searchParams.get('type');
+    if (type === 'shortlist') setActiveTab(OpportunityTypeEnum.SHORTLIST);
+    else if (type === 'contract') setActiveTab(OpportunityTypeEnum.CONTRACT_AWARD);
+    else if (type === 'vacancy') setActiveTab(OpportunityTypeEnum.PROJECT_VACANCY);
+    else if (!type) setActiveTab(OpportunityTypeEnum.OPEN_PROJECT);
+  }, [searchParams]);
   const [showTenderFilters, setShowTenderFilters] = useState(false);
   const [showVacancyFilters, setShowVacancyFilters] = useState(false);
   const [tenderSearchInput, setTenderSearchInput] = useState('');

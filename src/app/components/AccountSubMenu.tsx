@@ -44,9 +44,9 @@ export function AccountSubMenu({ activeTab, onTabChange, mode = 'account-tabs' }
       location.pathname === '/compte-utilisateur/resources';
 
     const isProfileRoute =
-      location.pathname === '/compte-utilisateur' ||
       location.pathname === '/account/profile' ||
-      location.pathname === '/compte-utilisateur/profil';
+      location.pathname === '/compte-utilisateur/profil' ||
+      location.pathname === '/experts/edit-profile';
 
     const items = [
       {

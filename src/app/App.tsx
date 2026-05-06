@@ -15,6 +15,8 @@ import TemplateCreate from './modules/expert/pages/TemplateCreate';
 import Pipeline from './modules/expert/pages/Pipeline';
 import ProjectsContractors from './modules/expert/pages/ProjectsContractors';
 import ProjectContractorDetails from './modules/expert/pages/ProjectContractorDetails';
+import ExpertOrganizationScoring from './modules/expert/pages/ExpertOrganizationScoring';
+import ExpertSavedProjects from './modules/expert/pages/ExpertSavedProjects';
 import ProjectsOrganizationsScoring from './modules/expert/pages/ProjectsOrganizationsScoring';
 import Projects from './modules/shared/pages/Projects';
 import ProjectsActive from './modules/shared/pages/ProjectsActive';
@@ -54,6 +56,7 @@ import MatchingShortlistDetailPage from './modules/expert/pages/MatchingShortlis
 import MatchingVacancyDetailPage from './modules/expert/pages/MatchingVacancyDetailPage';
 import ExpertMyCVDashboard from './modules/expert/pages/ExpertMyCVDashboard';
 import ExpertMyCVInfo from './modules/expert/pages/ExpertMyCVInfo';
+import ExpertDashboard from './modules/expert/pages/ExpertDashboard';
 import OrganizationsHub from './modules/organization/pages/OrganizationsHub';
 import OrganizationsDatabase from './modules/organization/pages/OrganizationsDatabase';
 import OrganizationDetail from './modules/organization/pages/OrganizationDetail';
@@ -232,7 +235,8 @@ const router = createBrowserRouter([
       { path: 'projects/collaborations/:id', Component: CollaborationDetail },
       { path: 'projects/contractors', Component: ProjectsContractors },
       { path: 'projects/contractors/:contractorId', Component: ProjectContractorDetails },
-      { path: 'projects/organizations-scoring', Component: ProjectsOrganizationsScoring },
+      { path: 'projects/organizations-scoring', element: <Navigate to="/experts/my-cv/organization-scoring" replace /> },
+      { path: 'projects/saved', Component: ExpertSavedProjects },
       { path: 'projects/new', Component: NewProject },
       { path: 'expert', element: <Navigate to="/experts" replace /> },
       { path: 'experts', Component: Experts },
@@ -246,7 +250,9 @@ const router = createBrowserRouter([
       { path: 'experts/matching-organisation-archive', Component: ExpertsMatchingOrganisationArchive },
       { path: 'experts/my-cv', element: <Navigate to="/experts/my-cv/dashboard" replace /> },
       { path: 'experts/my-cv/dashboard', Component: ExpertMyCVDashboard },
+      { path: 'experts/dashboard', Component: ExpertDashboard },
       { path: 'experts/my-cv/info', Component: ExpertMyCVInfo },
+      { path: 'experts/my-cv/organization-scoring', Component: ExpertOrganizationScoring },
       { path: 'experts/:id', Component: ExpertPublicProfile },
       { path: 'matching-opportunities', element: <Navigate to="/matching-opportunities/home" replace /> },
       { path: 'matching-opportunities/home', Component: MatchingOpportunitiesHome },
@@ -256,9 +262,14 @@ const router = createBrowserRouter([
       { path: 'matching-opportunities/opportunities/award/:id', Component: MatchingAwardDetailPage },
       { path: 'matching-opportunities/opportunities/shortlist/:id', Component: MatchingShortlistDetailPage },
       { path: 'matching-opportunities/opportunities/vacancy/:id', Component: MatchingVacancyDetailPage },
-      { path: 'matching-opportunities/saved', Component: MatchingOpportunitiesSaved },
-      { path: 'matching-opportunities/profiles', Component: SavedProfilesPage },
-      { path: 'matching-opportunities/alerts', Component: AlertsFusionPage },
+      // Old top-level type tabs → redirect to Matching Projects with filter pre-selected
+      { path: 'matching-opportunities/shortlists', element: <Navigate to="/matching-opportunities/projects?type=shortlists" replace /> },
+      { path: 'matching-opportunities/contracts', element: <Navigate to="/matching-opportunities/projects?type=contract-awards" replace /> },
+      { path: 'matching-opportunities/job-vacancies', element: <Navigate to="/matching-opportunities/projects?type=project-vacancies" replace /> },
+      { path: 'matching-opportunities/contractors', element: <Navigate to="/projects/contractors" replace /> },
+      { path: 'matching-opportunities/saved', element: <Navigate to="/projects/saved" replace /> },
+      { path: 'matching-opportunities/profiles', element: <Navigate to="/account/my-selection" replace /> },
+      { path: 'matching-opportunities/alerts', element: <Navigate to="/account/my-selection" replace /> },
       { path: 'organizations', Component: OrganizationsHub },
       { path: 'organizations/overview', Component: OrganizationsHub },
       { path: 'organizations/database', Component: OrganizationsDatabase },

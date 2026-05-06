@@ -1,5 +1,6 @@
 ﻿import { useState } from 'react';
 import { useLanguage } from '@app/contexts/LanguageContext';
+import { useAuth } from '@app/contexts/AuthContext';
 import { useNavigate } from 'react-router';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
@@ -30,6 +31,8 @@ import {
 export default function ProjectsTasks() {
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isExpertOnly = user?.accountType === 'expert';
   const { tasks, kpis } = useProjects();
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -109,10 +112,12 @@ export default function ProjectsTasks() {
               <h2 className="text-2xl font-bold text-primary mb-2">{t('projects.tasks.title')}</h2>
               <p className="text-muted-foreground">{t('projects.tasks.subtitle')}</p>
             </div>
-            <Button onClick={() => navigate('/projects/tasks/new')} className="h-11 flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              {t('projects.actions.newTask')}
-            </Button>
+            {!isExpertOnly && (
+              <Button onClick={() => navigate('/projects/tasks/new')} className="h-11 flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                {t('projects.actions.newTask')}
+              </Button>
+            )}
           </div>
 
           {/* Stats Cards */}

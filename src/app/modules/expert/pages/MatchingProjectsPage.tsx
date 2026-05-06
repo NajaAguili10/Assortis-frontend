@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useMemo, useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
 import { Filter, RotateCcw, Layers, Lock, CalendarDays, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from '@app/contexts/LanguageContext';
@@ -42,9 +42,22 @@ const DEFAULT_FILTERS: MatchingProjectsFilterDTO = {
   dateRange: '5days',
 };
 
+const TYPE_PARAM_MAP: Record<string, OpportunityTypeEnum> = {
+  'open-projects': OpportunityTypeEnum.OPEN_PROJECT,
+  'contract-awards': OpportunityTypeEnum.CONTRACT_AWARD,
+  'shortlists': OpportunityTypeEnum.SHORTLIST,
+  'project-vacancies': OpportunityTypeEnum.PROJECT_VACANCY,
+  'in-house-vacancies': OpportunityTypeEnum.IN_HOUSE_VACANCY,
+  // legacy aliases from MatchingOpportunitiesPage ?type= format
+  'shortlist': OpportunityTypeEnum.SHORTLIST,
+  'contract': OpportunityTypeEnum.CONTRACT_AWARD,
+  'vacancy': OpportunityTypeEnum.PROJECT_VACANCY,
+};
+
 export default function MatchingProjectsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const isSubscribed = user?.isSubscribed !== false;
 
@@ -57,7 +70,20 @@ export default function MatchingProjectsPage() {
     getFilteredMatchingProjects,
   } = useMatchingOpportunities();
 
-  const [filters, setFilters] = useState<MatchingProjectsFilterDTO>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState<MatchingProjectsFilterDTO>(() => {
+    const typeParam = searchParams.get('type');
+    const mappedType = typeParam ? (TYPE_PARAM_MAP[typeParam] ?? 'ALL') : 'ALL';
+    return { ...DEFAULT_FILTERS, category: mappedType };
+  });
+
+  // Sync category when ?type= param changes (e.g. browser back/forward)
+  useEffect(() => {
+    const typeParam = searchParams.get('type');
+    const mappedType: OpportunityTypeEnum | 'ALL' = typeParam
+      ? (TYPE_PARAM_MAP[typeParam] ?? 'ALL')
+      : 'ALL';
+    setFilters(f => ({ ...f, category: mappedType }));
+  }, [searchParams]);
   const [showCustomDate, setShowCustomDate] = useState(false);
 
   const countries = useMemo(() => {

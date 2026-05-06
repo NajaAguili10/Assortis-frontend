@@ -65,9 +65,9 @@ export function StatisticsSubMenu() {
       onClick: () => navigate('/statistics/market-trends'),
     },
     
-    // Pricing and policy share one page.
+    // Pricing and policy share one page. For experts: show as "Experts Fees"
     canAccessPricingExperts && {
-      label: t('statistics.tabs.pricingPolicy'),
+      label: isExpert ? t('statistics.tabs.expertsFees') : t('statistics.tabs.pricingPolicy'),
       icon: DollarSign,
       active: activeTab === 'pricingExperts',
       onClick: () => navigate('/statistics/pricing-experts'),
@@ -89,17 +89,17 @@ export function StatisticsSubMenu() {
       onClick: () => navigate('/statistics/competitors'),
     },
 
-    // Expert: Peer Insights | Organization: Map Insights
-    canAccessMapInsights && {
-      label: isExpert ? t('statistics.tabs.peerInsights') : t('statistics.tabs.insights'),
-      icon: isExpert ? Users : Globe,
+    // Expert: Hidden (Peer Insights removed) | Organization: Map Insights
+    !isExpert && canAccessMapInsights && {
+      label: t('statistics.tabs.insights'),
+      icon: Globe,
       active: activeTab === 'mapInsights',
       onClick: () => navigate('/statistics/map-insights'),
     },
 
-    // Expert: My Insights | Organization: Usage Analytics
-    canAccessUsageAnalytics && {
-      label: isExpert ? t('statistics.tabs.myInsights') : t('statistics.tabs.usageAnalytics'),
+    // Expert: Usage Analytics | Organization: Usage Analytics
+    (canAccessUsageAnalytics || isExpert) && {
+      label: t('statistics.tabs.usageAnalytics'),
       icon: Activity,
       active: activeTab === 'usageAnalytics',
       onClick: () => navigate('/statistics/usage-analytics'),

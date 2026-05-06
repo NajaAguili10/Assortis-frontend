@@ -35,9 +35,11 @@
     'projects.submenu.tasks': 'Tasks',
     'projects.submenu.templates': 'Templates',
     'projects.submenu.matching': 'Matching',
+    'projects.submenu.home': 'Home',
     'projects.submenu.matchingDossier': 'Matching Archive',
     'projects.submenu.contractors': 'Contractors',
     'projects.submenu.organizationsScoring': 'Organizations Scoring',
+    'projects.submenu.savedProjects': 'Saved Projects',
 
     // Expert Contractors
     'projects.contractors.title': 'Contractors',
@@ -537,14 +539,6 @@
     'projects.sort.completion': 'Most completed',
     'projects.sort.name': 'Name (A-Z)',
     
-    // Status
-    'projects.status.PLANNING': 'Planning',
-    'projects.status.ACTIVE': 'Active',
-    'projects.status.ON_HOLD': 'On Hold',
-    'projects.status.COMPLETED': 'Completed',
-    'projects.status.CANCELLED': 'Cancelled',
-    'projects.status.ARCHIVED': 'Archived',
-    
     // Priority
     'projects.priority.LOW': 'Low',
     'projects.priority.MEDIUM': 'Medium',
@@ -783,7 +777,6 @@
     'projects.tasks.status.IN_PROGRESS': 'In Progress',
     'projects.tasks.status.REVIEW': 'Review',
     'projects.tasks.status.COMPLETED': 'Completed',
-    'projects.tasks.assignedTo': 'Assigned to',
     'projects.tasks.startDate': 'Start date',
     'projects.tasks.dueDate': 'Due date',
     'projects.tasks.overdue': 'Overdue',
@@ -947,9 +940,11 @@
     'projects.submenu.tasks': 'TÃ¢ches',
     'projects.submenu.templates': 'ModÃ¨les',
     'projects.submenu.matching': 'Matching',
+    'projects.submenu.home': 'Accueil',
     'projects.submenu.matchingDossier': 'Dossier Matching',
     'projects.submenu.contractors': 'Contractants',
     'projects.submenu.organizationsScoring': 'Notation des organisations',
+    'projects.submenu.savedProjects': 'Projets sauvegardés',
 
     // Expert Contractors
     'projects.contractors.title': 'Contractants',
@@ -1449,14 +1444,6 @@
     'projects.sort.completion': 'Plus complÃ©tÃ©s',
     'projects.sort.name': 'Nom (A-Z)',
     
-    // Status
-    'projects.status.PLANNING': 'Planification',
-    'projects.status.ACTIVE': 'Actif',
-    'projects.status.ON_HOLD': 'En attente',
-    'projects.status.COMPLETED': 'ComplÃ©tÃ©',
-    'projects.status.CANCELLED': 'AnnulÃ©',
-    'projects.status.ARCHIVED': 'ArchivÃ©',
-    
     // Priority
     'projects.priority.LOW': 'Faible',
     'projects.priority.MEDIUM': 'Moyenne',
@@ -1695,7 +1682,6 @@
     'projects.tasks.status.IN_PROGRESS': 'En cours',
     'projects.tasks.status.REVIEW': 'RÃ©vision',
     'projects.tasks.status.COMPLETED': 'TerminÃ©',
-    'projects.tasks.assignedTo': 'AssignÃ© Ã ',
     'projects.tasks.startDate': 'Date de dÃ©but',
     'projects.tasks.dueDate': 'Date d\'Ã©chÃ©ance',
     'projects.tasks.overdue': 'En retard',
@@ -1852,9 +1838,11 @@
     'projects.submenu.tasks': 'Tareas',
     'projects.submenu.templates': 'Plantillas',
     'projects.submenu.matching': 'Matching',
+    'projects.submenu.home': 'Inicio',
     'projects.submenu.matchingDossier': 'Archivo Matching',
     'projects.submenu.contractors': 'Contratistas',
     'projects.submenu.organizationsScoring': 'EvaluaciÃ³n de organizaciones',
+    'projects.submenu.savedProjects': 'Proyectos guardados',
 
     // Expert Contractors
     'projects.contractors.title': 'Contratistas',

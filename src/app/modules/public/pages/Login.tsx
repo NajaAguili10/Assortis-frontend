@@ -48,7 +48,8 @@ const Login = () => {
         // Scenario 1: Complete user with payment - Login normally
         await login(email, password);
         setLoading(false);
-        navigate('/calls/overview');
+        const accountType = authResult.userData.accountType;
+        navigate(accountType === 'expert' ? '/experts/dashboard' : '/calls/overview');
       } else if (authResult.userType === 'incomplete' && authResult.userData) {
         // Scenario 2: Incomplete signup - Show modal to continue registration
         setIncompleteSignupData(authResult.userData as IncompleteSignupData);
@@ -79,7 +80,7 @@ const Login = () => {
 
     try {
       await quickLogin(accountType);
-      navigate('/calls/overview');
+      navigate(accountType === 'expert' ? '/experts/dashboard' : '/calls/overview');
     } catch (err: any) {
       setError(err.message || t('auth.login.invalidCredentials'));
     } finally {
