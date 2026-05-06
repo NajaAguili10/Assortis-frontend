@@ -25,6 +25,7 @@ import {
   Database,
   UsersRound,
   Handshake,
+  Search,
   Archive,
   FilePlus2,
 } from 'lucide-react';
@@ -49,12 +50,16 @@ export default function OrganizationsHub() {
   const { kpis } = useOrganizations();
   const { user } = useAuth();
 
+  // V�rifier les permissions d'acc�s
   const hasAccess = hasOrganizationsAccess(user?.accountType);
 
+  // Pour Expert : Database, Matching, Dossier Matching
+  // Pour Organization/Organization/Admin : toutes les fonctionnalit�s
   const isExpert = user?.accountType === 'expert';
   const isOrgOrAdmin =
     user?.accountType === 'organization' || user?.accountType === 'admin';
 
+  // Matching et Dossier Matching visibles pour Expert, Organization, Organization, Admin
   const canAccessMatching = isExpert || isOrgOrAdmin;
 
   const [teamKpis, setTeamKpis] = useState({
@@ -115,6 +120,7 @@ export default function OrganizationsHub() {
     });
   }, [isOrgOrAdmin]);
 
+  // D�finir les sous-menus et leurs descriptions pour la page d'acc�s refus�
   const subMenuItems = [
     {
       label: t('organizations.submenu.database'),
@@ -136,6 +142,7 @@ export default function OrganizationsHub() {
 
   return (
     <div className="min-h-screen">
+      {/* Banner */}
       <PageBanner
         title={t('organizations.hub.title')}
         description={t('organizations.hub.subtitle')}
@@ -160,8 +167,10 @@ export default function OrganizationsHub() {
         }
       />
 
+      {/* Sub Menu */}
       <OrganizationsSubMenu />
 
+      {/* Contenu selon les permissions */}
       {!hasAccess ? (
         <AccessDenied
           module="organizations"
@@ -171,6 +180,7 @@ export default function OrganizationsHub() {
       ) : (
         <PageContainer className="my-6">
           <div className="px-4 sm:px-5 lg:px-6 py-6">
+            {/* KPIs Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
               <StatCard
                 title={t('organizations.kpis.activeOrganizations')}
@@ -183,6 +193,7 @@ export default function OrganizationsHub() {
               <StatCard
                 title={t('organizations.kpis.verifiedOrganizations')}
                 value={kpis.verifiedOrganizations.toString()}
+                subtitle={t('organizations.kpis.verifiedOrganizations')}
                 icon={Target}
                 iconBgColor="bg-yellow-50"
                 iconColor="text-yellow-500"
@@ -198,6 +209,7 @@ export default function OrganizationsHub() {
               <StatCard
                 title={t('organizations.kpis.countriesCovered')}
                 value={kpis.countriesCovered.toString()}
+                subtitle={t('organizations.kpis.globalPresence')}
                 icon={Globe}
                 iconBgColor="bg-purple-50"
                 iconColor="text-purple-500"
@@ -206,21 +218,35 @@ export default function OrganizationsHub() {
 
             <Separator className="my-6" />
 
+            {/* Quick Actions - Seulement pour Organization/Organization/Admin */}
             {isOrgOrAdmin && (
               <div className="mb-6">
                 <h2 className="text-xl font-bold text-primary mb-4">{t('actions.quick')}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <ActionCard title={t('organizations.actions.updateProfile')} icon={Sparkles} onClick={() => navigate('/organizations/my-organization')} />
-                  <ActionCard title={t('organizations.actions.createTender')} icon={FilePlus2} onClick={() => navigate('/organizations/create-tender')} />
-                  <ActionCard title={t('organizations.invite.title')} icon={UserPlus} onClick={() => navigate('/organizations/invite')} />
+                  <ActionCard
+                      title={t('organizations.actions.updateProfile')}
+                      icon={Sparkles}
+                      onClick={() => navigate('/organizations/my-organization')}
+                  />
+                  <ActionCard
+                      title={t('organizations.actions.createTender')}
+                      icon={FilePlus2} onClick={() => navigate('/organizations/create-tender')}
+                  />
+                  <ActionCard
+                      title={t('organizations.invite.title')}
+                      icon={UserPlus} onClick={() => navigate('/organizations/invite')}
+                  />
                 </div>
               </div>
             )}
 
             {isOrgOrAdmin && <Separator className="my-6" />}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <TenderFeatureCard
+            {/* Feature Cards Section */}
+            <div className="mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Database Card */}
+                <TenderFeatureCard
                 titleKey="organizations.card.database.title"
                 descriptionKey="organizations.card.database.description"
                 icon={Database}
@@ -233,6 +259,7 @@ export default function OrganizationsHub() {
                 link="/organizations/database"
               />
 
+              {/* Teams Card - Seulement pour Organization/Organization/Admin */}
               {isOrgOrAdmin && (
                 <TenderMetricsCard
                   titleKey="organizations.card.teams.title"
@@ -241,6 +268,7 @@ export default function OrganizationsHub() {
                   iconBgColor="bg-green-50"
                   iconColor="bg-green-500"
                   badge={loadingTeamsKpis ? '...' : teamKpis.activeMembers}
+                  badgeVariant="default"
                   metrics={[
                     {
                       labelKey: 'organizations.teams.active',
@@ -260,6 +288,7 @@ export default function OrganizationsHub() {
                 />
               )}
 
+              {/* Partnerships Card - Seulement pour Organization/Organization/Admin */}
               {isOrgOrAdmin && (
                 <TenderMetricsCard
                   titleKey="organizations.card.partnerships.title"
@@ -268,14 +297,42 @@ export default function OrganizationsHub() {
                   iconBgColor="bg-purple-50"
                   iconColor="text-purple-500"
                   metrics={[
-                    { labelKey: 'organizations.partnerships.active', value: kpis.partnerships, highlight: true },
-                    { labelKey: 'organizations.kpis.newPartnerships', value: kpis.newPartnerships },
-                    { labelKey: 'organizations.kpis.countriesCovered', value: kpis.countriesCovered },
+                    {
+                      labelKey: 'organizations.partnerships.active',
+                      value: kpis.partnerships,
+                      highlight: true
+                    },
+                    {
+                      labelKey: 'organizations.kpis.newPartnerships',
+                      value: kpis.newPartnerships
+                    },
+                    {
+                      labelKey: 'organizations.kpis.countriesCovered',
+                      value: kpis.countriesCovered,
+                      trend: 5
+                    },
                   ]}
                   link="/organizations/partnerships"
                 />
               )}
 
+              {/* My Organization Card - Seulement pour Organization/Organization/Admin */}
+              {isOrgOrAdmin && (
+                  <TenderFeatureCard
+                      titleKey="organizations.card.myOrganization.title"
+                      descriptionKey="organizations.card.myOrganization.description"
+                      icon={Building2}
+                      iconBgColor="bg-cyan-50"
+                      iconColor="text-cyan-500"
+                      stats={[
+                        { labelKey: 'organizations.myOrganization.completionRate', value: 87 },
+                        { labelKey: 'organizations.myOrganization.projects.active', value: 24 },
+                      ]}
+                      link="/organizations/my-organization"
+                  />
+              )}
+
+              {/* Matching Card - Seulement pour Organization/Organization/Admin */}
               {canAccessMatching && (
                 <TenderMetricsCard
                   titleKey="organizations.card.matching.title"
@@ -284,15 +341,25 @@ export default function OrganizationsHub() {
                   iconBgColor="bg-amber-50"
                   iconColor="text-amber-500"
                   metrics={[
-                    { labelKey: 'organizations.matching.stats.available', value: 4, highlight: true },
-                    { labelKey: 'organizations.matching.stats.highMatches', value: 2 },
-                    { labelKey: 'organizations.matching.stats.avgScore', value: 86 },
+                    { labelKey: 'organizations.matching.stats.available',
+                      value: 4,
+                      highlight: true
+                    },
+                    {
+                      labelKey: 'organizations.matching.stats.highMatches',
+                      value: 2
+                    },
+                    {
+                      labelKey: 'organizations.matching.stats.avgScore',
+                      value: 86
+                    },
                   ]}
                   link="/organizations/matching"
                 />
               )}
 
-              {canAccessMatching && (
+                {/* Dossier Matching Card - Seulement pour Organization/Organization/Admin */}
+                {canAccessMatching && (
                 <TenderMetricsCard
                   titleKey="organizations.card.matchingDossier.title"
                   descriptionKey="organizations.card.matchingDossier.description"
@@ -300,13 +367,22 @@ export default function OrganizationsHub() {
                   iconBgColor="bg-rose-50"
                   iconColor="text-rose-500"
                   metrics={[
-                    { labelKey: 'organizations.matchingDossier.stats.totalSaved', value: 0, highlight: true },
-                    { labelKey: 'organizations.matchingDossier.stats.thisMonth', value: 0 },
-                    { labelKey: 'organizations.matchingDossier.stats.highMatches', value: 0 },
+                    { labelKey: 'organizations.matchingDossier.stats.totalSaved',
+                      value: 0,
+                      highlight: true
+                    },
+                    {
+                      labelKey: 'organizations.matchingDossier.stats.thisMonth',
+                      value: 0 },
+                    {
+                      labelKey: 'organizations.matchingDossier.stats.highMatches',
+                      value: 0
+                    },
                   ]}
                   link="/organizations/matching-dossier"
                 />
               )}
+              </div>
             </div>
           </div>
         </PageContainer>
