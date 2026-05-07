@@ -44,6 +44,22 @@ export interface OrganizationBackend {
   employeesCount?: number | null;
   annualTurnover?: number | null;
   yearFounded?: number | null;
+  registrationNumber?: string | null;
+  contactPhone?: string | null;
+  address?: string | null;
+  postalCode?: string | null;
+  equipmentInfrastructure?: string | null;
+  activeProjects?: number | null;
+  completedProjects?: number | null;
+  teamMembers?: number | null;
+  partnerships?: number | null;
+  certifications?: OrganizationCertificationDTO[] | null;
+  sectors?: SectorDTO[] | null;
+  subsectors?: SubsectorDTO[] | null;
+  languages?: string[] | null;
+  services?: string[] | null;
+  operatingRegions?: string[] | null;
+  partnershipNames?: string[] | null;
   [key: string]: any;
 }
 

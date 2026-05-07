@@ -64,9 +64,7 @@ export const apiClient = {
   put: async <T>(endpoint: string, data: any): Promise<T> => {
     const response = await fetch(`${BASE_URL}${endpoint}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getHeaders(),
       body: JSON.stringify(data),
     });
 
@@ -75,6 +73,11 @@ export const apiClient = {
       try {
         errorData = await response.json();
       } catch (e) {}
+      if (response.status === 401) {
+        localStorage.removeItem('assortis_token');
+        localStorage.removeItem('assortis_user');
+        window.location.href = '/login';
+      }
       const err: any = new Error(errorData.message || `API error: ${response.status} ${response.statusText}`);
       err.response = { data: errorData };
       throw err;
@@ -86,9 +89,7 @@ export const apiClient = {
   delete: async (endpoint: string): Promise<void> => {
     const response = await fetch(`${BASE_URL}${endpoint}`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getHeaders(),
     });
 
     if (!response.ok) {
@@ -96,6 +97,11 @@ export const apiClient = {
       try {
         errorData = await response.json();
       } catch (e) {}
+      if (response.status === 401) {
+        localStorage.removeItem('assortis_token');
+        localStorage.removeItem('assortis_user');
+        window.location.href = '/login';
+      }
       const err: any = new Error(errorData.message || `API error: ${response.status} ${response.statusText}`);
       err.response = { data: errorData };
       throw err;

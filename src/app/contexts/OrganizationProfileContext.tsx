@@ -40,6 +40,9 @@ export interface OrganizationProfile {
   subsectors: SubSectorEnum[];
   countries: string[];
   languages: string[];
+  selectedServices?: string[];
+  annualBudget?: number;
+  projectsCompleted?: number;
   budgetRange: {
     min: number;
     max: number;

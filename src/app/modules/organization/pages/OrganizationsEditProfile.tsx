@@ -1,5 +1,6 @@
 ﻿import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router';
+import { useEffect } from 'react';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useOrganizationProfile } from '@app/contexts/OrganizationProfileContext';
 import { PageBanner } from '@app/components/PageBanner';
@@ -7,7 +8,7 @@ import { PageContainer } from '@app/components/PageContainer';
 import { OrganizationsSubMenu } from '@app/components/OrganizationsSubMenu';
 import { OrganizationVerificationBadge } from '@app/components/OrganizationVerificationBadge';
 import { useOrganizations } from '@app/modules/organization/hooks/useOrganizations';
-import { myOrganizationData } from '@app/modules/organization/data/myOrganizationData';
+import { organizationService } from '@app/services/organizationService';
 import { Button } from '@app/components/ui/button';
 import { Input } from '@app/components/ui/input';
 import { Label } from '@app/components/ui/label';
@@ -97,6 +98,61 @@ const PROFILE_VALIDATION_SECTIONS = [
   'projects',
 ] as const;
 
+const mapBackendOrganizationTypeToFormValue = (type?: string) => {
+  switch (type) {
+    case 'NGO':
+      return 'ngo';
+    case 'GOVERNMENT':
+      return 'government';
+    case 'ACADEMIC':
+      return 'academic';
+    case 'CONSORTIUM':
+      return 'consortium';
+    case 'FOUNDATION':
+      return 'donor';
+    case 'PRIVATE_SECTOR':
+    case 'INTERNATIONAL_ORG':
+    default:
+      return 'privateOrg';
+  }
+};
+
+const createEmptyFormData = () => ({
+  // Step 1: Basic Information (Pre-filled with existing data from myOrganizationData)
+  orgName: '',
+  orgType: '',
+  legalName: '',
+  registrationNumber: '',
+  foundedYear: '',
+  description: '',
+  
+  // Step 2: Contact & Location (Pre-filled from myOrganizationData)
+  email: '',
+  phone: '',
+  website: '',
+  address: '',
+  city: '',
+  country: '',
+  postalCode: '',
+  
+  // Step 3: Operations & Expertise (Pre-filled from myOrganizationData) - Multiple sectors selection
+  operatingRegions: [] as string[],
+  selectedSector: [] as string[],
+  subsectors: [] as string[],
+  languages: [] as string[],
+  
+  // Step 4: Team & Resources (Pre-filled from myOrganizationData)
+  teamSize: '',
+  experts: '',
+  
+  // Step 5: Financial & Projects (Pre-filled from myOrganizationData)
+  annualBudget: '',
+  projectsCompleted: '',
+  
+  // Step 6: Services (Pre-filled from myOrganizationData)
+  selectedServices: [] as string[],
+});
+
 export default function OrganizationsEditProfile() {
   const { t } = useLanguage();
   const navigate = useNavigate();
@@ -104,45 +160,12 @@ export default function OrganizationsEditProfile() {
   const { profile: organizationProfile, updateProfile, markSectionsForValidation } = useOrganizationProfile();
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 6;
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Load data from centralized organization data source
-  const [formData, setFormData] = useState({
-    // Step 1: Basic Information (Pre-filled with existing data from myOrganizationData)
-    orgName: organizationProfile?.name || myOrganizationData.name,
-    orgType: myOrganizationData.type,
-    legalName: myOrganizationData.legalName,
-    registrationNumber: myOrganizationData.registrationNumber,
-    foundedYear: myOrganizationData.yearEstablished.toString(),
-    description: organizationProfile?.description || myOrganizationData.description,
-    
-    // Step 2: Contact & Location (Pre-filled from myOrganizationData)
-    email: myOrganizationData.email,
-    phone: myOrganizationData.phone,
-    website: myOrganizationData.website,
-    address: myOrganizationData.address,
-    city: myOrganizationData.city,
-    country: myOrganizationData.country,
-    postalCode: myOrganizationData.postalCode,
-    
-    // Step 3: Operations & Expertise (Pre-filled from myOrganizationData) - Multiple sectors selection
-    operatingRegions: myOrganizationData.operatingRegions as string[],
-    selectedSector: typeof myOrganizationData.selectedSector === 'string' 
-      ? [myOrganizationData.selectedSector]
-      : (myOrganizationData.selectedSector as string[] || []),
-    subsectors: organizationProfile?.subsectors || myOrganizationData.subsectors as string[],
-    languages: organizationProfile?.languages || myOrganizationData.languages as string[],
-    
-    // Step 4: Team & Resources (Pre-filled from myOrganizationData)
-    teamSize: organizationProfile?.teamSize?.toString() || myOrganizationData.teamSize.toString(),
-    experts: myOrganizationData.experts.toString(),
-    
-    // Step 5: Financial & Projects (Pre-filled from myOrganizationData)
-    annualBudget: organizationProfile?.annualBudget?.toString() || myOrganizationData.annualBudget.toString(),
-    projectsCompleted: organizationProfile?.projectsCompleted?.toString() || myOrganizationData.projectsCompleted.toString(),
-    
-    // Step 6: Services (Pre-filled from myOrganizationData)
-    selectedServices: organizationProfile?.selectedServices || myOrganizationData.selectedServices as string[],
-  });
+  const [formData, setFormData] = useState(createEmptyFormData);
 
   const availableSubsectors = useMemo(() => {
     if (!formData.selectedSector || !Array.isArray(formData.selectedSector) || formData.selectedSector.length === 0) return [];
@@ -157,6 +180,94 @@ export default function OrganizationsEditProfile() {
     // Remove duplicates
     return [...new Set(allSubsectors)];
   }, [formData.selectedSector]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchOrganizationProfile = async () => {
+      try {
+        setIsLoading(true);
+        setErrorMessage(null);
+        const profileData = await organizationService.getCurrentOrganizationProfile();
+
+        if (cancelled) {
+          return;
+        }
+
+        setFormData({
+          // Step 1: Basic Information (Pre-filled with existing data from myOrganizationData)
+          orgName: profileData.name || '',
+          orgType: mapBackendOrganizationTypeToFormValue(profileData.type),
+          legalName: profileData.legalName || '',
+          registrationNumber: profileData.registrationNumber || '',
+          foundedYear: profileData.yearFounded ? String(profileData.yearFounded) : '',
+          description: profileData.description || '',
+          
+          // Step 2: Contact & Location (Pre-filled from myOrganizationData)
+          email: profileData.email || '',
+          phone: profileData.phone || '',
+          website: profileData.website || '',
+          address: profileData.address || '',
+          city: profileData.city || '',
+          country: profileData.country || '',
+          postalCode: profileData.postalCode || '',
+          
+          // Step 3: Operations & Expertise (Pre-filled from myOrganizationData) - Multiple sectors selection
+          operatingRegions: profileData.operatingRegions || [],
+          selectedSector: profileData.sectors || [],
+          subsectors: profileData.subsectors || [],
+          languages: profileData.languages || [],
+          
+          // Step 4: Team & Resources (Pre-filled from myOrganizationData)
+          teamSize: profileData.teamSize ? String(profileData.teamSize) : '',
+          experts: profileData.experts ? String(profileData.experts) : '',
+          
+          // Step 5: Financial & Projects (Pre-filled from myOrganizationData)
+          annualBudget: profileData.annualBudget ? String(profileData.annualBudget) : '',
+          projectsCompleted: profileData.projectsCompleted ? String(profileData.projectsCompleted) : '',
+          
+          // Step 6: Services (Pre-filled from myOrganizationData)
+          selectedServices: profileData.selectedServices || [],
+        });
+
+        updateProfile({
+          id: profileData.id,
+          name: profileData.name,
+          description: profileData.description,
+          sectors: profileData.sectors as any,
+          subsectors: profileData.subsectors as any,
+          countries: profileData.country ? [profileData.country] : [],
+          languages: profileData.languages,
+          selectedServices: profileData.selectedServices,
+          annualBudget: profileData.annualBudget,
+          projectsCompleted: profileData.projectsCompleted,
+          budgetRange: {
+            min: profileData.annualBudget ? Math.round(profileData.annualBudget * 0.1) : 0,
+            max: profileData.annualBudget || 0,
+          },
+          teamSize: profileData.teamSize,
+          yearsOfExperience: profileData.yearFounded ? Math.max(0, 2026 - profileData.yearFounded) : 0,
+          exists: true,
+        });
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Error fetching organization profile:', error);
+          setErrorMessage(t('common.error'));
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchOrganizationProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t]);
 
   const handleInputChange = (field: string, value: string | string[]) => {
     setFormData(prev => {
@@ -210,35 +321,91 @@ export default function OrganizationsEditProfile() {
     }
   };
 
-  const handleSave = () => {
-    markSectionsForValidation([...PROFILE_VALIDATION_SECTIONS], t('organizations.myOrganization.pendingValidation'));
-    toast.success(t('organizations.editProfile.saved'));
-    console.log('Saving draft:', formData);
-    // TODO: Save to backend
-  };
-
-  const handleSubmit = () => {
-    // Update the organization profile context with the new data
+  const syncProfileState = (profileData: Awaited<ReturnType<typeof organizationService.getCurrentOrganizationProfile>>) => {
     updateProfile({
-      name: formData.orgName,
-      description: formData.description,
-      sectors: formData.selectedSector ? formData.selectedSector as any[] : [],
-      subsectors: formData.subsectors as any[],
-      countries: [formData.country],
-      languages: formData.languages,
+      id: profileData.id,
+      name: profileData.name,
+      description: profileData.description,
+      sectors: profileData.sectors as any,
+      subsectors: profileData.subsectors as any,
+      countries: profileData.country ? [profileData.country] : [],
+      languages: profileData.languages,
+      selectedServices: profileData.selectedServices,
+      annualBudget: profileData.annualBudget,
+      projectsCompleted: profileData.projectsCompleted,
       budgetRange: {
-        min: parseInt(formData.annualBudget) * 0.1 || 0,
-        max: parseInt(formData.annualBudget) || 0,
+        min: profileData.annualBudget ? Math.round(profileData.annualBudget * 0.1) : 0,
+        max: profileData.annualBudget || 0,
       },
-      teamSize: parseInt(formData.teamSize) || 0,
-      yearsOfExperience: 2026 - parseInt(formData.foundedYear) || 0,
+      teamSize: profileData.teamSize,
+      yearsOfExperience: profileData.yearFounded ? Math.max(0, 2026 - profileData.yearFounded) : 0,
       exists: true,
     });
+  };
+
+  const persistProfile = async () => {
+    setIsSaving(true);
+    setErrorMessage(null);
+    try {
+      const savedProfile = await organizationService.updateCurrentOrganizationProfile(formData);
+      setFormData({
+        // Step 1: Basic Information (Pre-filled with existing data from myOrganizationData)
+        orgName: savedProfile.name || '',
+        orgType: mapBackendOrganizationTypeToFormValue(savedProfile.type),
+        legalName: savedProfile.legalName || '',
+        registrationNumber: savedProfile.registrationNumber || '',
+        foundedYear: savedProfile.yearFounded ? String(savedProfile.yearFounded) : '',
+        description: savedProfile.description || '',
+        
+        // Step 2: Contact & Location (Pre-filled from myOrganizationData)
+        email: savedProfile.email || '',
+        phone: savedProfile.phone || '',
+        website: savedProfile.website || '',
+        address: savedProfile.address || '',
+        city: savedProfile.city || '',
+        country: savedProfile.country || '',
+        postalCode: savedProfile.postalCode || '',
+        
+        // Step 3: Operations & Expertise (Pre-filled from myOrganizationData) - Multiple sectors selection
+        operatingRegions: savedProfile.operatingRegions || [],
+        selectedSector: savedProfile.sectors || [],
+        subsectors: savedProfile.subsectors || [],
+        languages: savedProfile.languages || [],
+        
+        // Step 4: Team & Resources (Pre-filled from myOrganizationData)
+        teamSize: savedProfile.teamSize ? String(savedProfile.teamSize) : '',
+        experts: savedProfile.experts ? String(savedProfile.experts) : '',
+        
+        // Step 5: Financial & Projects (Pre-filled from myOrganizationData)
+        annualBudget: savedProfile.annualBudget ? String(savedProfile.annualBudget) : '',
+        projectsCompleted: savedProfile.projectsCompleted ? String(savedProfile.projectsCompleted) : '',
+        
+        // Step 6: Services (Pre-filled from myOrganizationData)
+        selectedServices: savedProfile.selectedServices || [],
+      });
+      syncProfileState(savedProfile);
+      return savedProfile;
+    } catch (error) {
+      console.error('Error saving organization profile:', error);
+      setErrorMessage(t('common.error'));
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSave = async () => {
+    await persistProfile();
+    markSectionsForValidation([...PROFILE_VALIDATION_SECTIONS], t('organizations.myOrganization.pendingValidation'));
+    toast.success(t('organizations.editProfile.saved'));
+  };
+
+  const handleSubmit = async () => {
+    await persistProfile();
 
     markSectionsForValidation([...PROFILE_VALIDATION_SECTIONS], t('organizations.myOrganization.pendingValidation'));
 
     toast.success(t('organizations.editProfile.success'));
-    console.log('Profile updated successfully');
     navigate('/organizations/my-organization');
   };
 
@@ -270,6 +437,13 @@ export default function OrganizationsEditProfile() {
 
       <PageContainer className="my-6">
         <div className="px-4 sm:px-5 lg:px-6 py-6">
+          {errorMessage && (
+            <Alert className="mb-6 border-destructive/20 bg-destructive/5 text-destructive">
+              <AlertTitle>{t('common.error')}</AlertTitle>
+              <AlertDescription>{errorMessage}</AlertDescription>
+            </Alert>
+          )}
+
           <div className="mb-6 flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-medium text-primary">
@@ -904,7 +1078,7 @@ export default function OrganizationsEditProfile() {
                 type="button"
                 variant="outline"
                 onClick={handlePrevious}
-                disabled={currentStep === 1}
+                disabled={currentStep === 1 || isLoading || isSaving}
                 className="gap-2"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -916,6 +1090,7 @@ export default function OrganizationsEditProfile() {
                   type="button"
                   variant="outline"
                   onClick={handleSave}
+                  disabled={isLoading || isSaving}
                   className="gap-2"
                 >
                   <Save className="w-4 h-4" />
@@ -925,6 +1100,7 @@ export default function OrganizationsEditProfile() {
                   <Button
                     type="button"
                     onClick={handleSubmit}
+                    disabled={isLoading || isSaving}
                     className="gap-2 bg-primary hover:bg-primary/90"
                   >
                     <Save className="w-4 h-4" />
@@ -934,6 +1110,7 @@ export default function OrganizationsEditProfile() {
                   <Button
                     type="button"
                     onClick={handleNext}
+                    disabled={isLoading || isSaving}
                     className="gap-2"
                   >
                     {t('organizations.form.next')}

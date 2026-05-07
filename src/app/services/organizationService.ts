@@ -61,6 +61,27 @@ const normalizeOrganizationType = (type?: string) => {
   return normalized;
 };
 
+const mapFormOrganizationTypeToBackend = (type?: string) => {
+  switch (type) {
+    case 'ngo':
+      return 'NGO';
+    case 'government':
+      return 'GOVERNMENT';
+    case 'academic':
+      return 'ACADEMIC';
+    case 'consortium':
+      return 'CONSORTIUM';
+    case 'donor':
+      return 'FOUNDATION';
+    case 'serviceProvider':
+    case 'company':
+    case 'privateOrg':
+      return 'PRIVATE_SECTOR';
+    default:
+      return normalizeOrganizationType(type);
+  }
+};
+
 const normalizeSector = (sector?: string | null): OrganizationSectorEnum[] => {
   if (!sector) return [];
 
@@ -210,6 +231,111 @@ const fetchOrganizations = async () => {
   return rawOrganizations.map(normalizeOrganization);
 };
 
+const normalizeCurrentOrganizationProfile = (org: OrganizationBackend) => ({
+  id: String(org.id),
+  name: org.name || '',
+  acronym: org.acronym || '',
+  type: normalizeOrganizationType(org.type),
+  legalName: org.legalName || '',
+  registrationNumber: org.registrationNumber || '',
+  yearFounded: org.yearFounded ?? null,
+  description: org.description || '',
+  email: org.contactEmail || '',
+  phone: org.contactPhone || '',
+  website: org.website || '',
+  address: org.address || '',
+  city: org.city?.name || '',
+  country: org.country?.name || '',
+  postalCode: org.postalCode || '',
+  region: org.region?.toUpperCase().replace(/[\s-]+/g, '_') || '',
+  operatingRegions: Array.isArray(org.operatingRegions)
+    ? org.operatingRegions.filter(Boolean)
+    : org.region
+      ? [org.region.toUpperCase().replace(/[\s-]+/g, '_')]
+      : [],
+  sectors: Array.isArray(org.sectors)
+    ? org.sectors.map((sector) => sector?.code || sector?.name).filter(Boolean)
+    : normalizeSector(org.mainSector),
+  subsectors: Array.isArray(org.subsectors)
+    ? org.subsectors.map((subsector) => subsector?.code || subsector?.name).filter(Boolean)
+    : [],
+  languages: Array.isArray(org.languages) ? org.languages.filter(Boolean) : [],
+  services: Array.isArray(org.services) ? org.services.filter(Boolean) : [],
+  teamSize: org.employeesCount ?? org.teamMembers ?? 0,
+  experts: org.teamMembers ?? 0,
+  annualBudget: typeof org.annualTurnover === 'number' ? org.annualTurnover : 0,
+  projectsCompleted: org.completedProjects ?? 0,
+  activeProjects: org.activeProjects ?? 0,
+  budget: typeof org.annualTurnover === 'number'
+    ? new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'EUR',
+      maximumFractionDigits: 0,
+    }).format(org.annualTurnover)
+    : '-',
+  totalBudget: typeof org.budget === 'number'
+    ? new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'EUR',
+      maximumFractionDigits: 0,
+    }).format(org.budget)
+    : '-',
+  employees: org.employeesCount != null ? String(org.employeesCount) : '-',
+  technicalCapacity: org.equipmentInfrastructure ? 'Available' : '-',
+  equipment: org.equipmentInfrastructure || '-',
+  certifications: Array.isArray(org.certifications)
+    ? org.certifications.map((certification) => certification.certificationName).filter(Boolean)
+    : [],
+  partnerships: Array.isArray(org.partnershipNames) ? org.partnershipNames.filter(Boolean) : [],
+  selectedServices: Array.isArray(org.services) ? org.services.filter(Boolean) : [],
+  status: org.verificationStatus || (org.isActive ? 'ACTIVE' : 'INACTIVE'),
+  successRate: '-',
+});
+
+const buildCurrentOrganizationUpdatePayload = (formData: {
+  orgName: string;
+  orgType: string;
+  legalName: string;
+  registrationNumber: string;
+  foundedYear: string;
+  description: string;
+  email: string;
+  phone: string;
+  website: string;
+  address: string;
+  city: string;
+  country: string;
+  postalCode: string;
+  operatingRegions: string[];
+  selectedSector: string[];
+  subsectors: string[];
+  languages: string[];
+  teamSize: string;
+  annualBudget: string;
+  selectedServices: string[];
+}) => ({
+  name: formData.orgName,
+  type: mapFormOrganizationTypeToBackend(formData.orgType),
+  legalName: formData.legalName,
+  registrationNumber: formData.registrationNumber,
+  yearFounded: formData.foundedYear ? parseInt(formData.foundedYear, 10) : null,
+  description: formData.description,
+  contactEmail: formData.email,
+  contactPhone: formData.phone,
+  website: formData.website,
+  address: formData.address,
+  city: formData.city,
+  country: formData.country,
+  postalCode: formData.postalCode,
+  region: formData.operatingRegions[0] || '',
+  sectors: formData.selectedSector,
+  subsectors: formData.subsectors,
+  languages: formData.languages,
+  employeesCount: formData.teamSize ? parseInt(formData.teamSize, 10) : 0,
+  annualTurnover: formData.annualBudget ? parseInt(formData.annualBudget, 10) : 0,
+  services: formData.selectedServices,
+});
+
 export const organizationService = {
   getOrganizationsList: async (filters?: OrganizationFilters, sortBy?: string) => {
     try {
@@ -256,6 +382,40 @@ export const organizationService = {
 
   getKPIs: async () => {
     return apiClient.get('/organizations/kpis');
+  },
+
+  getCurrentOrganizationProfile: async () => {
+    const response = await apiClient.get<OrganizationBackend>('/organizations/me');
+    return normalizeCurrentOrganizationProfile(response);
+  },
+
+  updateCurrentOrganizationProfile: async (formData: {
+    orgName: string;
+    orgType: string;
+    legalName: string;
+    registrationNumber: string;
+    foundedYear: string;
+    description: string;
+    email: string;
+    phone: string;
+    website: string;
+    address: string;
+    city: string;
+    country: string;
+    postalCode: string;
+    operatingRegions: string[];
+    selectedSector: string[];
+    subsectors: string[];
+    languages: string[];
+    teamSize: string;
+    annualBudget: string;
+    selectedServices: string[];
+  }) => {
+    const response = await apiClient.put<OrganizationBackend>(
+      '/organizations/me',
+      buildCurrentOrganizationUpdatePayload(formData),
+    );
+    return normalizeCurrentOrganizationProfile(response);
   },
 
   getFilters: async () => {

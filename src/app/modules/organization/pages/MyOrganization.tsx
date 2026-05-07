@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
 import { useOrganizationProfile } from '@app/contexts/OrganizationProfileContext';
-import { myOrganizationData } from '@app/modules/organization/data/myOrganizationData';
 import { useOrganizations } from '@app/modules/organization/hooks/useOrganizations';
+import { organizationService } from '@app/services/organizationService';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
 import { OrganizationsSubMenu } from '@app/components/OrganizationsSubMenu';
@@ -57,7 +57,7 @@ export default function MyOrganization() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { profile: organizationProfile } = useOrganizationProfile();
+  const { profile: organizationProfile, updateProfile } = useOrganizationProfile();
   const [activeSection, setActiveSection] = useState<string>('information');
   void activeSection; void setActiveSection;
   const isRestrictedOrganizationUser = isOrganizationUserRole(user?.accountType, user?.role);
@@ -77,6 +77,48 @@ export default function MyOrganization() {
   const [selectedType, setSelectedType] = useState<string>('');
   const [selectedRegion, setSelectedRegion] = useState<string>('');
   const [filteredOrganizations, setFilteredOrganizations] = useState(allOrganizations);
+  const [organizationData, setOrganizationData] = useState({
+    name: '',
+    acronym: '',
+    type: '',
+    legalName: '',
+    registrationNumber: '',
+    yearEstablished: null as number | null,
+    established: '',
+    description: '',
+    email: '',
+    phone: '',
+    website: '',
+    address: '',
+    city: '',
+    country: '',
+    postalCode: '',
+    region: '',
+    timezone: '-',
+    operatingRegions: [] as string[],
+    sectors: [] as string[],
+    selectedSector: '',
+    subsectors: [] as string[],
+    services: [] as string[],
+    languages: [] as string[],
+    teamSize: 0,
+    employees: '-',
+    experts: 0,
+    technicalCapacity: '-',
+    equipment: '-',
+    annualBudget: 0,
+    budget: '-',
+    totalBudget: '-',
+    projectsCompleted: 0,
+    activeProjects: 0,
+    successRate: '-',
+    certifications: [] as string[],
+    partnerships: [] as string[],
+    selectedServices: [] as string[],
+    status: 'INACTIVE',
+  });
+  const [organizationLoading, setOrganizationLoading] = useState(false);
+  const [organizationError, setOrganizationError] = useState<string | null>(null);
 
   // Filter organizations based on search and filters
   const handleFilterOrganizations = () => {
@@ -117,6 +159,69 @@ export default function MyOrganization() {
     handleFilterOrganizations();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, selectedSector, selectedType, selectedRegion, allOrganizations]);
+
+  useEffect(() => {
+    if (accountType === 'expert') {
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchOrganization = async () => {
+      try {
+        setOrganizationLoading(true);
+        setOrganizationError(null);
+        const profileData = await organizationService.getCurrentOrganizationProfile();
+
+        if (cancelled) {
+          return;
+        }
+
+        setOrganizationData({
+          ...profileData,
+          established: profileData.yearFounded ? String(profileData.yearFounded) : '',
+          selectedSector: profileData.sectors[0] || '',
+          timezone: '-',
+        });
+
+        updateProfile({
+          id: profileData.id,
+          name: profileData.name,
+          description: profileData.description,
+          sectors: profileData.sectors as any,
+          subsectors: profileData.subsectors as any,
+          countries: profileData.country ? [profileData.country] : [],
+          languages: profileData.languages,
+          selectedServices: profileData.selectedServices,
+          annualBudget: profileData.annualBudget,
+          projectsCompleted: profileData.projectsCompleted,
+          budgetRange: {
+            min: profileData.annualBudget ? Math.round(profileData.annualBudget * 0.1) : 0,
+            max: profileData.annualBudget || 0,
+          },
+          teamSize: profileData.teamSize,
+          yearsOfExperience: profileData.yearFounded ? Math.max(0, 2026 - profileData.yearFounded) : 0,
+          exists: true,
+        });
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Error fetching organization profile:', error);
+          setOrganizationError(t('common.error'));
+        }
+      } finally {
+        if (!cancelled) {
+          setOrganizationLoading(false);
+        }
+      }
+    };
+
+    fetchOrganization();
+
+    return () => {
+      cancelled = true;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountType, t]);
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -368,60 +473,6 @@ export default function MyOrganization() {
 
   // Render Organization View - Profile Display
   const renderOrganizationView = () => {
-    // Merge context data with mock data, giving priority to context
-    const organizationData = {
-      name: organizationProfile.name || myOrganizationData.name,
-      acronym: myOrganizationData.acronym,
-      type: myOrganizationData.type,
-      legalName: myOrganizationData.legalName,
-      registrationNumber: myOrganizationData.registrationNumber,
-      yearEstablished: myOrganizationData.yearEstablished,
-      established: organizationProfile.yearsOfExperience
-        ? String(2026 - organizationProfile.yearsOfExperience)
-        : myOrganizationData.established,
-      description: organizationProfile.description || myOrganizationData.description,
-      email: myOrganizationData.email,
-      phone: myOrganizationData.phone,
-      website: myOrganizationData.website,
-      address: myOrganizationData.address,
-      city: myOrganizationData.city,
-      country: organizationProfile.countries.length > 0
-        ? organizationProfile.countries[0]
-        : myOrganizationData.country,
-      postalCode: myOrganizationData.postalCode,
-      region: myOrganizationData.region,
-      timezone: myOrganizationData.timezone,
-      operatingRegions: myOrganizationData.operatingRegions,
-      sectors: organizationProfile.sectors.length > 0
-        ? organizationProfile.sectors
-        : myOrganizationData.sectors,
-      selectedSector: organizationProfile.sectors.length > 0
-        ? organizationProfile.sectors[0]
-        : myOrganizationData.selectedSector,
-      subsectors: organizationProfile.subsectors.length > 0
-        ? organizationProfile.subsectors
-        : myOrganizationData.subsectors,
-      services: myOrganizationData.services,
-      languages: organizationProfile.languages.length > 0
-        ? organizationProfile.languages
-        : myOrganizationData.languages,
-      teamSize: organizationProfile.teamSize || myOrganizationData.teamSize,
-      employees: myOrganizationData.employees,
-      experts: myOrganizationData.experts,
-      technicalCapacity: myOrganizationData.technicalCapacity,
-      equipment: myOrganizationData.equipment,
-      annualBudget: organizationProfile.budgetRange.max || myOrganizationData.annualBudget,
-      budget: myOrganizationData.budget,
-      totalBudget: myOrganizationData.totalBudget,
-      projectsCompleted: myOrganizationData.projectsCompleted,
-      activeProjects: myOrganizationData.activeProjects,
-      successRate: myOrganizationData.successRate,
-      certifications: myOrganizationData.certifications,
-      partnerships: myOrganizationData.partnerships,
-      selectedServices: myOrganizationData.selectedServices,
-      status: myOrganizationData.status,
-    };
-
     const completionRate = organizationProfile.completionRate;
 
     return (
@@ -441,6 +492,12 @@ export default function MyOrganization() {
 
         <PageContainer className="my-6">
           <div className="px-4 sm:px-5 lg:px-6 py-6 space-y-6">
+            {organizationError && (
+              <Alert className="border-destructive/20 bg-destructive/5 text-destructive">
+                <AlertTitle>{t('common.error')}</AlertTitle>
+                <AlertDescription>{organizationError}</AlertDescription>
+              </Alert>
+            )}
 
             {/* AI Matching Banner */}
             <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-5">
@@ -470,9 +527,9 @@ export default function MyOrganization() {
             <div className="bg-white rounded-lg border p-5">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-primary">{t('organizations.myOrganization.completionRate')}</h3>
-                <span className="text-2xl font-bold text-primary">{completionRate}%</span>
+                <span className="text-2xl font-bold text-primary">{organizationLoading ? '...' : `${completionRate}%`}</span>
               </div>
-              <Progress value={completionRate} className="h-2" />
+              <Progress value={organizationLoading ? 0 : completionRate} className="h-2" />
               <p className="text-xs text-muted-foreground mt-2">
                 {completionRate === 100
                   ? 'Profile is complete! Ready for AI matching.'
