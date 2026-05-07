@@ -4,7 +4,7 @@ import { useLanguage } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
 import { useProjects } from '@app/hooks/useProjects';
 import { useExperts } from '@app/modules/expert/hooks/useExperts';
-import { usePipeline } from '@app/modules/expert/hooks/usePipeline';
+import { PIPELINE_STAGES, usePipeline } from '@app/modules/expert/hooks/usePipeline';
 import { useOrganizations } from '@app/modules/organization/hooks/useOrganizations';
 import { useOrganizationBookmarks } from '@app/modules/shared/hooks/useOrganizationBookmarks';
 import { PageBanner } from '@app/components/PageBanner';
@@ -387,7 +387,7 @@ export default function ProjectDetail() {
   const { experts } = useExperts();
   const { allOrganizations } = useOrganizations();
   const { isBookmarked, toggleBookmark } = useOrganizationBookmarks();
-  const { addToPipeline, removeFromPipeline } = usePipeline();
+  const { addToPipeline, removeFromPipeline, getPipelineItem, updatePipelineStage } = usePipeline();
   const location = useLocation();
   const locationState = ((location && location.state) || {}) as ProjectDetailLocationState;
   const fromMyProjects = locationState.fromMyProjects === true;
@@ -675,6 +675,14 @@ export default function ProjectDetail() {
     createdDate: '2023-05-15',
     updatedDate: '2024-02-20',
   };
+
+  const pipelineItem = getPipelineItem(project.id || '');
+  const currentPipelineStage = pipelineItem?.stage || 'eoi_preparation';
+  const showProjectStageSelect = Boolean(project.id) && user?.accountType !== 'expert' && (
+    isProjectSaved ||
+    projectAccessSource === 'my-projects' ||
+    projectAccessSource === 'my-alerts'
+  );
 
   const [projectTasks, setProjectTasks] = useState(() =>
     project.tasks.map((task) => ({ ...task, assignedTo: [] as { id: string; name: string; role?: string }[] }))
@@ -1891,6 +1899,48 @@ export default function ProjectDetail() {
                       ? 'This project is in My Projects. Use the AI workspace to continue working on matching, planning, and proposal execution.'
                       : 'Add this project to My Projects to open the AI workspace and work directly on matching, planning, and proposal execution.'}
                   </p>
+                  {showProjectStageSelect && (
+                    <div className="mt-4 max-w-xs">
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-[#4A5568]">
+                        Current Stage
+                      </label>
+                      <Select
+                        value={currentPipelineStage}
+                        onValueChange={(stage) => {
+                          if (pipelineItem) {
+                            updatePipelineStage(project.id || '', stage);
+                          } else {
+                            addToPipeline(project.id || '', stage, undefined, 50, {
+                              tenderTitle: project.title,
+                              tenderReference: project.code,
+                              organizationName: project.leadOrganization,
+                              country: project.country,
+                              donor: project.donor,
+                              status: project.status,
+                              expectedValue: project.budget.total,
+                              currency: project.budget.currency,
+                              deadline: project.timeline.endDate,
+                              sectors: project.sectors,
+                              matchScore: 50,
+                            });
+                            setIsProjectSaved(true);
+                          }
+                          toast.success('Project stage updated');
+                        }}
+                      >
+                        <SelectTrigger className="min-h-10 border-[#4A5568]/20 bg-white">
+                          <SelectValue placeholder="Select project stage" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PIPELINE_STAGES.map((stage) => (
+                            <SelectItem key={stage.id} value={stage.id}>
+                              {stage.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
                 <Button
                   className={`min-h-11 gap-2 self-start lg:self-center ${

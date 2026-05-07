@@ -10,12 +10,20 @@ export interface PipelineStage {
 }
 
 export const PIPELINE_STAGES: PipelineStage[] = [
-  { id: 'interested', name: 'Interested', color: 'blue' },
-  { id: 'analyzing', name: 'Analyzing', color: 'purple' },
-  { id: 'preparing', name: 'Preparing Proposal', color: 'orange' },
-  { id: 'ready', name: 'Ready to Submit', color: 'green' },
-  { id: 'submitted', name: 'Submitted', color: 'teal' },
+  { id: 'eoi_preparation', name: 'EOI Preparation', color: 'blue' },
+  { id: 'eoi_awaiting_results', name: 'EOI Awaiting Results', color: 'orange' },
+  { id: 'tender_preparation', name: 'Tender Preparation', color: 'blue' },
+  { id: 'tender_awaiting_results', name: 'Tender Awaiting Results', color: 'orange' },
+  { id: 'project_implementation', name: 'Project Implementation', color: 'green' },
+  { id: 'eoi_not_followed_cancelled', name: 'EOI Not Followed / Cancelled', color: 'red' },
+  { id: 'eoi_lost', name: 'EOI Lost', color: 'red' },
+  { id: 'tender_not_followed_cancelled', name: 'Tender Not Followed / Cancelled', color: 'red' },
+  { id: 'tender_lost', name: 'Tender Lost', color: 'red' },
+  { id: 'project_closed', name: 'Project Closed', color: 'green' },
+  { id: 'expired', name: 'Expired', color: 'gray' },
 ];
+
+export const DEFAULT_PIPELINE_STAGE = 'eoi_preparation';
 
 export const RESULT_STAGES = {
   WON: 'won',
@@ -28,6 +36,8 @@ export interface PipelineItem {
   tenderId: string;
   stage: string;
   addedAt: string;
+  stageUpdatedAt?: string;
+  stageHistory?: PipelineStageHistoryItem[];
   notes?: string;
   probability?: number; // Win probability (0-100)
   submissionStatus?: SubmissionStatusEnum;
@@ -57,6 +67,30 @@ export interface PipelineItem {
   sectors?: string[];
   source?: 'backend' | 'local';
 }
+
+export interface PipelineStageHistoryItem {
+  oldStage?: string;
+  newStage: string;
+  changedAt: string;
+  changedBy?: string;
+}
+
+export type PipelineMetadata = Partial<
+  Pick<
+    PipelineItem,
+    | 'tenderTitle'
+    | 'tenderReference'
+    | 'organizationName'
+    | 'country'
+    | 'donor'
+    | 'status'
+    | 'expectedValue'
+    | 'currency'
+    | 'deadline'
+    | 'sectors'
+    | 'matchScore'
+  >
+>;
 
 interface BackendPipelineResponse {
   data?: Array<{
@@ -90,17 +124,31 @@ interface BackendPipelineResponse {
 
 const mapBackendStage = (stage?: string): string => {
   const normalized = (stage || '').toLowerCase().replace(/[_\s-]+/g, '');
-  if (['qualification', 'qualified', 'analysis', 'analyzing'].includes(normalized)) return 'analyzing';
-  if (['proposal', 'preparing', 'preparingproposal'].includes(normalized)) return 'preparing';
-  if (['ready', 'readytosubmit'].includes(normalized)) return 'ready';
-  if (['submitted', 'submission'].includes(normalized)) return 'submitted';
-  return 'interested';
+  if (['eoiawaitingresults', 'submitted', 'submission', 'ready', 'readytosubmit'].includes(normalized)) return 'eoi_awaiting_results';
+  if (['tenderpreparation', 'proposal', 'preparing', 'preparingproposal'].includes(normalized)) return 'tender_preparation';
+  if (['tenderawaitingresults'].includes(normalized)) return 'tender_awaiting_results';
+  if (['projectimplementation', 'won', 'implementation'].includes(normalized)) return 'project_implementation';
+  if (['eoinotfollowedcancelled', 'withdrawn'].includes(normalized)) return 'eoi_not_followed_cancelled';
+  if (['eoilost', 'lost'].includes(normalized)) return 'eoi_lost';
+  if (['tendernotfollowedcancelled'].includes(normalized)) return 'tender_not_followed_cancelled';
+  if (['tenderlost'].includes(normalized)) return 'tender_lost';
+  if (['projectclosed', 'closed', 'completed'].includes(normalized)) return 'project_closed';
+  if (['expired'].includes(normalized)) return 'expired';
+  if (['interested', 'qualification', 'qualified', 'analysis', 'analyzing', 'eoipreparation'].includes(normalized)) return DEFAULT_PIPELINE_STAGE;
+  return PIPELINE_STAGES.some(item => item.id === stage) ? stage! : DEFAULT_PIPELINE_STAGE;
 };
 
 const readStoredPipelineItems = (): PipelineItem[] => {
   try {
     const stored = localStorage.getItem('pipeline_items');
-    return stored ? JSON.parse(stored) : [];
+    const parsed = stored ? JSON.parse(stored) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((item: PipelineItem) => ({
+      ...item,
+      stage: mapBackendStage(item.stage),
+      stageUpdatedAt: item.stageUpdatedAt || item.lastModified || item.addedAt,
+      stageHistory: Array.isArray(item.stageHistory) ? item.stageHistory : [],
+    }));
   } catch {
     return [];
   }
@@ -184,33 +232,59 @@ export function usePipeline() {
     return () => controller.abort();
   }, [user?.email, user?.role]);
 
-  const addToPipeline = useCallback((tenderId: string, stage: string = 'interested', notes?: string, probability: number = 50) => {
+  const addToPipeline = useCallback((
+    tenderId: string,
+    stage: string = DEFAULT_PIPELINE_STAGE,
+    notes?: string,
+    probability: number = 50,
+    metadata: PipelineMetadata = {}
+  ) => {
     setPipelineItems((prev) => {
       const exists = prev.find((item) => item.tenderId === tenderId);
+      const now = new Date().toISOString();
+      const normalizedStage = mapBackendStage(stage);
       if (exists) {
-        // Update existing item
+        const stageChanged = exists.stage !== normalizedStage;
         const updated = prev.map((item) =>
           item.tenderId === tenderId
-            ? { ...item, stage, notes: notes || item.notes, probability: probability || item.probability }
+            ? {
+                ...item,
+                ...metadata,
+                stage: normalizedStage,
+                notes: notes || item.notes,
+                probability: probability || item.probability,
+                stageUpdatedAt: stageChanged ? now : item.stageUpdatedAt,
+                lastModified: now,
+                resultStage: undefined,
+                resultDate: undefined,
+                stageHistory: stageChanged
+                  ? [
+                      ...(item.stageHistory || []),
+                      { oldStage: item.stage, newStage: normalizedStage, changedAt: now, changedBy: user?.email },
+                    ]
+                  : item.stageHistory || [],
+              }
             : item
         );
         localStorage.setItem('pipeline_items', JSON.stringify(updated));
         return updated;
       } else {
-        // Add new item
         const newItem: PipelineItem = {
           tenderId,
-          stage,
-          addedAt: new Date().toISOString(),
+          stage: normalizedStage,
+          addedAt: now,
+          stageUpdatedAt: now,
           notes,
           probability: probability || 50,
+          stageHistory: [{ newStage: normalizedStage, changedAt: now, changedBy: user?.email }],
+          ...metadata,
         };
         const updated = [...prev, newItem];
         localStorage.setItem('pipeline_items', JSON.stringify(updated));
         return updated;
       }
     });
-  }, []);
+  }, [user?.email]);
 
   const removeFromPipeline = useCallback((tenderId: string) => {
     setPipelineItems((prev) => {
@@ -222,13 +296,28 @@ export function usePipeline() {
 
   const updatePipelineStage = useCallback((tenderId: string, stage: string) => {
     setPipelineItems((prev) => {
+      const now = new Date().toISOString();
+      const normalizedStage = mapBackendStage(stage);
       const updated = prev.map((item) =>
-        item.tenderId === tenderId ? { ...item, stage } : item
+        item.tenderId === tenderId
+          ? {
+              ...item,
+              stage: normalizedStage,
+              stageUpdatedAt: now,
+              lastModified: now,
+              stageHistory: item.stage === normalizedStage
+                ? item.stageHistory || []
+                : [
+                    ...(item.stageHistory || []),
+                    { oldStage: item.stage, newStage: normalizedStage, changedAt: now, changedBy: user?.email },
+                  ],
+            }
+          : item
       );
       localStorage.setItem('pipeline_items', JSON.stringify(updated));
       return updated;
     });
-  }, []);
+  }, [user?.email]);
 
   const updatePipelineNotes = useCallback((tenderId: string, notes: string) => {
     setPipelineItems((prev) => {

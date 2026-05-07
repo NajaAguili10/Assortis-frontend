@@ -111,14 +111,6 @@ export function ProjectsSubMenu() {
       onClick: hasAccess ? () => navigate('/projects/contractors') : undefined,
       disabled: !hasAccess
     }] : []),
-    // Contractors non-expert version
-    ...(!isExpertOnly ? [{
-      label: t('projects.submenu.contractors'),
-      active: activeTab === 'contractors',
-      icon: Building2,
-      onClick: hasAccess ? () => navigate('/projects/contractors') : undefined,
-      disabled: !hasAccess
-    }] : []),
     // Organizations scoring : visible pour non-expert uniquement (expert a le sien dans My CV)
     ...(!isExpertOnly ? [{
       label: t('projects.submenu.organizationsScoring'),

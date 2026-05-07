@@ -47,8 +47,6 @@ import ExpertsMatchingOrganisationArchive from './modules/expert/pages/ExpertsMa
 import MatchingOpportunitiesHome from './modules/expert/pages/MatchingOpportunitiesHome';
 import MatchingOpportunitiesPage from './modules/expert/pages/MatchingOpportunitiesPage';
 import MatchingProjectsPage from './modules/expert/pages/MatchingProjectsPage';
-import MatchingOpportunitiesSaved from './modules/expert/pages/MatchingOpportunitiesSaved';
-import SavedProfilesPage from './modules/expert/pages/SavedProfilesPage';
 import AlertsFusionPage from './modules/expert/pages/AlertsFusionPage';
 import MatchingProjectDetailPage from './modules/expert/pages/MatchingProjectDetailPage';
 import MatchingAwardDetailPage from './modules/expert/pages/MatchingAwardDetailPage';
@@ -69,6 +67,9 @@ import OrganizationsEditProfile from './modules/organization/pages/Organizations
 import OrganizationsInvite from './modules/organization/pages/OrganizationsInvite';
 import OrganizationsMatching from './modules/organization/pages/OrganizationsMatching';
 import OrganizationsMatchingArchive from './modules/organization/pages/OrganizationsMatchingArchive';
+import OrganizationsMyTenders from './modules/organization/pages/OrganizationsMyTenders';
+import OrganizationsTenderDetail from './modules/organization/pages/OrganizationsTenderDetail';
+import OrganizationsCreateTender from './modules/organization/pages/OrganizationsCreateTender';
 import Invitations from './modules/organization/pages/Invitations';
 import InvitationMessaging from './modules/organization/pages/InvitationMessaging';
 import MyOrganization from './modules/organization/pages/MyOrganization';
@@ -278,6 +279,10 @@ const router = createBrowserRouter([
       { path: 'organizations/edit-profile', Component: OrganizationsEditProfile },
       { path: 'organizations/invite', Component: OrganizationsInvite },
       { path: 'organizations/my-organization', Component: MyOrganization },
+      { path: 'organizations/my-tenders', Component: OrganizationsMyTenders },
+      { path: 'organizations/my-tenders/:id', Component: OrganizationsTenderDetail },
+      { path: 'organizations/my-tenders/:id/edit', Component: OrganizationsCreateTender },
+      { path: 'organizations/create-tender', Component: OrganizationsCreateTender },
       { path: 'organizations/project-references', Component: OrganizationProjectReferences },
       { path: 'organizations/project-references/:id', Component: OrganizationProjectReferenceDetail },
       { path: 'organizations/teams', Component: OrganizationsTeams },

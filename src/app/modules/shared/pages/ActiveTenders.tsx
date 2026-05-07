@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { format, startOfToday } from 'date-fns';
 import { enUS, es, fr } from 'date-fns/locale';
-import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronDown, ChevronUp, Clock, DollarSign, Download, Eye, FileText, Globe, Heart, Plus, RotateCcw, Search, SlidersHorizontal, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronUp, Clock, DollarSign, Download, FileText, FolderPlus, Globe, Plus, RotateCcw, Search, SlidersHorizontal, Sparkles, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useTranslation } from '@app/contexts/LanguageContext';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
@@ -11,7 +12,6 @@ import { SectorSubsectorFilter } from '@app/components/SectorSubsectorFilter';
 import { RegionCountryFilter } from '@app/components/RegionCountryFilter';
 import { Badge } from '@app/components/ui/badge';
 import { Button } from '@app/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@app/components/ui/dialog';
 import { Input } from '@app/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@app/components/ui/popover';
@@ -34,7 +34,7 @@ import {
 } from '@app/types/tender.dto';
 import { getLocalizedCountryName } from '@app/utils/country-translator';
 
-type AlertsTab = 'projects' | 'awards' | 'shortlists' | 'profile' | 'bin';
+type AlertsTab = 'projects' | 'awards' | 'shortlists' | 'bin';
 type SearchMode = 'allWords' | 'anyWords' | 'exactPhrase' | 'boolean';
 type BudgetMode = 'any' | 'above' | 'below';
 type SortField = 'title' | 'location' | 'donor' | 'budget' | 'published' | 'deadline';
@@ -74,7 +74,7 @@ export default function ActiveTenders() {
   const { t, language } = useTranslation();
   const navigate = useNavigate();
   const { allTenders, kpis } = useTenders();
-  const { addToPipeline, removeFromPipeline } = usePipeline();
+  const { addToPipeline } = usePipeline();
 
   const [activeTab, setActiveTab] = useState<AlertsTab>('projects');
   const [showFilters, setShowFilters] = useState(false);
@@ -98,8 +98,6 @@ export default function ActiveTenders() {
   const [selectedQuickDay, setSelectedQuickDay] = useState<string | null>(null);
   const [discardedIds, setDiscardedIds] = useState<Set<string>>(new Set());
   const [favouriteIds, setFavouriteIds] = useState<Set<string>>(() => new Set(readSavedProjectIds()));
-  const [isMyProjectsDialogOpen, setIsMyProjectsDialogOpen] = useState(false);
-  const [pendingProjectId, setPendingProjectId] = useState<string | null>(null);
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('none');
   const [locationFilters, setLocationFilters] = useState<string[]>([]);
@@ -230,16 +228,14 @@ export default function ActiveTenders() {
     const awards = allTenders.filter(item => item.alertCategory === MatchingAlertCategoryEnum.AWARDS);
     const shortlists = allTenders.filter(item => item.alertCategory === MatchingAlertCategoryEnum.SHORTLISTS);
     const bin = projects.filter(item => discardedIds.has(item.id));
-    const profile = allTenders.filter(item => favouriteIds.has(item.id));
 
-    return { projects, awards, shortlists, profile, bin };
-  }, [allTenders, discardedIds, favouriteIds]);
+    return { projects, awards, shortlists, bin };
+  }, [allTenders, discardedIds]);
 
   const baseRows = useMemo(() => {
     if (activeTab === 'projects') return topByTab.projects.filter(item => !discardedIds.has(item.id));
     if (activeTab === 'awards') return topByTab.awards;
     if (activeTab === 'shortlists') return topByTab.shortlists;
-    if (activeTab === 'profile') return topByTab.profile;
     return topByTab.bin;
   }, [activeTab, topByTab, discardedIds]);
 
@@ -505,53 +501,56 @@ export default function ActiveTenders() {
     });
   };
 
-  const saveToProfile = (id: string) => {
-    if (favouriteIds.has(id)) return;
-
-    setFavouriteIds(prev => {
-      const next = new Set(prev);
-      next.add(id);
-      writeSavedProjectIds(Array.from(next));
-      return next;
-    });
-    addToPipeline(id);
-  };
-
-  const openMyProjectsConfirmation = (id: string) => {
-    setPendingProjectId(id);
-    setIsMyProjectsDialogOpen(true);
-  };
-
-  const closeMyProjectsDialog = () => {
-    setIsMyProjectsDialogOpen(false);
-    setPendingProjectId(null);
-  };
-
-  const confirmMyProjectsAction = () => {
-    if (!pendingProjectId) return;
-
-    const isCurrentlyFavorited = favouriteIds.has(pendingProjectId);
-
-    setFavouriteIds(prev => {
-      const next = new Set(prev);
-      if (next.has(pendingProjectId)) {
-        next.delete(pendingProjectId);
-      } else {
-        next.add(pendingProjectId);
-      }
-      writeSavedProjectIds(Array.from(next));
-      return next;
-    });
-
-    // Sync with Pipeline page
-    if (isCurrentlyFavorited) {
-      removeFromPipeline(pendingProjectId);
-    } else {
-      addToPipeline(pendingProjectId);
+  const handleAddToMyProjects = (row: TenderListDTO) => {
+    if (favouriteIds.has(row.id)) {
+      toast.success('Project is already in My Projects');
+      return;
     }
 
-    closeMyProjectsDialog();
+    setFavouriteIds(prev => {
+      const next = new Set(prev);
+      next.add(row.id);
+      writeSavedProjectIds(Array.from(next));
+      return next;
+    });
+    addToPipeline(row.id, undefined, undefined, 50, {
+      tenderTitle: row.title,
+      tenderReference: row.referenceNumber,
+      organizationName: row.organizationName,
+      country: row.country,
+      donor: row.organizationName,
+      status: row.status,
+      expectedValue: row.budget.amount,
+      currency: row.budget.currency,
+      deadline: row.deadline.toISOString(),
+      sectors: row.sectors.map(sector => t(`sectors.${sector}`)),
+      matchScore: row.matchScore,
+    });
+    toast.success('Project added to My Projects as EOI Preparation');
   };
+
+  const openProjectDetail = (row: TenderListDTO) => {
+    navigate(`/calls/${row.id}`, { state: { accessSource: 'my-alerts', isFavorited: favouriteIds.has(row.id) } });
+  };
+
+  const activeColumns = activeTab === 'awards'
+    ? ['Contract', t('activeTenders.table.location'), t('activeTenders.table.donor'), t('activeTenders.table.budget'), t('activeTenders.table.published')]
+    : activeTab === 'shortlists'
+    ? [t('activeTenders.tabs.projects'), t('activeTenders.table.location'), t('activeTenders.table.donor'), t('activeTenders.table.budget'), t('activeTenders.table.published')]
+    : [
+        t('activeTenders.table.projectTitle'),
+        t('activeTenders.table.sector'),
+        t('activeTenders.table.location'),
+        t('activeTenders.table.donor'),
+        t('activeTenders.table.budget'),
+        t('activeTenders.table.published'),
+        t('activeTenders.table.deadline'),
+        t('activeTenders.table.actions'),
+      ];
+
+  const rowGridTemplate = activeTab === 'projects' || activeTab === 'bin'
+    ? '2.1fr 1fr 1.05fr 1.25fr 0.9fr 0.9fr 0.9fr 0.75fr'
+    : '2.6fr 1.05fr 1.25fr 0.9fr 0.9fr';
 
   const activeFilterCount = [
     selectedProcurementTypes.length,
@@ -905,7 +904,6 @@ export default function ActiveTenders() {
               { id: 'projects', label: t('activeTenders.tabs.projects') },
               { id: 'shortlists', label: t('activeTenders.tabs.shortlists') },
               { id: 'awards', label: t('activeTenders.tabs.awards') },
-              { id: 'profile', label: t('activeTenders.tabs.profile') },
               { id: 'bin', label: t('activeTenders.tabs.bin') },
             ].map(tab => (
               <Button
@@ -930,7 +928,6 @@ export default function ActiveTenders() {
                   {tab.id === 'projects' ? topByTab.projects.filter(item => !discardedIds.has(item.id)).length :
                     tab.id === 'awards' ? topByTab.awards.length :
                     tab.id === 'shortlists' ? topByTab.shortlists.length :
-                    tab.id === 'profile' ? topByTab.profile.length :
                     topByTab.bin.length}
                 </Badge>
               </Button>
@@ -939,99 +936,114 @@ export default function ActiveTenders() {
 
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
-              <div className="min-w-[1120px]">
-                <div className="grid grid-cols-[2.1fr_1fr_1.05fr_1.25fr_0.9fr_0.9fr_0.9fr_1.45fr] items-center gap-2 px-5 py-3.5 border-b border-gray-200 bg-gray-50/80 text-xs font-semibold tracking-wide text-gray-600">
-              <button className={getHeaderClassName('title')} onClick={() => toggleSort('title')}>
-                {t('activeTenders.table.projectTitle')}
-                {renderSortIcon('title')}
-              </button>
-              <button type="button" className={getHeaderClassName()}>
-                {t('activeTenders.table.sector')}
-              </button>
-              <Popover>
-                <div className="inline-flex items-center gap-1">
-                  <button className={getHeaderClassName('location')} onClick={() => toggleSort('location')}>
-                    {t('activeTenders.table.location')}
-                    {renderSortIcon('location')}
-                  </button>
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      className="inline-flex h-5 w-5 items-center justify-center rounded border border-accent/30 text-accent hover:bg-accent/10"
-                      aria-label={t('activeTenders.table.location')}
-                    >
-                      <SlidersHorizontal className="h-3 w-3" />
-                    </button>
-                  </PopoverTrigger>
+              <div className="min-w-[980px]">
+                <div
+                  className="grid items-center gap-2 px-5 py-3.5 border-b border-gray-200 bg-gray-50/80 text-xs font-semibold tracking-wide text-gray-600"
+                  style={{ gridTemplateColumns: rowGridTemplate }}
+                >
+                  {activeColumns.map((column, index) => {
+                    if (index === 0) {
+                      return (
+                        <button key={column} className={getHeaderClassName('title')} onClick={() => toggleSort('title')}>
+                          {column}
+                          {renderSortIcon('title')}
+                        </button>
+                      );
+                    }
+
+                    if (column === t('activeTenders.table.location')) {
+                      return (
+                        <Popover key={column}>
+                          <div className="inline-flex items-center gap-1">
+                            <button className={getHeaderClassName('location')} onClick={() => toggleSort('location')}>
+                              {column}
+                              {renderSortIcon('location')}
+                            </button>
+                            <PopoverTrigger asChild>
+                              <button
+                                type="button"
+                                className="inline-flex h-5 w-5 items-center justify-center rounded border border-accent/30 text-accent hover:bg-accent/10"
+                                aria-label={t('activeTenders.table.location')}
+                              >
+                                <SlidersHorizontal className="h-3 w-3" />
+                              </button>
+                            </PopoverTrigger>
+                          </div>
+                          <PopoverContent className="w-64" align="start">
+                            <div className="space-y-2 max-h-64 overflow-auto">
+                              {columnOptions.locations.map(item => (
+                                <label key={item} className="flex items-center gap-2 text-sm">
+                                  <input
+                                    type="checkbox"
+                                    className="h-4 w-4"
+                                    checked={locationFilters.includes(item)}
+                                    onChange={() => setLocationFilters(prev => (
+                                      prev.includes(item) ? prev.filter(value => value !== item) : [...prev, item]
+                                    ))}
+                                  />
+                                  <span>{item}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      );
+                    }
+
+                    if (column === t('activeTenders.table.donor')) {
+                      return (
+                        <Popover key={column}>
+                          <div className="inline-flex items-center gap-1">
+                            <button className={getHeaderClassName('donor')} onClick={() => toggleSort('donor')}>
+                              {column}
+                              {renderSortIcon('donor')}
+                            </button>
+                            <PopoverTrigger asChild>
+                              <button
+                                type="button"
+                                className="inline-flex h-5 w-5 items-center justify-center rounded border border-accent/30 text-accent hover:bg-accent/10"
+                                aria-label={t('activeTenders.table.donor')}
+                              >
+                                <SlidersHorizontal className="h-3 w-3" />
+                              </button>
+                            </PopoverTrigger>
+                          </div>
+                          <PopoverContent className="w-64" align="start">
+                            <div className="space-y-2 max-h-64 overflow-auto">
+                              {columnOptions.donors.map(item => (
+                                <label key={item} className="flex items-center gap-2 text-sm">
+                                  <input
+                                    type="checkbox"
+                                    className="h-4 w-4"
+                                    checked={donorFilters.includes(item)}
+                                    onChange={() => setDonorFilters(prev => (
+                                      prev.includes(item) ? prev.filter(value => value !== item) : [...prev, item]
+                                    ))}
+                                  />
+                                  <span>{item}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      );
+                    }
+
+                    if (column === t('activeTenders.table.budget')) {
+                      return <button key={column} className={getHeaderClassName('budget')} onClick={() => toggleSort('budget')}>{column}{renderSortIcon('budget')}</button>;
+                    }
+
+                    if (column === t('activeTenders.table.published')) {
+                      return <button key={column} className={getHeaderClassName('published')} onClick={() => toggleSort('published')}>{column}{renderSortIcon('published')}</button>;
+                    }
+
+                    if (column === t('activeTenders.table.deadline')) {
+                      return <button key={column} className={getHeaderClassName('deadline')} onClick={() => toggleSort('deadline')}>{column}{renderSortIcon('deadline')}</button>;
+                    }
+
+                    return <span key={column} className={getHeaderClassName()}>{column}</span>;
+                  })}
                 </div>
-                <PopoverContent className="w-64" align="start">
-                  <div className="space-y-2 max-h-64 overflow-auto">
-                    {columnOptions.locations.map(item => (
-                      <label key={item} className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4"
-                          checked={locationFilters.includes(item)}
-                          onChange={() => setLocationFilters(prev => (
-                            prev.includes(item) ? prev.filter(value => value !== item) : [...prev, item]
-                          ))}
-                        />
-                        <span>{item}</span>
-                      </label>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-              <Popover>
-                <div className="inline-flex items-center gap-1">
-                  <button className={getHeaderClassName('donor')} onClick={() => toggleSort('donor')}>
-                    {t('activeTenders.table.donor')}
-                    {renderSortIcon('donor')}
-                  </button>
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      className="inline-flex h-5 w-5 items-center justify-center rounded border border-accent/30 text-accent hover:bg-accent/10"
-                      aria-label={t('activeTenders.table.donor')}
-                    >
-                      <SlidersHorizontal className="h-3 w-3" />
-                    </button>
-                  </PopoverTrigger>
-                </div>
-                <PopoverContent className="w-64" align="start">
-                  <div className="space-y-2 max-h-64 overflow-auto">
-                    {columnOptions.donors.map(item => (
-                      <label key={item} className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4"
-                          checked={donorFilters.includes(item)}
-                          onChange={() => setDonorFilters(prev => (
-                            prev.includes(item) ? prev.filter(value => value !== item) : [...prev, item]
-                          ))}
-                        />
-                        <span>{item}</span>
-                      </label>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-              <button className={getHeaderClassName('budget')} onClick={() => toggleSort('budget')}>
-                {t('activeTenders.table.budget')}
-                {renderSortIcon('budget')}
-              </button>
-              <button className={getHeaderClassName('published')} onClick={() => toggleSort('published')}>
-                {t('activeTenders.table.published')}
-                {renderSortIcon('published')}
-              </button>
-              <button className={getHeaderClassName('deadline')} onClick={() => toggleSort('deadline')}>
-                {t('activeTenders.table.deadline')}
-                {renderSortIcon('deadline')}
-              </button>
-              <button type="button" className={getHeaderClassName()}>
-                {t('activeTenders.table.actions')}
-              </button>
-            </div>
 
             {sortedRows.length === 0 ? (
               <div className="p-10 text-center text-gray-500">
@@ -1052,88 +1064,69 @@ export default function ActiveTenders() {
                     : getLocalizedCountryName(row.country, language);
 
                   return (
-                    <div key={row.id} className={`px-5 py-4 transition-colors ${rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'} hover:bg-gray-50/80`}>
-                      <div className="grid grid-cols-[2.1fr_1fr_1.05fr_1.25fr_0.9fr_0.9fr_0.9fr_1.45fr] gap-2 items-center text-sm">
-                        <div className="font-semibold text-gray-900 leading-snug pr-1">{row.title}</div>
-                        {renderSectorCell(row)}
+                    <div
+                      key={row.id}
+                      role="button"
+                      tabIndex={0}
+                      className={`cursor-pointer px-5 py-4 transition-colors ${rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'} hover:bg-gray-50/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40`}
+                      onClick={() => openProjectDetail(row)}
+                      onKeyDown={event => {
+                        if (event.key === 'Enter' || event.key === ' ') openProjectDetail(row);
+                      }}
+                    >
+                      <div className="grid gap-2 items-center text-sm" style={{ gridTemplateColumns: rowGridTemplate }}>
+                        <div className="font-semibold text-gray-900 leading-snug pr-1">
+                          {rowIndex + 1}. {row.title}
+                        </div>
+                        {(activeTab === 'projects' || activeTab === 'bin') && renderSectorCell(row)}
                         <div className="text-gray-700 leading-snug">{location}</div>
                         <div className="text-gray-700 leading-snug">{row.organizationName}</div>
                         <div className="text-gray-700 font-medium">{row.budget.formatted}</div>
                         <div className="text-gray-700">{row.publishedDate ? format(row.publishedDate, 'dd MMM yyyy', { locale: dateLocale }) : '-'}</div>
-                        <div className="text-gray-700">{format(row.deadline, 'dd MMM yyyy', { locale: dateLocale })}</div>
-                        <div className="flex flex-wrap gap-2">
-                          {activeTab !== 'bin' && (
+                        {(activeTab === 'projects' || activeTab === 'bin') && (
+                          <div className="text-gray-700">{format(row.deadline, 'dd MMM yyyy', { locale: dateLocale })}</div>
+                        )}
+                        {(activeTab === 'projects' || activeTab === 'bin') && (
+                          <div className="flex justify-end gap-1">
+                            {activeTab === 'projects' && (
                             <>
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="min-h-10 w-10 border-gray-300 p-0"
-                                    aria-label={t('activeTenders.button.viewDetails')}
-                                    onClick={() => navigate(`/calls/${row.id}`, { state: { accessSource: 'my-alerts', isFavorited: favouriteIds.has(row.id) } })}
+                                    className="min-h-9 w-9 border-gray-300 p-0"
+                                    aria-label={t('activeTenders.button.addToMyProjects')}
+                                    onClick={event => {
+                                      event.stopPropagation();
+                                      handleAddToMyProjects(row);
+                                    }}
                                   >
-                                    <Eye className="h-4 w-4" />
+                                    <FolderPlus className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent sideOffset={4}>{t('activeTenders.button.viewDetails')}</TooltipContent>
+                                <TooltipContent sideOffset={4}>{t('activeTenders.button.addToMyProjects')}</TooltipContent>
                               </Tooltip>
-
-                              {activeTab === 'projects' && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="min-h-10 w-10 border-gray-300 p-0"
-                                      aria-label={t('activeTenders.button.discard')}
-                                      onClick={() => handleDiscard(row.id)}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent sideOffset={4}>{t('activeTenders.button.discard')}</TooltipContent>
-                                </Tooltip>
-                              )}
-
-                              {activeTab !== 'profile' && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant={favouriteIds.has(row.id) ? 'default' : 'outline'}
-                                      size="sm"
-                                      className="min-h-10 w-10 border-gray-300 p-0"
-                                      aria-label={t(favouriteIds.has(row.id) ? 'activeTenders.button.savedToProfile' : 'activeTenders.button.saveToProfile')}
-                                      onClick={() => saveToProfile(row.id)}
-                                      disabled={favouriteIds.has(row.id)}
-                                    >
-                                      {favouriteIds.has(row.id) ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent sideOffset={4}>
-                                    {t(favouriteIds.has(row.id) ? 'activeTenders.button.savedToProfile' : 'activeTenders.button.saveToProfile')}
-                                  </TooltipContent>
-                                </Tooltip>
-                              )}
 
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button
-                                    variant={favouriteIds.has(row.id) ? 'destructive' : 'outline'}
+                                    variant="outline"
                                     size="sm"
-                                    className="min-h-10 w-10 p-0"
-                                    aria-label={t(favouriteIds.has(row.id) ? 'activeTenders.button.removeFromMyProjects' : 'activeTenders.button.addToMyProjects')}
-                                    onClick={() => openMyProjectsConfirmation(row.id)}
+                                    className="min-h-9 w-9 border-gray-300 p-0 text-red-600 hover:bg-red-50"
+                                    aria-label={t('activeTenders.button.discard')}
+                                    onClick={event => {
+                                      event.stopPropagation();
+                                      handleDiscard(row.id);
+                                    }}
                                   >
-                                    <Heart className="h-4 w-4" />
+                                    <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent sideOffset={4}>
-                                  {t(favouriteIds.has(row.id) ? 'activeTenders.button.removeFromMyProjects' : 'activeTenders.button.addToMyProjects')}
-                                </TooltipContent>
+                                <TooltipContent sideOffset={4}>{t('activeTenders.button.discard')}</TooltipContent>
                               </Tooltip>
                             </>
-                          )}
+                            )}
 
                           {activeTab === 'bin' && (
                             <Tooltip>
@@ -1141,9 +1134,12 @@ export default function ActiveTenders() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="min-h-10 w-10 border-gray-300 p-0"
+                                  className="min-h-9 w-9 border-gray-300 p-0"
                                   aria-label={t('activeTenders.button.restore')}
-                                  onClick={() => handleRestore(row.id)}
+                                  onClick={event => {
+                                    event.stopPropagation();
+                                    handleRestore(row.id);
+                                  }}
                                 >
                                   <RotateCcw className="h-4 w-4" />
                                 </Button>
@@ -1151,19 +1147,22 @@ export default function ActiveTenders() {
                               <TooltipContent sideOffset={4}>{t('activeTenders.button.restore')}</TooltipContent>
                             </Tooltip>
                           )}
-                        </div>
+                          </div>
+                        )}
                       </div>
 
-                      <div className="grid grid-cols-[2.1fr_1fr_1.05fr_1.25fr_0.9fr_0.9fr_0.9fr_1.45fr] gap-3 mt-3 text-xs text-gray-600">
-                        <div className="col-span-5 flex flex-wrap items-center gap-2">
-                          <Badge variant="secondary" className="rounded-full border border-blue-100 bg-blue-50 text-blue-700 px-2.5 py-1 font-medium">
-                            {formatPillLabel(row.noticeType || NoticeTypeEnum.PROJECT_NOTICE)}
-                          </Badge>
-                          <Badge variant="secondary" className="rounded-full border border-emerald-100 bg-emerald-50 text-emerald-700 px-2.5 py-1 font-medium">
-                            {formatPillLabel(row.procurementType || ProcurementTypeEnum.SERVICES)}
-                          </Badge>
-                        </div>
-                        <div className="col-span-3">
+                      <div className="grid gap-3 mt-3 text-xs text-gray-600" style={{ gridTemplateColumns: rowGridTemplate }}>
+                        {(activeTab === 'projects' || activeTab === 'bin') && (
+                          <div className="flex flex-wrap items-center gap-2" style={{ gridColumn: '1 / span 5' }}>
+                            <Badge variant="secondary" className="rounded-full border border-blue-100 bg-blue-50 text-blue-700 px-2.5 py-1 font-medium">
+                              {formatPillLabel(row.noticeType || NoticeTypeEnum.PROJECT_NOTICE)}
+                            </Badge>
+                            <Badge variant="secondary" className="rounded-full border border-emerald-100 bg-emerald-50 text-emerald-700 px-2.5 py-1 font-medium">
+                              {formatPillLabel(row.procurementType || ProcurementTypeEnum.SERVICES)}
+                            </Badge>
+                          </div>
+                        )}
+                        <div style={{ gridColumn: activeTab === 'projects' || activeTab === 'bin' ? '6 / span 3' : '1 / span 5' }}>
                           {activeTab === 'bin' && (
                             <div className="flex flex-wrap items-center gap-2">
                               <div className="inline-flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1">
@@ -1179,9 +1178,10 @@ export default function ActiveTenders() {
 
                           {activeTab === 'awards' && (
                             <div className="space-y-1.5">
+                              <div className="font-semibold text-gray-700">Contracted companies:</div>
                               {(row.awardCompanies || []).map(company => (
-                                <div key={company.name} className="rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5">
-                                  <p className="text-xs font-semibold text-gray-900 leading-tight">{company.name}</p>
+                                <div key={company.name} className="px-2.5 py-1 text-[#a93245]">
+                                  <p className="text-xs font-semibold leading-tight">{company.name}</p>
                                   <p className="mt-0.5 text-[11px] text-gray-600">
                                     <span className="font-medium">{company.budget.formatted}</span>
                                     <span className="mx-1 text-gray-400">|</span>
@@ -1194,10 +1194,10 @@ export default function ActiveTenders() {
 
                           {activeTab === 'shortlists' && (
                             <div className="space-y-1.5">
-                              {(row.shortlistCompanies || []).map(company => (
-                                <div key={company.name} className="rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5">
-                                  <p className="text-xs font-semibold text-gray-900 leading-tight">{company.name}</p>
-                                  <p className="mt-0.5 text-[11px] text-gray-600">{format(company.date, 'dd MMM yyyy', { locale: dateLocale })}</p>
+                              <div className="font-semibold text-gray-700">Shortlisted companies:</div>
+                              {(row.shortlistCompanies || []).map((company, index) => (
+                                <div key={company.name} className="px-2.5 py-0.5 text-[#a93245]">
+                                  <p className="text-xs font-semibold leading-tight">{index + 1}. {company.name}</p>
                                 </div>
                               ))}
                             </div>
@@ -1214,47 +1214,6 @@ export default function ActiveTenders() {
           </div>
 
           <Separator className="my-6" />
-
-          <Dialog
-            open={isMyProjectsDialogOpen}
-            onOpenChange={(open) => {
-              if (open) {
-                setIsMyProjectsDialogOpen(true);
-                return;
-              }
-              closeMyProjectsDialog();
-            }}
-          >
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>
-                  {t(
-                    pendingProjectId && favouriteIds.has(pendingProjectId)
-                      ? 'activeTenders.modal.myProjects.titleRemove'
-                      : 'activeTenders.modal.myProjects.titleAdd'
-                  )}
-                </DialogTitle>
-                <DialogDescription>
-                  {t(
-                    pendingProjectId && favouriteIds.has(pendingProjectId)
-                      ? 'activeTenders.modal.myProjects.descriptionRemove'
-                      : 'activeTenders.modal.myProjects.descriptionAdd'
-                  )}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="mt-2 flex justify-end gap-2">
-                <Button variant="outline" onClick={closeMyProjectsDialog}>
-                  {t('activeTenders.modal.myProjects.cancel')}
-                </Button>
-                <Button
-                  variant={pendingProjectId && favouriteIds.has(pendingProjectId) ? 'destructive' : 'default'}
-                  onClick={confirmMyProjectsAction}
-                >
-                  {t('activeTenders.modal.myProjects.confirm')}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
         </div>
       </PageContainer>
     </div>

@@ -24,8 +24,7 @@ export function AccountSubMenu({ activeTab, onTabChange, mode = 'account-tabs' }
 
   if (mode === 'profile-settings') {
     const isHomeRoute =
-      location.pathname === '/account' ||
-      location.pathname === '/compte-utilisateur';
+      location.pathname === '/account';
 
     const isMySelectionRoute = location.pathname.startsWith('/account/my-selection');
 

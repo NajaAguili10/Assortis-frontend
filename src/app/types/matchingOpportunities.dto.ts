@@ -44,6 +44,15 @@ export interface MatchingOpportunityDTO {
   postedDate: Date;
   organization?: string;
   location?: string;
+  procurementType?: ProcurementTypeEnum | string;
+  noticeType?: NoticeTypeEnum | string;
+  countries?: string[];
+  fundingAgency?: FundingAgencyEnum | string;
+  documents?: Array<{
+    id: string;
+    title: string;
+    url?: string;
+  }>;
   contractValue?: number;
   position?: string;
   requirements?: string[];

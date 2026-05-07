@@ -58,7 +58,7 @@ import {
   Briefcase,
 } from 'lucide-react';
 
-type SortOption = 'newest' | 'oldest' | 'value' | 'deadline' | 'probability';
+type SortOption = 'newest' | 'oldest' | 'donor' | 'deadline' | 'budget' | 'probability';
 type ViewMode = 'active' | 'shortlisted' | 'awarded' | 'discarded' | 'all';
 
 // Utility function to get currency symbol
@@ -159,6 +159,11 @@ export default function Pipeline() {
   const navigate = useNavigate();
 
   const openPipelineDetail = (tender: { isProject: boolean; isToR: boolean; tenderId: string }) => {
+    if (tender.tenderId.startsWith('opp-')) {
+      navigate(`/matching-opportunities/opportunities/project/${tender.tenderId}`);
+      return;
+    }
+
     if (tender.isToR) {
       navigate(`/calls/tors/${tender.tenderId}`, {
         state: {
@@ -205,7 +210,7 @@ export default function Pipeline() {
   const { allToRs } = useToRs();
 
   // Use projects hook to get project details
-  const { projects: allProjects } = useProjects();
+  const { allProjects } = useProjects();
 
   // State for filters and dialogs
   const [selectedStage, setSelectedStage] = useState<string | 'all'>('all');
@@ -215,7 +220,6 @@ export default function Pipeline() {
   const [searchQuery, setSearchQuery] = useState('');
   
   // Dialog states
-  const [moveStageDialogOpen, setMoveStageDialogOpen] = useState(false);
   const [probabilityDialogOpen, setProbabilityDialogOpen] = useState(false);
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [resultDialogOpen, setResultDialogOpen] = useState(false);
@@ -398,11 +402,11 @@ export default function Pipeline() {
       return {
         id: stage.id,
         name: stage.name,
-        color: stage.color === 'blue' ? 'bg-blue-200' :
-               stage.color === 'purple' ? 'bg-purple-200' :
-               stage.color === 'orange' ? 'bg-orange-200' :
-               stage.color === 'green' ? 'bg-green-200' :
-               stage.color === 'teal' ? 'bg-teal-200' : 'bg-gray-200',
+        color: stage.color === 'blue' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+               stage.color === 'orange' ? 'bg-orange-100 text-orange-800 border-orange-200' :
+               stage.color === 'green' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+               stage.color === 'red' ? 'bg-red-100 text-red-800 border-red-200' :
+               'bg-gray-100 text-gray-700 border-gray-200',
         tenderCount: stageTenders.length,
         totalValue: {
           amount: totalValue,
@@ -450,8 +454,10 @@ export default function Pipeline() {
       filtered = [...filtered].sort((a, b) => b.lastActivity.getTime() - a.lastActivity.getTime());
     } else if (sortBy === 'oldest') {
       filtered = [...filtered].sort((a, b) => a.lastActivity.getTime() - b.lastActivity.getTime());
-    } else if (sortBy === 'value') {
+    } else if (sortBy === 'budget') {
       filtered = [...filtered].sort((a, b) => b.expectedValue.amount - a.expectedValue.amount);
+    } else if (sortBy === 'donor') {
+      filtered = [...filtered].sort((a, b) => a.organizationName.localeCompare(b.organizationName));
     } else if (sortBy === 'deadline') {
       filtered = [...filtered].sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
     } else if (sortBy === 'probability') {
@@ -513,11 +519,6 @@ export default function Pipeline() {
   const getDaysRemaining = (deadline: Date) => {
     const days = Math.ceil((deadline.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
     return days;
-  };
-
-  const handleMoveStage = (tender: any) => {
-    setSelectedTender(tender);
-    setMoveStageDialogOpen(true);
   };
 
   const handleUpdateProbability = (tender: any) => {
@@ -759,8 +760,9 @@ export default function Pipeline() {
                   <SelectContent>
                     <SelectItem value="newest">{t('pipeline.sort.newest')}</SelectItem>
                     <SelectItem value="oldest">{t('pipeline.sort.oldest')}</SelectItem>
-                    <SelectItem value="value">{t('pipeline.sort.value')}</SelectItem>
+                    <SelectItem value="donor">Donor</SelectItem>
                     <SelectItem value="deadline">{t('pipeline.sort.deadline')}</SelectItem>
+                    <SelectItem value="budget">Budget</SelectItem>
                     <SelectItem value="probability">{t('pipeline.sort.probability')}</SelectItem>
                   </SelectContent>
                 </Select>
@@ -833,7 +835,7 @@ export default function Pipeline() {
                             </h3>
                             {!isResult && (
                               <>
-                                <Badge className={getStageColor(tender.stage)}>
+                                <Badge className={`border ${getStageColor(tender.stage)}`}>
                                   {getStageName(tender.stage)}
                                 </Badge>
                                 <Badge className={`${getProbabilityColor(tender.probability)} border`}>
@@ -992,14 +994,24 @@ export default function Pipeline() {
                         
                         {!isResult && (
                           <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleMoveStage(tender)}
+                            <Select
+                              value={tender.stage}
+                              onValueChange={(stage) => {
+                                updatePipelineStage(tender.tenderId, stage);
+                                toast.success(t('pipeline.moveStage.success'));
+                              }}
                             >
-                              <ChevronRight className="w-4 h-4 mr-1" />
-                              {t('pipeline.actions.moveStage')}
-                            </Button>
+                              <SelectTrigger className="h-9 w-full sm:w-[260px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {PIPELINE_STAGES.map((stage) => (
+                                  <SelectItem key={stage.id} value={stage.id}>
+                                    {stage.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <Button
                               variant="outline"
                               size="sm"
@@ -1060,72 +1072,6 @@ export default function Pipeline() {
           </div>
         </div>
       </PageContainer>
-
-      {/* Move Stage Dialog */}
-      <Dialog open={moveStageDialogOpen} onOpenChange={setMoveStageDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>{t('pipeline.moveStage.title')}</DialogTitle>
-            <DialogDescription>
-              {selectedTender && (
-                <span className="text-sm">
-                  {t('pipeline.moveStage.description')} <strong>{selectedTender.tenderTitle}</strong>
-                </span>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-4">
-            <div className="space-y-2">
-              {PIPELINE_STAGES.map((stage) => (
-                <button
-                  key={stage.id}
-                  onClick={() => {
-                    if (selectedTender) {
-                      updatePipelineStage(selectedTender.tenderId, stage.id);
-                      setMoveStageDialogOpen(false);
-                      toast.success(t('pipeline.moveStage.success'));
-                    }
-                  }}
-                  disabled={selectedTender?.stage === stage.id}
-                  className={`w-full flex items-center gap-4 p-4 rounded-lg border-2 transition-all text-left ${
-                    selectedTender?.stage === stage.id
-                      ? 'border-accent bg-accent/10 cursor-not-allowed'
-                      : 'border-gray-200 hover:border-accent hover:shadow-md'
-                  }`}
-                >
-                  <div className={`w-12 h-12 ${
-                    stage.color === 'blue' ? 'bg-blue-200' :
-                    stage.color === 'purple' ? 'bg-purple-200' :
-                    stage.color === 'orange' ? 'bg-orange-200' :
-                    stage.color === 'green' ? 'bg-green-200' :
-                    stage.color === 'teal' ? 'bg-teal-200' : 'bg-gray-200'
-                  } rounded-lg flex items-center justify-center flex-shrink-0`}>
-                    {selectedTender?.stage === stage.id ? (
-                      <ArrowRight className="w-6 h-6 text-accent" />
-                    ) : (
-                      <span className="text-lg font-bold text-gray-700">
-                        {stages.find(s => s.id === stage.id)?.tenderCount || 0}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900">{stage.name}</h3>
-                    <p className="text-xs text-gray-600">
-                      {stages.find(s => s.id === stage.id)?.totalValue.formatted || '$0K'}
-                    </p>
-                  </div>
-                  {selectedTender?.stage === stage.id && (
-                    <Badge variant="secondary" className="text-xs">
-                      {t('pipeline.moveStage.current')}
-                    </Badge>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Update Probability Dialog */}
       <Dialog open={probabilityDialogOpen} onOpenChange={setProbabilityDialogOpen}>

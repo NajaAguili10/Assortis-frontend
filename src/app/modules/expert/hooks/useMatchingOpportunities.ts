@@ -340,6 +340,25 @@ function writeDismissedIds(ids: string[]) {
   }
 }
 
+function readRemovedIds(): string[] {
+  try {
+    const stored = localStorage.getItem('matching.removedIds');
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeRemovedIds(ids: string[]) {
+  try {
+    localStorage.setItem('matching.removedIds', JSON.stringify(ids));
+  } catch {
+    // ignore
+  }
+}
+
 // --- Saved profiles storage helpers ---
 const MOCK_PROFILES: MatchingProfileDTO[] = [
   {
@@ -393,10 +412,14 @@ const DEFAULT_ALERT_CONFIG: AlertFusionConfigDTO = {
 export function useMatchingOpportunities() {
   const [savedOpportunityIds, setSavedOpportunityIds] = useState<string[]>([]);
   const [dismissedIds, setDismissedIds] = useState<string[]>(() => readDismissedIds());
+  const [removedIds, setRemovedIds] = useState<string[]>(() => readRemovedIds());
   const [profiles, setProfiles] = useState<MatchingProfileDTO[]>(MOCK_PROFILES);
   const [alertConfig, setAlertConfig] = useState<AlertFusionConfigDTO>(DEFAULT_ALERT_CONFIG);
 
-  const allOpportunities = useMemo(() => MOCK_OPPORTUNITIES, []);
+  const allOpportunities = useMemo(
+    () => MOCK_OPPORTUNITIES.filter(opp => !removedIds.includes(opp.id)),
+    [removedIds]
+  );
 
   const stats = useMemo<MatchingStatsDTO>(() => {
     const matching = allOpportunities.filter(opp => opp.relevanceScore >= 75);
@@ -626,6 +649,27 @@ export function useMatchingOpportunities() {
     });
   };
 
+  const restoreOpportunity = (opportunityId: string) => {
+    setDismissedIds(prev => {
+      const next = prev.filter(id => id !== opportunityId);
+      writeDismissedIds(next);
+      return next;
+    });
+  };
+
+  const permanentlyRemoveOpportunity = (opportunityId: string) => {
+    setDismissedIds(prev => {
+      const next = prev.filter(id => id !== opportunityId);
+      writeDismissedIds(next);
+      return next;
+    });
+    setRemovedIds(prev => {
+      const next = prev.includes(opportunityId) ? prev : [...prev, opportunityId];
+      writeRemovedIds(next);
+      return next;
+    });
+  };
+
   const isDismissed = (opportunityId: string) => dismissedIds.includes(opportunityId);
 
   const getDismissedOpportunities = () =>
@@ -731,6 +775,8 @@ export function useMatchingOpportunities() {
     dismissOpportunity,
     isDismissed,
     getDismissedOpportunities,
+    restoreOpportunity,
+    permanentlyRemoveOpportunity,
     // Profiles
     profiles,
     createProfile,
