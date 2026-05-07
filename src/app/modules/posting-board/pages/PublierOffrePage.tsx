@@ -380,6 +380,7 @@ export default function PublierOffrePage() {
                   onCancel={handleCancel}
                   initialData={duplicateData || projectPrefillData || undefined}
                   submitLabel={t('monEspace.action.publish')}
+                  organisationName={user?.firstName ? `${user.firstName} ${user.lastName}`.trim() : 'Assortis'}
                 />
               </div>
 

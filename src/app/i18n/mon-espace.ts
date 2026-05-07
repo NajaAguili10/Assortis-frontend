@@ -262,6 +262,49 @@ export const monEspaceTranslations = {
     'monEspace.form.contactEmail': 'Contact Email',
     'monEspace.form.contactEmail.placeholder': 'e.g., contact@organization.com',
 
+    // Section titles
+    'monEspace.form.section.org': 'Organisation Details',
+    'monEspace.form.section.vacancy': 'Vacancy Details',
+    'monEspace.form.section.languages': 'Required Languages',
+    'monEspace.form.section.vacancyText': 'Vacancy Text',
+    'monEspace.form.section.application': 'Application Details',
+
+    // Organisation fields
+    'monEspace.form.orgName': 'Organisation Name',
+    'monEspace.form.website': 'Website',
+    'monEspace.form.logo': 'Logo',
+    'monEspace.form.logo.upload': 'Upload logo',
+    'monEspace.form.logo.change': 'Change logo',
+    'monEspace.form.logo.hint': 'PNG or JPG, max 2 MB',
+
+    // Vacancy Detail fields
+    'monEspace.form.function': 'Function',
+    'monEspace.form.function.placeholder': 'Select the main job function',
+    'monEspace.form.otherFunction': 'Other Function',
+    'monEspace.form.otherFunction.placeholder': 'Specify if not listed above',
+    'monEspace.form.geographicalScope': 'Geographical Scope / Locations',
+    'monEspace.form.regions': 'Regions',
+    'monEspace.form.countries': 'Countries',
+    'monEspace.form.countries.placeholder': 'Type a country and press Enter',
+    'monEspace.form.cities': 'Cities',
+    'monEspace.form.cities.placeholder': 'Type a city and press Enter',
+    'monEspace.form.add': 'Add',
+    'monEspace.form.optional': 'optional',
+
+    // Language fields
+    'monEspace.form.language': 'Language',
+    'monEspace.form.language.written': 'Written',
+    'monEspace.form.language.spoken': 'Spoken',
+    'monEspace.form.language.placeholder': 'Select language',
+    'monEspace.form.language.level.placeholder': 'Level',
+    'monEspace.form.language.add': 'Add Language',
+
+    // Application fields
+    'monEspace.form.applicationLink': 'Application Link',
+    'monEspace.form.applicationLink.hint': 'URL where candidates should submit their application',
+    'monEspace.form.privacy': 'I accept the Privacy Policy and agree that this job posting will be publicly visible on the Assortis platform.',
+    'monEspace.form.privacy.required': 'You must accept the Privacy Policy to publish this offer.',
+
     // Form Actions
     'monEspace.action.cancel': 'Cancel',
     'monEspace.action.contact': 'Contact',
@@ -644,6 +687,49 @@ export const monEspaceTranslations = {
     'monEspace.form.contactPerson.placeholder': 'ex. : Jean Dupont',
     'monEspace.form.contactEmail': 'Email de Contact',
     'monEspace.form.contactEmail.placeholder': 'ex. : contact@organisation.com',
+
+    // Section titles
+    'monEspace.form.section.org': "Détails de l'Organisation",
+    'monEspace.form.section.vacancy': 'Détails du Poste',
+    'monEspace.form.section.languages': 'Langues Requises',
+    'monEspace.form.section.vacancyText': 'Texte de l\'Offre',
+    'monEspace.form.section.application': 'Détails de Candidature',
+
+    // Organisation fields
+    'monEspace.form.orgName': "Nom de l'Organisation",
+    'monEspace.form.website': 'Site Web',
+    'monEspace.form.logo': 'Logo',
+    'monEspace.form.logo.upload': 'Télécharger un logo',
+    'monEspace.form.logo.change': 'Changer le logo',
+    'monEspace.form.logo.hint': 'PNG ou JPG, max 2 Mo',
+
+    // Vacancy Detail fields
+    'monEspace.form.function': 'Fonction',
+    'monEspace.form.function.placeholder': 'Sélectionner la fonction principale',
+    'monEspace.form.otherFunction': 'Autre Fonction',
+    'monEspace.form.otherFunction.placeholder': 'Préciser si non listé',
+    'monEspace.form.geographicalScope': 'Zone Géographique / Localisations',
+    'monEspace.form.regions': 'Régions',
+    'monEspace.form.countries': 'Pays',
+    'monEspace.form.countries.placeholder': 'Saisir un pays et appuyer sur Entrée',
+    'monEspace.form.cities': 'Villes',
+    'monEspace.form.cities.placeholder': 'Saisir une ville et appuyer sur Entrée',
+    'monEspace.form.add': 'Ajouter',
+    'monEspace.form.optional': 'optionnel',
+
+    // Language fields
+    'monEspace.form.language': 'Langue',
+    'monEspace.form.language.written': 'Écrit',
+    'monEspace.form.language.spoken': 'Oral',
+    'monEspace.form.language.placeholder': 'Sélectionner une langue',
+    'monEspace.form.language.level.placeholder': 'Niveau',
+    'monEspace.form.language.add': 'Ajouter une Langue',
+
+    // Application fields
+    'monEspace.form.applicationLink': 'Lien de Candidature',
+    'monEspace.form.applicationLink.hint': 'URL où les candidats doivent soumettre leur candidature',
+    'monEspace.form.privacy': "J'accepte la Politique de Confidentialité et accepte que cette offre soit visible publiquement sur la plateforme Assortis.",
+    'monEspace.form.privacy.required': 'Vous devez accepter la Politique de Confidentialité pour publier cette offre.',
 
     // Form Actions
     'monEspace.action.cancel': 'Annuler',
@@ -1038,6 +1124,49 @@ export const monEspaceTranslations = {
     'monEspace.form.contactPerson.placeholder': 'ej. : Juan Pérez',
     'monEspace.form.contactEmail': 'Correo de Contacto',
     'monEspace.form.contactEmail.placeholder': 'ej. : contacto@organización.com',
+
+    // Section titles
+    'monEspace.form.section.org': 'Detalles de la Organización',
+    'monEspace.form.section.vacancy': 'Detalles del Puesto',
+    'monEspace.form.section.languages': 'Idiomas Requeridos',
+    'monEspace.form.section.vacancyText': 'Texto de la Oferta',
+    'monEspace.form.section.application': 'Detalles de Solicitud',
+
+    // Organisation fields
+    'monEspace.form.orgName': 'Nombre de la Organización',
+    'monEspace.form.website': 'Sitio Web',
+    'monEspace.form.logo': 'Logo',
+    'monEspace.form.logo.upload': 'Subir logo',
+    'monEspace.form.logo.change': 'Cambiar logo',
+    'monEspace.form.logo.hint': 'PNG o JPG, máx. 2 MB',
+
+    // Vacancy Detail fields
+    'monEspace.form.function': 'Función',
+    'monEspace.form.function.placeholder': 'Seleccionar la función principal',
+    'monEspace.form.otherFunction': 'Otra Función',
+    'monEspace.form.otherFunction.placeholder': 'Especificar si no está en la lista',
+    'monEspace.form.geographicalScope': 'Ámbito Geográfico / Ubicaciones',
+    'monEspace.form.regions': 'Regiones',
+    'monEspace.form.countries': 'Países',
+    'monEspace.form.countries.placeholder': 'Escribir un país y pulsar Enter',
+    'monEspace.form.cities': 'Ciudades',
+    'monEspace.form.cities.placeholder': 'Escribir una ciudad y pulsar Enter',
+    'monEspace.form.add': 'Agregar',
+    'monEspace.form.optional': 'opcional',
+
+    // Language fields
+    'monEspace.form.language': 'Idioma',
+    'monEspace.form.language.written': 'Escrito',
+    'monEspace.form.language.spoken': 'Oral',
+    'monEspace.form.language.placeholder': 'Seleccionar idioma',
+    'monEspace.form.language.level.placeholder': 'Nivel',
+    'monEspace.form.language.add': 'Agregar Idioma',
+
+    // Application fields
+    'monEspace.form.applicationLink': 'Enlace de Solicitud',
+    'monEspace.form.applicationLink.hint': 'URL donde los candidatos deben enviar su solicitud',
+    'monEspace.form.privacy': 'Acepto la Política de Privacidad y acepto que esta oferta sea visible públicamente en la plataforma Assortis.',
+    'monEspace.form.privacy.required': 'Debe aceptar la Política de Privacidad para publicar esta oferta.',
 
     // Form Actions
     'monEspace.action.cancel': 'Cancelar',

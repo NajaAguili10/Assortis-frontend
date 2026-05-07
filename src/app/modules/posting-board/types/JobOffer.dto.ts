@@ -34,7 +34,7 @@ export interface JobOfferListDTO {
   organizationName?: string;
   recruiterId: string;
   applicationsCount?: number;
-  requirements?: string;
+  requirements?: string[] | string;
 }
 
 /**
@@ -59,18 +59,48 @@ export interface JobOfferDetailDTO extends JobOfferListDTO {
   updatedAt: string;
 }
 
+export interface JobLanguageRequirement {
+  name: string;
+  writtenLevel: string;
+  spokenLevel: string;
+}
+
 /**
  * JobOfferCreateDTO - Data needed to create a job offer
  */
 export interface JobOfferCreateDTO {
+  // Organisation Details
+  organisationName?: string;
+  website?: string;
+  logoUrl?: string;
+
+  // Vacancy Details
   jobTitle: string;
+  jobFunction: string;
+  otherFunction?: string;
+  regions?: string[];
+  countries?: string[];
+  cities?: string[];
+
+  // Legacy fields kept for compatibility
   location: string;
   projectTitle?: string;
   department?: string;
   type: JobOfferTypeEnum;
   duration: string;
+
+  // Languages
+  languages?: JobLanguageRequirement[];
+
+  // Vacancy Text
   description: string;
+
+  // Application Details
   deadline: string;
+  deadlineTime?: string;
+  applicationLink?: string;
+  privacyPolicyAccepted?: boolean;
+
   requirements?: string[];
   responsibilities?: string[];
   qualifications?: string[];
