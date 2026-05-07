@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { format, startOfToday } from 'date-fns';
 import { enUS, es, fr } from 'date-fns/locale';
@@ -40,6 +40,8 @@ type BudgetMode = 'any' | 'above' | 'below';
 type SortField = 'title' | 'location' | 'donor' | 'budget' | 'published' | 'deadline';
 type SortDirection = 'asc' | 'desc' | 'none';
 
+const DISCARDED_PROJECTS_STORAGE_KEY = 'matching-projects.discardedIds';
+
 function readSavedProjectIds(): string[] {
   try {
     const stored = localStorage.getItem('projects.favouriteIds');
@@ -70,11 +72,29 @@ function writeSavedProjectIds(projectIds: string[]) {
   }
 }
 
+function readDiscardedProjectIds(): string[] {
+  try {
+    const stored = localStorage.getItem(DISCARDED_PROJECTS_STORAGE_KEY);
+    const parsed = stored ? JSON.parse(stored) : [];
+    return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeDiscardedProjectIds(projectIds: string[]) {
+  try {
+    localStorage.setItem(DISCARDED_PROJECTS_STORAGE_KEY, JSON.stringify(projectIds));
+  } catch {
+    // Ignore storage errors; the in-memory Bin still works for this session.
+  }
+}
+
 export default function ActiveTenders() {
   const { t, language } = useTranslation();
   const navigate = useNavigate();
   const { allTenders, kpis } = useTenders();
-  const { addToPipeline } = usePipeline();
+  const { addToPipeline, isInPipeline } = usePipeline();
 
   const [activeTab, setActiveTab] = useState<AlertsTab>('projects');
   const [showFilters, setShowFilters] = useState(false);
@@ -96,7 +116,7 @@ export default function ActiveTenders() {
   const [fundingAgencySearch, setFundingAgencySearch] = useState('');
   const [hoveredSector, setHoveredSector] = useState<SectorEnum | null>(null);
   const [selectedQuickDay, setSelectedQuickDay] = useState<string | null>(null);
-  const [discardedIds, setDiscardedIds] = useState<Set<string>>(new Set());
+  const [discardedIds, setDiscardedIds] = useState<Set<string>>(() => new Set(readDiscardedProjectIds()));
   const [favouriteIds, setFavouriteIds] = useState<Set<string>>(() => new Set(readSavedProjectIds()));
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('none');
@@ -105,6 +125,10 @@ export default function ActiveTenders() {
 
   const today = startOfToday();
   const dateLocale = language === 'fr' ? fr : language === 'es' ? es : enUS;
+
+  useEffect(() => {
+    writeDiscardedProjectIds(Array.from(discardedIds));
+  }, [discardedIds]);
 
   const quickDays = useMemo(() => {
     return Array.from({ length: 5 }, (_, index) => {
@@ -399,7 +423,6 @@ export default function ActiveTenders() {
   const exportCsv = () => {
     const header = [
       t('activeTenders.table.projectTitle'),
-      t('activeTenders.table.sector'),
       t('activeTenders.table.location'),
       t('activeTenders.table.donor'),
       t('activeTenders.table.budget'),
@@ -418,7 +441,6 @@ export default function ActiveTenders() {
       const deadline = format(row.deadline, 'yyyy-MM-dd');
       return [
         row.title,
-        row.sectors.map(sector => t(`sectors.${sector}`)).join(' | '),
         location,
         row.organizationName,
         row.budget.formatted,
@@ -491,6 +513,7 @@ export default function ActiveTenders() {
 
   const handleDiscard = (id: string) => {
     setDiscardedIds(prev => new Set(prev).add(id));
+    toast.info('Project moved to Bin');
   };
 
   const handleRestore = (id: string) => {
@@ -499,10 +522,11 @@ export default function ActiveTenders() {
       next.delete(id);
       return next;
     });
+    toast.success('Project restored');
   };
 
   const handleAddToMyProjects = (row: TenderListDTO) => {
-    if (favouriteIds.has(row.id)) {
+    if (favouriteIds.has(row.id) && isInPipeline(row.id)) {
       toast.success('Project is already in My Projects');
       return;
     }
@@ -530,27 +554,51 @@ export default function ActiveTenders() {
   };
 
   const openProjectDetail = (row: TenderListDTO) => {
-    navigate(`/calls/${row.id}`, { state: { accessSource: 'my-alerts', isFavorited: favouriteIds.has(row.id) } });
+    const location = row.isMultiCountry
+      ? t('activeTenders.multiCountryLabel')
+      : getLocalizedCountryName(row.country, language);
+
+    navigate(`/calls/${row.id}`, {
+      state: {
+        accessSource: 'my-alerts',
+        isFavorited: favouriteIds.has(row.id),
+        projectSnapshot: {
+          title: row.title,
+          referenceNumber: row.referenceNumber,
+          location,
+          country: row.country,
+          donor: row.organizationName,
+          budgetAmount: row.budget.amount,
+          budgetCurrency: row.budget.currency,
+          publishedDate: row.publishedDate?.toISOString(),
+          deadline: row.deadline.toISOString(),
+          procurementType: row.procurementType ? formatPillLabel(row.procurementType) : undefined,
+          noticeType: row.noticeType ? formatPillLabel(row.noticeType) : undefined,
+          sectors: row.sectors.map(sector => t(`sectors.${sector}`)),
+          fundingAgency: row.fundingAgency ? t(`fundingAgencies.${row.fundingAgency}`) : row.organizationName,
+          description: row.description,
+        },
+      },
+    });
   };
 
   const activeColumns = activeTab === 'awards'
     ? ['Contract', t('activeTenders.table.location'), t('activeTenders.table.donor'), t('activeTenders.table.budget'), t('activeTenders.table.published')]
     : activeTab === 'shortlists'
-    ? [t('activeTenders.tabs.projects'), t('activeTenders.table.location'), t('activeTenders.table.donor'), t('activeTenders.table.budget'), t('activeTenders.table.published')]
+    ? ['Project', t('activeTenders.table.location'), t('activeTenders.table.donor'), t('activeTenders.table.budget'), t('activeTenders.table.published')]
     : [
         t('activeTenders.table.projectTitle'),
-        t('activeTenders.table.sector'),
         t('activeTenders.table.location'),
         t('activeTenders.table.donor'),
         t('activeTenders.table.budget'),
         t('activeTenders.table.published'),
         t('activeTenders.table.deadline'),
-        t('activeTenders.table.actions'),
+        '',
       ];
 
   const rowGridTemplate = activeTab === 'projects' || activeTab === 'bin'
-    ? '2.1fr 1fr 1.05fr 1.25fr 0.9fr 0.9fr 0.9fr 0.75fr'
-    : '2.6fr 1.05fr 1.25fr 0.9fr 0.9fr';
+    ? '2.6fr 1.05fr 1.25fr 0.95fr 0.9fr 0.9fr 0.65fr'
+    : '2.8fr 1.05fr 1.25fr 0.95fr 0.9fr';
 
   const activeFilterCount = [
     selectedProcurementTypes.length,
@@ -1075,10 +1123,26 @@ export default function ActiveTenders() {
                       }}
                     >
                       <div className="grid gap-2 items-center text-sm" style={{ gridTemplateColumns: rowGridTemplate }}>
-                        <div className="font-semibold text-gray-900 leading-snug pr-1">
-                          {rowIndex + 1}. {row.title}
+                        <div className="min-w-0 pr-1">
+                          <div className="font-semibold text-gray-900 leading-snug">
+                            {rowIndex + 1}. {row.title}
+                          </div>
+                          {(activeTab === 'projects' || activeTab === 'bin') && (
+                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                              <Badge variant="secondary" className="rounded-sm border border-blue-100 bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+                                {formatPillLabel(row.noticeType || NoticeTypeEnum.PROJECT_NOTICE)}
+                              </Badge>
+                              <Badge variant="secondary" className="rounded-sm border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                                {formatPillLabel(row.procurementType || ProcurementTypeEnum.SERVICES)}
+                              </Badge>
+                              {row.sectors.slice(0, 2).map(sector => (
+                                <Badge key={sector} variant="outline" className="rounded-sm border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] text-gray-600">
+                                  {getSectorLabel(sector)}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        {(activeTab === 'projects' || activeTab === 'bin') && renderSectorCell(row)}
                         <div className="text-gray-700 leading-snug">{location}</div>
                         <div className="text-gray-700 leading-snug">{row.organizationName}</div>
                         <div className="text-gray-700 font-medium">{row.budget.formatted}</div>
@@ -1152,17 +1216,7 @@ export default function ActiveTenders() {
                       </div>
 
                       <div className="grid gap-3 mt-3 text-xs text-gray-600" style={{ gridTemplateColumns: rowGridTemplate }}>
-                        {(activeTab === 'projects' || activeTab === 'bin') && (
-                          <div className="flex flex-wrap items-center gap-2" style={{ gridColumn: '1 / span 5' }}>
-                            <Badge variant="secondary" className="rounded-full border border-blue-100 bg-blue-50 text-blue-700 px-2.5 py-1 font-medium">
-                              {formatPillLabel(row.noticeType || NoticeTypeEnum.PROJECT_NOTICE)}
-                            </Badge>
-                            <Badge variant="secondary" className="rounded-full border border-emerald-100 bg-emerald-50 text-emerald-700 px-2.5 py-1 font-medium">
-                              {formatPillLabel(row.procurementType || ProcurementTypeEnum.SERVICES)}
-                            </Badge>
-                          </div>
-                        )}
-                        <div style={{ gridColumn: activeTab === 'projects' || activeTab === 'bin' ? '6 / span 3' : '1 / span 5' }}>
+                        <div style={{ gridColumn: '1 / -1' }}>
                           {activeTab === 'bin' && (
                             <div className="flex flex-wrap items-center gap-2">
                               <div className="inline-flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1">

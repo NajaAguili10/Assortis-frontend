@@ -81,6 +81,22 @@ interface ProjectDetailLocationState {
   isFavorited?: boolean;
   accessSource?: ProjectAccessSource;
   fromPipeline?: boolean;
+  projectSnapshot?: {
+    title?: string;
+    referenceNumber?: string;
+    location?: string;
+    country?: string;
+    donor?: string;
+    budgetAmount?: number;
+    budgetCurrency?: string;
+    publishedDate?: string;
+    deadline?: string;
+    procurementType?: string;
+    noticeType?: string;
+    sectors?: string[];
+    fundingAgency?: string;
+    description?: string;
+  };
 }
 
 interface SuggestedExpert {
@@ -390,6 +406,7 @@ export default function ProjectDetail() {
   const { addToPipeline, removeFromPipeline, getPipelineItem, updatePipelineStage } = usePipeline();
   const location = useLocation();
   const locationState = ((location && location.state) || {}) as ProjectDetailLocationState;
+  const projectSnapshot = locationState.projectSnapshot;
   const fromMyProjects = locationState.fromMyProjects === true;
   const fromPipeline = locationState.fromPipeline === true;
   const stateFavorited = locationState.isFavorited === true;
@@ -555,15 +572,18 @@ export default function ProjectDetail() {
   // Mock project data - will be replaced with actual data from API
   const project = {
     id: id,
-    code: 'PROJ-2024-001',
-    title: 'Rural Education Infrastructure Development',
-    description: 'Construction and renovation of primary schools in rural communities to improve access to quality education. The project aims to build 15 new schools and renovate 25 existing facilities across rural regions, providing quality education infrastructure for over 10,000 students.',
+    code: projectSnapshot?.referenceNumber || 'PROJ-2024-001',
+    title: projectSnapshot?.title || 'Rural Education Infrastructure Development',
+    description: projectSnapshot?.description || 'Construction and renovation of primary schools in rural communities to improve access to quality education. The project aims to build 15 new schools and renovate 25 existing facilities across rural regions, providing quality education infrastructure for over 10,000 students.',
     status: ProjectStatusEnum.ACTIVE,
     priority: ProjectPriorityEnum.HIGH,
     type: 'INFRASTRUCTURE',
+    procurementType: projectSnapshot?.procurementType,
+    noticeType: projectSnapshot?.noticeType,
+    fundingAgency: projectSnapshot?.fundingAgency,
     scope: 'REGIONAL',
     sector: 'EDUCATION',
-    sectors: ['EDUCATION', 'INFRASTRUCTURE'],
+    sectors: projectSnapshot?.sectors?.length ? projectSnapshot.sectors : ['EDUCATION', 'INFRASTRUCTURE'],
     subsectors: ['PRIMARY_EDUCATION', 'INFRASTRUCTURE'],
     objectives: 'Improve access to quality education in rural communities by constructing modern school facilities equipped with necessary amenities including classrooms, libraries, laboratories, and sanitation facilities. Ensure sustainable and inclusive education infrastructure that meets international standards.',
     
@@ -572,7 +592,7 @@ export default function ProjectDetail() {
     projectSource: 'TENDER',
     
     // Location
-    country: 'Kenya',
+    country: projectSnapshot?.location || projectSnapshot?.country || 'Kenya',
     countries: [
       'Afghanistan',
       'Armenia',
@@ -598,23 +618,23 @@ export default function ProjectDetail() {
     
     // Timeline
     timeline: {
-      startDate: '2023-06-01',
-      endDate: '2025-05-31',
+      startDate: projectSnapshot?.publishedDate || '2023-06-01',
+      endDate: projectSnapshot?.deadline || '2025-05-31',
       duration: 24,
       completionPercentage: 74,
     },
     
     // Budget
     budget: {
-      total: 2500000,
-      spent: 1850000,
-      remaining: 650000,
-      currency: 'USD',
+      total: projectSnapshot?.budgetAmount || 2500000,
+      spent: projectSnapshot?.budgetAmount ? Math.round(projectSnapshot.budgetAmount * 0.74) : 1850000,
+      remaining: projectSnapshot?.budgetAmount ? Math.round(projectSnapshot.budgetAmount * 0.26) : 650000,
+      currency: projectSnapshot?.budgetCurrency || 'USD',
     },
     
     // Organizations
-    leadOrganization: 'World Bank',
-    donor: 'USAID',
+    leadOrganization: projectSnapshot?.donor || 'World Bank',
+    donor: projectSnapshot?.fundingAgency || projectSnapshot?.donor || 'USAID',
     partners: [
       'Ministry of Education Kenya',
       'Local NGO Consortium',
@@ -678,11 +698,52 @@ export default function ProjectDetail() {
 
   const pipelineItem = getPipelineItem(project.id || '');
   const currentPipelineStage = pipelineItem?.stage || 'eoi_preparation';
+  const currentPipelineStageDefinition = PIPELINE_STAGES.find((stage) => stage.id === currentPipelineStage);
+  const currentPipelineStageClass =
+    currentPipelineStageDefinition?.color === 'orange'
+      ? 'border-orange-200 bg-orange-50 text-orange-700'
+      : currentPipelineStageDefinition?.color === 'green'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      : currentPipelineStageDefinition?.color === 'red'
+      ? 'border-red-200 bg-red-50 text-red-700'
+      : currentPipelineStageDefinition?.color === 'gray'
+      ? 'border-gray-200 bg-gray-50 text-gray-700'
+      : 'border-blue-200 bg-blue-50 text-blue-700';
   const showProjectStageSelect = Boolean(project.id) && user?.accountType !== 'expert' && (
     isProjectSaved ||
     projectAccessSource === 'my-projects' ||
     projectAccessSource === 'my-alerts'
   );
+  const showAddVacanciesTab = showProjectStageSelect && currentPipelineStage === 'tender_preparation';
+
+  useEffect(() => {
+    if (!showAddVacanciesTab && activeDetailTab === 'add-vacancies') {
+      setActiveDetailTab('notice');
+    }
+  }, [activeDetailTab, showAddVacanciesTab]);
+
+  const handleCreateProjectVacancy = () => {
+    const params = new URLSearchParams({
+      tab: 'publish',
+      source: 'project-detail',
+      projectId: project.id || '',
+      projectTitle: project.title,
+      location: project.country || '',
+      description: `Project vacancy for ${project.title}`,
+    });
+
+    navigate(`/posting-board/publish?${params.toString()}`, {
+      state: {
+        projectVacancyContext: {
+          projectId: project.id,
+          projectTitle: project.title,
+          projectReference: project.code,
+          location: project.country,
+          source: 'project-detail',
+        },
+      },
+    });
+  };
 
   const [projectTasks, setProjectTasks] = useState(() =>
     project.tasks.map((task) => ({ ...task, assignedTo: [] as { id: string; name: string; role?: string }[] }))
@@ -1939,6 +2000,9 @@ export default function ProjectDetail() {
                           ))}
                         </SelectContent>
                       </Select>
+                      <Badge variant="outline" className={`mt-2 ${currentPipelineStageClass}`}>
+                        {currentPipelineStageDefinition?.name || 'EOI Preparation'}
+                      </Badge>
                     </div>
                   )}
                 </div>
@@ -2011,6 +2075,11 @@ export default function ProjectDetail() {
                     <TabsTrigger value="team-members" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
                       <span className="inline-flex items-center gap-2"><Users className="h-4 w-4" aria-hidden />{t('projects.details.teamMembers')}</span>
                     </TabsTrigger>
+                    {showAddVacanciesTab && (
+                      <TabsTrigger value="add-vacancies" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
+                        <span className="inline-flex items-center gap-2"><UserPlus className="h-4 w-4" aria-hidden />Add Vacancies</span>
+                      </TabsTrigger>
+                    )}
                   </TabsList>
 
                   <TabsContent value="notice" className="mt-0">
@@ -2045,19 +2114,19 @@ export default function ProjectDetail() {
                           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div>
                               <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Briefcase className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Procurement Type</p>
-                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{t(`projects.type.${project.type}`)}</p>
+                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.procurementType || t(`projects.type.${project.type}`)}</p>
                             </div>
                             <div>
-                              <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.projectSource')}</p>
-                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{t(`projects.create.source.${project.projectSource}`)}</p>
+                              <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Notice Type</p>
+                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.noticeType || t(`projects.create.source.${project.projectSource}`)}</p>
                             </div>
                             <div>
                               <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Reference</p>
                               <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.code}</p>
                             </div>
                             <div>
-                              <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Target className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.relatedTender')}</p>
-                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.relatedTender}</p>
+                              <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Target className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Funding Agency</p>
+                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.fundingAgency || project.relatedTender}</p>
                             </div>
                           </div>
 
@@ -2519,6 +2588,35 @@ export default function ProjectDetail() {
                         </div>
                       </div>
                     </TabsContent>
+
+                  {showAddVacanciesTab && (
+                    <TabsContent value="add-vacancies" className="mt-0">
+                      <div className="rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-5 shadow-sm">
+                        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                          <div className="min-w-0">
+                            <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                              <UserPlus className="h-3.5 w-3.5" aria-hidden />
+                              Tender Preparation
+                            </div>
+                            <h3 className="mt-3 text-lg font-bold text-primary">Add project vacancies</h3>
+                            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+                              Create a project vacancy on the Posting Board for this tender preparation project.
+                            </p>
+                            <div className="mt-3 grid gap-2 text-sm text-[#1E293B] sm:grid-cols-2">
+                              <p><span className="font-semibold text-[#4A5568]">Project:</span> {project.title}</p>
+                              <p><span className="font-semibold text-[#4A5568]">Reference:</span> {project.code}</p>
+                              <p><span className="font-semibold text-[#4A5568]">Location:</span> {project.country}</p>
+                              <p><span className="font-semibold text-[#4A5568]">Current stage:</span> Tender Preparation</p>
+                            </div>
+                          </div>
+                          <Button type="button" className="shrink-0 bg-accent hover:bg-accent/90" onClick={handleCreateProjectVacancy}>
+                            <Plus className="mr-2 h-4 w-4" aria-hidden />
+                            Add Vacancy
+                          </Button>
+                        </div>
+                      </div>
+                    </TabsContent>
+                  )}
 
                   {showSensitiveSections && (
                     <TabsContent value="tasks" className="mt-0">

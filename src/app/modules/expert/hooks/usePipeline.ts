@@ -232,6 +232,36 @@ export function usePipeline() {
     return () => controller.abort();
   }, [user?.email, user?.role]);
 
+  const getRequestHeaders = useCallback(() => ({
+    'Content-Type': 'application/json',
+    ...(user?.email ? { 'X-User-Email': user.email } : {}),
+    ...(user?.role ? { 'X-User-Role': user.role } : {}),
+  }), [user?.email, user?.role]);
+
+  const syncPipelineUpsert = useCallback(async (tenderId: string, currentStage: string) => {
+    try {
+      await fetch(`${API_BASE_URL}/projects/pipeline`, {
+        method: 'POST',
+        headers: getRequestHeaders(),
+        body: JSON.stringify({ projectId: tenderId, currentStage }),
+      });
+    } catch {
+      // Local storage remains the source of truth when the backend is unavailable.
+    }
+  }, [getRequestHeaders]);
+
+  const syncPipelineStage = useCallback(async (tenderId: string, currentStage: string) => {
+    try {
+      await fetch(`${API_BASE_URL}/projects/pipeline/${tenderId}/stage`, {
+        method: 'PATCH',
+        headers: getRequestHeaders(),
+        body: JSON.stringify({ currentStage }),
+      });
+    } catch {
+      // Local storage remains the source of truth when the backend is unavailable.
+    }
+  }, [getRequestHeaders]);
+
   const addToPipeline = useCallback((
     tenderId: string,
     stage: string = DEFAULT_PIPELINE_STAGE,
@@ -239,10 +269,12 @@ export function usePipeline() {
     probability: number = 50,
     metadata: PipelineMetadata = {}
   ) => {
+    const normalizedStage = mapBackendStage(stage);
+    void syncPipelineUpsert(tenderId, normalizedStage);
+
     setPipelineItems((prev) => {
       const exists = prev.find((item) => item.tenderId === tenderId);
       const now = new Date().toISOString();
-      const normalizedStage = mapBackendStage(stage);
       if (exists) {
         const stageChanged = exists.stage !== normalizedStage;
         const updated = prev.map((item) =>
@@ -284,7 +316,7 @@ export function usePipeline() {
         return updated;
       }
     });
-  }, [user?.email]);
+  }, [syncPipelineUpsert, user?.email]);
 
   const removeFromPipeline = useCallback((tenderId: string) => {
     setPipelineItems((prev) => {
@@ -295,9 +327,11 @@ export function usePipeline() {
   }, []);
 
   const updatePipelineStage = useCallback((tenderId: string, stage: string) => {
+    const normalizedStage = mapBackendStage(stage);
+    void syncPipelineStage(tenderId, normalizedStage);
+
     setPipelineItems((prev) => {
       const now = new Date().toISOString();
-      const normalizedStage = mapBackendStage(stage);
       const updated = prev.map((item) =>
         item.tenderId === tenderId
           ? {
@@ -317,7 +351,7 @@ export function usePipeline() {
       localStorage.setItem('pipeline_items', JSON.stringify(updated));
       return updated;
     });
-  }, [user?.email]);
+  }, [syncPipelineStage, user?.email]);
 
   const updatePipelineNotes = useCallback((tenderId: string, notes: string) => {
     setPipelineItems((prev) => {

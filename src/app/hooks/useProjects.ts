@@ -21,6 +21,8 @@ interface ProjectListDTOInternal extends ProjectListDTO {
   managerName?: string;
 }
 
+const normalizeSearchValue = (value: unknown) => String(value ?? '').toLowerCase();
+
 export const useProjects = () => {
   const { 
     projects: mockProjects, 
@@ -68,14 +70,14 @@ export const useProjects = () => {
     }
 
     if (filters.searchQuery) {
-      const query = filters.searchQuery.toLowerCase();
+      const query = normalizeSearchValue(filters.searchQuery);
       filtered = filtered.filter(
         (project) =>
-          project.title.toLowerCase().includes(query) ||
-          project.code.toLowerCase().includes(query) ||
-          project.description.toLowerCase().includes(query) ||
-          project.leadOrganization.toLowerCase().includes(query) ||
-          ((project as ProjectListDTO & { tags?: string[] }).tags || []).some((tag) => tag.toLowerCase().includes(query))
+          normalizeSearchValue(project.title).includes(query) ||
+          normalizeSearchValue(project.code).includes(query) ||
+          normalizeSearchValue(project.description).includes(query) ||
+          normalizeSearchValue(project.leadOrganization).includes(query) ||
+          ((project as ProjectListDTO & { tags?: unknown[] }).tags || []).some((tag) => normalizeSearchValue(tag).includes(query))
       );
     }
 
@@ -131,7 +133,7 @@ export const useProjects = () => {
         filtered.sort((a, b) => b.timeline.completionPercentage - a.timeline.completionPercentage);
         break;
       case 'name':
-        filtered.sort((a, b) => a.title.localeCompare(b.title));
+        filtered.sort((a, b) => String(a.title ?? '').localeCompare(String(b.title ?? '')));
         break;
       default: // newest
         filtered.sort((a, b) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime());

@@ -72,11 +72,14 @@ export default function Projects() {
     { style: 'currency', currency, maximumFractionDigits: 0 }
   ).format(amount);
 
-  const formatEnumLabel = (value: string) => value
-    .toLowerCase()
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
+  const formatEnumLabel = (value: string) => {
+    if (!value) return '';
+    return value
+      .toLowerCase()
+      .split('_')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  };
 
   const getProjectCountries = (project: (typeof userCreatedProjects)[number]) => {
     const extendedProject = project as typeof project & { countries?: string[] };

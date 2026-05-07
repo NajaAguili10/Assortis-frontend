@@ -17,7 +17,7 @@ import {
 } from '../../../components/ui/select';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useAuth } from '../../../contexts/AuthContext';
-import { JobOfferCreateDTO, JobOfferListDTO, JobOfferStatusEnum } from '../types/JobOffer.dto';
+import { JobOfferCreateDTO, JobOfferListDTO, JobOfferStatusEnum, JobOfferTypeEnum } from '../types/JobOffer.dto';
 import { createJobOffer, getJobOffersByRecruiter, deleteJobOffer } from '../services/jobOfferService';
 import {
   PlusCircle, AlertCircle, Briefcase, MapPin, Calendar, Users,
@@ -65,6 +65,7 @@ export default function PublierOffrePage() {
 
   // ── Duplicate state ────────────────────────────────────────────────────────
   const [duplicateData, setDuplicateData] = useState<Partial<JobOfferCreateDTO> | null>(null);
+  const [projectPrefillData, setProjectPrefillData] = useState<Partial<JobOfferCreateDTO> | null>(null);
   const [formKey, setFormKey] = useState(0);
 
   // ── Search / filter state (Job Offers tab) ─────────────────────────────────
@@ -77,6 +78,22 @@ export default function PublierOffrePage() {
       loadPublishedOffers();
     }
   }, [user?.id, isAuthenticated]);
+
+  useEffect(() => {
+    if (searchParams.get('source') !== 'project-detail') return;
+
+    const projectTitle = searchParams.get('projectTitle') || '';
+    if (!projectTitle) return;
+
+    setDuplicateData(null);
+    setProjectPrefillData({
+      type: JobOfferTypeEnum.PROJECT,
+      projectTitle,
+      location: searchParams.get('location') || '',
+      description: searchParams.get('description') || '',
+    });
+    setFormKey(k => k + 1);
+  }, [searchParams]);
 
   const handleTabChange = (value: string) => {
     const tab = value as MainTab;
@@ -120,6 +137,7 @@ export default function PublierOffrePage() {
 
   const handleCancel = () => {
     setDuplicateData(null);
+    setProjectPrefillData(null);
     setFormKey(k => k + 1);
   };
 
@@ -152,6 +170,7 @@ export default function PublierOffrePage() {
       // deadline intentionally cleared – user must pick a new one
     };
     setDuplicateData(prefilled);
+    setProjectPrefillData(null);
     setFormKey(k => k + 1);
     setActiveTab('publish');
     setSearchParams({ tab: 'publish' });
@@ -344,6 +363,14 @@ export default function PublierOffrePage() {
                   </AlertDescription>
                 </Alert>
               )}
+              {projectPrefillData && !duplicateData && (
+                <Alert className="border-blue-200 bg-blue-50">
+                  <Briefcase className="h-4 w-4 text-blue-600" />
+                  <AlertDescription className="text-blue-700">
+                    Creating a project vacancy for {projectPrefillData.projectTitle}.
+                  </AlertDescription>
+                </Alert>
+              )}
 
               {/* Create form */}
               <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8">
@@ -351,7 +378,7 @@ export default function PublierOffrePage() {
                   key={formKey}
                   onSubmit={handleSubmit}
                   onCancel={handleCancel}
-                  initialData={duplicateData || undefined}
+                  initialData={duplicateData || projectPrefillData || undefined}
                   submitLabel={t('monEspace.action.publish')}
                 />
               </div>
