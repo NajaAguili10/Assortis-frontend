@@ -60,8 +60,8 @@ export function useOrganizations() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await organizationService.getAllOrganizations();
-        setAllOrganizations(Array.isArray(response) ? response : []);
+        const response = await organizationService.getOrganizationsList();
+        setAllOrganizations(response);
       } catch (error) {
         console.error("Error fetching organizations:", error);
       } finally {
@@ -128,27 +128,23 @@ export function useOrganizations() {
     if (filters.sectors && filters.sectors.length > 0) {
       filtered = filtered.filter((org) => {
         const orgSectorCode = org.mainSector?.code;
-        return orgSectorCode && filters.sectors!.includes(orgSectorCode);
+        return orgSectorCode && filters.sectors!.some(s => s.code === orgSectorCode);
       });
     }
 
     // SubSectors filter
     if (filters.subSectors && filters.subSectors.length > 0) {
       filtered = filtered.filter((org) => {
-        const orgSubSectors: string[] = [];
-        if (orgSubSectors.length === 0) {
-          const parentSectors = new Set<string>();
-          filters.subSectors?.forEach((subSector) => {
-            Object.entries(ORGANIZATION_SECTOR_SUBSECTOR_MAP).forEach(([sector, subsectors]) => {
-              if (subsectors.includes(subSector as any)) {
-                parentSectors.add(sector);
-              }
-            });
+        const parentSectors = new Set<string>();
+        filters.subSectors?.forEach((subDTO) => {
+          Object.entries(ORGANIZATION_SECTOR_SUBSECTOR_MAP).forEach(([sector, subsectors]) => {
+            if (subsectors.includes(subDTO.code as any)) {
+              parentSectors.add(sector);
+            }
           });
-          const orgSectors = org.mainSector?.name ? [org.mainSector.name.toUpperCase()] : [];
-          return orgSectors.some((sector) => parentSectors.has(sector as any));
-        }
-        return orgSubSectors.some((subSector) => filters.subSectors!.includes(subSector as any));
+        });
+        const orgSectors = org.mainSector?.name ? [org.mainSector.name.toUpperCase()] : [];
+        return orgSectors.some((sector) => parentSectors.has(sector as any));
       });
     }
 
@@ -161,7 +157,7 @@ export function useOrganizations() {
     }
 
     if (filters.countries && filters.countries.length > 0) {
-      filtered = filtered.filter((org) => org.country?.code && filters.countries!.includes(org.country.code));
+      filtered = filtered.filter((org) => org.country?.code && filters.countries!.some(c => c.code === org.country?.code));
     }
 
     try {

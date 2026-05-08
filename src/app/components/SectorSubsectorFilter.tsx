@@ -5,16 +5,19 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Briefcase, Check, ArrowRight } from 'lucide-react';
 import { SectorEnum, SubSectorEnum, SECTOR_SUBSECTOR_MAP } from '../types/tender.dto';
+import { SectorDTO, SubsectorDTO } from '../types/organization.dto';
 
 interface SectorSubsectorFilterProps {
-  selectedSectors: SectorEnum[];
-  selectedSubSectors: SubSectorEnum[];
-  hoveredSector: SectorEnum | null;
-  onHoverSector: (sector: SectorEnum | null) => void;
-  onSelectSector: (sector: SectorEnum) => void;
-  onSelectSubSector: (subSector: SubSectorEnum) => void;
+  selectedSectors: SectorDTO[];
+  selectedSubSectors: SubsectorDTO[];
+  hoveredSector: SectorDTO | null;
+  onHoverSector: (sector: SectorDTO | null) => void;
+  onSelectSector: (sector: SectorDTO) => void;
+  onSelectSubSector: (subSector: SubsectorDTO) => void;
   onSelectAllSectors: () => void;
-  onSelectAllSubSectors: (sector: SectorEnum) => void;
+  onSelectAllSubSectors: (sector: SectorDTO) => void;
+  allowedSectors?: SectorDTO[];
+  dynamicSubsectorsMap: SubsectorDTO[];
   t: (key: string) => string;
 }
 
@@ -24,19 +27,23 @@ export function SectorSubsectorFilter({
   onSelectSector,
   onSelectSubSector,
   onSelectAllSectors,
+  dynamicSubsectorsMap,
+  allowedSectors,
+  
   t
 }: SectorSubsectorFilterProps) {
-  const [activeSector, setActiveSector] = React.useState<SectorEnum | null>(null);
+  const [activeSector, setActiveSector] = React.useState<SectorDTO | null>(null);
   const [showAllSectors, setShowAllSectors] = React.useState(false);
   const totalSelected = selectedSubSectors.length;
 
+
   React.useEffect(() => {
-    if (selectedSectors.length === 0 || (activeSector && !selectedSectors.includes(activeSector))) {
+    if (selectedSectors.length === 0 || (activeSector && !selectedSectors.some(s => s.id === activeSector.id))) {
       setActiveSector(null);
     }
   }, [selectedSectors, activeSector]);
 
-  const handleSectorClick = (sector: SectorEnum) => {
+  const handleSectorClick = (sector: SectorDTO) => {
     setActiveSector(sector);
     onSelectSector(sector);
   };
@@ -44,20 +51,23 @@ export function SectorSubsectorFilter({
   const handleSelectAllSubsectorsForActiveSector = () => {
     if (!activeSector) return;
     
-    const sectorSubs = SECTOR_SUBSECTOR_MAP[activeSector] || [];
-    const allSelected = sectorSubs.every(sub => selectedSubSectors.includes(sub));
+    const sectorSubs = (dynamicSubsectorsMap && dynamicSubsectorsMap[activeSector.id]) || [];
+    const allSelected = sectorSubs.every(sub => selectedSubSectors.some(s => s.id === sub.id));
     
     if (allSelected) {
       sectorSubs.forEach(sub => onSelectSubSector(sub));
     } else {
-      sectorSubs.filter(sub => !selectedSubSectors.includes(sub)).forEach(sub => onSelectSubSector(sub));
+      sectorSubs.filter(sub => !selectedSubSectors.some(s => s.id === sub.id)).forEach(sub => onSelectSubSector(sub));
     }
   };
 
-  const activeSubsectors = activeSector ? (SECTOR_SUBSECTOR_MAP[activeSector] || []) : [];
+  const activeSubsectors = React.useMemo(() => {
+    if (!activeSector) return [];
+    return (dynamicSubsectorsMap && dynamicSubsectorsMap[activeSector.id]) || [];
+  }, [activeSector, dynamicSubsectorsMap]);
 
   // Limit sectors display to 4 by default
-  const allSectors = Object.values(SectorEnum);
+  const allSectors = allowedSectors || [];
   const displayedSectors = showAllSectors ? allSectors : allSectors.slice(0, 4);
   const hasMoreSectors = allSectors.length > 4;
 
@@ -89,7 +99,7 @@ export function SectorSubsectorFilter({
 
       {/* Symmetric Two-Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        
+
         {/* LEFT COLUMN - SECTORS */}
         <div className="bg-white rounded-xl border-2 border-gray-200 shadow-sm overflow-hidden">
           {/* Sectors Header */}
@@ -104,18 +114,18 @@ export function SectorSubsectorFilter({
                     {t('tenders.filters.sector')}
                   </h4>
                   <p className="text-xs text-gray-600">
-                    {Object.values(SectorEnum).length} {t('filters.available') || 'available'}
+                    {allSectors.length} {t('filters.available') || 'available'}
                   </p>
                 </div>
               </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 className="text-xs h-8 px-3 hover:bg-accent/10 hover:text-accent font-semibold"
                 onClick={onSelectAllSectors}
               >
-                {selectedSectors.length === Object.values(SectorEnum).length 
-                  ? t('filters.unselectAll') 
+                {selectedSectors.length === allSectors.length
+                  ? t('filters.unselectAll')
                   : t('filters.selectAll')}
               </Button>
             </div>
@@ -132,20 +142,21 @@ export function SectorSubsectorFilter({
           <div className="p-3 max-h-[420px] overflow-y-auto">
             <div className="space-y-2">
               {displayedSectors.map((sector) => {
-                const isSelected = selectedSectors.includes(sector);
-                const isActive = activeSector === sector;
-                const subsectorsCount = SECTOR_SUBSECTOR_MAP[sector]?.length || 0;
-                const selectedSubsectorsCount = selectedSubSectors.filter(sub => 
-                  SECTOR_SUBSECTOR_MAP[sector]?.includes(sub)
+                const isSelected = selectedSectors.some(s => s.id === sector.id);
+                const isActive = activeSector?.id === sector.id;
+                const subs = (dynamicSubsectorsMap && dynamicSubsectorsMap[sector.id]) || [];
+                const subsectorsCount = subs.length;
+                const selectedSubsectorsCount = selectedSubSectors.filter(sub =>
+                  subs.some(s => s.id === sub.id)
                 ).length;
-                
+
                 return (
                   <div
-                    key={sector}
+                    key={sector.id}
                     className={`
                       group relative rounded-lg cursor-pointer transition-all duration-200
-                      ${isActive 
-                        ? 'bg-accent/10 border-2 border-accent shadow-lg ring-2 ring-accent/30' 
+                      ${isActive
+                        ? 'bg-accent/10 border-2 border-accent shadow-lg ring-2 ring-accent/30'
                         : isSelected
                           ? 'bg-accent/10 border-2 border-accent shadow-md'
                           : 'bg-white border-2 border-gray-200 hover:border-accent/30 hover:shadow-md hover:bg-gray-50'
@@ -158,8 +169,8 @@ export function SectorSubsectorFilter({
                         {/* Checkbox */}
                         <div className={`
                           w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
-                          ${isSelected 
-                            ? 'bg-accent border-accent' 
+                          ${isSelected
+                            ? 'bg-accent border-accent'
                             : 'border-gray-300 bg-white group-hover:border-accent/50'
                           }
                         `}>
@@ -173,24 +184,23 @@ export function SectorSubsectorFilter({
                               text-sm font-bold truncate
                               ${isActive || isSelected ? 'text-gray-900' : 'text-gray-700'}
                             `}>
-                              {t(`sectors.${sector}`)}
+                              {sector.name}
                             </span>
-                            <Badge 
-                              variant="outline" 
-                              className={`text-xs h-5 px-2 font-medium flex-shrink-0 ${
-                                isActive || isSelected 
-                                  ? 'border-accent text-accent' 
+                            <Badge
+                              variant="outline"
+                              className={`text-xs h-5 px-2 font-medium flex-shrink-0 ${isActive || isSelected
+                                  ? 'border-accent text-accent'
                                   : 'border-gray-300 text-gray-600'
-                              }`}
+                                }`}
                             >
                               {subsectorsCount}
                             </Badge>
                           </div>
-                          
+
                           <div className="flex items-center gap-2">
                             {selectedSubsectorsCount > 0 && (
-                              <Badge 
-                                variant="default" 
+                              <Badge
+                                variant="default"
                                 className="text-xs h-5 px-2 font-bold bg-accent text-white"
                               >
                                 {selectedSubsectorsCount} {t('common.selected')}
@@ -254,7 +264,7 @@ export function SectorSubsectorFilter({
                     {t('tenders.filters.subsector')}
                   </h4>
                   <p className="text-xs text-gray-600">
-                    {activeSector 
+                    {activeSector
                       ? `${activeSubsectors.length} ${t('filters.available') || 'available'}`
                       : t('filters.selectSectorFirst') || 'Select a sector first'
                     }
@@ -262,14 +272,14 @@ export function SectorSubsectorFilter({
                 </div>
               </div>
               {activeSector && activeSubsectors.length > 0 && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="text-xs h-8 px-3 hover:bg-accent/10 hover:text-accent font-semibold"
                   onClick={handleSelectAllSubsectorsForActiveSector}
                 >
-                  {activeSubsectors.every(sub => selectedSubSectors.includes(sub))
-                    ? t('filters.unselectAll') 
+                  {activeSubsectors.every(sub => selectedSubSectors.some(s => s.id === sub.id))
+                    ? t('filters.unselectAll')
                     : t('filters.selectAll')}
                 </Button>
               )}
@@ -281,12 +291,12 @@ export function SectorSubsectorFilter({
                 <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-accent/10 border-2 border-accent/30">
                   <Briefcase className="w-4 h-4 text-accent flex-shrink-0" />
                   <span className="text-sm font-bold text-gray-900 truncate">
-                    {t(`sectors.${activeSector}`)}
+                    {activeSector.name}
                   </span>
                 </div>
-                {selectedSubSectors.filter(sub => activeSubsectors.includes(sub)).length > 0 && (
+                {selectedSubSectors.filter(sub => activeSubsectors.some(s => s.id === sub.id)).length > 0 && (
                   <Badge variant="default" className="bg-accent text-white text-xs h-9 px-3 font-bold">
-                    {selectedSubSectors.filter(sub => activeSubsectors.includes(sub)).length} {t('common.selected')}
+                    {selectedSubSectors.filter(sub => activeSubsectors.some(s => s.id === sub.id)).length} {t('common.selected')}
                   </Badge>
                 )}
               </div>
@@ -298,21 +308,21 @@ export function SectorSubsectorFilter({
             {activeSector && activeSubsectors.length > 0 ? (
               <div className="space-y-2">
                 {activeSubsectors.map((subSector) => {
-                  const isSelected = selectedSubSectors.includes(subSector);
-                  const parentSectorSelected = activeSector ? selectedSectors.includes(activeSector) : false;
+                  const isSelected = selectedSubSectors.some(s => s.id === subSector.id);
+                  const parentSectorSelected = activeSector ? selectedSectors.some(s => s.id === activeSector.id) : false;
                   const isDisabled = !parentSectorSelected;
-                  
+
                   return (
                     <div
-                      key={subSector}
+                      key={subSector.id}
                       className={`
                         group rounded-lg transition-all duration-200
-                        ${isDisabled 
-                          ? 'cursor-not-allowed opacity-50' 
+                        ${isDisabled
+                          ? 'cursor-not-allowed opacity-50'
                           : 'cursor-pointer'
                         }
-                        ${isSelected 
-                          ? 'bg-accent/5 border-2 border-accent/70 shadow-md' 
+                        ${isSelected
+                          ? 'bg-accent/5 border-2 border-accent/70 shadow-md'
                           : 'bg-white border-2 border-gray-200 hover:border-accent/30 hover:shadow-md'
                         }
                       `}
@@ -326,8 +336,8 @@ export function SectorSubsectorFilter({
                       <div className="p-3 flex items-center gap-3">
                         <div className={`
                           w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
-                          ${isSelected 
-                            ? 'bg-accent border-accent' 
+                          ${isSelected
+                            ? 'bg-accent border-accent'
                             : isDisabled
                               ? 'border-gray-200 bg-gray-100'
                               : 'border-gray-300 bg-white group-hover:border-accent/50'
@@ -339,7 +349,7 @@ export function SectorSubsectorFilter({
                           text-sm font-semibold flex-1
                           ${isSelected ? 'text-gray-900' : isDisabled ? 'text-gray-400' : 'text-gray-700'}
                         `}>
-                          {t(`subsectors.${subSector}`)}
+                          {subSector.name}
                         </span>
                         {isSelected && (
                           <Check className="w-4 h-4 text-accent flex-shrink-0" />

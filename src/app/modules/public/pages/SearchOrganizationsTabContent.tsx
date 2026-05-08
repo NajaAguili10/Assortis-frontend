@@ -18,7 +18,9 @@ import {
 } from '@app/components/ui/dialog';
 import { useOrganizations } from '@app/modules/organization/hooks/useOrganizations';
 import { useOrganizationBookmarks } from '@app/modules/shared/hooks/useOrganizationBookmarks';
-import { OrganizationTypeEnum, OrganizationSectorEnum, RegionEnum, CountryEnum } from '@app/types/organization.dto';
+import { organizationService } from '@app/services/organizationService';
+import { sectorService } from '@app/services/sectorService';
+import { OrganizationTypeEnum, SectorDTO, CountryDTO, SubsectorDTO, OrganizationSectorEnum, RegionEnum, CountryEnum } from '@app/types/organization.dto';
 import { SubSectorEnum, SectorEnum, REGION_COUNTRY_MAP } from '@app/types/tender.dto';
 import { ORGANIZATION_SECTOR_SUBSECTOR_MAP } from '@app/config/organization-sectors.config';
 import { Search, Filter, X, ChevronLeft, ChevronRight, Building2, MapPin, Briefcase, Globe, Target, CheckCircle, ChevronDown, Plus } from 'lucide-react';
@@ -27,10 +29,9 @@ import { toast } from 'sonner';
 
 interface OrganizationSavedPayload {
   searchQuery: string;
-  selectedSectors: OrganizationSectorEnum[];
-  selectedSubSectors: SubSectorEnum[];
-  selectedRegions: RegionEnum[];
-  selectedCountries: CountryEnum[];
+  selectedSectors: SectorDTO[];
+  selectedSubSectors: SubsectorDTO[];
+  selectedCountries: CountryDTO[];
   type: OrganizationTypeEnum[];
 }
 
@@ -65,11 +66,11 @@ export default function SearchOrganizationsTabContent() {
   } = useOrganizations();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSectors, setSelectedSectors] = useState<OrganizationSectorEnum[]>([]);
-  const [selectedSubSectors, setSelectedSubSectors] = useState<SubSectorEnum[]>([]);
-  const [selectedRegions, setSelectedRegions] = useState<RegionEnum[]>([]);
-  const [selectedCountries, setSelectedCountries] = useState<CountryEnum[]>([]);
-  const [hoveredSector, setHoveredSector] = useState<SectorEnum | null>(null);
+  const [selectedSectors, setSelectedSectors] = useState<SectorDTO[]>([]);
+  const [selectedSubSectors, setSelectedSubSectors] = useState<SubsectorDTO[]>([]);
+  const [selectedCountries, setSelectedCountries] = useState<CountryDTO[]>([]);
+  const [dynamicSubsectorsMap, setDynamicSubsectorsMap] = useState<SubsectorDTO[]>([]);
+  const [hoveredSector, setHoveredSector] = useState<SectorDTO | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [showSectorFilters, setShowSectorFilters] = useState(false);
   const [showRegionFilters, setShowRegionFilters] = useState(false);
@@ -84,15 +85,7 @@ export default function SearchOrganizationsTabContent() {
   const compatibilityStorageKey = 'search.organisations.compatibility';
   const partnerStateStorageKey = 'search.organisations.partnerStates';
 
-  const availableSubSectors = useMemo(() => {
-    if (selectedSectors.length === 0) return [];
-    const subs: SubSectorEnum[] = [];
-    selectedSectors.forEach((sector) => {
-      const sectorSubs = ORGANIZATION_SECTOR_SUBSECTOR_MAP[sector as unknown as keyof typeof ORGANIZATION_SECTOR_SUBSECTOR_MAP] || [];
-      subs.push(...sectorSubs);
-    });
-    return [...new Set(subs)];
-  }, [selectedSectors]);
+
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -102,6 +95,77 @@ export default function SearchOrganizationsTabContent() {
     }, 300);
     return () => clearTimeout(timeoutId);
   }, [filters.searchQuery, searchQuery, updateFilters]);
+
+  // Fetch subscription data
+  const [subscriptionSectors, setSubscriptionSectors] = useState<SectorDTO[]>([]);
+  const [subscriptionCountries, setSubscriptionCountries] = useState<CountryDTO[]>([]);
+
+  useEffect(() => {
+    const fetchSectors = async () => {
+      if (!user) return;
+      try {
+        const sectors = await organizationService.getMySubscriptionSectors();
+        setSubscriptionSectors(sectors || []);
+      } catch (error) {
+        console.error('Error fetching subscription sectors:', error);
+      }
+    };
+    fetchSectors();
+  }, [user]);
+
+  useEffect(() => {
+    const fetchCountries = async () => {
+      if (!user) return;
+      try {
+        const countries = await organizationService.getMySubscriptionCountries();
+        setSubscriptionCountries(countries || []);
+      } catch (error) {
+        console.error('Error fetching subscription countries:', error);
+      }
+    };
+    fetchCountries();
+  }, [user]);
+
+  // Fetch subsectors for selected sectors
+  useEffect(() => {
+    const fetchSelectedSubsectors = async () => {
+      const newMap = { ...dynamicSubsectorsMap };
+      let changed = false;
+
+      for (const sector of selectedSectors) {
+        if (!newMap[sector.id]) {
+          try {
+            const subs = await sectorService.getSubsectorsBySectorId(sector.id);
+            newMap[sector.id] = subs;
+            changed = true;
+          } catch (error) {
+            console.error(`Error fetching subsectors for ${sector.name}:`, error);
+          }
+        }
+      }
+
+      if (changed) {
+        setDynamicSubsectorsMap(newMap);
+      }
+    };
+
+    if (selectedSectors.length > 0) {
+      fetchSelectedSubsectors();
+    }
+  }, [selectedSectors]);
+
+  const organizationSubSectors = useMemo(() => {
+    if (selectedSectors.length === 0) return [];
+    const subs: SubsectorDTO[] = [];
+    selectedSectors.forEach((sector) => {
+      const sectorSubs = dynamicSubsectorsMap[sector.id] || [];
+      subs.push(...sectorSubs);
+    });
+    // Deduplicate by ID
+    const uniqueMap = new Map<number, SubsectorDTO>();
+    subs.forEach(s => uniqueMap.set(s.id, s));
+    return Array.from(uniqueMap.values());
+  }, [selectedSectors, dynamicSubsectorsMap]);
 
   useEffect(() => {
     try {
@@ -150,7 +214,6 @@ export default function SearchOrganizationsTabContent() {
     setSearchQuery('');
     setSelectedSectors([]);
     setSelectedSubSectors([]);
-    setSelectedRegions([]);
     setSelectedCountries([]);
     clearFilters();
   };
@@ -211,13 +274,11 @@ export default function SearchOrganizationsTabContent() {
     setSearchQuery(payload.searchQuery || '');
     setSelectedSectors(payload.selectedSectors || []);
     setSelectedSubSectors(payload.selectedSubSectors || []);
-    setSelectedRegions(payload.selectedRegions || []);
     setSelectedCountries(payload.selectedCountries || []);
     updateFilters({
       searchQuery: payload.searchQuery || undefined,
       sectors: (payload.selectedSectors || []).length > 0 ? payload.selectedSectors : undefined,
       subSectors: (payload.selectedSubSectors || []).length > 0 ? payload.selectedSubSectors : undefined,
-      regions: (payload.selectedRegions || []).length > 0 ? payload.selectedRegions : undefined,
       countries: (payload.selectedCountries || []).length > 0 ? payload.selectedCountries : undefined,
       type: (payload.type || []).length > 0 ? payload.type : undefined,
     });
@@ -234,7 +295,6 @@ export default function SearchOrganizationsTabContent() {
         searchQuery,
         selectedSectors,
         selectedSubSectors,
-        selectedRegions,
         selectedCountries,
         type: filters.type || [],
       },
@@ -338,40 +398,54 @@ export default function SearchOrganizationsTabContent() {
 
             <div className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-out ${showSectorFilters ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
               <SectorSubsectorFilter
-                selectedSectors={selectedSectors as any}
+                selectedSectors={selectedSectors}
                 selectedSubSectors={selectedSubSectors}
-                hoveredSector={hoveredSector}
-                onHoverSector={setHoveredSector}
-                onSelectSector={(sector: any) => {
-                  const next = selectedSectors.includes(sector)
-                    ? selectedSectors.filter((item) => item !== sector)
+                hoveredSector={hoveredSector as any}
+                onHoverSector={setHoveredSector as any}
+                allowedSectors={subscriptionSectors}
+                dynamicSubsectorsMap={dynamicSubsectorsMap}
+                onSelectSector={(sector) => {
+                  const isSelected = selectedSectors.some(s => s.id === sector.id);
+                  const next = isSelected
+                    ? selectedSectors.filter((item) => item.id !== sector.id)
                     : [...selectedSectors, sector];
                   setSelectedSectors(next);
+
                   if (next.length === 0) {
                     setSelectedSubSectors([]);
                     updateFilters({ sectors: undefined, subSectors: undefined });
                     return;
                   }
-                  const validSubSectors = selectedSubSectors.filter((sub) => next.some((sec) => ORGANIZATION_SECTOR_SUBSECTOR_MAP[sec as any]?.includes(sub)));
+
+                  // Filter out subsectors that no longer belong to selected sectors
+                  const validSubSectors = selectedSubSectors.filter((sub) =>
+                    next.some((sec) => {
+                      const subs = dynamicSubsectorsMap[sec.id] || [];
+                      return subs.some(s => s.id === sub.id);
+                    })
+                  );
                   setSelectedSubSectors(validSubSectors);
-                  updateFilters({ sectors: next, subSectors: validSubSectors.length > 0 ? validSubSectors : undefined });
+                  updateFilters({
+                    sectors: next,
+                    subSectors: validSubSectors.length > 0 ? validSubSectors : undefined
+                  });
                 }}
                 onSelectSubSector={(subSector) => {
-                  const next = selectedSubSectors.includes(subSector)
-                    ? selectedSubSectors.filter((item) => item !== subSector)
+                  const isSelected = selectedSubSectors.some(s => s.id === subSector.id);
+                  const next = isSelected
+                    ? selectedSubSectors.filter((item) => item.id !== subSector.id)
                     : [...selectedSubSectors, subSector];
                   setSelectedSubSectors(next);
                   updateFilters({ subSectors: next.length > 0 ? next : undefined });
                 }}
                 onSelectAllSectors={() => {
-                  const all = Object.values(OrganizationSectorEnum);
-                  if (selectedSectors.length === all.length) {
+                  if (selectedSectors.length === subscriptionSectors.length) {
                     setSelectedSectors([]);
                     setSelectedSubSectors([]);
                     updateFilters({ sectors: undefined, subSectors: undefined });
                   } else {
-                    setSelectedSectors(all);
-                    updateFilters({ sectors: all });
+                    setSelectedSectors(subscriptionSectors);
+                    updateFilters({ sectors: subscriptionSectors });
                   }
                 }}
                 onSelectAllSubSectors={() => undefined}
@@ -387,45 +461,21 @@ export default function SearchOrganizationsTabContent() {
                 onClick={() => setShowRegionFilters(prev => !prev)}
               >
                 <Plus className={`h-3.5 w-3.5 transition-transform ${showRegionFilters ? 'rotate-45' : ''}`} />
-                {t('activeTenders.filters.regions')} ({selectedCountries.length})
+                {t('tenders.filters.country') || 'Countries'} ({selectedCountries.length})
               </Button>
             </div>
 
             <div className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-out ${showRegionFilters ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
               <RegionCountryFilter
-                selectedRegions={selectedRegions}
                 selectedCountries={selectedCountries}
-                onSelectRegion={(region) => {
-                  const next = selectedRegions.includes(region)
-                    ? selectedRegions.filter((item) => item !== region)
-                    : [...selectedRegions, region];
-                  setSelectedRegions(next);
-                  if (next.length === 0) {
-                    setSelectedCountries([]);
-                    updateFilters({ regions: undefined, countries: undefined });
-                    return;
-                  }
-                  const validCountries = selectedCountries.filter((country) => next.some((reg) => REGION_COUNTRY_MAP[reg]?.includes(country)));
-                  setSelectedCountries(validCountries);
-                  updateFilters({ regions: next, countries: validCountries.length > 0 ? validCountries : undefined });
-                }}
+                allowedCountries={subscriptionCountries}
                 onSelectCountry={(country) => {
-                  const next = selectedCountries.includes(country)
-                    ? selectedCountries.filter((item) => item !== country)
+                  const isSelected = selectedCountries.some(s => s.id === country.id);
+                  const next = isSelected
+                    ? selectedCountries.filter((item) => item.id !== country.id)
                     : [...selectedCountries, country];
                   setSelectedCountries(next);
                   updateFilters({ countries: next.length > 0 ? next : undefined });
-                }}
-                onSelectAllRegions={() => {
-                  const all = Object.values(RegionEnum);
-                  if (selectedRegions.length === all.length) {
-                    setSelectedRegions([]);
-                    setSelectedCountries([]);
-                    updateFilters({ regions: undefined, countries: undefined });
-                  } else {
-                    setSelectedRegions(all);
-                    updateFilters({ regions: all });
-                  }
                 }}
                 t={t}
               />
@@ -497,13 +547,13 @@ export default function SearchOrganizationsTabContent() {
                         {t('organizations.status.ACTIVE')}
                       </Badge>
                     )}
-                      {org.verificationStatus === 'INACTIVE' && (
+                    {org.verificationStatus === 'INACTIVE' && (
                       <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                         <CheckCircle className="w-3 h-3 mr-1" />
                         {t('organizations.status.INACTIVE')}
                       </Badge>
                     )}
-                     {org.verificationStatus === 'PENDING' && (
+                    {org.verificationStatus === 'PENDING' && (
                       <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                         <CheckCircle className="w-3 h-3 mr-1" />
                         {t('organizations.status.PENDING')}
@@ -516,7 +566,7 @@ export default function SearchOrganizationsTabContent() {
                       </Badge>
                     )}
                   </div>
-                  
+
                 </div>
 
                 <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">

@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useSearchParams } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
+import { useAuth } from '@app/contexts/AuthContext';
+import { organizationService } from '@app/services/organizationService';
 import { useCVCredits } from '@app/contexts/CVCreditsContext';
 import CVCreditsSummaryCard from '@app/components/CVCreditsSummaryCard';
 import { SectorSubsectorFilter } from '@app/components/SectorSubsectorFilter';
@@ -96,12 +98,20 @@ const isBidWriter = (expert: any) => {
   export default function SearchExpertsTabContent({ mode }: SearchExpertsTabContentProps) {
     const { t } = useLanguage();
     const navigate = useNavigate();
-    const { allExperts } = useExperts();
     const {
       availableCredits,
       libraryExpertIds,
       unlockExpertCV,
     } = useCVCredits();
+    const { experts, allExperts, refreshExperts } = useExperts();
+    const { user } = useAuth();
+    const [subscriptionSectors, setSubscriptionSectors] = useState<string[]>([]);
+
+    useEffect(() => {
+      if (user?.organizationId) {
+        organizationService.getSubscriptionSectors(user.organizationId).then(setSubscriptionSectors);
+      }
+    }, [user]);
 
     const [searchQuery, setSearchQuery] = useState('');
     const [searchParams] = useSearchParams();
@@ -751,6 +761,7 @@ const isBidWriter = (expert: any) => {
                       setSelectedSubSectors((prev) => [...new Set([...prev, ...sectorSubs])]);
                     }
                   }}
+                  allowedSectors={subscriptionSectors.length > 0 ? subscriptionSectors as SectorEnum[] : undefined}
                   t={t}
                 />
               </div>

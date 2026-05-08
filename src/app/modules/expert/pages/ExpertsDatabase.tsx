@@ -1,4 +1,4 @@
-﻿import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
@@ -113,14 +113,16 @@ export default function ExpertsDatabase() {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter((expert) => {
         const fullName = `${expert.firstName} ${expert.lastName}`.toLowerCase();
-        const location = `${expert.city} ${expert.country}`.toLowerCase();
+        const cityStr = typeof expert.city === 'object' ? (expert.city as any)?.name : (expert.city || '');
+        const countryStr = typeof expert.country === 'object' ? (expert.country as any)?.name : (expert.country || '');
+        const location = `${cityStr} ${countryStr}`.toLowerCase();
         
         return (
           fullName.includes(query) ||
           expert.title?.toLowerCase().includes(query) ||
           location.includes(query) ||
           expert.bio?.toLowerCase().includes(query) ||
-          expert.skills?.some(skill => skill.toLowerCase().includes(query)) ||
+          expert.skills?.some(skill => (typeof skill === 'object' ? (skill as any).skillName : String(skill)).toLowerCase().includes(query)) ||
           expert.sectors?.some(sector => sector.toLowerCase().includes(query))
         );
       });
@@ -587,7 +589,7 @@ export default function ExpertsDatabase() {
                     <div className="flex items-center gap-1 mt-1">
                       <MapPin className="w-3 h-3 text-gray-400" />
                       <span className="text-xs text-gray-500 truncate">
-                        {expert.city}, {expert.country}
+                        {typeof expert.city === 'object' ? (expert.city as any)?.name : (expert.city || 'N/A')}, {typeof expert.country === 'object' ? (expert.country as any)?.name : (expert.country || 'N/A')}
                       </span>
                     </div>
                   </div>
@@ -658,7 +660,7 @@ export default function ExpertsDatabase() {
                   <div className="flex flex-wrap gap-1">
                     {expert.skills && expert.skills.slice(0, 3).map((skill, index) => (
                       <Badge key={`${expert.id}-skill-${index}-${skill}`} variant="outline" className="text-xs">
-                        {skill}
+                        {typeof skill === 'object' ? (skill as any).skillName : skill}
                       </Badge>
                     ))}
                     {expert.skills && expert.skills.length > 3 && (
