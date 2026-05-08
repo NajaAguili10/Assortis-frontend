@@ -143,20 +143,26 @@ export function SavedSearchEditorDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-hidden p-0 sm:max-w-[760px]">
+      <DialogContent className="max-h-[92vh] overflow-hidden p-0 sm:max-w-[860px]">
         <div className="flex max-h-[92vh] flex-col">
-          <DialogHeader className="border-b bg-slate-50 px-6 py-5">
-            <DialogTitle className="flex items-center gap-2 text-lg text-primary">
-              <BookmarkPlus className="h-5 w-5 text-[#E63462]" />
-              {mode === 'create' ? 'Save Search' : 'Edit Saved Search'}
-            </DialogTitle>
-            <DialogDescription>
-              Review the selected criteria and configure email alerts for this saved search.
-            </DialogDescription>
+          <DialogHeader className="border-b bg-gradient-to-r from-slate-50 to-white px-7 py-6">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#E63462]/10 text-[#E63462]">
+                <BookmarkPlus className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl text-primary">
+                  {mode === 'create' ? 'Save Search' : 'Edit Saved Search'}
+                </DialogTitle>
+                <DialogDescription className="mt-1">
+                  Review criteria and choose how this saved search sends email alerts.
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
-          <div className="space-y-5 overflow-y-auto px-6 py-5">
-            <div className="grid gap-4 md:grid-cols-[1fr_220px]">
+          <div className="space-y-5 overflow-y-auto bg-gray-50/60 px-7 py-6">
+            <div className="grid gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-[1fr_240px]">
               <div className="space-y-2">
                 <Label htmlFor="saved-search-editor-name">Name <span className="text-[#E63462]">*</span></Label>
                 <Input
@@ -174,16 +180,16 @@ export function SavedSearchEditorDialog({
               </div>
               <div className="space-y-2">
                 <Label>Search Type</Label>
-                <div className="flex min-h-10 items-center rounded-md border bg-slate-50 px-3 text-sm font-medium text-primary">
+                <div className="flex min-h-10 items-center rounded-md border bg-slate-50 px-3 text-sm font-semibold text-primary">
                   {SEARCH_TYPE_LABELS[searchType]}
                 </div>
               </div>
             </div>
 
-            <section className="rounded-lg border border-gray-200 bg-white">
-              <div className="flex items-center justify-between gap-3 border-b bg-slate-50 px-4 py-3">
+            <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+              <div className="flex flex-col gap-3 border-b bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h3 className="text-sm font-semibold text-primary">Review Search Criteria</h3>
+                  <h3 className="text-base font-semibold text-primary">Review Search Criteria</h3>
                   <p className="text-xs text-muted-foreground">Only criteria with selected values are shown.</p>
                 </div>
                 {mode === 'edit' && (
@@ -191,7 +197,7 @@ export function SavedSearchEditorDialog({
                     type="button"
                     variant={useCurrentCriteria ? 'default' : 'outline'}
                     size="sm"
-                    className="shrink-0"
+                    className="min-h-9 shrink-0"
                     onClick={() => setUseCurrentCriteria((current) => !current)}
                   >
                     <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
@@ -204,10 +210,10 @@ export function SavedSearchEditorDialog({
                   No active criteria. This search will save the full result set for this section.
                 </div>
               ) : (
-                <div className="grid gap-px bg-gray-100 sm:grid-cols-2">
+                <div className="grid gap-px bg-gray-100 sm:grid-cols-2 lg:grid-cols-3">
                   {visibleReviewItems.map((item) => (
-                    <div key={`${item.label}-${renderValue(item.value)}`} className="min-w-0 bg-white px-4 py-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{item.label}</p>
+                    <div key={`${item.label}-${renderValue(item.value)}`} className="min-w-0 bg-white px-4 py-3.5">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{item.label}</p>
                       <p className="mt-1 break-words text-sm font-medium text-gray-800">{renderValue(item.value)}</p>
                     </div>
                   ))}
@@ -215,10 +221,12 @@ export function SavedSearchEditorDialog({
               )}
             </section>
 
-            <section className="rounded-lg border border-gray-200 bg-white p-4">
+            <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
               <div className="mb-4 flex items-center gap-2">
-                <Bell className="h-4 w-4 text-[#E63462]" />
-                <h3 className="text-sm font-semibold text-primary">Alert Preferences</h3>
+                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#E63462]/10 text-[#E63462]">
+                  <Bell className="h-4 w-4" />
+                </div>
+                <h3 className="text-base font-semibold text-primary">Alert Preferences</h3>
               </div>
 
               <div className="space-y-4">
@@ -288,7 +296,7 @@ export function SavedSearchEditorDialog({
             </section>
           </div>
 
-          <DialogFooter className="border-t bg-white px-6 py-4">
+          <DialogFooter className="border-t bg-white px-7 py-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               <X className="mr-1.5 h-4 w-4" />
               Close

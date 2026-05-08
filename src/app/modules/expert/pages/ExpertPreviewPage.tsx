@@ -24,6 +24,7 @@ import {
   ExpertSearchResult,
   getExpertPreview,
 } from '@app/modules/expert/services/expertSearch.service';
+import { useExperts } from '@app/modules/expert/hooks/useExperts';
 
 function PreviewList({ title, items }: { title: string; items: string[] }) {
   return (
@@ -45,9 +46,38 @@ export default function ExpertPreviewPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const routeState = location.state as { expert?: ExpertSearchResult; returnTo?: string } | null;
-  const fallbackExpert = routeState?.expert;
   const returnTo = routeState?.returnTo || '/experts/search';
   const expertId = Number(id);
+  const { allExperts } = useExperts();
+  const localExpert = allExperts.find((expert) => String(expert.id) === String(id));
+  const fallbackExpert: ExpertSearchResult | undefined = useMemo(() => {
+    if (routeState?.expert) return routeState.expert;
+    if (!localExpert) return undefined;
+
+    return {
+      id: Number(localExpert.id),
+      firstName: localExpert.firstName,
+      lastName: localExpert.lastName,
+      fullName: `${localExpert.firstName} ${localExpert.lastName}`.trim(),
+      title: localExpert.title,
+      currentPosition: localExpert.title,
+      yearsExperience: localExpert.yearsOfExperience,
+      country: { name: localExpert.country },
+      city: { name: localExpert.city },
+      ratingAvg: localExpert.clientRating,
+      completedProjects: localExpert.completedMissions,
+      completedMissions: localExpert.completedMissions,
+      verified: localExpert.verified,
+      level: localExpert.level,
+      profileSummary: localExpert.bio,
+      sectors: localExpert.sectors.map((sector) => ({ sectorName: String(sector) })),
+      skills: localExpert.skills.map((skill) => ({ skillName: skill })),
+      languages: localExpert.languages.map((language) => ({
+        languageName: language.language,
+        proficiency: language.level,
+      })),
+    };
+  }, [localExpert, routeState]);
 
   const { availableCredits, libraryExpertIds, unlockExpertCV, recordExpertDownload, linkExpertToVacancy } = useCVCredits();
   const [preview, setPreview] = useState<ExpertPreviewDTO | null>(null);

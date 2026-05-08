@@ -64,7 +64,7 @@ export default function ExpertPublicProfile() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams<{ id: string }>();
-  const { experts } = useExperts();
+  const { experts, allExperts } = useExperts();
   const { addNotification } = useNotifications();
   const { addHistoryEntry } = useAssistanceHistory();
   const { allExperts: assistanceExperts } = useAssistance();
@@ -96,7 +96,7 @@ export default function ExpertPublicProfile() {
   };
 
   // Find the expert by ID in Experts module first, then in Assistance module
-  let expert = experts.data.find(exp => exp.id === id);
+  let expert = allExperts.find(exp => String(exp.id) === String(id));
   let isAssistanceExpert = false;
   
   // If not found in Experts module, search in Assistance module
@@ -267,9 +267,6 @@ export default function ExpertPublicProfile() {
     return demoData[currentLang];
   };
 
-  const demo = getDemoData();
-  const writingExperience = expert.writingExperience;
-
   // Dialog states
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [invitationDialogOpen, setInvitationDialogOpen] = useState(false);
@@ -326,6 +323,9 @@ export default function ExpertPublicProfile() {
       </div>
     );
   }
+
+  const demo = getDemoData();
+  const writingExperience = expert.writingExperience;
 
   const openContactDialog = () => {
     setContactSubject('');

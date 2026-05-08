@@ -119,7 +119,6 @@ import ContactSales from './modules/shared/pages/ContactSales';
 import OffersFAQ from './modules/shared/pages/OffersFAQ';
 import PromotionRequest from './modules/shared/pages/PromotionRequest';
 import Contact from './modules/public/pages/Contact';
-import SearchDashboard from './modules/public/pages/SearchDashboard';
 import SearchMapPage from './modules/public/pages/SearchMapPage';
 import SearchProjectsPage from './modules/public/pages/SearchProjectsPage';
 import SearchAwardsPage from './modules/public/pages/SearchAwardsPage';
@@ -360,7 +359,7 @@ const router = createBrowserRouter([
       { path: 'services/experts/statistics', Component: PublicExpertsStatisticsPage },
       { path: 'services/posting-board', Component: PublicPostingBoardServicePage },
       { path: 'services/training', Component: PublicTrainingServicePage },
-      { path: 'search', Component: SearchDashboard },
+      { path: 'search', element: <Navigate to="/search/projects" replace /> },
       { path: 'search/map', Component: SearchMapPage },
       { path: 'search/projects', Component: SearchProjectsPage },
       { path: 'search/awards', Component: SearchAwardsPage },

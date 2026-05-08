@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { CalendarDays, Filter, Layers, Lock, RotateCcw, Sparkles } from 'lucide-react';
+import { Briefcase, Building2, CalendarDays, CalendarIcon, ChevronRight, ChevronUp, Filter, Layers, Lock, Plus, RotateCcw, Search, Sparkles } from 'lucide-react';
 import { useTranslation } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
 import { PageBanner } from '@app/components/PageBanner';
@@ -9,6 +9,14 @@ import { MatchingOpportunitiesSubMenu } from '@app/components/MatchingOpportunit
 import { MatchingOpportunityCard } from '@app/components/MatchingOpportunityCard';
 import { Button } from '@app/components/ui/button';
 import { Badge } from '@app/components/ui/badge';
+import { Input } from '@app/components/ui/input';
+import { Checkbox } from '@app/components/ui/checkbox';
+import { Calendar } from '@app/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@app/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -19,14 +27,22 @@ import {
 import { useMatchingOpportunities } from '@app/modules/expert/hooks/useMatchingOpportunities';
 import {
   MatchingProjectsFilterDTO,
+  MatchingVacancyFiltersDTO,
   OpportunityTypeEnum,
 } from '@app/types/matchingOpportunities.dto';
+import {
+  CountryEnum,
+  FundingAgencyEnum,
+  SectorEnum,
+} from '@app/types/tender.dto';
 
 const OPPORTUNITY_TYPE_OPTIONS = [
   { value: 'ALL', labelKey: 'matching-opportunities.projects.filter.all-categories' },
   { value: OpportunityTypeEnum.OPEN_PROJECT, label: 'Open Projects' },
   { value: OpportunityTypeEnum.CONTRACT_AWARD, label: 'Contract Awards' },
   { value: OpportunityTypeEnum.SHORTLIST, label: 'Shortlists' },
+  { value: OpportunityTypeEnum.IN_HOUSE_VACANCY, label: 'My In-house Vacancies' },
+  { value: OpportunityTypeEnum.PROJECT_VACANCY, label: 'Project Vacancies' },
 ];
 
 const FREE_PREVIEW_COUNT = 2;
@@ -46,7 +62,34 @@ const TYPE_PARAM_MAP: Record<string, OpportunityTypeEnum | 'ALL'> = {
   contract: OpportunityTypeEnum.CONTRACT_AWARD,
   shortlists: OpportunityTypeEnum.SHORTLIST,
   shortlist: OpportunityTypeEnum.SHORTLIST,
+  'project-vacancies': OpportunityTypeEnum.PROJECT_VACANCY,
+  vacancy: OpportunityTypeEnum.PROJECT_VACANCY,
+  vacancies: OpportunityTypeEnum.PROJECT_VACANCY,
+  'in-house-vacancies': OpportunityTypeEnum.IN_HOUSE_VACANCY,
+  'in-house': OpportunityTypeEnum.IN_HOUSE_VACANCY,
 };
+
+function toggleInArray<T>(items: T[], value: T): T[] {
+  return items.includes(value) ? items.filter(item => item !== value) : [...items, value];
+}
+
+const createDefaultVacancyFilters = (
+  activeType: OpportunityTypeEnum.PROJECT_VACANCY | OpportunityTypeEnum.IN_HOUSE_VACANCY,
+): MatchingVacancyFiltersDTO => ({
+  searchInput: '',
+  searchMode: 'allWords',
+  publishedFrom: undefined,
+  publishedTo: undefined,
+  selectedSectors: [],
+  selectedCountries: [],
+  selectedFundingAgencies: [],
+  status: 'all',
+  location: 'all',
+  department: 'all',
+  deadline: 'all',
+  sort: 'newest',
+  activeType,
+});
 
 export default function MatchingProjectsPage() {
   const { t } = useTranslation();
@@ -61,6 +104,7 @@ export default function MatchingProjectsPage() {
     isSaved,
     dismissOpportunity,
     getFilteredMatchingProjects,
+    getFilteredVacancyOpportunities,
   } = useMatchingOpportunities();
 
   const [filters, setFilters] = useState<MatchingProjectsFilterDTO>(() => {
@@ -71,6 +115,16 @@ export default function MatchingProjectsPage() {
     };
   });
   const [showCustomDate, setShowCustomDate] = useState(false);
+  const [vacancySearchInput, setVacancySearchInput] = useState('');
+  const [expandedVacancySections, setExpandedVacancySections] = useState({
+    sectors: false,
+    countries: false,
+    fundingAgencies: false,
+  });
+  const [vacancyFiltersByType, setVacancyFiltersByType] = useState<Record<OpportunityTypeEnum.PROJECT_VACANCY | OpportunityTypeEnum.IN_HOUSE_VACANCY, MatchingVacancyFiltersDTO>>({
+    [OpportunityTypeEnum.PROJECT_VACANCY]: createDefaultVacancyFilters(OpportunityTypeEnum.PROJECT_VACANCY),
+    [OpportunityTypeEnum.IN_HOUSE_VACANCY]: createDefaultVacancyFilters(OpportunityTypeEnum.IN_HOUSE_VACANCY),
+  });
 
   useEffect(() => {
     const typeParam = searchParams.get('type');
@@ -92,8 +146,35 @@ export default function MatchingProjectsPage() {
     return getFilteredMatchingProjects(effectiveFilters);
   }, [filters, getFilteredMatchingProjects, isSubscribed]);
 
-  const visibleProjects = isSubscribed ? filteredProjects : filteredProjects.slice(0, FREE_PREVIEW_COUNT);
-  const hiddenCount = Math.max(filteredProjects.length - visibleProjects.length, 0);
+  const isVacancyView =
+    filters.category === OpportunityTypeEnum.PROJECT_VACANCY ||
+    filters.category === OpportunityTypeEnum.IN_HOUSE_VACANCY;
+  const activeVacancyType = filters.category === OpportunityTypeEnum.IN_HOUSE_VACANCY
+    ? OpportunityTypeEnum.IN_HOUSE_VACANCY
+    : OpportunityTypeEnum.PROJECT_VACANCY;
+  const vacancyFilters = vacancyFiltersByType[activeVacancyType];
+  const setActiveVacancyFilters = (updater: (current: MatchingVacancyFiltersDTO) => MatchingVacancyFiltersDTO) => {
+    setVacancyFiltersByType(prev => ({
+      ...prev,
+      [activeVacancyType]: updater(prev[activeVacancyType]),
+    }));
+  };
+
+  useEffect(() => {
+    setVacancySearchInput(vacancyFilters.searchInput);
+  }, [activeVacancyType, vacancyFilters.searchInput]);
+
+  const vacancyProjects = useMemo(() => {
+    if (!isVacancyView) return [];
+    return getFilteredVacancyOpportunities({
+      ...vacancyFilters,
+      activeType: activeVacancyType,
+    });
+  }, [activeVacancyType, getFilteredVacancyOpportunities, isVacancyView, vacancyFilters]);
+
+  const resultProjects = isVacancyView ? vacancyProjects : filteredProjects;
+  const visibleProjects = isSubscribed ? resultProjects : resultProjects.slice(0, FREE_PREVIEW_COUNT);
+  const hiddenCount = Math.max(resultProjects.length - visibleProjects.length, 0);
 
   const isFiltered =
     filters.sort !== 'relevance' ||
@@ -101,6 +182,19 @@ export default function MatchingProjectsPage() {
     filters.country !== 'ALL' ||
     filters.minScore !== 0 ||
     filters.dateRange !== '5days';
+
+  const vacancyFilterCount =
+    (vacancyFilters.searchInput ? 1 : 0) +
+    (vacancyFilters.searchMode !== 'allWords' ? 1 : 0) +
+    (vacancyFilters.publishedFrom ? 1 : 0) +
+    (vacancyFilters.publishedTo ? 1 : 0) +
+    vacancyFilters.selectedSectors.length +
+    vacancyFilters.selectedCountries.length +
+    vacancyFilters.selectedFundingAgencies.length;
+
+  const selectVacancyType = (type: OpportunityTypeEnum.PROJECT_VACANCY | OpportunityTypeEnum.IN_HOUSE_VACANCY) => {
+    setFilters(prev => ({ ...prev, category: type }));
+  };
 
   const openDetail = (opportunityId: string) => {
     const opportunity = opportunities.find(item => item.id === opportunityId);
@@ -278,6 +372,209 @@ export default function MatchingProjectsPage() {
             </div>
           </div>
         </div>
+
+        {isVacancyView && (
+          <div className="mt-6 rounded-xl border bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Job Vacancies</h3>
+                <p className="text-sm text-muted-foreground">Search matching in-house and project vacancies.</p>
+              </div>
+              {vacancyFilterCount > 0 && <Badge>{vacancyFilterCount} active filters</Badge>}
+            </div>
+
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              {[
+                { type: OpportunityTypeEnum.IN_HOUSE_VACANCY, label: 'My In-house Vacancies', icon: Building2 },
+                { type: OpportunityTypeEnum.PROJECT_VACANCY, label: 'Project Vacancies', icon: Briefcase },
+              ].map((item) => {
+                const Icon = item.icon;
+                const active = activeVacancyType === item.type;
+                return (
+                  <button
+                    key={item.type}
+                    type="button"
+                    className={`flex min-h-11 items-center justify-center gap-2 rounded-md border px-3 text-sm font-semibold transition-colors ${
+                      active
+                        ? 'border-[#E63462] bg-[#E63462] text-white shadow-sm'
+                        : 'border-gray-200 bg-white text-primary hover:border-[#E63462] hover:text-[#E63462]'
+                    }`}
+                    onClick={() => selectVacancyType(item.type)}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-5 rounded-lg border border-gray-200">
+              <div className="border-b px-4 py-3">
+                <h4 className="text-sm font-bold uppercase tracking-wide text-[#E63462]">Search Criteria</h4>
+              </div>
+              <div className="grid gap-4 p-4 lg:grid-cols-[180px_180px_minmax(0,1fr)_240px]">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-600">Published from</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start min-h-10">
+                        <CalendarIcon className="h-4 w-4 mr-2" />
+                        {vacancyFilters.publishedFrom ? vacancyFilters.publishedFrom.toLocaleDateString() : 'Select date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={vacancyFilters.publishedFrom} onSelect={(date) => setActiveVacancyFilters(prev => ({ ...prev, publishedFrom: date }))} initialFocus />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-600">To</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start min-h-10">
+                        <CalendarIcon className="h-4 w-4 mr-2" />
+                        {vacancyFilters.publishedTo ? vacancyFilters.publishedTo.toLocaleDateString() : 'Select date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={vacancyFilters.publishedTo} onSelect={(date) => setActiveVacancyFilters(prev => ({ ...prev, publishedTo: date }))} initialFocus />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-600">Keywords</label>
+                  <Input
+                    value={vacancySearchInput}
+                    onChange={event => setVacancySearchInput(event.target.value)}
+                    placeholder="Enter keywords to search"
+                    className="min-h-10"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-600">Keyword match type</label>
+                  <Select
+                    value={vacancyFilters.searchMode}
+                    onValueChange={(value: 'allWords' | 'anyWords' | 'exactPhrase') =>
+                      setActiveVacancyFilters(prev => ({ ...prev, searchMode: value }))
+                    }
+                  >
+                    <SelectTrigger className="min-h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="allWords">Search all of the words</SelectItem>
+                      <SelectItem value="anyWords">Search any of the words</SelectItem>
+                      <SelectItem value="exactPhrase">Exact phrase</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-lg border border-gray-200">
+              <div className="border-b px-4 py-3">
+                <h4 className="text-sm font-bold uppercase tracking-wide text-[#E63462]">Selection</h4>
+              </div>
+              <div className="space-y-3 p-4">
+                {[
+                  { key: 'sectors' as const, label: 'Sectors', count: vacancyFilters.selectedSectors.length },
+                  { key: 'countries' as const, label: 'Countries', count: vacancyFilters.selectedCountries.length },
+                  { key: 'fundingAgencies' as const, label: 'Funding Agencies', count: vacancyFilters.selectedFundingAgencies.length },
+                ].map((section) => {
+                  const expanded = expandedVacancySections[section.key];
+                  return (
+                    <div key={section.key} className="rounded-md border border-gray-200">
+                      <button
+                        type="button"
+                        className="flex w-full items-center justify-between bg-[#E63462] px-4 py-2.5 text-left text-sm font-semibold text-white transition-colors hover:bg-[#cf2c55]"
+                        onClick={() => setExpandedVacancySections(prev => ({ ...prev, [section.key]: !expanded }))}
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          <Plus className={`h-4 w-4 transition-transform ${expanded ? 'rotate-45' : ''}`} />
+                          {section.label}
+                          {section.count > 0 && <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs">{section.count}</span>}
+                        </span>
+                        {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      </button>
+                      {expanded && (
+                        <div className="max-h-64 overflow-auto bg-white p-3">
+                          {section.key === 'sectors' && (
+                            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                              {Object.values(SectorEnum).map(item => (
+                                <label key={item} className="flex items-center gap-2 text-sm">
+                                  <Checkbox
+                                    checked={vacancyFilters.selectedSectors.includes(item)}
+                                    onCheckedChange={() => setActiveVacancyFilters(prev => ({ ...prev, selectedSectors: toggleInArray(prev.selectedSectors, item) }))}
+                                  />
+                                  <span>{item.replace(/_/g, ' ')}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                          {section.key === 'countries' && (
+                            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                              {Object.values(CountryEnum).map(item => (
+                                <label key={item} className="flex items-center gap-2 text-sm">
+                                  <Checkbox
+                                    checked={vacancyFilters.selectedCountries.includes(item)}
+                                    onCheckedChange={() => setActiveVacancyFilters(prev => ({ ...prev, selectedCountries: toggleInArray(prev.selectedCountries, item) }))}
+                                  />
+                                  <span>{item}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                          {section.key === 'fundingAgencies' && (
+                            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                              {Object.values(FundingAgencyEnum).map(item => (
+                                <label key={item} className="flex items-center gap-2 text-sm">
+                                  <Checkbox
+                                    checked={vacancyFilters.selectedFundingAgencies.includes(item)}
+                                    onCheckedChange={() => setActiveVacancyFilters(prev => ({ ...prev, selectedFundingAgencies: toggleInArray(prev.selectedFundingAgencies, item) }))}
+                                  />
+                                  <span>{item}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-[#E63462] hover:text-[#E63462]"
+                onClick={() => {
+                  setVacancySearchInput('');
+                  setVacancyFiltersByType(prev => ({
+                    ...prev,
+                    [activeVacancyType]: createDefaultVacancyFilters(activeVacancyType),
+                  }));
+                }}
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Clear selection
+              </Button>
+              <Button
+                type="button"
+                className="min-h-10"
+                onClick={() => setActiveVacancyFilters(prev => ({ ...prev, searchInput: vacancySearchInput.trim() }))}
+              >
+                <Search className="w-4 h-4 mr-2" />
+                Search
+              </Button>
+            </div>
+          </div>
+        )}
 
         {!isSubscribed && (
           <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
