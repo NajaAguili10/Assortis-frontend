@@ -5,56 +5,63 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Globe, Check, ArrowRight } from 'lucide-react';
 import { RegionEnum, CountryEnum, REGION_COUNTRY_MAP } from '../types/tender.dto';
+import { CountryDTO } from '../types/organization.dto';
 
 interface RegionCountryFilterProps {
-  selectedRegions: RegionEnum[];
-  selectedCountries: CountryEnum[];
-  onSelectRegion: (region: RegionEnum) => void;
-  onSelectCountry: (country: CountryEnum) => void;
-  onSelectAllRegions: () => void;
+  selectedCountries: CountryDTO[];
+  onSelectCountry: (country: CountryDTO) => void;
+  allowedCountries?: CountryDTO[];
   t: (key: string) => string;
 }
 
 export function RegionCountryFilter({
-  selectedRegions,
   selectedCountries,
-  onSelectRegion,
   onSelectCountry,
-  onSelectAllRegions,
+  allowedCountries,
   t
 }: RegionCountryFilterProps) {
   const [activeRegion, setActiveRegion] = React.useState<RegionEnum | null>(null);
   const [showAllRegions, setShowAllRegions] = React.useState(false);
-  const totalSelected = selectedRegions.length + selectedCountries.length;
-
-  React.useEffect(() => {
-    if (selectedRegions.length === 0 || (activeRegion && !selectedRegions.includes(activeRegion))) {
-      setActiveRegion(null);
-    }
-  }, [selectedRegions, activeRegion]);
+  const totalSelected = selectedCountries.length;
 
   const handleRegionClick = (region: RegionEnum) => {
-    setActiveRegion(region);
-    onSelectRegion(region);
+    setActiveRegion(prev => prev === region ? null : region);
   };
 
   const handleSelectAllCountriesForActiveRegion = () => {
     if (!activeRegion) return;
     
-    const regionCountries = REGION_COUNTRY_MAP[activeRegion] || [];
-    const allSelected = regionCountries.every(country => selectedCountries.includes(country));
+    const regionCountryCodes = REGION_COUNTRY_MAP[activeRegion] || [];
+    const filterableCountries = allowedCountries 
+      ? allowedCountries.filter(c => regionCountryCodes.includes(c.code as CountryEnum))
+      : [];
+
+    const allSelected = filterableCountries.every(country => selectedCountries.some(s => s.id === country.id));
     
     if (allSelected) {
-      regionCountries.forEach(country => onSelectCountry(country));
+      filterableCountries.forEach(country => onSelectCountry(country));
     } else {
-      regionCountries.filter(country => !selectedCountries.includes(country)).forEach(country => onSelectCountry(country));
+      filterableCountries.filter(country => !selectedCountries.some(s => s.id === country.id)).forEach(country => onSelectCountry(country));
     }
   };
 
-  const activeCountries = activeRegion ? (REGION_COUNTRY_MAP[activeRegion] || []) : [];
+  const activeCountries = React.useMemo(() => {
+    if (!activeRegion) return [];
+    const regionCountryCodes = REGION_COUNTRY_MAP[activeRegion] || [];
+    if (!allowedCountries) return [];
+    return allowedCountries.filter(c => regionCountryCodes.includes(c.code as CountryEnum));
+  }, [activeRegion, allowedCountries]);
 
   // Limit regions display to 4 by default
-  const allRegions = Object.values(RegionEnum);
+  const allRegions = React.useMemo(() => {
+    const regions = Object.values(RegionEnum);
+    if (!allowedCountries) return regions;
+    return regions.filter(region => {
+      const regionCountryCodes = REGION_COUNTRY_MAP[region] || [];
+      return allowedCountries.some(c => regionCountryCodes.includes(c.code as CountryEnum));
+    });
+  }, [allowedCountries]);
+
   const displayedRegions = showAllRegions ? allRegions : allRegions.slice(0, 4);
   const hasMoreRegions = allRegions.length > 4;
 
@@ -101,39 +108,24 @@ export function RegionCountryFilter({
                     {t('tenders.filters.region')}
                   </h4>
                   <p className="text-xs text-gray-600">
-                    {Object.values(RegionEnum).length} {t('filters.available') || 'available'}
+                    {allRegions.length} {t('filters.available') || 'available'}
                   </p>
                 </div>
               </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="text-xs h-8 px-3 hover:bg-accent/10 hover:text-accent font-semibold"
-                onClick={onSelectAllRegions}
-              >
-                {selectedRegions.length === Object.values(RegionEnum).length 
-                  ? t('filters.unselectAll') 
-                  : t('filters.selectAll')}
-              </Button>
             </div>
-            {selectedRegions.length > 0 && (
-              <div className="mt-2">
-                <Badge variant="default" className="bg-accent text-white text-xs h-6">
-                  {selectedRegions.length} {t('common.selected')}
-                </Badge>
-              </div>
-            )}
           </div>
 
           {/* Regions List */}
           <div className="p-3 max-h-[420px] overflow-y-auto">
             <div className="space-y-2">
               {displayedRegions.map((region) => {
-                const isSelected = selectedRegions.includes(region);
                 const isActive = activeRegion === region;
-                const countriesCount = REGION_COUNTRY_MAP[region]?.length || 0;
+                const regionCountryCodes = REGION_COUNTRY_MAP[region] || [];
+                const countriesCount = allowedCountries 
+                  ? allowedCountries.filter(c => regionCountryCodes.includes(c.code as CountryEnum)).length 
+                  : 0;
                 const selectedCountriesCount = selectedCountries.filter(country => 
-                  REGION_COUNTRY_MAP[region]?.includes(country)
+                  regionCountryCodes.includes(country.code as CountryEnum)
                 ).length;
                 
                 return (
@@ -143,39 +135,26 @@ export function RegionCountryFilter({
                       group relative rounded-lg cursor-pointer transition-all duration-200
                       ${isActive 
                         ? 'bg-accent/10 border-2 border-accent shadow-lg ring-2 ring-accent/30' 
-                        : isSelected
-                          ? 'bg-accent/10 border-2 border-accent shadow-md'
-                          : 'bg-white border-2 border-gray-200 hover:border-accent/30 hover:shadow-md hover:bg-gray-50'
+                        : 'bg-white border-2 border-gray-200 hover:border-accent/30 hover:shadow-md hover:bg-gray-50'
                       }
                     `}
                     onClick={() => handleRegionClick(region)}
                   >
                     <div className="p-3">
                       <div className="flex items-center gap-3">
-                        {/* Checkbox */}
-                        <div className={`
-                          w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
-                          ${isSelected 
-                            ? 'bg-accent border-accent' 
-                            : 'border-gray-300 bg-white group-hover:border-accent/50'
-                          }
-                        `}>
-                          {isSelected && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
-                        </div>
-
                         {/* Content */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-1">
                             <span className={`
                               text-sm font-bold truncate
-                              ${isActive || isSelected ? 'text-gray-900' : 'text-gray-700'}
+                              ${isActive ? 'text-gray-900' : 'text-gray-700'}
                             `}>
                               {t(`regions.${region}`)}
                             </span>
                             <Badge 
                               variant="outline" 
                               className={`text-xs h-5 px-2 font-medium flex-shrink-0 ${
-                                isActive || isSelected 
+                                isActive 
                                   ? 'border-accent text-accent' 
                                   : 'border-gray-300 text-gray-600'
                               }`}
@@ -216,12 +195,6 @@ export function RegionCountryFilter({
                 >
                   <div className="p-3">
                     <div className="flex items-center gap-3">
-                      {/* Checkbox */}
-                      <div className="w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all border-gray-300 bg-white group-hover:border-accent/50">
-                        {/* No Check */}
-                      </div>
-
-                      {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-1">
                           <span className="text-sm font-bold truncate text-gray-700">
@@ -265,7 +238,7 @@ export function RegionCountryFilter({
                   className="text-xs h-8 px-3 hover:bg-accent/10 hover:text-accent font-semibold"
                   onClick={handleSelectAllCountriesForActiveRegion}
                 >
-                  {activeCountries.every(country => selectedCountries.includes(country))
+                  {activeCountries.every(country => selectedCountries.some(s => s.id === country.id))
                     ? t('filters.unselectAll') 
                     : t('filters.selectAll')}
                 </Button>
@@ -281,9 +254,9 @@ export function RegionCountryFilter({
                     {t(`regions.${activeRegion}`)}
                   </span>
                 </div>
-                {selectedCountries.filter(country => activeCountries.includes(country)).length > 0 && (
+                {selectedCountries.filter(country => activeCountries.some(s => s.id === country.id)).length > 0 && (
                   <Badge variant="default" className="bg-accent text-white text-xs h-9 px-3 font-bold">
-                    {selectedCountries.filter(country => activeCountries.includes(country)).length} {t('common.selected')}
+                    {selectedCountries.filter(country => activeCountries.some(s => s.id === country.id)).length} {t('common.selected')}
                   </Badge>
                 )}
               </div>
@@ -295,48 +268,35 @@ export function RegionCountryFilter({
             {activeRegion && activeCountries.length > 0 ? (
               <div className="space-y-2">
                 {activeCountries.map((country) => {
-                  const isSelected = selectedCountries.includes(country);
-                  const parentRegionSelected = activeRegion ? selectedRegions.includes(activeRegion) : false;
-                  const isDisabled = !parentRegionSelected;
+                  const isSelected = selectedCountries.some(s => s.id === country.id);
                   
                   return (
                     <div
-                      key={country}
+                      key={country.id}
                       className={`
-                        group rounded-lg transition-all duration-200
-                        ${isDisabled 
-                          ? 'cursor-not-allowed opacity-50' 
-                          : 'cursor-pointer'
-                        }
+                        group rounded-lg cursor-pointer transition-all duration-200
                         ${isSelected 
                           ? 'bg-accent/5 border-2 border-accent/70 shadow-md' 
                           : 'bg-white border-2 border-gray-200 hover:border-accent/30 hover:shadow-md'
                         }
                       `}
-                      onClick={() => {
-                        if (!isDisabled) {
-                          onSelectCountry(country);
-                        }
-                      }}
-                      title={isDisabled ? t('filters.selectParentRegionFirst') : ''}
+                      onClick={() => onSelectCountry(country)}
                     >
                       <div className="p-3 flex items-center gap-3">
                         <div className={`
                           w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
                           ${isSelected 
                             ? 'bg-accent border-accent' 
-                            : isDisabled
-                              ? 'border-gray-200 bg-gray-100'
-                              : 'border-gray-300 bg-white group-hover:border-accent/50'
+                            : 'border-gray-300 bg-white group-hover:border-accent/50'
                           }
                         `}>
                           {isSelected && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
                         </div>
                         <span className={`
                           text-sm font-semibold flex-1
-                          ${isSelected ? 'text-gray-900' : isDisabled ? 'text-gray-400' : 'text-gray-700'}
+                          ${isSelected ? 'text-gray-900' : 'text-gray-700'}
                         `}>
-                          {t(`countries.${country}`)}
+                          {country.name}
                         </span>
                         {isSelected && (
                           <Check className="w-4 h-4 text-accent flex-shrink-0" />

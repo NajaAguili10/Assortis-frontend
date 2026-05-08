@@ -1,4 +1,4 @@
-﻿import { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
@@ -78,7 +78,7 @@ export default function MatchExpertsToRs() {
         ...expert,
         matchScore: Math.floor(Math.random() * 30) + 70 // Random score between 70-99
       }));
-      
+
       setMatchingResults(scoredExperts);
       setIsRunningMatching(false);
       toast.success(t('experts.matching.messages.completed'));
@@ -136,8 +136,8 @@ export default function MatchExpertsToRs() {
   const avgScore =
     matchingResults.length > 0
       ? Math.round(
-          matchingResults.reduce((sum, e) => sum + e.matchScore, 0) / matchingResults.length
-        )
+        matchingResults.reduce((sum, e) => sum + e.matchScore, 0) / matchingResults.length
+      )
       : 0;
 
   // Get score color
@@ -374,8 +374,8 @@ export default function MatchExpertsToRs() {
                         expert.matchScore >= 80
                           ? '#22c55e'
                           : expert.matchScore >= 60
-                          ? '#eab308'
-                          : '#ef4444',
+                            ? '#eab308'
+                            : '#ef4444',
                     }}
                   >
                     <CardContent className="p-5">

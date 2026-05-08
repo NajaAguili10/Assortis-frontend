@@ -15,7 +15,7 @@ import { useOrganizations } from '@app/modules/organization/hooks/useOrganizatio
 import { useTraining } from '@app/hooks/useTraining';
 import { useAssistance } from '@app/hooks/useAssistance';
 import { useFAQContent, useOffersHubContent } from '@app/hooks/useOffersContent';
-import { TenderStatusEnum, TenderSectorEnum } from '@app/types/tender.dto';
+import { TenderStatusEnum } from '@app/types/tender.dto';
 import { ProjectStatusEnum } from '@app/types/project.dto';
 import { ExpertStatusEnum } from '@app/modules/expert/types/expert.dto';
 import { OrganizationTypeEnum } from '@app/types/organization.dto';
@@ -92,7 +92,7 @@ export default function GlobalSearch() {
       expert.lastName?.toLowerCase().includes(query) ||
       expert.title?.toLowerCase().includes(query) ||
       expert.bio?.toLowerCase().includes(query) ||
-      expert.skills?.some(skill => skill?.toLowerCase().includes(query))
+      expert.skills?.some(skill => (typeof skill === 'object' ? skill.skillName : String(skill))?.toLowerCase().includes(query))
     ).slice(0, 10);
   }, [allExperts, searchQuery]);
 
@@ -446,14 +446,16 @@ export default function GlobalSearch() {
                               <h3 className="font-semibold text-gray-900 mb-1">{expert.fullName}</h3>
                               <p className="text-sm text-gray-500 mb-2">{expert.title}</p>
                               <div className="flex items-center gap-3 flex-wrap">
-                                <span className="text-xs text-gray-500">{expert.city}, {expert.country}</span>
+                                 <span className="text-xs text-gray-500">
+                                  {typeof expert.city === 'object' ? (expert.city as any)?.name : (expert.city || 'N/A')}, {typeof expert.country === 'object' ? (expert.country as any)?.name : (expert.country || 'N/A')}
+                                </span>
                                 <span className="text-xs text-gray-400">•</span>
                                 <span className="text-xs text-gray-500">{expert.yearsExperience} {t('common.years')}</span>
                               </div>
                               <div className="flex flex-wrap gap-1 mt-2">
                                 {expert.skills.slice(0, 3).map((skill, idx) => (
                                   <Badge key={idx} variant="outline" className="text-xs">
-                                    {skill.skillName}
+                                    {typeof skill === 'object' ? (skill as any).skillName : skill}
                                   </Badge>
                                 ))}
                               </div>

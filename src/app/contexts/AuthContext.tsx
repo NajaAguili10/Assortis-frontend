@@ -8,7 +8,8 @@ interface User {
   lastName: string;
   role?: string;
   accountType?: 'expert' | 'organization' | 'admin' | 'public';
-  isSubscribed?: boolean; // true when the user has an active paid subscription
+  isSubscribed?: boolean;
+  organizationId?: number;
 }
 
 type QuickLoginAccountType = 'expert' | 'organization' | 'organization-user' | 'admin' | 'public';
@@ -84,6 +85,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         lastName: 'User',
         role: primaryRole,
         accountType: primaryRole.toLowerCase() as any,
+        organizationId: response.organizationId,
       };
 
       setUser(loggedInUser);

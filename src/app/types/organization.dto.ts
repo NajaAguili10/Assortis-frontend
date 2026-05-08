@@ -102,17 +102,23 @@ export enum RegionEnum {
 export enum VerificationStatus {
   ACTIVE, INACTIVE, VERIFIED, PENDING, NOTVERIFIED
 }
+export interface CountryDTO {
+  id: number;
+  name: string;
+  code: string;
+  regionWorld?: string;
+}
 export interface SectorDTO {
   id: number;
   name: string;
   code: string;
 }
 export interface SubsectorDTO {
-  id?: number;
-  code?: string;
-  name?: string;
+  id: number;
+  code: string;
+  name: string;
   description?: string;
-  sectorId?: number;
+  sectorId: number;
 }
 export interface OrganizationCertificationDTO {
   id: number;
@@ -127,6 +133,7 @@ export interface OrganizationCertificationDTO {
 export interface Organization {
   id: string;
   name: string;
+ 
   cleanName?: string;
   legalName?: string;
   type?: string;
@@ -200,7 +207,7 @@ export interface Organization {
   completedProjects: number;
   partnerships: number;
   certifications: OrganizationCertificationDTO[];
-  budget?: number
+  budget?: number;
   sectors: SectorDTO[];
   subSectors?: SubsectorDTO[];
 
@@ -280,11 +287,11 @@ export interface OrganizationKPIs {
 export interface OrganizationFilters {
   searchQuery?: string;
   type?: string[];
-  sectors?: string[];
-  subSectors?: string[];
+  sectors?: SectorDTO[];
+  subSectors?: SubsectorDTO[];
   status?: string[];
   regions?: string[];
-  countries?: string[];
+  countries?: CountryDTO[];
 }
 
 export interface OrganizationFiltersData {

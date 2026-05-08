@@ -10,4 +10,8 @@ export const expertService = {
     const response = await apiClient.get<ExpertDTO[]>('/experts');
     return response;
   },
+  getExpertsByOrganizationId: async (orgId: number | string): Promise<ExpertDTO[]> => {
+    const response = await apiClient.get<ExpertDTO[]>(`/experts/organization/${orgId}`);
+    return response;
+  },
 };

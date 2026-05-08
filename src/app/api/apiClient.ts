@@ -9,8 +9,22 @@ const getHeaders = () => {
 };
 
 export const apiClient = {
-  get: async <T>(endpoint: string): Promise<T> => {
-    const response = await fetch(`${BASE_URL}${endpoint}`, {
+  get: async <T>(endpoint: string, params?: Record<string, any>): Promise<T> => {
+    let url = `${BASE_URL}${endpoint}`;
+    if (params) {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          searchParams.append(key, String(value));
+        }
+      });
+      const queryString = searchParams.toString();
+      if (queryString) {
+        url += (url.includes('?') ? '&' : '?') + queryString;
+      }
+    }
+
+    const response = await fetch(url, {
       method: 'GET',
       headers: getHeaders(),
     });

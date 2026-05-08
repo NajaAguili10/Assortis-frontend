@@ -6,6 +6,8 @@ import {
   OrganizationBackend,
   OrganizationSectorEnum,
   RegionEnum,
+  SectorDTO,
+  CountryDTO,
 } from '../types/organization.dto';
 
 const COUNTRY_REGION_MAP: Record<string, RegionEnum> = {
@@ -133,17 +135,7 @@ const normalizeOrganization = (org: OrganizationBackend): Organization => {
     employeeCount: org.employeesCount ?? undefined,
     yearEstablished: org.yearFounded ?? undefined,
     teamMembers: org.employeesCount ?? undefined,
-    budget: budgetAmount !== undefined
-      ? {
-        amount: budgetAmount,
-        currency: 'EUR',
-        formatted: new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: 'EUR',
-          maximumFractionDigits: 0,
-        }).format(budgetAmount),
-      }
-      : undefined,
+    budget: budgetAmount,
     certifications: [],
   };
 };
@@ -367,7 +359,7 @@ export const organizationService = {
 
   },
 
-  getAllOrganizations: async (
+  getAllOrganizationsByOrganization: async (
     filters?: OrganizationFilters,
     page: number = 1,
     pageSize: number = 10,
@@ -465,6 +457,14 @@ export const organizationService = {
   },
   deleteSavedSearch: async (id: number) => {
     return apiClient.delete(`/organizations/saved-searches/${id}`);
+  },
+  getSubscriptionSectors: async (orgId: string | number) => {
+    return apiClient.get<string[]>(`/organizations/${orgId}/subscription-sectors`);
+  },
+  getMySubscriptionSectors: async () => {
+    return apiClient.get<SectorDTO[]>(`/organizations/my-subscription-sectors`);
+  },
+  getMySubscriptionCountries: async () => {
+    return apiClient.get<CountryDTO[]>(`/organizations/my-subscription-countries`);
   }
-
 };

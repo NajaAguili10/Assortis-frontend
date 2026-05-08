@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
+import { organizationService } from '@app/services/organizationService';
+import { ProjectStatusEnum, ProjectPriorityEnum, ProjectSectorEnum } from '@app/types/project.dto';
 import { Button } from '@app/components/ui/button';
 import { Input } from '@app/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@app/components/ui/select';
@@ -20,7 +22,6 @@ import {
   Building2,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { ProjectStatusEnum, ProjectPriorityEnum } from '@app/types/project.dto';
 
 export default function SearchProjectsTabContent() {
   const { t, language } = useLanguage();
@@ -36,10 +37,30 @@ export default function SearchProjectsTabContent() {
     setSortBy,
     currentPage,
     setCurrentPage,
+    isLoading,
   } = useProjects();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const { user } = useAuth();
+  const [subscriptionSectors, setSubscriptionSectors] = useState<string[]>([]);
+  const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (user?.organizationId) {
+      organizationService.getSubscriptionSectors(user.organizationId)
+        .then(setSubscriptionSectors)
+        .catch(err => console.error("Error fetching subscription sectors:", err));
+    }
+  }, [user]);
+
+  const handleSectorToggle = (sector: string) => {
+    const next = selectedSectors.includes(sector)
+      ? selectedSectors.filter((s) => s !== sector)
+      : [...selectedSectors, sector];
+    setSelectedSectors(next);
+    updateFilters({ sector: next as ProjectSectorEnum[] });
+  };
 
   useEffect(() => {
     const q = (searchParams.get('q') || '').trim();
@@ -55,6 +76,7 @@ export default function SearchProjectsTabContent() {
 
   const handleClearFilters = () => {
     setSearchQuery('');
+    setSelectedSectors([]);
     clearFilters();
   };
 
@@ -118,12 +140,38 @@ export default function SearchProjectsTabContent() {
             </SelectContent>
           </Select>
         </div>
+
+        {subscriptionSectors.length > 0 && (
+          <div className="space-y-3 pt-2">
+            <h3 className="text-sm font-medium text-gray-700">{t('projects.filters.sectors') || "Sectors"}</h3>
+            <div className="flex flex-wrap gap-2">
+              {subscriptionSectors.map((sector) => (
+                <Badge
+                  key={sector}
+                  variant={selectedSectors.includes(sector) ? 'default' : 'outline'}
+                  className={`cursor-pointer px-3 py-1.5 transition-colors ${selectedSectors.includes(sector)
+                      ? 'bg-primary text-white border-primary hover:bg-primary/90'
+                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                    }`}
+                  onClick={() => handleSectorToggle(sector)}
+                >
+                  {t(`projects.sectors.${sector}`) || sector}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div>
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-muted-foreground">
-            {projects.meta.totalItems > 0 ? (
+            {isLoading ? (
+              <span className="flex items-center gap-2">
+                <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                Loading projects...
+              </span>
+            ) : projects.meta.totalItems > 0 ? (
               <>Showing {((currentPage - 1) * projects.meta.pageSize + 1)}-{Math.min(currentPage * projects.meta.pageSize, projects.meta.totalItems)} of {projects.meta.totalItems}</>
             ) : (
               <>No projects found</>
@@ -131,7 +179,12 @@ export default function SearchProjectsTabContent() {
           </p>
         </div>
 
-        {projects.data.length > 0 ? (
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-lg border border-dashed border-gray-200">
+             <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
+             <p className="text-gray-500 font-medium">Fetching projects from server...</p>
+          </div>
+        ) : projects.data.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 mb-6">
             {projects.data.map((project) => (
               <div key={project.id} className="bg-white rounded-lg border p-5 hover:shadow-md transition-shadow">
@@ -177,9 +230,9 @@ export default function SearchProjectsTabContent() {
                         <span>{project.timeline.completionPercentage}%</span>
                       </div>
                       <div className="w-32 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-blue-500 rounded-full transition-all" 
-                          style={{ width: `${project.timeline.completionPercentage}%` }} 
+                        <div
+                          className="h-full bg-blue-500 rounded-full transition-all"
+                          style={{ width: `${project.timeline.completionPercentage}%` }}
                         />
                       </div>
                     </div>
@@ -201,10 +254,10 @@ export default function SearchProjectsTabContent() {
 
         {projects.meta.totalPages > 1 && (
           <div className="flex items-center justify-between mt-6">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setCurrentPage(currentPage - 1)} 
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(currentPage - 1)}
               disabled={!projects.meta.hasPreviousPage}
             >
               <ChevronLeft className="w-4 h-4 mr-1" />
@@ -214,10 +267,10 @@ export default function SearchProjectsTabContent() {
               {Array.from({ length: Math.min(5, projects.meta.totalPages) }, (_, index) => {
                 const pageNum = index + 1;
                 return (
-                  <Button 
-                    key={pageNum} 
-                    variant={currentPage === pageNum ? 'default' : 'outline'} 
-                    size="sm" 
+                  <Button
+                    key={pageNum}
+                    variant={currentPage === pageNum ? 'default' : 'outline'}
+                    size="sm"
                     onClick={() => setCurrentPage(pageNum)}
                   >
                     {pageNum}
@@ -225,10 +278,10 @@ export default function SearchProjectsTabContent() {
                 );
               })}
             </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setCurrentPage(currentPage + 1)} 
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(currentPage + 1)}
               disabled={!projects.meta.hasNextPage}
             >
               {t('pagination.next')}

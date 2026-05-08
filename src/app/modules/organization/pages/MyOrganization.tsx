@@ -405,7 +405,7 @@ export default function MyOrganization() {
                         className="bg-green-50 text-green-700 border-green-200"
                       >
                         <CheckCircle className="w-3 h-3 mr-1" />
-                        {t(`organizations.status.${org.status}`)}
+                        {t(`organizations.status.${org.verificationStatus}`)}
                       </Badge>
                     </div>
 
@@ -417,7 +417,7 @@ export default function MyOrganization() {
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <MapPin className="w-4 h-4" />
                         <span>
-                          {org.city}, {org.country}
+                          {org.city.name}, {org.country.name}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -426,14 +426,14 @@ export default function MyOrganization() {
                       </div>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Users className="w-4 h-4" />
-                        <span>{org.employeeCount} {t('organizations.details.employees')}</span>
+                        <span>{org.employeesCount} {t('organizations.details.employees')}</span>
                       </div>
                     </div>
 
                     {/* Sectors */}
                     <div className="flex flex-wrap gap-2 mb-4">
                       {org.sectors.slice(0, 3).map((sector) => (
-                        <Badge key={sector} variant="outline" className="text-xs">
+                        <Badge key={sector.name} variant="outline" className="text-xs">
                           {t(`sectors.${sector}`)}
                         </Badge>
                       ))}

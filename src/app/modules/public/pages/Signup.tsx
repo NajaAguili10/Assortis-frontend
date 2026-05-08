@@ -17,9 +17,9 @@ import {
 } from '@app/components/ui/select';
 import { Alert, AlertDescription } from '@app/components/ui/alert';
 import { Badge } from '@app/components/ui/badge';
-import { 
-  UserPlus, 
-  Building2, 
+import {
+  UserPlus,
+  Building2,
   User,
   ArrowRight,
   ArrowLeft,
@@ -47,17 +47,20 @@ import { EmailVerification } from '@app/components/EmailVerification';
 import { PromoCodeSection } from '@app/components/PromoCodeSection';
 import { PromoCodeData } from '@app/types/promo';
 import { sendConfirmationEmail } from '@app/services/emailService';
-import { COUNTRIES as FULL_COUNTRIES, getCountriesSorted } from '@app/config/countries.config';
-import { PRICING_SECTORS } from '@app/config/pricing-sectors.config';
-import { 
-  validateEmail, 
-  validatePassword, 
-  validateName, 
+import { getCountriesSorted } from '@app/config/countries.config';
+import {
+  validateEmail,
+  validatePassword,
+  validateName,
   validatePhone,
   validateUrl,
-  validateRequired 
+  validateRequired
 } from '@app/utils/validation';
 import { toast } from 'sonner';
+import { CountryDTO } from '../../expert/hooks/useExperts';
+import { countryService } from '@/app/services/CountryService';
+import { SectorDTO } from '@/app/types/organization.dto';
+import { sectorService } from '@/app/services/sectorService';
 
 // Initialize Stripe with publishable key (use test key)
 const stripePromise = loadStripe('pk_test_51234567890abcdefghijklmnopqrstuvwxyz');
@@ -68,12 +71,12 @@ type PlanType = 'org-beginner' | 'org-professional' | 'expert-beginner' | 'exper
 interface FormData {
   accountType: AccountType;
   planType: PlanType;
-  
+
   // Common fields
   email: string;
   password: string;
   confirmPassword: string;
-  
+
   // Organization fields
   orgName: string;
   orgLegalName: string;
@@ -88,7 +91,7 @@ interface FormData {
   contactPersonPosition: string;
   orgSectors: string;  // Changed from array to string for Select component
   orgSubsectors: string;  // Changed from array to string for Select component
-  
+
   // Expert fields
   firstName: string;
   lastName: string;
@@ -100,7 +103,7 @@ interface FormData {
   expertise: string;  // Changed from array to string for Select component
   expertSubsectors: string;  // Changed from array to string for Select component
   experience: string;
-  
+
   // Newsletter preferences
   newsletterTenders: boolean;
   newsletterTraining: boolean;
@@ -155,24 +158,24 @@ const SUBSECTORS_BY_SECTOR: Record<string, string[]> = {
   OTHER: []
 };
 
-const COUNTRIES = [
+/*const COUNTRIES = [
   'United States', 'France', 'Spain', 'Germany', 'United Kingdom', 
   'Canada', 'Belgium', 'Switzerland', 'Netherlands', 'Kenya',
   'Senegal', 'Morocco', 'Côte d\'Ivoire', 'Mali', 'Burkina Faso'
-];
+]; */
 
 // ─── Yearly Pricing Matrix ────────────────────────────────────────────────────
 type SectorRange = '1-4' | '5-20' | '21-40' | '41-80' | '81-160' | '161-250' | '251-362';
 type CountryRange = '1' | '2-9' | '10-99' | '100+';
 
 const PRICING_MATRIX: Record<SectorRange, Record<CountryRange, number>> = {
-  '1-4':     { '1': 300,  '2-9': 450,  '10-99': 700,  '100+': 900  },
-  '5-20':    { '1': 400,  '2-9': 550,  '10-99': 800,  '100+': 1000 },
-  '21-40':   { '1': 500,  '2-9': 650,  '10-99': 900,  '100+': 1200 },
-  '41-80':   { '1': 600,  '2-9': 750,  '10-99': 1200, '100+': 1700 },
-  '81-160':  { '1': 700,  '2-9': 1100, '10-99': 1600, '100+': 2200 },
-  '161-250': { '1': 800,  '2-9': 1400, '10-99': 2000, '100+': 2600 },
-  '251-362': { '1': 900,  '2-9': 1800, '10-99': 2500, '100+': 3100 },
+  '1-4': { '1': 300, '2-9': 450, '10-99': 700, '100+': 900 },
+  '5-20': { '1': 400, '2-9': 550, '10-99': 800, '100+': 1000 },
+  '21-40': { '1': 500, '2-9': 650, '10-99': 900, '100+': 1200 },
+  '41-80': { '1': 600, '2-9': 750, '10-99': 1200, '100+': 1700 },
+  '81-160': { '1': 700, '2-9': 1100, '10-99': 1600, '100+': 2200 },
+  '161-250': { '1': 800, '2-9': 1400, '10-99': 2000, '100+': 2600 },
+  '251-362': { '1': 900, '2-9': 1800, '10-99': 2500, '100+': 3100 },
 };
 
 function getSectorRange(count: number): SectorRange {
@@ -202,11 +205,11 @@ const Signup = () => {
   const location = useLocation();
   const { signup } = useAuth();
   const { t, language } = useTranslation() as any;
-  
+
   // Check if resuming Phase 2
   const resumePhase2State = location.state as any;
   const shouldResumePhase2 = resumePhase2State?.resumePhase2 === true;
-  
+
   const [currentStep, setCurrentStep] = useState(shouldResumePhase2 ? 6 : 1);
   const totalSteps = 7; // Keep original 7 steps for better UX flow
   const [error, setError] = useState('');
@@ -222,7 +225,41 @@ const Signup = () => {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [completedSteps, setCompletedSteps] = useState<number[]>(shouldResumePhase2 ? [1, 2, 3, 4, 5] : []);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  
+  const [isLoading, setIsLoading] = useState(true);
+  const [countries, setCountries] = useState<CountryDTO[]>([]);
+  const [sectors, setSectors] = useState<SectorDTO[]>([]);
+
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await countryService.getAllCountries();
+        setCountries(Array.isArray(response) ? response : []);
+      } catch (error) {
+        console.error("Error fetching Countries:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await sectorService.getAllSectors();
+        setSectors(Array.isArray(response) ? response : []);
+      } catch (error) {
+        console.error("Error fetching sectors:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+
   // Ref for first input of each step (auto-focus)
   const firstInputRef = useRef<HTMLInputElement>(null);
 
@@ -233,11 +270,11 @@ const Signup = () => {
       const defaultFormData = {
         accountType: resumePhase2State.accountType || null,
         planType: resumePhase2State.planType || null,
-        
+
         email: resumePhase2State.email || '',
         password: resumePhase2State.password || '',
         confirmPassword: resumePhase2State.password || '',
-        
+
         orgName: resumePhase2State.orgName || '',
         orgLegalName: '',
         orgType: '',
@@ -247,13 +284,13 @@ const Signup = () => {
         orgWebsite: '',
         orgCountry: '',
         orgCity: '',
-        contactPersonName: resumePhase2State.firstName && resumePhase2State.lastName 
-          ? `${resumePhase2State.firstName} ${resumePhase2State.lastName}` 
+        contactPersonName: resumePhase2State.firstName && resumePhase2State.lastName
+          ? `${resumePhase2State.firstName} ${resumePhase2State.lastName}`
           : '',
         contactPersonPosition: '',
         orgSectors: '',
         orgSubsectors: '',
-        
+
         firstName: resumePhase2State.firstName || '',
         lastName: resumePhase2State.lastName || '',
         expertEmail: resumePhase2State.email || '',
@@ -264,7 +301,7 @@ const Signup = () => {
         expertise: '',
         expertSubsectors: '',
         experience: '',
-        
+
         newsletterTenders: true,
         newsletterTraining: true,
         newsletterJobs: true,
@@ -273,14 +310,14 @@ const Signup = () => {
         subscriptionCountries: [],
         subscriptionPrice: 0,
       };
-      
+
       setTimeout(() => {
         toast.success(t('auth.signup.resumingPhase2') || 'Resuming Phase 2 of registration');
       }, 500);
-      
+
       return defaultFormData;
     }
-    
+
     // Try to restore from localStorage
     try {
       const saved = localStorage.getItem(LOCALSTORAGE_KEY);
@@ -300,48 +337,48 @@ const Signup = () => {
     } catch (error) {
       console.error('Failed to restore draft:', error);
     }
-    
+
     // Default initial state
     return {
-    accountType: null,
-    planType: null,
-    
-    email: '',
-    password: '',
-    confirmPassword: '',
-    
-    orgName: '',
-    orgLegalName: '',
-    orgType: '',
-    orgRegistrationNumber: '',
-    orgEmail: '',
-    orgPhone: '',
-    orgWebsite: '',
-    orgCountry: '',
-    orgCity: '',
-    contactPersonName: '',
-    contactPersonPosition: '',
-    orgSectors: '',
-    orgSubsectors: '',
-    
-    firstName: '',
-    lastName: '',
-    expertEmail: '',
-    expertPhone: '',
-    nationality: '',
-    country: '',
-    city: '',
-    expertise: '',
-    expertSubsectors: '',
-    experience: '',
-    
-    newsletterTenders: true,
-    newsletterTraining: true,
-    newsletterJobs: true,
+      accountType: null,
+      planType: null,
 
-    subscriptionSectors: [],
-    subscriptionCountries: [],
-    subscriptionPrice: 0,
+      email: '',
+      password: '',
+      confirmPassword: '',
+
+      orgName: '',
+      orgLegalName: '',
+      orgType: '',
+      orgRegistrationNumber: '',
+      orgEmail: '',
+      orgPhone: '',
+      orgWebsite: '',
+      orgCountry: '',
+      orgCity: '',
+      contactPersonName: '',
+      contactPersonPosition: '',
+      orgSectors: '',
+      orgSubsectors: '',
+
+      firstName: '',
+      lastName: '',
+      expertEmail: '',
+      expertPhone: '',
+      nationality: '',
+      country: '',
+      city: '',
+      expertise: '',
+      expertSubsectors: '',
+      experience: '',
+
+      newsletterTenders: true,
+      newsletterTraining: true,
+      newsletterJobs: true,
+
+      subscriptionSectors: [],
+      subscriptionCountries: [],
+      subscriptionPrice: 0,
     };
   });
 
@@ -355,7 +392,7 @@ const Signup = () => {
         console.error('Failed to save draft:', error);
       }
     }, 1000); // Debounce 1 second
-    
+
     return () => clearTimeout(timer);
   }, [formData]);
 
@@ -363,22 +400,22 @@ const Signup = () => {
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const shouldResume = searchParams.get('resume') === 'true';
-    
+
     if (shouldResume) {
       try {
         const resumeDataJson = localStorage.getItem('assortis_resume_signup');
         if (resumeDataJson) {
           const resumeData = JSON.parse(resumeDataJson);
-          
+
           // Restore form data
           setFormData({
             accountType: resumeData.accountType || null,
             planType: resumeData.planType || null,
-            
+
             email: resumeData.email || '',
             password: resumeData.password || '',
             confirmPassword: resumeData.password || '',
-            
+
             orgName: resumeData.orgName || '',
             orgLegalName: '',
             orgType: '',
@@ -388,13 +425,13 @@ const Signup = () => {
             orgWebsite: '',
             orgCountry: '',
             orgCity: '',
-            contactPersonName: resumeData.firstName && resumeData.lastName 
-              ? `${resumeData.firstName} ${resumeData.lastName}` 
+            contactPersonName: resumeData.firstName && resumeData.lastName
+              ? `${resumeData.firstName} ${resumeData.lastName}`
               : '',
             contactPersonPosition: '',
             orgSectors: '',
             orgSubsectors: '',
-            
+
             firstName: resumeData.firstName || '',
             lastName: resumeData.lastName || '',
             expertEmail: resumeData.email || '',
@@ -405,7 +442,7 @@ const Signup = () => {
             expertise: '',
             expertSubsectors: '',
             experience: '',
-            
+
             newsletterTenders: true,
             newsletterTraining: true,
             newsletterJobs: true,
@@ -414,15 +451,15 @@ const Signup = () => {
             subscriptionCountries: [],
             subscriptionPrice: 0,
           });
-          
+
           // Restore progress
           setCurrentStep(resumeData.currentStep || 1);
           setCompletedSteps(resumeData.completedSteps || []);
           setIsEmailVerified(resumeData.isEmailVerified || false);
-          
+
           // Clear the resume data from localStorage
           localStorage.removeItem('assortis_resume_signup');
-          
+
           // Show success message
           toast.success(t('auth.signup.draftRestored') || 'Your draft has been restored');
         }
@@ -437,7 +474,7 @@ const Signup = () => {
     const timer = setTimeout(() => {
       firstInputRef.current?.focus();
     }, 100);
-    
+
     return () => clearTimeout(timer);
   }, [currentStep]);
 
@@ -450,7 +487,7 @@ const Signup = () => {
     if (price !== formData.subscriptionPrice) {
       setFormData(prev => ({ ...prev, subscriptionPrice: price }));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.subscriptionSectors, formData.subscriptionCountries]);
 
   // Clear draft from localStorage
@@ -483,35 +520,35 @@ const Signup = () => {
       case 'orgEmail':
       case 'expertEmail':
         if (!value) return '';
-        return !validateEmail(value as string) 
+        return !validateEmail(value as string)
           ? t('auth.validation.invalidEmail') || 'Please enter a valid email address'
           : '';
-      
+
       case 'password':
         if (!value) return '';
         return !validatePassword(value as string)
           ? t('auth.validation.weakPassword') || 'Password must be at least 6 characters'
           : '';
-      
+
       case 'confirmPassword':
         if (!value) return '';
         return value !== formData.password
           ? t('auth.signup.passwordMismatch') || 'Passwords do not match'
           : '';
-      
+
       case 'orgPhone':
       case 'expertPhone':
         if (!value) return '';
         return !validatePhone(value as string)
           ? t('auth.validation.invalidPhone') || 'Please enter a valid phone number'
           : '';
-      
+
       case 'orgWebsite':
         if (!value) return '';
         return !validateUrl(value as string)
           ? t('auth.validation.invalidUrl') || 'Please enter a valid URL'
           : '';
-      
+
       case 'firstName':
       case 'lastName':
       case 'contactPersonName':
@@ -519,7 +556,7 @@ const Signup = () => {
         return !validateName(value as string)
           ? t('auth.validation.invalidName') || 'Please enter a valid name'
           : '';
-      
+
       default:
         return '';
     }
@@ -535,38 +572,38 @@ const Signup = () => {
   };
 
   // Password strength calculator
-  const getPasswordStrength = (password: string): { 
-    strength: number; 
-    label: string; 
-    color: string 
+  const getPasswordStrength = (password: string): {
+    strength: number;
+    label: string;
+    color: string
   } => {
     if (!password) return { strength: 0, label: '', color: '' };
-    
+
     let strength = 0;
     if (password.length >= 6) strength += 25;
     if (password.length >= 8) strength += 25;
     if (/[A-Z]/.test(password)) strength += 25;
     if (/[0-9]/.test(password)) strength += 25;
-    
-    if (strength <= 25) return { 
-      strength, 
-      label: t('auth.password.weak') || 'Weak', 
-      color: 'bg-red-500' 
+
+    if (strength <= 25) return {
+      strength,
+      label: t('auth.password.weak') || 'Weak',
+      color: 'bg-red-500'
     };
-    if (strength <= 50) return { 
-      strength, 
-      label: t('auth.password.fair') || 'Fair', 
-      color: 'bg-orange-500' 
+    if (strength <= 50) return {
+      strength,
+      label: t('auth.password.fair') || 'Fair',
+      color: 'bg-orange-500'
     };
-    if (strength <= 75) return { 
-      strength, 
-      label: t('auth.password.good') || 'Good', 
-      color: 'bg-yellow-500' 
+    if (strength <= 75) return {
+      strength,
+      label: t('auth.password.good') || 'Good',
+      color: 'bg-yellow-500'
     };
-    return { 
-      strength, 
-      label: t('auth.password.strong') || 'Strong', 
-      color: 'bg-green-500' 
+    return {
+      strength,
+      label: t('auth.password.strong') || 'Strong',
+      color: 'bg-green-500'
     };
   };
 
@@ -578,19 +615,19 @@ const Signup = () => {
       if (!completedSteps.includes(currentStep)) {
         setCompletedSteps(prev => [...prev, currentStep]);
       }
-      
+
       // If at step 1 and has a valid promo code, jump directly to step 7 (payment)
       if (currentStep === 1 && appliedPromoCode && appliedPromoCode.isValid) {
         setCurrentStep(7);
         return;
       }
-      
+
       // If at step 5 (plan selection), show completion choice instead of going to step 6
       if (currentStep === 5) {
         setShowCompletionChoice(true);
         return;
       }
-      
+
       setCurrentStep(currentStep + 1);
     }
   };
@@ -602,7 +639,7 @@ const Signup = () => {
       setError('');
       return;
     }
-    
+
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
       setError('');
@@ -677,38 +714,51 @@ const Signup = () => {
         lastName = formData.lastName;
       }
 
+      console.log('🚀 Starting registration process...');
       await authService.register(formData);
-      
+      console.log('✅ Registration successful');
+
       // Calculate payment amount (considering promo discount)
       const baseAmount = formData.subscriptionPrice;
-      const finalAmount = appliedPromoCode?.discountPercent 
+      const finalAmount = appliedPromoCode?.discountPercent
         ? baseAmount - (baseAmount * appliedPromoCode.discountPercent / 100)
         : baseAmount;
-      
+
       // Send confirmation email
+      console.log('📧 Sending confirmation email...');
       const emailSent = await sendConfirmationEmail({
         to: email,
         subject: 'Welcome to Assortis - Registration Confirmed',
         firstName,
         lastName,
         accountType: formData.accountType!,
-        planType: formData.planType,
+        planType: formData.planType as any,
         orgName: formData.accountType === 'organization' ? formData.orgName : undefined,
         amount: finalAmount,
         discountPercent: appliedPromoCode?.discountPercent,
       });
 
       if (!emailSent) {
-        console.warn('Failed to send confirmation email, but continuing registration');
+        console.warn('⚠️ Failed to send confirmation email, but continuing registration');
+      } else {
+        console.log('✅ Confirmation email sent');
       }
-      
+
       // Clear draft on successful registration
       clearDraft();
-      
+      console.log('🧹 Draft cleared');
+
+      // Show success toast
+      toast.success(t('auth.signup.success') || 'Registration completed successfully!');
+
       // Navigate to login with success state
+      console.log('🏃 Redirecting to login...');
       navigate('/login', { state: { registeredSuccessfully: true } });
+
     } catch (err: any) {
+      console.error('❌ Signup error:', err);
       setError(err.message || 'Signup failed. Please try again.');
+      toast.error(err.message || 'Signup failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -757,7 +807,9 @@ const Signup = () => {
       clearDraft();
 
       // Navigate to login with success state
-      navigate('/login', { state: { registeredSuccessfully: true } });
+      // navigate('/login', { state: { registeredSuccessfully: true } });
+      navigate('/login');
+
     } catch (err: any) {
       setError(err.message || 'Failed to save registration. Please try again.');
     } finally {
@@ -782,7 +834,7 @@ const Signup = () => {
         title={t('auth.signup.title')}
         subtitle={t('auth.signup.subtitle')}
       />
-      
+
       <PageContainer>
         {/* Auto-save Indicator */}
         {lastSaved && (
@@ -798,33 +850,30 @@ const Signup = () => {
         <div className="mb-12">
           {/* Phase Indicator */}
           <div className="flex justify-center gap-4 mb-6">
-            <div className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ${
-              currentStep <= 5 
-                ? 'bg-accent text-white shadow-md' 
-                : 'bg-gray-100 text-gray-500'
-            }`}>
+            <div className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ${currentStep <= 5
+              ? 'bg-accent text-white shadow-md'
+              : 'bg-gray-100 text-gray-500'
+              }`}>
               {t('auth.signup.phase1Complete').split(':')[0]} {/* Phase 1 */}
             </div>
-            <div className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ${
-              currentStep >= 6 
-                ? 'bg-accent text-white shadow-md' 
-                : 'bg-gray-100 text-gray-500'
-            }`}>
+            <div className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ${currentStep >= 6
+              ? 'bg-accent text-white shadow-md'
+              : 'bg-gray-100 text-gray-500'
+              }`}>
               {t('auth.signup.phase2Payment').split(':')[0]} {/* Phase 2 */}
             </div>
           </div>
-          
+
           <div className="flex items-center justify-between mb-4">
             {[1, 2, 3, 4, 5, 6, 7].map((step) => (
               <div key={step} className="flex items-center flex-1">
-                <div 
-                  className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold transition-all duration-300 ${
-                    step < currentStep || completedSteps.includes(step)
-                      ? 'bg-green-500 text-white shadow-lg scale-110'
-                      : step === currentStep
+                <div
+                  className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold transition-all duration-300 ${step < currentStep || completedSteps.includes(step)
+                    ? 'bg-green-500 text-white shadow-lg scale-110'
+                    : step === currentStep
                       ? 'bg-accent text-white shadow-lg scale-125 ring-4 ring-accent/20'
                       : 'bg-gray-200 text-gray-500'
-                  }`}
+                    }`}
                   aria-label={`Step ${step}: ${stepTitles[step - 1]}`}
                   role="status"
                   aria-current={step === currentStep ? 'step' : undefined}
@@ -836,9 +885,8 @@ const Signup = () => {
                   )}
                 </div>
                 {step < 7 && (
-                  <div className={`flex-1 h-1 mx-2 transition-all duration-300 ${
-                    step < currentStep || completedSteps.includes(step) ? 'bg-green-500' : 'bg-gray-200'
-                  }`} />
+                  <div className={`flex-1 h-1 mx-2 transition-all duration-300 ${step < currentStep || completedSteps.includes(step) ? 'bg-green-500' : 'bg-gray-200'
+                    }`} />
                 )}
               </div>
             ))}
@@ -864,19 +912,16 @@ const Signup = () => {
                     // Disable jobs newsletter for organizations
                     handleInputChange('newsletterJobs', false);
                   }}
-                  className={`group relative overflow-hidden rounded-2xl p-8 text-left transition-all duration-300 hover:scale-105 border-2 ${
-                    formData.accountType === 'organization'
-                      ? 'border-accent bg-accent/5 shadow-lg'
-                      : 'border-gray-200 bg-white hover:border-accent/50'
-                  }`}
+                  className={`group relative overflow-hidden rounded-2xl p-8 text-left transition-all duration-300 hover:scale-105 border-2 ${formData.accountType === 'organization'
+                    ? 'border-accent bg-accent/5 shadow-lg'
+                    : 'border-gray-200 bg-white hover:border-accent/50'
+                    }`}
                 >
                   <div className="flex items-center gap-4 mb-4">
-                    <div className={`rounded-xl p-3 transition-colors duration-300 ${
-                      formData.accountType === 'organization' ? 'bg-accent' : 'bg-gray-100 group-hover:bg-accent/20'
-                    }`}>
-                      <Building2 className={`h-8 w-8 ${
-                        formData.accountType === 'organization' ? 'text-white' : 'text-gray-600 group-hover:text-accent'
-                      }`} strokeWidth={2} />
+                    <div className={`rounded-xl p-3 transition-colors duration-300 ${formData.accountType === 'organization' ? 'bg-accent' : 'bg-gray-100 group-hover:bg-accent/20'
+                      }`}>
+                      <Building2 className={`h-8 w-8 ${formData.accountType === 'organization' ? 'text-white' : 'text-gray-600 group-hover:text-accent'
+                        }`} strokeWidth={2} />
                     </div>
                     <h3 className="text-xl font-bold text-primary">
                       {t('auth.signup.typeOrganization')}
@@ -902,19 +947,16 @@ const Signup = () => {
                     // Re-enable jobs newsletter for experts
                     handleInputChange('newsletterJobs', true);
                   }}
-                  className={`group relative overflow-hidden rounded-2xl p-8 text-left transition-all duration-300 hover:scale-105 border-2 ${
-                    formData.accountType === 'expert'
-                      ? 'border-accent bg-accent/5 shadow-lg'
-                      : 'border-gray-200 bg-white hover:border-accent/50'
-                  }`}
+                  className={`group relative overflow-hidden rounded-2xl p-8 text-left transition-all duration-300 hover:scale-105 border-2 ${formData.accountType === 'expert'
+                    ? 'border-accent bg-accent/5 shadow-lg'
+                    : 'border-gray-200 bg-white hover:border-accent/50'
+                    }`}
                 >
                   <div className="flex items-center gap-4 mb-4">
-                    <div className={`rounded-xl p-3 transition-colors duration-300 ${
-                      formData.accountType === 'expert' ? 'bg-accent' : 'bg-gray-100 group-hover:bg-accent/20'
-                    }`}>
-                      <User className={`h-8 w-8 ${
-                        formData.accountType === 'expert' ? 'text-white' : 'text-gray-600 group-hover:text-accent'
-                      }`} strokeWidth={2} />
+                    <div className={`rounded-xl p-3 transition-colors duration-300 ${formData.accountType === 'expert' ? 'bg-accent' : 'bg-gray-100 group-hover:bg-accent/20'
+                      }`}>
+                      <User className={`h-8 w-8 ${formData.accountType === 'expert' ? 'text-white' : 'text-gray-600 group-hover:text-accent'
+                        }`} strokeWidth={2} />
                     </div>
                     <h3 className="text-xl font-bold text-primary">
                       {t('auth.signup.typeExpert')}
@@ -938,7 +980,7 @@ const Signup = () => {
                 <PromoCodeSection
                   onPromoCodeValidated={(promoData) => {
                     setAppliedPromoCode(promoData);
-                    
+
                     // If promo code is valid and has organization data, pre-fill the form
                     if (promoData && promoData.isValid && promoData.organizationData) {
                       setFormData(prev => ({
@@ -979,7 +1021,7 @@ const Signup = () => {
                   <h3 className="text-xl font-bold text-primary mb-4">
                     {t('auth.signup.typeOrganization')}
                   </h3>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="orgName">{t('offers.form.org.name')} *</Label>
@@ -992,7 +1034,7 @@ const Signup = () => {
                         aria-required="true"
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="orgLegalName">{t('offers.form.org.legalName')}</Label>
                       <Input
@@ -1002,7 +1044,7 @@ const Signup = () => {
                         placeholder={t('offers.form.org.legalNamePlaceholder')}
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="orgType">{t('offers.form.org.type')}</Label>
                       <Select value={formData.orgType} onValueChange={(value) => handleInputChange('orgType', value)}>
@@ -1018,7 +1060,7 @@ const Signup = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="orgRegistrationNumber">{t('offers.form.org.registrationNumber')}</Label>
                       <Input
@@ -1027,7 +1069,7 @@ const Signup = () => {
                         onChange={(e) => handleInputChange('orgRegistrationNumber', e.target.value)}
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="orgEmail">{t('offers.form.org.email')} *</Label>
                       <Input
@@ -1048,7 +1090,7 @@ const Signup = () => {
                         </p>
                       )}
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="orgPhone">{t('offers.form.org.phone')}</Label>
                       <Input
@@ -1058,7 +1100,7 @@ const Signup = () => {
                         placeholder={t('offers.form.org.phonePlaceholder')}
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="orgWebsite">{t('offers.form.org.website')}</Label>
                       <Input
@@ -1068,7 +1110,7 @@ const Signup = () => {
                         placeholder={t('offers.form.org.websitePlaceholder')}
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="orgCountry">{t('offers.form.org.country')}</Label>
                       <Select value={formData.orgCountry} onValueChange={(value) => handleInputChange('orgCountry', value)}>
@@ -1076,13 +1118,13 @@ const Signup = () => {
                           <SelectValue placeholder={t('offers.form.org.countryPlaceholder')} />
                         </SelectTrigger>
                         <SelectContent>
-                          {COUNTRIES.map((country) => (
-                            <SelectItem key={country} value={country}>{country}</SelectItem>
+                          {countries.map((country) => (
+                            <SelectItem key={country.name} value={country.name}>{country.name}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="orgCity">{t('offers.form.org.city')}</Label>
                       <Input
@@ -1092,7 +1134,7 @@ const Signup = () => {
                         placeholder={t('offers.form.org.cityPlaceholder')}
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="contactPersonName">{t('offers.form.org.contactPerson')} *</Label>
                       <Input
@@ -1112,7 +1154,7 @@ const Signup = () => {
                         </p>
                       )}
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="contactPersonPosition">{t('offers.form.org.position')}</Label>
                       <Input
@@ -1129,7 +1171,7 @@ const Signup = () => {
                   <h3 className="text-xl font-bold text-primary mb-4">
                     {t('auth.signup.typeExpert')}
                   </h3>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="firstName">{t('offers.form.expert.firstName')} *</Label>
@@ -1151,7 +1193,7 @@ const Signup = () => {
                         </p>
                       )}
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="lastName">{t('offers.form.expert.lastName')} *</Label>
                       <Input
@@ -1171,7 +1213,7 @@ const Signup = () => {
                         </p>
                       )}
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="expertEmail">{t('offers.form.expert.email')} *</Label>
                       <Input
@@ -1192,7 +1234,7 @@ const Signup = () => {
                         </p>
                       )}
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="expertPhone">{t('offers.form.expert.phone')}</Label>
                       <Input
@@ -1202,7 +1244,7 @@ const Signup = () => {
                         placeholder={t('offers.form.expert.phonePlaceholder')}
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="nationality">{t('offers.form.expert.nationality')}</Label>
                       <Select value={formData.nationality} onValueChange={(value) => handleInputChange('nationality', value)}>
@@ -1210,13 +1252,13 @@ const Signup = () => {
                           <SelectValue placeholder={t('offers.form.expert.nationalityPlaceholder')} />
                         </SelectTrigger>
                         <SelectContent>
-                          {COUNTRIES.map((country) => (
-                            <SelectItem key={country} value={country}>{country}</SelectItem>
+                          {countries.map((country) => (
+                            <SelectItem key={country.name} value={country.name}>{country.name}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="country">{t('offers.form.expert.country')}</Label>
                       <Select value={formData.country} onValueChange={(value) => handleInputChange('country', value)}>
@@ -1224,13 +1266,13 @@ const Signup = () => {
                           <SelectValue placeholder={t('offers.form.expert.countryPlaceholder')} />
                         </SelectTrigger>
                         <SelectContent>
-                          {COUNTRIES.map((country) => (
-                            <SelectItem key={country} value={country}>{country}</SelectItem>
+                          {countries.map((country) => (
+                            <SelectItem key={country.name} value={country.name}>{country.name}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="city">{t('offers.form.expert.city')}</Label>
                       <Input
@@ -1240,7 +1282,7 @@ const Signup = () => {
                         placeholder={t('offers.form.expert.cityPlaceholder')}
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="expertise">{t('offers.form.expert.expertise')}</Label>
                       <Select value={formData.expertise} onValueChange={(value) => handleInputChange('expertise', value)}>
@@ -1256,7 +1298,7 @@ const Signup = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="experience">{t('offers.form.expert.experience')}</Label>
                       <Input
@@ -1338,12 +1380,12 @@ const Signup = () => {
                       {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
-                  
+
                   {formData.password && (
                     <div className="mt-2">
                       <div className="flex items-center gap-2 mb-1">
                         <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
-                          <div 
+                          <div
                             className={`h-full transition-all duration-300 ${passwordStrength.color}`}
                             style={{ width: `${passwordStrength.strength}%` }}
                           />
@@ -1358,7 +1400,7 @@ const Signup = () => {
                       </p>
                     </div>
                   )}
-                  
+
                   {fieldErrors.password && (
                     <p id="password-error" className="text-sm text-red-600 mt-1 flex items-center gap-1" role="alert">
                       <AlertCircle className="h-4 w-4" />
@@ -1393,7 +1435,7 @@ const Signup = () => {
                       {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
-                  
+
                   {fieldErrors.confirmPassword && (
                     <p id="confirm-password-error" className="text-sm text-red-600 mt-1 flex items-center gap-1" role="alert">
                       <AlertCircle className="h-4 w-4" />
@@ -1422,19 +1464,16 @@ const Signup = () => {
                   {/* Tenders Newsletter */}
                   <div
                     onClick={() => handleInputChange('newsletterTenders', !formData.newsletterTenders)}
-                    className={`cursor-pointer group relative overflow-hidden rounded-xl p-6 transition-all duration-300 border-2 hover:scale-[1.02] ${
-                      formData.newsletterTenders
-                        ? 'border-accent bg-accent/5 shadow-md'
-                        : 'border-gray-200 bg-white hover:border-accent/30 hover:shadow-lg'
-                    }`}
+                    className={`cursor-pointer group relative overflow-hidden rounded-xl p-6 transition-all duration-300 border-2 hover:scale-[1.02] ${formData.newsletterTenders
+                      ? 'border-accent bg-accent/5 shadow-md'
+                      : 'border-gray-200 bg-white hover:border-accent/30 hover:shadow-lg'
+                      }`}
                   >
                     <div className="flex items-start gap-4">
-                      <div className={`rounded-lg p-3 transition-colors duration-300 ${
-                        formData.newsletterTenders ? 'bg-accent' : 'bg-gray-100 group-hover:bg-accent/20'
-                      }`}>
-                        <Mail className={`h-6 w-6 ${
-                          formData.newsletterTenders ? 'text-white' : 'text-gray-600 group-hover:text-accent'
-                        }`} strokeWidth={2} />
+                      <div className={`rounded-lg p-3 transition-colors duration-300 ${formData.newsletterTenders ? 'bg-accent' : 'bg-gray-100 group-hover:bg-accent/20'
+                        }`}>
+                        <Mail className={`h-6 w-6 ${formData.newsletterTenders ? 'text-white' : 'text-gray-600 group-hover:text-accent'
+                          }`} strokeWidth={2} />
                       </div>
                       <div className="flex-1">
                         <h4 className="text-lg font-bold text-primary mb-1">
@@ -1457,19 +1496,16 @@ const Signup = () => {
                   {/* Training Newsletter */}
                   <div
                     onClick={() => handleInputChange('newsletterTraining', !formData.newsletterTraining)}
-                    className={`cursor-pointer group relative overflow-hidden rounded-xl p-6 transition-all duration-300 border-2 hover:scale-[1.02] ${
-                      formData.newsletterTraining
-                        ? 'border-accent bg-accent/5 shadow-md'
-                        : 'border-gray-200 bg-white hover:border-accent/30 hover:shadow-lg'
-                    }`}
+                    className={`cursor-pointer group relative overflow-hidden rounded-xl p-6 transition-all duration-300 border-2 hover:scale-[1.02] ${formData.newsletterTraining
+                      ? 'border-accent bg-accent/5 shadow-md'
+                      : 'border-gray-200 bg-white hover:border-accent/30 hover:shadow-lg'
+                      }`}
                   >
                     <div className="flex items-start gap-4">
-                      <div className={`rounded-lg p-3 transition-colors duration-300 ${
-                        formData.newsletterTraining ? 'bg-accent' : 'bg-gray-100 group-hover:bg-accent/20'
-                      }`}>
-                        <GraduationCap className={`h-6 w-6 ${
-                          formData.newsletterTraining ? 'text-white' : 'text-gray-600 group-hover:text-accent'
-                        }`} strokeWidth={2} />
+                      <div className={`rounded-lg p-3 transition-colors duration-300 ${formData.newsletterTraining ? 'bg-accent' : 'bg-gray-100 group-hover:bg-accent/20'
+                        }`}>
+                        <GraduationCap className={`h-6 w-6 ${formData.newsletterTraining ? 'text-white' : 'text-gray-600 group-hover:text-accent'
+                          }`} strokeWidth={2} />
                       </div>
                       <div className="flex-1">
                         <h4 className="text-lg font-bold text-primary mb-1">
@@ -1496,35 +1532,31 @@ const Signup = () => {
                         handleInputChange('newsletterJobs', !formData.newsletterJobs);
                       }
                     }}
-                    className={`group relative overflow-hidden rounded-xl p-6 transition-all duration-300 border-2 ${
-                      formData.accountType !== 'expert'
-                        ? 'opacity-50 cursor-not-allowed border-gray-200 bg-gray-50'
-                        : formData.newsletterJobs
+                    className={`group relative overflow-hidden rounded-xl p-6 transition-all duration-300 border-2 ${formData.accountType !== 'expert'
+                      ? 'opacity-50 cursor-not-allowed border-gray-200 bg-gray-50'
+                      : formData.newsletterJobs
                         ? 'cursor-pointer border-accent bg-accent/5 shadow-md hover:scale-[1.02]'
                         : 'cursor-pointer border-gray-200 bg-white hover:border-accent/30 hover:shadow-lg hover:scale-[1.02]'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-start gap-4">
-                      <div className={`rounded-lg p-3 transition-colors duration-300 ${
-                        formData.accountType !== 'expert'
-                          ? 'bg-gray-100'
-                          : formData.newsletterJobs
+                      <div className={`rounded-lg p-3 transition-colors duration-300 ${formData.accountType !== 'expert'
+                        ? 'bg-gray-100'
+                        : formData.newsletterJobs
                           ? 'bg-accent'
                           : 'bg-gray-100 group-hover:bg-accent/20'
-                      }`}>
-                        <Briefcase className={`h-6 w-6 ${
-                          formData.accountType !== 'expert'
-                            ? 'text-gray-400'
-                            : formData.newsletterJobs
+                        }`}>
+                        <Briefcase className={`h-6 w-6 ${formData.accountType !== 'expert'
+                          ? 'text-gray-400'
+                          : formData.newsletterJobs
                             ? 'text-white'
                             : 'text-gray-600 group-hover:text-accent'
-                        }`} strokeWidth={2} />
+                          }`} strokeWidth={2} />
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <h4 className={`text-lg font-bold ${
-                            formData.accountType !== 'expert' ? 'text-gray-500' : 'text-primary'
-                          }`}>
+                          <h4 className={`text-lg font-bold ${formData.accountType !== 'expert' ? 'text-gray-500' : 'text-primary'
+                            }`}>
                             {t('auth.signup.newsletter.jobs')}
                           </h4>
                           {formData.accountType !== 'expert' && (
@@ -1533,9 +1565,8 @@ const Signup = () => {
                             </Badge>
                           )}
                         </div>
-                        <p className={`text-sm ${
-                          formData.accountType !== 'expert' ? 'text-gray-500' : 'text-gray-600'
-                        }`}>
+                        <p className={`text-sm ${formData.accountType !== 'expert' ? 'text-gray-500' : 'text-gray-600'
+                          }`}>
                           {t('auth.signup.newsletter.jobsDesc')}
                         </p>
                       </div>
@@ -1592,7 +1623,7 @@ const Signup = () => {
 
                 {/* Select all / Deselect all */}
                 <div className="flex items-center gap-3 mb-4">
-                  {formData.subscriptionSectors.length === PRICING_SECTORS.length ? (
+                  {formData.subscriptionSectors.length === sectors.length && sectors.length > 0 ? (
                     <button
                       type="button"
                       onClick={() => handleInputChange('subscriptionSectors', [])}
@@ -1603,21 +1634,21 @@ const Signup = () => {
                   ) : (
                     <button
                       type="button"
-                      onClick={() => handleInputChange('subscriptionSectors', PRICING_SECTORS.map(s => s.id))}
+                      onClick={() => handleInputChange('subscriptionSectors', sectors.map(s => s.code))}
                       className="text-sm font-medium text-accent hover:text-accent/80 underline underline-offset-2 transition-colors"
                     >
                       {t('auth.signup.pricingStep.selectAllSectors')}
                     </button>
                   )}
                   <span className="text-xs text-gray-400">
-                    {formData.subscriptionSectors.length} / {PRICING_SECTORS.length}
+                    {formData.subscriptionSectors.length} / {sectors.length}
                   </span>
                 </div>
 
                 {/* Sector grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {PRICING_SECTORS.map((sector) => {
-                    const isChecked = formData.subscriptionSectors.includes(sector.id);
+                  {sectors.map((sector) => {
+                    const isChecked = formData.subscriptionSectors.includes(sector.code);
                     return (
                       <div
                         key={sector.id}
@@ -1629,8 +1660,8 @@ const Signup = () => {
                           handleInputChange(
                             'subscriptionSectors',
                             isChecked
-                              ? current.filter(id => id !== sector.id)
-                              : [...current, sector.id]
+                              ? current.filter(code => code !== sector.code)
+                              : [...current, sector.code]
                           );
                         }}
                         onKeyDown={(e) => {
@@ -1640,26 +1671,23 @@ const Signup = () => {
                             handleInputChange(
                               'subscriptionSectors',
                               isChecked
-                                ? current.filter(id => id !== sector.id)
-                                : [...current, sector.id]
+                                ? current.filter(code => code !== sector.code)
+                                : [...current, sector.code]
                             );
                           }
                         }}
-                        className={`flex items-center gap-2 rounded-lg border p-3 cursor-pointer transition-all duration-150 select-none ${
-                          isChecked
-                            ? 'border-accent bg-accent/5 shadow-sm'
-                            : 'border-gray-200 hover:border-accent/40 hover:bg-gray-50'
-                        }`}
+                        className={`flex items-center gap-2 rounded-lg border p-3 cursor-pointer transition-all duration-150 select-none ${isChecked
+                          ? 'border-accent bg-accent/5 shadow-sm'
+                          : 'border-gray-200 hover:border-accent/40 hover:bg-gray-50'
+                          }`}
                       >
-                        <div className={`w-4 h-4 rounded flex-shrink-0 border-2 flex items-center justify-center transition-colors ${
-                          isChecked ? 'bg-accent border-accent' : 'border-gray-300'
-                        }`}>
+                        <div className={`w-4 h-4 rounded flex-shrink-0 border-2 flex items-center justify-center transition-colors ${isChecked ? 'bg-accent border-accent' : 'border-gray-300'
+                          }`}>
                           {isChecked && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3.5} />}
                         </div>
-                        <span className={`text-xs font-medium leading-tight ${
-                          isChecked ? 'text-accent' : 'text-gray-700'
-                        }`}>
-                          {t(sector.labelKey)}
+                        <span className={`text-xs font-medium leading-tight ${isChecked ? 'text-accent' : 'text-gray-700'
+                          }`}>
+                          {t(`sectors.${sector.code}`, sector.name)}
                         </span>
                       </div>
                     );
@@ -1687,7 +1715,7 @@ const Signup = () => {
 
                 {/* Select all / Deselect all + search */}
                 <div className="flex items-center gap-3 mb-3">
-                  {formData.subscriptionCountries.length === FULL_COUNTRIES.length ? (
+                  {formData.subscriptionCountries.length === countries.length ? (
                     <button
                       type="button"
                       onClick={() => handleInputChange('subscriptionCountries', [])}
@@ -1698,14 +1726,14 @@ const Signup = () => {
                   ) : (
                     <button
                       type="button"
-                      onClick={() => handleInputChange('subscriptionCountries', FULL_COUNTRIES.map(c => c.code))}
+                      onClick={() => handleInputChange('subscriptionCountries', countries.map(c => c.code))}
                       className="text-sm font-medium text-accent hover:text-accent/80 underline underline-offset-2 transition-colors"
                     >
                       {t('auth.signup.pricingStep.selectAllCountries')}
                     </button>
                   )}
                   <span className="text-xs text-gray-400">
-                    {formData.subscriptionCountries.length} / {FULL_COUNTRIES.length}
+                    {formData.subscriptionCountries.length} / {countries.length}
                   </span>
                 </div>
 
@@ -1724,12 +1752,12 @@ const Signup = () => {
                 {/* Scrollable country list */}
                 <div className="max-h-56 overflow-y-auto rounded-lg border border-gray-100 divide-y divide-gray-50">
                   {(() => {
-                    const lang = (language || 'en') as 'en' | 'fr' | 'es';
-                    const sorted = getCountriesSorted(lang);
+                    const sorted = [...countries].sort((a, b) => a.name.localeCompare(b.name));
                     const filtered = countrySearch.trim()
                       ? sorted.filter(c =>
-                          c.name[lang].toLowerCase().includes(countrySearch.toLowerCase())
-                        )
+                        c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
+                        c.code.toLowerCase().includes(countrySearch.toLowerCase())
+                      )
                       : sorted;
                     return filtered.map((country) => {
                       const isChecked = formData.subscriptionCountries.includes(country.code);
@@ -1760,17 +1788,15 @@ const Signup = () => {
                               );
                             }
                           }}
-                          className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors select-none ${
-                            isChecked ? 'bg-accent/5' : 'hover:bg-gray-50'
-                          }`}
+                          className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors select-none ${isChecked ? 'bg-accent/5' : 'hover:bg-gray-50'
+                            }`}
                         >
-                          <div className={`w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
-                            isChecked ? 'bg-accent border-accent' : 'border-gray-300'
-                          }`}>
+                          <div className={`w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors ${isChecked ? 'bg-accent border-accent' : 'border-gray-300'
+                            }`}>
                             {isChecked && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3.5} />}
                           </div>
                           <span className={`text-sm ${isChecked ? 'text-accent font-medium' : 'text-gray-700'}`}>
-                            {country.name[lang]}
+                            {country.name}
                           </span>
                         </div>
                       );
@@ -1964,7 +1990,7 @@ const Signup = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="bg-white rounded-xl border-2 border-gray-200 p-8">
                 <EmailVerification
                   email={formData.email}
@@ -1995,8 +2021,8 @@ const Signup = () => {
                     <div className="bg-gray-50 rounded-lg p-3">
                       <p className="text-gray-600 text-xs mb-1">{t('auth.confirmation.accountType')}</p>
                       <p className="text-primary font-semibold">
-                        {formData.accountType === 'organization' 
-                          ? t('auth.signup.typeOrganization') 
+                        {formData.accountType === 'organization'
+                          ? t('auth.signup.typeOrganization')
                           : t('auth.signup.typeExpert')}
                       </p>
                     </div>
@@ -2036,7 +2062,7 @@ const Signup = () => {
                   </div>
                 </div>
               )}
-              
+
               {/* Display pre-filled organization information when coming from promo code */}
               {appliedPromoCode && appliedPromoCode.isValid && appliedPromoCode.organizationData && (
                 <div className="bg-white rounded-xl border-2 border-gray-200 p-8 mb-6">
@@ -2059,46 +2085,46 @@ const Signup = () => {
                     <h4 className="text-base font-semibold text-primary mb-4">
                       {t('auth.signup.promoOrgInfo')}
                     </h4>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                       <div>
                         <p className="text-gray-600 font-medium mb-1">{t('offers.form.org.name')}</p>
                         <p className="text-primary font-semibold">{appliedPromoCode.organizationData.orgName}</p>
                       </div>
-                      
+
                       <div>
                         <p className="text-gray-600 font-medium mb-1">{t('offers.form.org.email')}</p>
                         <p className="text-primary font-semibold">{appliedPromoCode.organizationData.orgEmail}</p>
                       </div>
-                      
+
                       {appliedPromoCode.organizationData.orgPhone && (
                         <div>
                           <p className="text-gray-600 font-medium mb-1">{t('offers.form.org.phone')}</p>
                           <p className="text-primary font-semibold">{appliedPromoCode.organizationData.orgPhone}</p>
                         </div>
                       )}
-                      
+
                       {appliedPromoCode.organizationData.orgCountry && (
                         <div>
                           <p className="text-gray-600 font-medium mb-1">{t('offers.form.org.country')}</p>
                           <p className="text-primary font-semibold">{appliedPromoCode.organizationData.orgCountry}</p>
                         </div>
                       )}
-                      
+
                       {appliedPromoCode.organizationData.contactPersonName && (
                         <div>
                           <p className="text-gray-600 font-medium mb-1">{t('offers.form.org.contactPerson')}</p>
                           <p className="text-primary font-semibold">{appliedPromoCode.organizationData.contactPersonName}</p>
                         </div>
                       )}
-                      
+
                       {appliedPromoCode.organizationData.contactPersonPosition && (
                         <div>
                           <p className="text-gray-600 font-medium mb-1">{t('offers.form.org.position')}</p>
                           <p className="text-primary font-semibold">{appliedPromoCode.organizationData.contactPersonPosition}</p>
                         </div>
                       )}
-                      
+
                       <div>
                         <p className="text-gray-600 font-medium mb-1">{t('auth.signup.pricingStep.yearlySubscription')}</p>
                         <p className="text-primary font-semibold">{formData.subscriptionPrice.toLocaleString()} € / {t('auth.signup.pricingStep.totalPerYear')}</p>
@@ -2112,7 +2138,7 @@ const Signup = () => {
                           <span className="text-gray-700 font-medium">{t('offers.become.promoDiscount')}</span>
                           <span className="text-2xl font-bold text-green-600">{appliedPromoCode.discountPercent}%</span>
                         </div>
-                        
+
                         {/* Price Details */}
                         <div className="bg-white rounded-lg p-4 border border-gray-200 space-y-2">
                           <div className="flex items-center justify-between text-sm">
@@ -2137,7 +2163,7 @@ const Signup = () => {
                             </span>
                           </div>
                         </div>
-                        
+
                         {appliedPromoCode.validUntil && (
                           <p className="text-xs text-gray-600 mt-2">
                             {t('offers.become.promoValid', { date: appliedPromoCode.validUntil })}
@@ -2193,7 +2219,7 @@ const Signup = () => {
                       amount={
                         appliedPromoCode?.discountPercent
                           ? formData.subscriptionPrice *
-                            (1 - appliedPromoCode.discountPercent / 100)
+                          (1 - appliedPromoCode.discountPercent / 100)
                           : formData.subscriptionPrice
                       }
                       planName={`${formData.subscriptionSectors.length} ${t('auth.signup.pricingStep.sectorsTitle').toLowerCase()} × ${formData.subscriptionCountries.length} ${t('auth.signup.pricingStep.countriesTitle').toLowerCase()}`}
@@ -2202,9 +2228,9 @@ const Signup = () => {
                       appliedPromoCode={
                         appliedPromoCode?.isValid
                           ? {
-                              code: appliedPromoCode.code || '',
-                              discountPercent: appliedPromoCode.discountPercent || 0
-                            }
+                            code: appliedPromoCode.code || '',
+                            discountPercent: appliedPromoCode.discountPercent || 0
+                          }
                           : null
                       }
                       showPromoCodeOption={hasChosenPromoOption && !appliedPromoCode?.isValid}
@@ -2252,8 +2278,8 @@ const Signup = () => {
           <div className="text-center mt-8 pt-6 border-t border-gray-200">
             <p className="text-sm text-gray-600">
               {t('auth.signup.hasAccount')}{' '}
-              <Link 
-                to="/login" 
+              <Link
+                to="/login"
                 className="font-medium hover:underline"
                 style={{ color: 'var(--color-primary)' }}
               >

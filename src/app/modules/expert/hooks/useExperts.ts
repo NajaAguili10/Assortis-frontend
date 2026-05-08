@@ -67,7 +67,7 @@ export interface ExpertExperienceDTO {
   city: string;
   isCurrent: boolean;
 }
-export interface CountryDTO {
+export interface CountryDTO { 
   id: number;
   name: string;
   code: string;

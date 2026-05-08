@@ -1,4 +1,4 @@
-﻿import { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
@@ -67,7 +67,7 @@ export default function ExpertsMatchingOrganisation() {
         ...expert,
         matchScore: Math.floor(Math.random() * 30) + 70 // Random score between 70-99
       }));
-      
+
       setMatchingResults(scoredExperts);
       setIsRunningMatching(false);
       toast.success(t('expertsMatchingOrganisation.messages.completed'));
@@ -125,8 +125,8 @@ export default function ExpertsMatchingOrganisation() {
   const avgScore =
     matchingResults.length > 0
       ? Math.round(
-          matchingResults.reduce((sum, e) => sum + e.matchScore, 0) / matchingResults.length
-        )
+        matchingResults.reduce((sum, e) => sum + e.matchScore, 0) / matchingResults.length
+      )
       : 0;
 
   // Get score color
@@ -168,9 +168,9 @@ export default function ExpertsMatchingOrganisation() {
       const existingMatchings = JSON.parse(localStorage.getItem('expertsMatchingOrganisationArchive') || '[]');
       existingMatchings.unshift(savedMatching);
       localStorage.setItem('expertsMatchingOrganisationArchive', JSON.stringify(existingMatchings));
-      
+
       toast.success(t('expertsMatchingOrganisation.save.success'));
-      
+
       // Navigate to archive after a delay
       setTimeout(() => {
         navigate('/experts/matching-organisation-archive');

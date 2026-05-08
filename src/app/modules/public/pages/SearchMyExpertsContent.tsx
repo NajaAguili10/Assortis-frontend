@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useMemo, useRef, useState, useEffect, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { format } from 'date-fns';
 import {
@@ -21,7 +21,9 @@ import {
 import { toast } from 'sonner';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useCVCredits } from '@app/contexts/CVCreditsContext';
-import { useExperts } from '@app/modules/expert/hooks/useExperts';
+import { ExpertDTO, useExperts } from '@app/modules/expert/hooks/useExperts';
+import { useAuth } from '@app/contexts/AuthContext';
+import { expertService } from '@app/services/expertService';
 import CVCreditsSummaryCard from '@app/components/CVCreditsSummaryCard';
 import PillTabs from '@app/components/PillTabs';
 import { Button } from '@app/components/ui/button';
@@ -388,6 +390,7 @@ export default function SearchMyExpertsContent() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { experts } = useExperts();
   const { availableCredits, spendCredits } = useCVCredits();
+  const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<MyExpertsTab>('cvip');
   const [selectedGenerationCount, setSelectedGenerationCount] = useState<string>('4');
@@ -401,6 +404,43 @@ export default function SearchMyExpertsContent() {
   const [uploadedCvEntries, setUploadedCvEntries] = useState<UploadedCvEntry[]>(() => readUploadedCvEntries());
   const [cvUploadName, setCvUploadName] = useState('');
   const [cvUploadFile, setCvUploadFile] = useState<File | null>(null);
+  const [dbExperts, setDbExperts] = useState<ExpertDTO[]>([]);
+  const [isLoadingDb, setIsLoadingDb] = useState(false);
+
+  useEffect(() => {
+    const fetchOrgExperts = async () => {
+      if (user?.organizationId) {
+        setIsLoadingDb(true);
+        try {
+          const data = await expertService.getExpertsByOrganizationId(user.organizationId);
+          const mapped: ExpertDTO[] = data.map(exp => ({
+            id: String(exp.id),
+            detailExpertId: String(exp.id),
+            firstName: exp.firstName || '',
+            lastName: exp.lastName || '',
+            title: exp.title || '',
+            city: exp.city?.name || 'N/A',
+            country: exp.country?.name || 'N/A',
+            yearsOfExperience: exp.yearsExperience || 0,
+            clientRating: exp.ratingAvg ? Number(exp.ratingAvg) : 0,
+            verified: exp.verified || false,
+            availability: (exp.availabilityStatus as any) || 'NOT_AVAILABLE',
+            skills: exp.skills?.map(s => s.skillName) || [],
+            completedMissions: Number(exp.completedMissions || 0),
+            profileCompleteness: 100, // Fallback
+            sourceFileName: 'Organization Database'
+          }));
+          setDbExperts(mapped);
+        } catch (error) {
+          console.error('Error fetching organization experts:', error);
+          toast.error('Failed to load organization experts');
+        } finally {
+          setIsLoadingDb(false);
+        }
+      }
+    };
+    fetchOrgExperts();
+  }, [user?.organizationId]);
 
   const generationCount = Number(selectedGenerationCount) || 1;
 
@@ -411,20 +451,20 @@ export default function SearchMyExpertsContent() {
       firstName: expert.firstName || 'Expert',
       lastName: expert.lastName || expert.id,
       title: expert.title || 'Expert',
-      city: expert.city || 'N/A',
-      country: expert.country || 'N/A',
+      city: typeof expert.city === 'object' ? (expert.city as any)?.name : (expert.city || 'N/A'),
+      country: typeof expert.country === 'object' ? (expert.country as any)?.name : (expert.country || 'N/A'),
       yearsOfExperience: expert.yearsOfExperience || 0,
       clientRating: expert.clientRating || 0,
       verified: Boolean(expert.verified),
       availability: expert.availability || 'NOT_AVAILABLE',
-      skills: expert.skills || [],
-      completedMissions: expert.completedMissions || 0,
+      skills: expert.skills?.map(s => typeof s === 'object' ? s.skillName : s) || [],
+      completedMissions: Number(expert.completedMissions) || 0,
       profileCompleteness: expert.profileCompleteness || 0,
       sourceFileName: 'Assortis Database',
     }));
 
-    return [...internalExperts, ...mappedFromSearch];
-  }, [experts.data, internalExperts]);
+    return [...internalExperts, ...dbExperts, ...mappedFromSearch];
+  }, [experts.data, internalExperts, dbExperts]);
 
   const handleBuyPack = () => {
     navigate('/compte-utilisateur/credits');
@@ -554,7 +594,7 @@ export default function SearchMyExpertsContent() {
         activeTab={activeTab}
         onTabChange={(tabId) => setActiveTab(tabId as MyExpertsTab)}
         tabs={[
-          { id: 'cvip', label: t('search.myExperts.tabs.cvip'), count: internalExperts.length },
+          { id: 'cvip', label: t('search.myExperts.tabs.cvip'), count: expertPool.length },
           { id: 'cv-up', label: t('search.myExperts.tabs.cvUp'), count: uploadedCvEntries.length },
         ]}
       />
@@ -582,9 +622,9 @@ export default function SearchMyExpertsContent() {
             </div>
           </div>
 
-          {internalExperts.length > 0 ? (
+          {expertPool.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {internalExperts.map((expert) => (
+              {expertPool.map((expert) => (
                 <ExpertDisplayCard
                   key={expert.id}
                   expert={expert}

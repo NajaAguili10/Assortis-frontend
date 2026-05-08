@@ -6,6 +6,7 @@ export interface LoginResponse {
   email: string;
   roles: string[];
   permissions: string[];
+  organizationId?: number;
 }
 
 export const authService = {
