@@ -135,6 +135,13 @@ const mockPartnerships: Partnership[] = [
   },
 ];
 
+const formatDateOnly = (value?: string | Date) => {
+  if (!value) return '';
+
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString().split('T')[0];
+};
+
 export default function ProjectsCollaborations() {
   const { t } = useLanguage();
   const { user } = useAuth();
@@ -171,10 +178,10 @@ export default function ProjectsCollaborations() {
         organizationType: t(`organizations.type.${organization.type}`),
         partnershipType: 'collaboration',
         status: organization.status === 'VERIFIED' ? 'active' : 'pending',
-        startDate: organization.createdAt.toISOString().split('T')[0],
-        sector: organization.sectors[0] ? t(`sectors.${organization.sectors[0]}`) : '-',
-        region: t(`organizations.region.${organization.region}`),
-        projectsCount: organization.activeProjects,
+        startDate: formatDateOnly(organization.createdAt),
+        sector: organization.sectors?.[0] ? t(`sectors.${organization.sectors[0]}`) : '-',
+        region: organization.region ? t(`organizations.region.${organization.region}`) : '-',
+        projectsCount: organization.activeProjects || 0,
         description: organization.description,
       }));
   }, [allOrganizations, bookmarkedOrganizationIds, t]);
