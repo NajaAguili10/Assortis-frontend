@@ -256,9 +256,23 @@ const normalizeCurrentOrganizationProfile = (org: OrganizationBackend) => ({
   sectors: Array.isArray(org.sectors)
     ? org.sectors.map((sector) => sector?.code || sector?.name).filter(Boolean)
     : normalizeSector(org.mainSector),
+  sectorLabels: Array.isArray(org.sectors)
+    ? Object.fromEntries(
+      org.sectors
+        .filter((sector) => (sector?.code || sector?.name) && sector?.name)
+        .map((sector) => [sector.code || sector.name, sector.name]),
+    )
+    : {},
   subsectors: Array.isArray(org.subsectors)
     ? org.subsectors.map((subsector) => subsector?.code || subsector?.name).filter(Boolean)
     : [],
+  subsectorLabels: Array.isArray(org.subsectors)
+    ? Object.fromEntries(
+      org.subsectors
+        .filter((subsector) => (subsector?.code || subsector?.name) && subsector?.name)
+        .map((subsector) => [subsector.code || subsector.name, subsector.name]),
+    )
+    : {},
   languages: Array.isArray(org.languages) ? org.languages.filter(Boolean) : [],
   services: Array.isArray(org.services) ? org.services.filter(Boolean) : [],
   teamSize: org.employeesCount ?? org.teamMembers ?? 0,
@@ -294,6 +308,7 @@ const normalizeCurrentOrganizationProfile = (org: OrganizationBackend) => ({
 
 const buildCurrentOrganizationUpdatePayload = (formData: {
   orgName: string;
+  acronym: string;
   orgType: string;
   legalName: string;
   registrationNumber: string;
@@ -312,9 +327,11 @@ const buildCurrentOrganizationUpdatePayload = (formData: {
   languages: string[];
   teamSize: string;
   annualBudget: string;
+  projectsCompleted: string;
   selectedServices: string[];
 }) => ({
   name: formData.orgName,
+  acronym: formData.acronym,
   type: mapFormOrganizationTypeToBackend(formData.orgType),
   legalName: formData.legalName,
   registrationNumber: formData.registrationNumber,
@@ -327,12 +344,14 @@ const buildCurrentOrganizationUpdatePayload = (formData: {
   city: formData.city,
   country: formData.country,
   postalCode: formData.postalCode,
+  operatingRegions: formData.operatingRegions,
   region: formData.operatingRegions[0] || '',
   sectors: formData.selectedSector,
   subsectors: formData.subsectors,
   languages: formData.languages,
   employeesCount: formData.teamSize ? parseInt(formData.teamSize, 10) : 0,
   annualTurnover: formData.annualBudget ? parseInt(formData.annualBudget, 10) : 0,
+  projectsCompleted: formData.projectsCompleted ? parseInt(formData.projectsCompleted, 10) : 0,
   services: formData.selectedServices,
 });
 
@@ -391,6 +410,7 @@ export const organizationService = {
 
   updateCurrentOrganizationProfile: async (formData: {
     orgName: string;
+    acronym: string;
     orgType: string;
     legalName: string;
     registrationNumber: string;
@@ -409,6 +429,7 @@ export const organizationService = {
     languages: string[];
     teamSize: string;
     annualBudget: string;
+    projectsCompleted: string;
     selectedServices: string[];
   }) => {
     const response = await apiClient.put<OrganizationBackend>(

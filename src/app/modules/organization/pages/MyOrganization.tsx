@@ -97,8 +97,10 @@ export default function MyOrganization() {
     timezone: '-',
     operatingRegions: [] as string[],
     sectors: [] as string[],
+    sectorLabels: {} as Record<string, string>,
     selectedSector: '',
     subsectors: [] as string[],
+    subsectorLabels: {} as Record<string, string>,
     services: [] as string[],
     languages: [] as string[],
     teamSize: 0,
@@ -230,6 +232,12 @@ export default function MyOrganization() {
     setSelectedRegion('');
     setFilteredOrganizations(allOrganizations);
   };
+
+  const getSectorLabel = (sectorCode: string) =>
+    organizationData.sectorLabels[sectorCode] || t(`sectors.${sectorCode}`);
+
+  const getSubsectorLabel = (subsectorCode: string) =>
+    organizationData.subsectorLabels[subsectorCode] || t(`subsectors.${subsectorCode}`);
 
   // Render Expert View - Search Organizations
   const renderExpertView = () => {
@@ -626,7 +634,11 @@ export default function MyOrganization() {
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="flex items-center gap-2 mb-1"><Globe className="w-4 h-4 text-muted-foreground" /><p className="text-sm text-muted-foreground">{t('organizations.myOrganization.contact.region')}</p></div>
-                  <p className="font-semibold text-primary">{t(`organizations.region.${organizationData.region}`)}</p>
+                  <p className="font-semibold text-primary">
+                    {organizationData.operatingRegions.length > 0
+                      ? organizationData.operatingRegions.map((region) => t(`organizations.region.${region}`)).join(', ')
+                      : t(`organizations.region.${organizationData.region}`)}
+                  </p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <p className="text-sm text-muted-foreground mb-1">{t('organizations.myOrganization.contact.timezone')}</p>
@@ -645,14 +657,14 @@ export default function MyOrganization() {
               </div>
               <Separator className="mb-4" />
               <div className="space-y-4">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2"><Target className="w-4 h-4 text-muted-foreground" /><p className="text-sm text-muted-foreground">{t('organizations.myOrganization.operations.sectors')}</p></div>
-                  <div className="flex flex-wrap gap-2">{organizationData.sectors.map((sector) => (<Badge key={sector} variant="secondary">{t(`sectors.${sector}`)}</Badge>))}</div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2"><Target className="w-4 h-4 text-muted-foreground" /><p className="text-sm text-muted-foreground">{t('organizations.myOrganization.operations.sectors')}</p></div>
+                  <div className="flex flex-wrap gap-2">{organizationData.sectors.map((sector) => (<Badge key={sector} variant="secondary">{getSectorLabel(sector)}</Badge>))}</div>
                 </div>
                 {organizationData.subsectors && organizationData.subsectors.length > 0 && (
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <p className="text-sm text-muted-foreground mb-2">{t('organizations.myOrganization.operations.subsectors')}</p>
-                    <div className="flex flex-wrap gap-2">{organizationData.subsectors.map((sub) => (<Badge key={sub} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">{t(`subsectors.${sub}`)}</Badge>))}</div>
+                    <div className="flex flex-wrap gap-2">{organizationData.subsectors.map((sub) => (<Badge key={sub} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">{getSubsectorLabel(sub)}</Badge>))}</div>
                   </div>
                 )}
                 <div className="bg-gray-50 p-4 rounded-lg">

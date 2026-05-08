@@ -120,6 +120,7 @@ const mapBackendOrganizationTypeToFormValue = (type?: string) => {
 const createEmptyFormData = () => ({
   // Step 1: Basic Information (Pre-filled with existing data from myOrganizationData)
   orgName: '',
+  acronym: '',
   orgType: '',
   legalName: '',
   registrationNumber: '',
@@ -163,23 +164,38 @@ export default function OrganizationsEditProfile() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [sectorOptions, setSectorOptions] = useState<Array<{ id: number; code: string; name: string }>>([]);
+  const [subsectorOptions, setSubsectorOptions] = useState<Array<{ id?: number; code?: string; name?: string; sectorId?: number }>>([]);
 
   // Load data from centralized organization data source
   const [formData, setFormData] = useState(createEmptyFormData);
 
   const availableSubsectors = useMemo(() => {
     if (!formData.selectedSector || !Array.isArray(formData.selectedSector) || formData.selectedSector.length === 0) return [];
-    
-    // Combine all subsectors from all selected sectors
-    const allSubsectors: string[] = [];
-    formData.selectedSector.forEach((sector: string) => {
-      const sectorSubsectors = SUBSECTORS_BY_SECTOR[sector] || [];
-      allSubsectors.push(...sectorSubsectors);
-    });
-    
-    // Remove duplicates
-    return [...new Set(allSubsectors)];
-  }, [formData.selectedSector]);
+
+    const selectedSectorIds = sectorOptions
+      .filter((sector) => formData.selectedSector.includes(sector.code))
+      .map((sector) => sector.id);
+
+    const backendSubsectors = subsectorOptions
+      .filter((subsector) => selectedSectorIds.includes(subsector.sectorId || -1))
+      .map((subsector) => subsector.code || subsector.name || '')
+      .filter(Boolean);
+
+    return [...new Set([...backendSubsectors, ...formData.subsectors])];
+  }, [formData.selectedSector, formData.subsectors, sectorOptions, subsectorOptions]);
+
+  const getSectorLabel = (sectorCode: string) => {
+    const matchingSector = sectorOptions.find((sector) => sector.code === sectorCode);
+    return matchingSector?.name || t(`sectors.${sectorCode}`);
+  };
+
+  const getSubsectorLabel = (subsectorCode: string) => {
+    const matchingSubsector = subsectorOptions.find(
+      (subsector) => (subsector.code || subsector.name) === subsectorCode,
+    );
+    return matchingSubsector?.name || t(`subsectors.${subsectorCode}`);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -188,15 +204,23 @@ export default function OrganizationsEditProfile() {
       try {
         setIsLoading(true);
         setErrorMessage(null);
-        const profileData = await organizationService.getCurrentOrganizationProfile();
+        const [profileData, sectorsResponse, subsectorsResponse] = await Promise.all([
+          organizationService.getCurrentOrganizationProfile(),
+          organizationService.getSectors(),
+          organizationService.getSubSectors(),
+        ]);
 
         if (cancelled) {
           return;
         }
 
+        setSectorOptions(Array.isArray(sectorsResponse) ? sectorsResponse : []);
+        setSubsectorOptions(Array.isArray(subsectorsResponse) ? subsectorsResponse : []);
+
         setFormData({
           // Step 1: Basic Information (Pre-filled with existing data from myOrganizationData)
           orgName: profileData.name || '',
+          acronym: profileData.acronym || '',
           orgType: mapBackendOrganizationTypeToFormValue(profileData.type),
           legalName: profileData.legalName || '',
           registrationNumber: profileData.registrationNumber || '',
@@ -219,12 +243,12 @@ export default function OrganizationsEditProfile() {
           languages: profileData.languages || [],
           
           // Step 4: Team & Resources (Pre-filled from myOrganizationData)
-          teamSize: profileData.teamSize ? String(profileData.teamSize) : '',
-          experts: profileData.experts ? String(profileData.experts) : '',
+          teamSize: profileData.teamSize != null ? String(profileData.teamSize) : '',
+          experts: profileData.experts != null ? String(profileData.experts) : '',
           
           // Step 5: Financial & Projects (Pre-filled from myOrganizationData)
-          annualBudget: profileData.annualBudget ? String(profileData.annualBudget) : '',
-          projectsCompleted: profileData.projectsCompleted ? String(profileData.projectsCompleted) : '',
+          annualBudget: profileData.annualBudget != null ? String(profileData.annualBudget) : '',
+          projectsCompleted: profileData.projectsCompleted != null ? String(profileData.projectsCompleted) : '',
           
           // Step 6: Services (Pre-filled from myOrganizationData)
           selectedServices: profileData.selectedServices || [],
@@ -351,6 +375,7 @@ export default function OrganizationsEditProfile() {
       setFormData({
         // Step 1: Basic Information (Pre-filled with existing data from myOrganizationData)
         orgName: savedProfile.name || '',
+        acronym: savedProfile.acronym || '',
         orgType: mapBackendOrganizationTypeToFormValue(savedProfile.type),
         legalName: savedProfile.legalName || '',
         registrationNumber: savedProfile.registrationNumber || '',
@@ -373,12 +398,12 @@ export default function OrganizationsEditProfile() {
         languages: savedProfile.languages || [],
         
         // Step 4: Team & Resources (Pre-filled from myOrganizationData)
-        teamSize: savedProfile.teamSize ? String(savedProfile.teamSize) : '',
-        experts: savedProfile.experts ? String(savedProfile.experts) : '',
+        teamSize: savedProfile.teamSize != null ? String(savedProfile.teamSize) : '',
+        experts: savedProfile.experts != null ? String(savedProfile.experts) : '',
         
         // Step 5: Financial & Projects (Pre-filled from myOrganizationData)
-        annualBudget: savedProfile.annualBudget ? String(savedProfile.annualBudget) : '',
-        projectsCompleted: savedProfile.projectsCompleted ? String(savedProfile.projectsCompleted) : '',
+        annualBudget: savedProfile.annualBudget != null ? String(savedProfile.annualBudget) : '',
+        projectsCompleted: savedProfile.projectsCompleted != null ? String(savedProfile.projectsCompleted) : '',
         
         // Step 6: Services (Pre-filled from myOrganizationData)
         selectedServices: savedProfile.selectedServices || [],
@@ -546,6 +571,18 @@ export default function OrganizationsEditProfile() {
                         value={formData.orgName}
                         onChange={(e) => handleInputChange('orgName', e.target.value)}
                         placeholder={t('organizations.form.orgName.placeholder')}
+                        className="mt-2 h-11"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="acronym" className="text-sm font-semibold text-foreground">
+                        {t('organizations.myOrganization.information.acronym')}
+                      </Label>
+                      <Input
+                        id="acronym"
+                        value={formData.acronym}
+                        onChange={(e) => handleInputChange('acronym', e.target.value)}
                         className="mt-2 h-11"
                       />
                     </div>
@@ -830,19 +867,19 @@ export default function OrganizationsEditProfile() {
                   {/* Sector Selection */}
                   <div>
                     <Label>{t('organizations.details.sectors')} *</Label>
-                    <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {SECTORS.map((sector) => (
+                      <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-2">
+                      {sectorOptions.map((sector) => (
                         <button
-                          key={sector}
+                          key={sector.id}
                           type="button"
-                          onClick={() => handleMultiSelect('selectedSector', sector)}
+                          onClick={() => handleMultiSelect('selectedSector', sector.code)}
                           className={`px-3 py-2 text-sm rounded-md border transition-all ${
-                            (formData.selectedSector as unknown as string[])?.includes?.(sector) || formData.selectedSector === sector
+                            (formData.selectedSector as unknown as string[])?.includes?.(sector.code) || formData.selectedSector === sector.code
                               ? 'bg-primary text-white border-primary'
                               : 'bg-white text-foreground border-gray-200 hover:border-primary/50'
                           }`}
                         >
-                          {t(`sectors.${sector}`)}
+                          {getSectorLabel(sector.code)}
                         </button>
                       ))}
                     </div>
@@ -866,7 +903,7 @@ export default function OrganizationsEditProfile() {
                                 : 'bg-white text-foreground border-gray-200 hover:border-primary/50'
                             }`}
                           >
-                            {t(`subsectors.${subsector}`)}
+                            {getSubsectorLabel(subsector)}
                           </button>
                         ))}
                       </div>
