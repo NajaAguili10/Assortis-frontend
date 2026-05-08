@@ -12,6 +12,9 @@ import {
   Plus,
   Search,
   Trash2,
+  UserCircle2,
+  Check,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from '@app/contexts/LanguageContext';
@@ -48,6 +51,8 @@ import {
   type SavedSearchStatus,
   type SavedSearchType,
 } from '@app/services/savedSearchService';
+import { useMatchingOpportunities } from '@app/modules/expert/hooks/useMatchingOpportunities';
+import type { AlertFrequency } from '@app/types/matchingOpportunities.dto';
 
 type ManagedSearchType = 'projects' | 'awards' | 'shortlists' | 'organisations';
 type KeywordMode = 'allWords' | 'anyWords';
@@ -89,6 +94,16 @@ interface SearchEditorState {
   status: SavedSearchStatus;
 }
 
+interface ProfileFormState {
+  name: string;
+  sectors: string;
+  countries: string;
+  donors: string;
+  keywords: string;
+  alertFrequency: AlertFrequency;
+  isActive: boolean;
+}
+
 const MANAGED_TYPES: { type: ManagedSearchType; label: string; description: string }[] = [
   { type: 'projects', label: 'Projects', description: 'Open, past, and all tender opportunities.' },
   { type: 'awards', label: 'Awards', description: 'Award notices and contract results.' },
@@ -100,6 +115,30 @@ const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satur
 const DAILY_DAYS = ['Every day', ...WEEKDAYS];
 const PROJECT_BUDGET_OPTIONS = ['Any project budget', 'Under 100k', '100k - 500k', '500k - 1M', '1M - 5M', 'Over 5M'];
 const SELECTION_OPTIONS = ['My selected sectors', 'My selected countries', 'My active subscription scope', 'Only new notices'];
+
+const PROFILE_FREQUENCY_LABELS: Record<AlertFrequency, string> = {
+  realtime: 'Realtime',
+  daily: 'Daily',
+  weekly: 'Weekly',
+  none: 'None',
+};
+
+const PROFILE_FREQUENCY_CLASSES: Record<AlertFrequency, string> = {
+  realtime: 'bg-red-100 text-red-700',
+  daily: 'bg-blue-100 text-blue-700',
+  weekly: 'bg-purple-100 text-purple-700',
+  none: 'bg-gray-100 text-gray-500',
+};
+
+const emptyProfileForm: ProfileFormState = {
+  name: '',
+  sectors: '',
+  countries: '',
+  donors: '',
+  keywords: '',
+  alertFrequency: 'daily',
+  isActive: true,
+};
 
 const emptyFilters: ManagedFilters = {
   tenderScope: 'open',
@@ -140,6 +179,10 @@ const formatDateTime = (value?: string) => value ? new Date(value).toLocaleStrin
 
 function uniqueValues(values: string[]) {
   return Array.from(new Set(values.filter(Boolean)));
+}
+
+function splitCSV(value: string) {
+  return value.split(',').map((item) => item.trim()).filter(Boolean);
 }
 
 function coerceManagedType(type: SavedSearchType): ManagedSearchType {
@@ -277,6 +320,73 @@ function SearchableMultiSelect({
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+function ProfileForm({
+  initial,
+  onSave,
+  onCancel,
+}: {
+  initial: ProfileFormState;
+  onSave: (data: ProfileFormState) => void;
+  onCancel: () => void;
+}) {
+  const [form, setForm] = useState<ProfileFormState>(initial);
+  return (
+    <div className="rounded-lg border border-blue-200 bg-blue-50/40 p-4">
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <Label>Profile name</Label>
+          <Input
+            value={form.name}
+            onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+            placeholder="e.g. Africa Agriculture Profile"
+          />
+        </div>
+        <div>
+          <Label>Sectors</Label>
+          <Input value={form.sectors} onChange={(event) => setForm((current) => ({ ...current, sectors: event.target.value }))} placeholder="Agriculture, Education" />
+        </div>
+        <div>
+          <Label>Countries</Label>
+          <Input value={form.countries} onChange={(event) => setForm((current) => ({ ...current, countries: event.target.value }))} placeholder="Morocco, Kenya" />
+        </div>
+        <div>
+          <Label>Funding agencies</Label>
+          <Input value={form.donors} onChange={(event) => setForm((current) => ({ ...current, donors: event.target.value }))} placeholder="EU, World Bank" />
+        </div>
+        <div>
+          <Label>Keywords</Label>
+          <Input value={form.keywords} onChange={(event) => setForm((current) => ({ ...current, keywords: event.target.value }))} placeholder="capacity building, evaluation" />
+        </div>
+        <div>
+          <Label>Alert frequency</Label>
+          <Select value={form.alertFrequency} onValueChange={(value: AlertFrequency) => setForm((current) => ({ ...current, alertFrequency: value }))}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {(Object.keys(PROFILE_FREQUENCY_LABELS) as AlertFrequency[]).map((frequency) => (
+                <SelectItem key={frequency} value={frequency}>{PROFILE_FREQUENCY_LABELS[frequency]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <label className="flex items-end gap-2 pb-2 text-sm text-gray-700">
+          <input type="checkbox" checked={form.isActive} onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.checked }))} />
+          Active profile
+        </label>
+      </div>
+      <div className="mt-4 flex gap-2">
+        <Button size="sm" onClick={() => onSave(form)} disabled={!form.name.trim()}>
+          <Check className="mr-1.5 h-4 w-4" />
+          Save profile
+        </Button>
+        <Button size="sm" variant="outline" onClick={onCancel}>
+          <X className="mr-1.5 h-4 w-4" />
+          Cancel
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -571,10 +681,13 @@ export default function MySelectionAlertsPage() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { profiles, createProfile, updateProfile, deleteProfile } = useMatchingOpportunities();
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [editor, setEditor] = useState<SearchEditorState>(() => defaultEditor());
+  const [showProfileCreate, setShowProfileCreate] = useState(false);
+  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
 
   const refresh = () => setSavedSearches(savedSearchService.list(user?.id).filter((search) => MANAGED_TYPES.some((item) => item.type === search.context.type)));
 
@@ -670,6 +783,39 @@ export default function MySelectionAlertsPage() {
     navigate(`${search.context.route}?savedSearchId=${encodeURIComponent(search.id)}`);
   };
 
+  const handleCreateProfile = (form: ProfileFormState) => {
+    createProfile({
+      name: form.name.trim(),
+      sectors: splitCSV(form.sectors),
+      countries: splitCSV(form.countries),
+      donors: splitCSV(form.donors),
+      keywords: splitCSV(form.keywords),
+      alertFrequency: form.alertFrequency,
+      isActive: form.isActive,
+    });
+    setShowProfileCreate(false);
+    toast.success('Search profile created');
+  };
+
+  const handleUpdateProfile = (id: string, form: ProfileFormState) => {
+    updateProfile(id, {
+      name: form.name.trim(),
+      sectors: splitCSV(form.sectors),
+      countries: splitCSV(form.countries),
+      donors: splitCSV(form.donors),
+      keywords: splitCSV(form.keywords),
+      alertFrequency: form.alertFrequency,
+      isActive: form.isActive,
+    });
+    setEditingProfileId(null);
+    toast.success('Search profile updated');
+  };
+
+  const handleDeleteProfile = (id: string) => {
+    deleteProfile(id);
+    toast.success('Search profile deleted');
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <PageBanner
@@ -751,6 +897,110 @@ export default function MySelectionAlertsPage() {
                             <Button size="sm" variant="outline" onClick={() => runSearch(search)}><Play className="mr-1.5 h-4 w-4" />Run search now</Button>
                             <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => deleteSearch(search.id)}><Trash2 className="h-4 w-4" /></Button>
                           </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <UserCircle2 className="h-5 w-5 text-primary" />
+                    Search Profiles
+                  </CardTitle>
+                  <CardDescription>Profile-based matching criteria used for opportunity monitoring and alert fusion.</CardDescription>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setShowProfileCreate(true);
+                    setEditingProfileId(null);
+                  }}
+                  disabled={showProfileCreate}
+                >
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  New Profile
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {showProfileCreate && (
+                <ProfileForm
+                  initial={emptyProfileForm}
+                  onSave={handleCreateProfile}
+                  onCancel={() => setShowProfileCreate(false)}
+                />
+              )}
+
+              {profiles.length === 0 && !showProfileCreate ? (
+                <div className="rounded-lg border border-dashed p-8 text-center">
+                  <UserCircle2 className="mx-auto mb-3 h-10 w-10 text-gray-400" />
+                  <p className="font-semibold text-primary">No search profiles yet</p>
+                  <p className="mt-1 text-sm text-gray-500">Create a profile to receive tailored matching opportunities.</p>
+                </div>
+              ) : (
+                <div className="grid gap-3">
+                  {profiles.map((profile) => {
+                    if (editingProfileId === profile.id) {
+                      return (
+                        <ProfileForm
+                          key={profile.id}
+                          initial={{
+                            name: profile.name,
+                            sectors: profile.sectors.join(', '),
+                            countries: profile.countries.join(', '),
+                            donors: profile.donors.join(', '),
+                            keywords: profile.keywords.join(', '),
+                            alertFrequency: profile.alertFrequency,
+                            isActive: profile.isActive,
+                          }}
+                          onSave={(form) => handleUpdateProfile(profile.id, form)}
+                          onCancel={() => setEditingProfileId(null)}
+                        />
+                      );
+                    }
+
+                    return (
+                      <article key={profile.id} className="flex flex-col gap-3 rounded-lg border bg-white p-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold text-primary">{profile.name}</p>
+                            <Badge className={PROFILE_FREQUENCY_CLASSES[profile.alertFrequency]}>{PROFILE_FREQUENCY_LABELS[profile.alertFrequency]}</Badge>
+                            <Badge className={profile.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}>
+                              {profile.isActive ? 'Active' : 'Inactive'}
+                            </Badge>
+                            <Badge variant="outline">{profile.matchCount} matches</Badge>
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-1">
+                            {[...profile.sectors.slice(0, 3), ...profile.countries.slice(0, 3), ...profile.donors.slice(0, 2), ...profile.keywords.slice(0, 2)].map((item) => (
+                              <Badge key={item} variant="secondary">{item}</Badge>
+                            ))}
+                            {profile.sectors.length + profile.countries.length + profile.donors.length + profile.keywords.length === 0 && (
+                              <span className="text-sm text-gray-500">No criteria selected</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingProfileId(profile.id);
+                              setShowProfileCreate(false);
+                            }}
+                          >
+                            Edit
+                          </Button>
+                          <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => handleDeleteProfile(profile.id)}>
+                            Delete
+                          </Button>
                         </div>
                       </article>
                     );
