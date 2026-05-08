@@ -4,7 +4,11 @@ import { useLanguage } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
 import { SectorSubsectorFilter } from '@app/components/SectorSubsectorFilter';
 import { RegionCountryFilter } from '@app/components/RegionCountryFilter';
-import { SaveSearchDialog } from '@app/components/SaveSearchDialog';
+import {
+  SavedSearchEditorDialog,
+  type SavedSearchEditorSavePayload,
+  type SavedSearchReviewItem,
+} from '@app/components/SavedSearchEditorDialog';
 import { Button } from '@app/components/ui/button';
 import { Input } from '@app/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@app/components/ui/select';
@@ -22,14 +26,21 @@ import { useOrganizationBookmarks } from '@app/modules/shared/hooks/useOrganizat
 import { OrganizationTypeEnum, OrganizationSectorEnum, RegionEnum, CountryEnum } from '@app/types/organization.dto';
 import { SubSectorEnum, SectorEnum, REGION_COUNTRY_MAP } from '@app/types/tender.dto';
 import { ORGANIZATION_SECTOR_SUBSECTOR_MAP } from '@app/config/organization-sectors.config';
-import { Search, Filter, X, ChevronLeft, ChevronRight, Building2, MapPin, Briefcase, Globe, Target, CheckCircle, ChevronDown, Plus, Star, FolderOpen, Calendar, Users, FileText, TrendingUp } from 'lucide-react';
+import { Search, X, ChevronLeft, ChevronRight, Building2, MapPin, Briefcase, Globe, Target, CheckCircle, ChevronDown, Plus, Star, FolderOpen, Calendar, Users, FileText, TrendingUp, SlidersHorizontal } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import type { Organization } from '@app/types/organization.dto';
-import { savedSearchService } from '@app/services/savedSearchService';
+import { savedSearchService, type SavedSearchAlertSettings } from '@app/services/savedSearchService';
 
 interface OrganizationSavedPayload {
   searchQuery: string;
+  procurementType: string;
+  publishedFrom: string;
+  publishedTo: string;
+  projectBudget: string;
+  keywords: string;
+  officeLocation: string;
+  city: string;
   selectedSectors: OrganizationSectorEnum[];
   selectedSubSectors: SubSectorEnum[];
   selectedRegions: RegionEnum[];
@@ -317,17 +328,26 @@ export default function SearchOrganizationsTabContent() {
   } = useOrganizations();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [procurementType, setProcurementType] = useState('');
+  const [publishedFrom, setPublishedFrom] = useState('');
+  const [publishedTo, setPublishedTo] = useState('');
+  const [projectBudget, setProjectBudget] = useState('');
+  const [keywords, setKeywords] = useState('');
+  const [officeLocation, setOfficeLocation] = useState('');
+  const [city, setCity] = useState('');
   const [selectedSectors, setSelectedSectors] = useState<OrganizationSectorEnum[]>([]);
   const [selectedSubSectors, setSelectedSubSectors] = useState<SubSectorEnum[]>([]);
   const [selectedRegions, setSelectedRegions] = useState<RegionEnum[]>([]);
   const [selectedCountries, setSelectedCountries] = useState<CountryEnum[]>([]);
   const [hoveredSector, setHoveredSector] = useState<SectorEnum | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [showSectorFilters, setShowSectorFilters] = useState(false);
   const [showRegionFilters, setShowRegionFilters] = useState(false);
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
   const [savedSearches, setSavedSearches] = useState<SavedSearchEntry<OrganizationSavedPayload>[]>([]);
   const [isSaveSearchDialogOpen, setIsSaveSearchDialogOpen] = useState(false);
+  const [editingSavedSearch, setEditingSavedSearch] = useState<SavedSearchEntry<OrganizationSavedPayload> | null>(null);
   const [compatibilityByOrg, setCompatibilityByOrg] = useState<Record<string, number>>({});
   const [partnerStates, setPartnerStates] = useState<Record<string, OrganizationPartnerState>>({});
   const [activeTab, setActiveTab] = useState<'results' | 'history'>('results');
@@ -389,7 +409,16 @@ export default function SearchOrganizationsTabContent() {
 
   const handleSearch = (event: React.FormEvent) => {
     event.preventDefault();
-    updateFilters({ searchQuery });
+    updateFilters({
+      searchQuery: searchQuery || undefined,
+      procurementType: procurementType || undefined,
+      publishedFrom: publishedFrom || undefined,
+      publishedTo: publishedTo || undefined,
+      projectBudget: projectBudget || undefined,
+      keywords: keywords || undefined,
+      officeLocation: officeLocation || undefined,
+      city: city || undefined,
+    });
   };
 
   const handleTypeFilter = (type: OrganizationTypeEnum) => {
@@ -402,6 +431,13 @@ export default function SearchOrganizationsTabContent() {
 
   const handleClearFilters = () => {
     setSearchQuery('');
+    setProcurementType('');
+    setPublishedFrom('');
+    setPublishedTo('');
+    setProjectBudget('');
+    setKeywords('');
+    setOfficeLocation('');
+    setCity('');
     setSelectedSectors([]);
     setSelectedSubSectors([]);
     setSelectedRegions([]);
@@ -470,12 +506,26 @@ export default function SearchOrganizationsTabContent() {
 
   const applySavedSearch = (payload: OrganizationSavedPayload) => {
     setSearchQuery(payload.searchQuery || '');
+    setProcurementType(payload.procurementType || '');
+    setPublishedFrom(payload.publishedFrom || '');
+    setPublishedTo(payload.publishedTo || '');
+    setProjectBudget(payload.projectBudget || '');
+    setKeywords(payload.keywords || '');
+    setOfficeLocation(payload.officeLocation || '');
+    setCity(payload.city || '');
     setSelectedSectors(payload.selectedSectors || []);
     setSelectedSubSectors(payload.selectedSubSectors || []);
     setSelectedRegions(payload.selectedRegions || []);
     setSelectedCountries(payload.selectedCountries || []);
     updateFilters({
       searchQuery: payload.searchQuery || undefined,
+      procurementType: payload.procurementType || undefined,
+      publishedFrom: payload.publishedFrom || undefined,
+      publishedTo: payload.publishedTo || undefined,
+      projectBudget: payload.projectBudget || undefined,
+      keywords: payload.keywords || undefined,
+      officeLocation: payload.officeLocation || undefined,
+      city: payload.city || undefined,
       sectors: (payload.selectedSectors || []).length > 0 ? payload.selectedSectors : undefined,
       subSectors: (payload.selectedSubSectors || []).length > 0 ? payload.selectedSubSectors : undefined,
       regions: (payload.selectedRegions || []).length > 0 ? payload.selectedRegions : undefined,
@@ -496,6 +546,13 @@ export default function SearchOrganizationsTabContent() {
 
   const buildPayload = (): OrganizationSavedPayload => ({
     searchQuery,
+    procurementType,
+    publishedFrom,
+    publishedTo,
+    projectBudget,
+    keywords,
+    officeLocation,
+    city,
     selectedSectors,
     selectedSubSectors,
     selectedRegions,
@@ -504,7 +561,14 @@ export default function SearchOrganizationsTabContent() {
   });
 
   const buildSummary = () => [
-    searchQuery ? `Keywords: ${searchQuery}` : '',
+    searchQuery ? `Organisation: ${searchQuery}` : '',
+    keywords ? `Keywords: ${keywords}` : '',
+    procurementType ? `Procurement: ${procurementType}` : '',
+    publishedFrom ? `From: ${publishedFrom}` : '',
+    publishedTo ? `To: ${publishedTo}` : '',
+    projectBudget ? `Budget from: ${projectBudget}` : '',
+    officeLocation ? `Office: ${officeLocation}` : '',
+    city ? `City: ${city}` : '',
     selectedSectors.length ? `Sectors: ${selectedSectors.length}` : '',
     selectedSubSectors.length ? `Subsectors: ${selectedSubSectors.length}` : '',
     selectedCountries.length ? `Countries: ${selectedCountries.length}` : '',
@@ -512,7 +576,105 @@ export default function SearchOrganizationsTabContent() {
     filters.type?.length ? `Types: ${filters.type.length}` : '',
   ].filter(Boolean);
 
-  const saveSearch = (name: string) => {
+  const formatList = (items: string[]) => items.map((item) => item.replace(/_/g, ' '));
+
+  const buildReviewItemsFromPayload = (payload: OrganizationSavedPayload): SavedSearchReviewItem[] => [
+    { label: 'Type', value: 'Organisations' },
+    { label: 'Organisation Name', value: payload.searchQuery },
+    { label: 'Procurement Type', value: payload.procurementType },
+    { label: 'Published From', value: payload.publishedFrom },
+    { label: 'Published To', value: payload.publishedTo },
+    { label: 'Project Budget', value: payload.projectBudget },
+    { label: 'Keywords', value: payload.keywords },
+    { label: 'Office Location', value: payload.officeLocation },
+    { label: 'City', value: payload.city },
+    { label: 'Organisation Types', value: formatList((payload.type || []) as string[]) },
+    { label: 'Sectors', value: formatList((payload.selectedSectors || []) as string[]) },
+    { label: 'Subsectors', value: formatList((payload.selectedSubSectors || []) as string[]) },
+    { label: 'Regions', value: formatList((payload.selectedRegions || []) as string[]) },
+    { label: 'Countries', value: formatList((payload.selectedCountries || []) as string[]) },
+  ];
+
+  const getAlertSettingsForEntry = (entry?: SavedSearchEntry<OrganizationSavedPayload> | null): Partial<SavedSearchAlertSettings> => {
+    if (!entry?.id.startsWith('saved-search-')) {
+      return { alertFrequency: 'daily', alertDays: ['Every day'], alertHour: '08:00', emailFormat: 'summary', status: 'active' };
+    }
+    const saved = savedSearchService.get(entry.id);
+    return {
+      alertFrequency: saved?.alertFrequency || 'daily',
+      alertDays: saved?.alertDays || ['Every day'],
+      alertHour: saved?.alertHour || '08:00',
+      emailFormat: saved?.emailFormat || 'summary',
+      status: saved?.status || 'active',
+    };
+  };
+
+  const openCreateSavedSearch = () => {
+    setEditingSavedSearch(null);
+    setIsSaveSearchDialogOpen(true);
+  };
+
+  const openEditSavedSearch = (entry: SavedSearchEntry<OrganizationSavedPayload>) => {
+    setEditingSavedSearch(entry);
+    setIsSaveSearchDialogOpen(true);
+  };
+
+  const updateSavedSearch = (
+    entry: SavedSearchEntry<OrganizationSavedPayload>,
+    editorPayload: SavedSearchEditorSavePayload,
+  ) => {
+    const nextPayload = editorPayload.useCurrentCriteria ? buildPayload() : entry.payload;
+    if (entry.id.startsWith('saved-search-')) {
+      savedSearchService.update(entry.id, {
+        name: editorPayload.name,
+        filters: nextPayload,
+        context: editorPayload.useCurrentCriteria
+          ? {
+              type: 'organisations',
+              route: '/search/organisations',
+              label: 'Organisations',
+              summary: buildSummary(),
+              language,
+              accountType: user?.accountType,
+            }
+          : savedSearchService.get(entry.id)?.context,
+        alertsEnabled: editorPayload.alertSettings.alertFrequency !== 'unsubscribe' && editorPayload.alertSettings.status === 'active',
+        alertFrequency: editorPayload.alertSettings.alertFrequency,
+        alertDays: editorPayload.alertSettings.alertDays,
+        alertHour: editorPayload.alertSettings.alertHour,
+        emailFormat: editorPayload.alertSettings.emailFormat,
+        status: editorPayload.alertSettings.status,
+      });
+      setSavedSearches(readSavedSearches());
+    } else {
+      const next = readSavedSearches().map((item) => (
+        item.id === entry.id ? { ...item, label: editorPayload.name, payload: nextPayload } : item
+      ));
+      localStorage.setItem(storageKey, JSON.stringify(next));
+      setSavedSearches(next);
+    }
+    setIsSaveSearchDialogOpen(false);
+    setEditingSavedSearch(null);
+    toast.success('Saved search updated');
+  };
+
+  const deleteSavedSearch = (id: string) => {
+    if (id.startsWith('saved-search-')) {
+      savedSearchService.remove(id);
+      setSavedSearches(readSavedSearches());
+      return;
+    }
+    const next = readSavedSearches().filter((entry) => entry.id !== id);
+    localStorage.setItem(storageKey, JSON.stringify(next));
+    setSavedSearches(next);
+  };
+
+  const saveSearch = ({ name, alertSettings, useCurrentCriteria }: SavedSearchEditorSavePayload) => {
+    if (editingSavedSearch) {
+      updateSavedSearch(editingSavedSearch, { name, alertSettings, useCurrentCriteria });
+      return;
+    }
+
     const now = new Date();
     const entry: SavedSearchEntry<OrganizationSavedPayload> = {
       id: `saved-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -533,9 +695,16 @@ export default function SearchOrganizationsTabContent() {
         language,
         accountType: user?.accountType,
       },
+      alertsEnabled: alertSettings.alertFrequency !== 'unsubscribe' && alertSettings.status === 'active',
+      alertFrequency: alertSettings.alertFrequency,
+      alertDays: alertSettings.alertDays,
+      alertHour: alertSettings.alertHour,
+      emailFormat: alertSettings.emailFormat,
+      status: alertSettings.status,
     });
     setSavedSearches(readSavedSearches());
     setIsSaveSearchDialogOpen(false);
+    setEditingSavedSearch(null);
     toast.success('Search saved');
   };
 
@@ -570,26 +739,84 @@ export default function SearchOrganizationsTabContent() {
           <Button variant="outline" size="sm" onClick={() => setShowFilters((prev) => !prev)}>
             {showFilters ? 'Hide filters' : 'Refine filters'}
           </Button>
-          <Button variant="default" size="sm" onClick={() => updateFilters({ searchQuery })}>Search</Button>
-          <Button variant="outline" size="sm" onClick={() => setIsSaveSearchDialogOpen(true)}>Save Search</Button>
+          <Button variant="default" size="sm" onClick={() => updateFilters({
+            searchQuery: searchQuery || undefined,
+            procurementType: procurementType || undefined,
+            publishedFrom: publishedFrom || undefined,
+            publishedTo: publishedTo || undefined,
+            projectBudget: projectBudget || undefined,
+            keywords: keywords || undefined,
+            officeLocation: officeLocation || undefined,
+            city: city || undefined,
+          })}>Search</Button>
+          <Button variant="outline" size="sm" onClick={openCreateSavedSearch}>Save Search</Button>
           <Button variant="outline" size="sm" onClick={openLoadSearchDialog}>Load Search</Button>
         </div>
 
         {showFilters && (
           <>
-            <div className="mb-5">
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-medium text-gray-700">{t('common.search')}</label>
+            <div className="mb-5 rounded-lg border border-gray-100 bg-slate-50/50 p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <label className="text-sm font-semibold text-primary">Organisation criteria</label>
                 {organizations.meta.totalItems > 0 && (
                   <span className="text-sm font-medium text-accent">{organizations.meta.totalItems} results</span>
                 )}
               </div>
-              <form onSubmit={handleSearch} className="flex gap-2">
-                <Input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder={t('organizations.filters.search')} className="flex-1" />
-                <Button type="submit" size="icon">
-                  <Search className="w-4 h-4" />
+              <form onSubmit={handleSearch} className="grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(180px,0.7fr)_auto]">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-600">Name of organisation</label>
+                  <Input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search by organisation name, acronym, or description" className="min-h-10 bg-white" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-600">Keywords</label>
+                  <Input value={keywords} onChange={(event) => setKeywords(event.target.value)} placeholder="Sector, focus area, capability" className="min-h-10 bg-white" />
+                </div>
+                <Button type="submit" className="mt-auto min-h-10">
+                  <Search className="mr-2 h-4 w-4" />
+                  Search
                 </Button>
               </form>
+
+              <button
+                type="button"
+                className="mt-4 flex w-full items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-primary transition-colors hover:border-accent hover:text-accent"
+                onClick={() => setShowAdvancedFilters((prev) => !prev)}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Advanced filters
+                </span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} />
+              </button>
+
+              {showAdvancedFilters && (
+                <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-600">Procurement type</label>
+                    <Input value={procurementType} onChange={(event) => setProcurementType(event.target.value)} placeholder="Services, works, grants..." className="min-h-10 bg-white" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-600">Published from</label>
+                    <Input type="date" value={publishedFrom} onChange={(event) => setPublishedFrom(event.target.value)} className="min-h-10 bg-white" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-600">Published to</label>
+                    <Input type="date" value={publishedTo} onChange={(event) => setPublishedTo(event.target.value)} className="min-h-10 bg-white" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-600">Project budget</label>
+                    <Input type="number" min={0} value={projectBudget} onChange={(event) => setProjectBudget(event.target.value)} placeholder="Minimum budget" className="min-h-10 bg-white" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-600">Office location</label>
+                    <Input value={officeLocation} onChange={(event) => setOfficeLocation(event.target.value)} placeholder="Country, region, office" className="min-h-10 bg-white" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-600">City</label>
+                    <Input value={city} onChange={(event) => setCity(event.target.value)} placeholder="City" className="min-h-10 bg-white" />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
@@ -956,29 +1183,54 @@ export default function SearchOrganizationsTabContent() {
           ) : (
             <div className="max-h-80 overflow-auto space-y-2">
               {savedSearches.map(entry => (
-                <Button
-                  key={entry.id}
-                  type="button"
-                  variant="outline"
-                  className="w-full justify-between h-auto py-2"
-                  onClick={() => {
-                    applySavedSearch(entry.payload);
-                    setIsLoadDialogOpen(false);
-                    toast.success('Search loaded');
-                  }}
-                >
-                  <span className="truncate text-left max-w-[70%]">{entry.label}</span>
-                  <span className="text-xs text-muted-foreground">{format(new Date(entry.createdAt), 'yyyy-MM-dd HH:mm')}</span>
-                </Button>
+                <div key={entry.id} className="rounded-md border border-gray-200 p-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-primary">{entry.label}</p>
+                      <p className="text-xs text-muted-foreground">{format(new Date(entry.createdAt), 'yyyy-MM-dd HH:mm')}</p>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          applySavedSearch(entry.payload);
+                          setIsLoadDialogOpen(false);
+                          toast.success('Search loaded');
+                        }}
+                      >
+                        Load
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setIsLoadDialogOpen(false);
+                          openEditSavedSearch(entry);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => deleteSavedSearch(entry.id)}>Delete</Button>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           )}
         </DialogContent>
       </Dialog>
-      <SaveSearchDialog
+      <SavedSearchEditorDialog
         open={isSaveSearchDialogOpen}
-        defaultName={searchQuery.trim() || 'Saved organisations search'}
-        onOpenChange={setIsSaveSearchDialogOpen}
+        mode={editingSavedSearch ? 'edit' : 'create'}
+        searchType="organisations"
+        initialName={editingSavedSearch?.label || searchQuery.trim() || 'Saved organisations search'}
+        reviewItems={buildReviewItemsFromPayload(editingSavedSearch?.payload || buildPayload())}
+        initialAlertSettings={getAlertSettingsForEntry(editingSavedSearch)}
+        onOpenChange={(open) => {
+          setIsSaveSearchDialogOpen(open);
+          if (!open) setEditingSavedSearch(null);
+        }}
         onSave={saveSearch}
       />
 

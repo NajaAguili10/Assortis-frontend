@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router';
+import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { ChevronDown, ChevronRight, Database, Download, Eye, Link2, Loader2, Lock, Search, ShieldCheck, X } from 'lucide-react';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
@@ -679,6 +679,7 @@ export function ExpertsSearchFiltersWorkspace() {
   const { user } = useAuth();
   const { language } = useLanguage();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { availableCredits, libraryExpertIds, unlockExpertCV, recordExpertDownload, linkExpertToVacancy } = useCVCredits();
   const [filters, setFilters] = useState<ExpertSearchFilters>(EMPTY_FILTERS);
@@ -811,16 +812,12 @@ export function ExpertsSearchFiltersWorkspace() {
   };
 
   const openPreview = (expert: ExpertSearchResult) => {
-    setPreviewExpert(expert);
-    setPreview(null);
-    setSelectedVacancyId('');
-    setIsPreviewLoading(true);
-    getExpertPreview(expert.id, expert)
-      .then(setPreview)
-      .catch(error => {
-        toast.error(error instanceof Error ? error.message : 'Unable to load expert preview');
-      })
-      .finally(() => setIsPreviewLoading(false));
+    navigate(`/search/experts/${expert.id}/preview`, {
+      state: {
+        expert,
+        returnTo: `${location.pathname}${location.search}`,
+      },
+    });
   };
 
   const openUnlockedProfile = (expert: ExpertSearchResult) => {

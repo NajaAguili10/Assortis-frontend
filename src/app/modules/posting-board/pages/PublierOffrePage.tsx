@@ -515,7 +515,7 @@ export default function PublierOffrePage() {
                           className="rounded-none border-l-0 h-9"
                           onClick={() => setVacancyOwnerFilter('my-own')}
                         >
-                          My Own
+                          Vacancies Created by Me
                         </Button>
                         <Button
                           size="sm"
@@ -523,7 +523,7 @@ export default function PublierOffrePage() {
                           className="rounded-l-none border-l-0 h-9"
                           onClick={() => setVacancyOwnerFilter('my-org')}
                         >
-                          My Org
+                          Organisation Vacancies
                         </Button>
                       </>
                     )}

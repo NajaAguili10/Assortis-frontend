@@ -19,7 +19,9 @@ import {
 import { ProjectSectorEnum } from '@app/types/project.dto';
 import {
   CountryEnum,
+  FundingAgencyEnum,
   RegionEnum,
+  SectorEnum,
   SECTOR_SUBSECTOR_MAP,
   REGION_COUNTRY_MAP,
 } from '@app/types/tender.dto';
@@ -365,6 +367,18 @@ function writeRemovedIds(ids: string[]) {
   }
 }
 
+const normalizeFilterText = (value: unknown) => String(value ?? '').toLowerCase().replace(/[_-]+/g, ' ').trim();
+
+const getCountryLabels = (country: CountryEnum) => {
+  const enumLabel = Object.entries(CountryEnum).find(([, value]) => value === country)?.[0] || country;
+  return [country, enumLabel.replace(/_/g, ' ')].map(normalizeFilterText);
+};
+
+const getFundingAgencyLabels = (agency: FundingAgencyEnum) => {
+  const enumLabel = Object.entries(FundingAgencyEnum).find(([, value]) => value === agency)?.[0] || agency;
+  return [agency, enumLabel.replace(/_/g, ' ')].map(normalizeFilterText);
+};
+
 // --- Saved profiles storage helpers ---
 const MOCK_PROFILES: MatchingProfileDTO[] = [
   {
@@ -570,8 +584,43 @@ export function useMatchingOpportunities() {
       if (opp.type !== filters.activeType) return false;
 
       if (filters.searchInput.trim()) {
-        const haystack = `${opp.title} ${opp.description} ${opp.organization ?? ''} ${opp.location ?? ''}`.toLowerCase();
-        if (!haystack.includes(filters.searchInput.toLowerCase())) return false;
+        const haystack = normalizeFilterText(`${opp.title} ${opp.description} ${opp.organization ?? ''} ${opp.location ?? ''} ${opp.country} ${opp.donor} ${opp.keywords.join(' ')}`);
+        const query = normalizeFilterText(filters.searchInput);
+
+        if (filters.searchMode === 'exactPhrase' && !haystack.includes(query)) return false;
+
+        if (filters.searchMode === 'anyWords') {
+          const words = query.split(/\s+/).filter(Boolean);
+          if (!words.some(word => haystack.includes(word))) return false;
+        }
+
+        if (filters.searchMode === 'allWords') {
+          const words = query.split(/\s+/).filter(Boolean);
+          if (!words.every(word => haystack.includes(word))) return false;
+        }
+      }
+
+      if (filters.publishedFrom && opp.postedDate < filters.publishedFrom) return false;
+      if (filters.publishedTo && opp.postedDate > filters.publishedTo) return false;
+
+      if (filters.selectedSectors.length > 0 && !filters.selectedSectors.includes(opp.sector as unknown as SectorEnum)) {
+        return false;
+      }
+
+      if (filters.selectedCountries.length > 0) {
+        const countryText = normalizeFilterText(`${opp.country} ${opp.location ?? ''}`);
+        const matchesCountry = filters.selectedCountries.some(country =>
+          getCountryLabels(country).some(label => countryText.includes(label) || label.includes(countryText))
+        );
+        if (!matchesCountry) return false;
+      }
+
+      if (filters.selectedFundingAgencies.length > 0) {
+        const fundingText = normalizeFilterText(`${opp.fundingAgency ?? ''} ${opp.donor} ${opp.organization ?? ''}`);
+        const matchesAgency = filters.selectedFundingAgencies.some(agency =>
+          getFundingAgencyLabels(agency).some(label => fundingText.includes(label) || label.includes(fundingText))
+        );
+        if (!matchesAgency) return false;
       }
 
       if (filters.status !== 'all') {

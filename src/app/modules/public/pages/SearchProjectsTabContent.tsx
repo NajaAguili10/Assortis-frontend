@@ -6,6 +6,18 @@ import { Button } from '@app/components/ui/button';
 import { Input } from '@app/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@app/components/ui/select';
 import { Badge } from '@app/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@app/components/ui/dialog';
+import {
+  SavedSearchEditorDialog,
+  type SavedSearchEditorSavePayload,
+  type SavedSearchReviewItem,
+} from '@app/components/SavedSearchEditorDialog';
 import { useProjects } from '@app/hooks/useProjects';
 import {
   Search,
@@ -20,10 +32,26 @@ import {
   Building2,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { ProjectStatusEnum, ProjectPriorityEnum } from '@app/types/project.dto';
+import { ProjectStatusEnum, ProjectPriorityEnum, type ProjectFiltersDTO } from '@app/types/project.dto';
+import { savedSearchService, type SavedSearchAlertSettings } from '@app/services/savedSearchService';
+import { toast } from 'sonner';
+
+interface ProjectSavedPayload {
+  searchQuery: string;
+  filters: ProjectFiltersDTO;
+  sortBy: 'newest' | 'priority' | 'budget' | 'completion' | 'name';
+}
+
+interface SavedSearchEntry<TPayload> {
+  id: string;
+  label: string;
+  createdAt: string;
+  payload: TPayload;
+}
 
 export default function SearchProjectsTabContent() {
   const { t, language } = useLanguage();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const {
@@ -40,6 +68,21 @@ export default function SearchProjectsTabContent() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
+  const [isSaveSearchDialogOpen, setIsSaveSearchDialogOpen] = useState(false);
+  const [editingSavedSearch, setEditingSavedSearch] = useState<SavedSearchEntry<ProjectSavedPayload> | null>(null);
+  const [savedSearches, setSavedSearches] = useState<SavedSearchEntry<ProjectSavedPayload>[]>([]);
+
+  const readSavedSearches = (): SavedSearchEntry<ProjectSavedPayload>[] => savedSearchService.list(user?.id, 'projects').map((item) => ({
+    id: item.id,
+    label: item.name,
+    createdAt: item.created_at,
+    payload: item.filters as ProjectSavedPayload,
+  }));
+
+  useEffect(() => {
+    setSavedSearches(readSavedSearches());
+  }, [user?.id]);
 
   useEffect(() => {
     const q = (searchParams.get('q') || '').trim();
@@ -56,6 +99,145 @@ export default function SearchProjectsTabContent() {
   const handleClearFilters = () => {
     setSearchQuery('');
     clearFilters();
+  };
+
+  const buildPayload = (): ProjectSavedPayload => ({
+    searchQuery,
+    filters: {
+      ...filters,
+      searchQuery: searchQuery || filters.searchQuery,
+    },
+    sortBy,
+  });
+
+  const applySavedSearch = (payload: ProjectSavedPayload) => {
+    setSearchQuery(payload.searchQuery || payload.filters?.searchQuery || '');
+    updateFilters(payload.filters || {});
+    setSortBy(payload.sortBy || 'newest');
+  };
+
+  useEffect(() => {
+    const savedSearchId = searchParams.get('savedSearchId');
+    if (!savedSearchId) return;
+    const saved = savedSearchService.get(savedSearchId);
+    if (saved?.context.type === 'projects') {
+      applySavedSearch(saved.filters as ProjectSavedPayload);
+      toast.success('Search loaded');
+    }
+  }, [searchParams]);
+
+  const buildSummary = () => {
+    const payload = buildPayload();
+    const projectFilters = payload.filters || {};
+    return [
+      payload.searchQuery ? `Keywords: ${payload.searchQuery}` : '',
+      projectFilters.status?.length ? `Status: ${projectFilters.status.length}` : '',
+      projectFilters.priority?.length ? `Priority: ${projectFilters.priority.length}` : '',
+      projectFilters.type?.length ? `Type: ${projectFilters.type.length}` : '',
+      projectFilters.sector?.length ? `Sectors: ${projectFilters.sector.length}` : '',
+      projectFilters.region?.length ? `Regions: ${projectFilters.region.length}` : '',
+      projectFilters.minBudget !== undefined ? `Min budget: ${projectFilters.minBudget}` : '',
+      projectFilters.maxBudget !== undefined ? `Max budget: ${projectFilters.maxBudget}` : '',
+    ].filter(Boolean);
+  };
+
+  const formatList = (items?: string[]) => (items || []).map((item) => item.replace(/_/g, ' '));
+
+  const buildReviewItemsFromPayload = (payload: ProjectSavedPayload): SavedSearchReviewItem[] => {
+    const projectFilters = payload.filters || {};
+    return [
+      { label: 'Type', value: 'Projects' },
+      { label: 'Keywords', value: payload.searchQuery || projectFilters.searchQuery },
+      { label: 'Search Type', value: payload.sortBy ? `Sorted by ${payload.sortBy}` : '' },
+      { label: 'Notice Type', value: formatList(projectFilters.status as string[]) },
+      { label: 'Procurement Type', value: formatList(projectFilters.type as string[]) },
+      { label: 'Sectors', value: formatList(projectFilters.sector as string[]) },
+      { label: 'Countries / Regions', value: formatList(projectFilters.region as string[]) },
+      { label: 'Budget', value: projectFilters.minBudget !== undefined || projectFilters.maxBudget !== undefined ? `${projectFilters.minBudget ?? 'Any'} - ${projectFilters.maxBudget ?? 'Any'}` : '' },
+      { label: 'Organisation Name', value: projectFilters.leadOrganization },
+    ];
+  };
+
+  const getAlertSettingsForEntry = (entry?: SavedSearchEntry<ProjectSavedPayload> | null): Partial<SavedSearchAlertSettings> => {
+    if (!entry) return { alertFrequency: 'daily', alertDays: ['Every day'], alertHour: '08:00', emailFormat: 'summary', status: 'active' };
+    const saved = savedSearchService.get(entry.id);
+    return {
+      alertFrequency: saved?.alertFrequency || 'daily',
+      alertDays: saved?.alertDays || ['Every day'],
+      alertHour: saved?.alertHour || '08:00',
+      emailFormat: saved?.emailFormat || 'summary',
+      status: saved?.status || 'active',
+    };
+  };
+
+  const openCreateSavedSearch = () => {
+    setEditingSavedSearch(null);
+    setIsSaveSearchDialogOpen(true);
+  };
+
+  const openEditSavedSearch = (entry: SavedSearchEntry<ProjectSavedPayload>) => {
+    setEditingSavedSearch(entry);
+    setIsSaveSearchDialogOpen(true);
+  };
+
+  const saveSearch = ({ name, alertSettings, useCurrentCriteria }: SavedSearchEditorSavePayload) => {
+    if (editingSavedSearch) {
+      const nextPayload = useCurrentCriteria ? buildPayload() : editingSavedSearch.payload;
+      savedSearchService.update(editingSavedSearch.id, {
+        name,
+        filters: nextPayload,
+        context: useCurrentCriteria
+          ? {
+              type: 'projects',
+              route: '/search/projects',
+              label: 'Projects',
+              summary: buildSummary(),
+              language,
+              accountType: user?.accountType,
+            }
+          : savedSearchService.get(editingSavedSearch.id)?.context,
+        alertsEnabled: alertSettings.alertFrequency !== 'unsubscribe' && alertSettings.status === 'active',
+        alertFrequency: alertSettings.alertFrequency,
+        alertDays: alertSettings.alertDays,
+        alertHour: alertSettings.alertHour,
+        emailFormat: alertSettings.emailFormat,
+        status: alertSettings.status,
+      });
+      setSavedSearches(readSavedSearches());
+      setIsSaveSearchDialogOpen(false);
+      setEditingSavedSearch(null);
+      toast.success('Saved search updated');
+      return;
+    }
+
+    savedSearchService.save({
+      userId: user?.id,
+      name,
+      filters: buildPayload(),
+      context: {
+        type: 'projects',
+        route: '/search/projects',
+        label: 'Projects',
+        summary: buildSummary(),
+        language,
+        accountType: user?.accountType,
+      },
+      alertsEnabled: alertSettings.alertFrequency !== 'unsubscribe' && alertSettings.status === 'active',
+      alertFrequency: alertSettings.alertFrequency,
+      alertDays: alertSettings.alertDays,
+      alertHour: alertSettings.alertHour,
+      emailFormat: alertSettings.emailFormat,
+      status: alertSettings.status,
+    });
+    setSavedSearches(readSavedSearches());
+    setIsSaveSearchDialogOpen(false);
+    setEditingSavedSearch(null);
+    toast.success('Search saved');
+  };
+
+  const deleteSavedSearch = (id: string) => {
+    savedSearchService.remove(id);
+    setSavedSearches(readSavedSearches());
   };
 
   const formatProjectBudget = (amount: number, currency: string) => new Intl.NumberFormat(
@@ -107,6 +289,11 @@ export default function SearchProjectsTabContent() {
               {t('filters.clear') || "Clear filters"}
             </Button>
           )}
+          <Button variant="outline" size="sm" onClick={openCreateSavedSearch}>Save Search</Button>
+          <Button variant="outline" size="sm" onClick={() => {
+            setSavedSearches(readSavedSearches());
+            setIsLoadDialogOpen(true);
+          }}>Load Search</Button>
           <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
             <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -237,6 +424,67 @@ export default function SearchProjectsTabContent() {
           </div>
         )}
       </div>
+      <Dialog open={isLoadDialogOpen} onOpenChange={setIsLoadDialogOpen}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>Load Search</DialogTitle>
+            <DialogDescription>Choose a saved search for projects.</DialogDescription>
+          </DialogHeader>
+          {savedSearches.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No saved searches found for this page.</p>
+          ) : (
+            <div className="max-h-80 overflow-auto space-y-2">
+              {savedSearches.map((entry) => (
+                <div key={entry.id} className="rounded-md border border-gray-200 p-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-primary">{entry.label}</p>
+                      <p className="text-xs text-muted-foreground">{format(new Date(entry.createdAt), 'yyyy-MM-dd HH:mm')}</p>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          applySavedSearch(entry.payload);
+                          setIsLoadDialogOpen(false);
+                          toast.success('Search loaded');
+                        }}
+                      >
+                        Load
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setIsLoadDialogOpen(false);
+                          openEditSavedSearch(entry);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => deleteSavedSearch(entry.id)}>Delete</Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      <SavedSearchEditorDialog
+        open={isSaveSearchDialogOpen}
+        mode={editingSavedSearch ? 'edit' : 'create'}
+        searchType="projects"
+        initialName={editingSavedSearch?.label || searchQuery.trim() || 'Saved projects search'}
+        reviewItems={buildReviewItemsFromPayload(editingSavedSearch?.payload || buildPayload())}
+        initialAlertSettings={getAlertSettingsForEntry(editingSavedSearch)}
+        onOpenChange={(open) => {
+          setIsSaveSearchDialogOpen(open);
+          if (!open) setEditingSavedSearch(null);
+        }}
+        onSave={saveSearch}
+      />
     </div>
   );
 }

@@ -57,6 +57,7 @@ import {
   Award,
   TrendingDown,
   Briefcase,
+  ChevronDown,
 } from 'lucide-react';
 
 type SortOption = 'newest' | 'oldest' | 'donor' | 'deadline' | 'budget' | 'probability';
@@ -221,6 +222,7 @@ export default function Pipeline() {
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [viewMode, setViewMode] = useState<ViewMode>('active');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showPipelineStages, setShowPipelineStages] = useState(false);
   
   // Dialog states
   const [probabilityDialogOpen, setProbabilityDialogOpen] = useState(false);
@@ -424,6 +426,11 @@ export default function Pipeline() {
     });
     return stageData;
   }, [pipelineItems, allTenders, allToRs, allProjects, getActiveOpportunities]);
+
+  const selectedStageSummary = useMemo(() => {
+    if (selectedStage === 'all') return null;
+    return stages.find((stage) => stage.id === selectedStage) || null;
+  }, [selectedStage, stages]);
 
   // Filter tenders by stage and search
   const filteredTenders = useMemo(() => {
@@ -734,28 +741,54 @@ export default function Pipeline() {
           {/* Pipeline Stages Overview - Only show for active view */}
           {viewMode === 'active' && (
             <>
-              <div className="mb-6">
-                <h2 className="text-xl font-bold text-primary mb-4">{t('pipeline.stages.title')}</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                  {stages.map((stage) => (
-                    <button
-                      key={stage.id}
-                      onClick={() => setSelectedStage(selectedStage === stage.id ? 'all' : stage.id)}
-                      className={`bg-white rounded-lg border-2 p-4 hover:shadow-md transition-all ${
-                        selectedStage === stage.id ? 'border-accent shadow-md' : 'border-gray-200'
-                      }`}
-                    >
-                      <div className={`w-12 h-12 ${stage.color} rounded-lg flex items-center justify-center mx-auto mb-3`}>
-                        <span className="text-2xl font-bold text-gray-700">{stage.tenderCount}</span>
-                      </div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-1">{stage.name}</h3>
-                      <p className="text-xs text-gray-600 mb-1">{stage.totalValue.formatted}</p>
-                      <p className="text-xs text-green-600 font-semibold">
-                        ⚖ {stage.weightedValue.formatted}
-                      </p>
-                    </button>
-                  ))}
+              <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold text-primary">{t('pipeline.stages.title')}</h2>
+                    <p className="mt-1 text-sm text-gray-600">
+                      {selectedStageSummary
+                        ? `${selectedStageSummary.name}: ${selectedStageSummary.tenderCount} opportunities, ${selectedStageSummary.totalValue.formatted} total value`
+                        : `All active stages: ${activeOpportunities.length} opportunities`}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">
+                      {selectedStageSummary ? selectedStageSummary.name : 'All stages'}
+                    </Badge>
+                    {selectedStage !== 'all' && (
+                      <Button variant="ghost" size="sm" onClick={() => setSelectedStage('all')}>
+                        {t('pipeline.viewAll')}
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={() => setShowPipelineStages((current) => !current)}>
+                      {showPipelineStages ? 'Hide stages' : 'Show stages'}
+                      <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${showPipelineStages ? 'rotate-180' : ''}`} />
+                    </Button>
+                  </div>
                 </div>
+
+                {showPipelineStages && (
+                  <div className="mt-4 grid grid-cols-2 gap-4 border-t border-gray-100 pt-4 md:grid-cols-3 lg:grid-cols-5">
+                    {stages.map((stage) => (
+                      <button
+                        key={stage.id}
+                        onClick={() => setSelectedStage(selectedStage === stage.id ? 'all' : stage.id)}
+                        className={`bg-white rounded-lg border-2 p-4 hover:shadow-md transition-all ${
+                          selectedStage === stage.id ? 'border-accent shadow-md' : 'border-gray-200'
+                        }`}
+                      >
+                        <div className={`w-12 h-12 ${stage.color} rounded-lg flex items-center justify-center mx-auto mb-3`}>
+                          <span className="text-2xl font-bold text-gray-700">{stage.tenderCount}</span>
+                        </div>
+                        <h3 className="text-sm font-semibold text-gray-900 mb-1">{stage.name}</h3>
+                        <p className="text-xs text-gray-600 mb-1">{stage.totalValue.formatted}</p>
+                        <p className="text-xs text-green-600 font-semibold">
+                          Weighted: {stage.weightedValue.formatted}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <Separator className="my-6" />

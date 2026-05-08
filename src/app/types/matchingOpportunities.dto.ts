@@ -115,6 +115,12 @@ export interface MatchingTenderFiltersDTO {
 
 export interface MatchingVacancyFiltersDTO {
   searchInput: string;
+  searchMode: 'allWords' | 'anyWords' | 'exactPhrase';
+  publishedFrom?: Date;
+  publishedTo?: Date;
+  selectedSectors: SectorEnum[];
+  selectedCountries: CountryEnum[];
+  selectedFundingAgencies: FundingAgencyEnum[];
   status: 'all' | 'active' | 'closing-soon' | 'closed';
   location: string;
   department: string;

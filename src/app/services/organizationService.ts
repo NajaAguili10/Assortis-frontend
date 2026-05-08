@@ -143,8 +143,65 @@ const applyFiltersAndSort = (
     );
   }
 
+  if (filters?.keywords) {
+    const query = filters.keywords.toLowerCase();
+    filtered = filtered.filter((org) =>
+      org.name.toLowerCase().includes(query) ||
+      org.acronym?.toLowerCase().includes(query) ||
+      org.description?.toLowerCase().includes(query) ||
+      (org.sectors || []).some((sector) => sector.toLowerCase().includes(query)),
+    );
+  }
+
+  if (filters?.city) {
+    const query = filters.city.toLowerCase();
+    filtered = filtered.filter((org) => {
+      const city = typeof org.city === 'string' ? org.city : org.city?.name;
+      return city?.toLowerCase().includes(query);
+    });
+  }
+
+  if (filters?.officeLocation) {
+    const query = filters.officeLocation.toLowerCase();
+    filtered = filtered.filter((org) => {
+      const city = typeof org.city === 'string' ? org.city : org.city?.name;
+      const country = typeof org.country === 'string' ? org.country : org.country?.name;
+      return `${city || ''} ${country || ''} ${org.region || ''}`.toLowerCase().includes(query);
+    });
+  }
+
+  if (filters?.projectBudget) {
+    const budget = Number(filters.projectBudget);
+    if (!Number.isNaN(budget)) {
+      filtered = filtered.filter((org) => (org.budget?.amount || 0) >= budget);
+    }
+  }
+
+  if (filters?.publishedFrom) {
+    const from = new Date(filters.publishedFrom).getTime();
+    if (!Number.isNaN(from)) {
+      filtered = filtered.filter((org) => new Date(org.createdAt).getTime() >= from);
+    }
+  }
+
+  if (filters?.publishedTo) {
+    const to = new Date(filters.publishedTo).getTime();
+    if (!Number.isNaN(to)) {
+      filtered = filtered.filter((org) => new Date(org.createdAt).getTime() <= to);
+    }
+  }
+
   if (filters?.type?.length) {
     filtered = filtered.filter((org) => filters.type!.includes(org.type as any));
+  }
+
+  if (filters?.procurementType) {
+    const query = filters.procurementType.toLowerCase();
+    filtered = filtered.filter((org) =>
+      org.type?.toLowerCase().includes(query) ||
+      org.description?.toLowerCase().includes(query) ||
+      (org.sectors || []).some((sector) => sector.toLowerCase().includes(query)),
+    );
   }
 
   if (filters?.status?.length) {

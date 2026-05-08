@@ -133,6 +133,13 @@ export interface OrganizationKPIs {
 
 export interface OrganizationFilters {
   searchQuery?: string;
+  procurementType?: string;
+  publishedFrom?: string;
+  publishedTo?: string;
+  projectBudget?: string;
+  keywords?: string;
+  officeLocation?: string;
+  city?: string;
   type?: OrganizationTypeEnum[];
   sectors?: OrganizationSectorEnum[];
   subSectors?: SubSectorEnum[];

@@ -769,10 +769,12 @@ export interface TenderListDTO {
     name: string;
     budget: MoneyDTO;
     date: Date;
+    organizationId?: string;
   }>;
   shortlistCompanies?: Array<{
     name: string;
     date: Date;
+    organizationId?: string;
   }>;
   torId?: string; // Link to associated Terms of Reference
   // Optional fields for detail view

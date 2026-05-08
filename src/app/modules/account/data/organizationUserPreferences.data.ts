@@ -1,3 +1,5 @@
+import { COUNTRY_GROUPS } from '@app/modules/expert/data/expertSearchFilters';
+
 export type OrganizationPreferenceOption = {
   id: string;
   label: string;
@@ -59,44 +61,22 @@ export const ORGANIZATION_SECTOR_SPECIALITIES: OrganizationPreferenceOption[] = 
   { id: 'water-drainage-irrigation-flood-well-hydrology', label: 'Water/Drainage/Irrigation/Flood/Well/Hydrology/Water' },
 ];
 
+const slugifyPreferenceId = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
 export const ORGANIZATION_COUNTRY_REGIONS: OrganizationCountryRegion[] = [
-  {
-    id: 'central-eastern-europe',
-    label: 'Central & Eastern Europe',
-    countries: [
-      { id: 'armenia', label: 'Armenia' },
-      { id: 'azerbaijan', label: 'Azerbaijan' },
-      { id: 'belarus', label: 'Belarus' },
-      { id: 'czech-republic', label: 'Czech Republic' },
-      { id: 'estonia', label: 'Estonia' },
-      { id: 'georgia', label: 'Georgia' },
-      { id: 'hungary', label: 'Hungary' },
-      { id: 'latvia', label: 'Latvia' },
-      { id: 'lithuania', label: 'Lithuania' },
-      { id: 'moldova', label: 'Moldova' },
-      { id: 'poland', label: 'Poland' },
-      { id: 'russian-federation', label: 'Russian Federation' },
-      { id: 'slovakia', label: 'Slovakia' },
-      { id: 'slovenia', label: 'Slovenia' },
-      { id: 'ukraine', label: 'Ukraine' },
-    ],
-  },
-  { id: 'south-east-europe', label: 'South-East Europe', countries: [] },
-  { id: 'western-europe', label: 'Western Europe', countries: [] },
-  { id: 'central-africa', label: 'Central Africa', countries: [] },
-  { id: 'eastern-africa', label: 'Eastern Africa', countries: [] },
-  { id: 'northern-africa', label: 'Northern Africa', countries: [] },
-  { id: 'southern-africa', label: 'Southern Africa', countries: [] },
-  { id: 'western-africa', label: 'Western Africa', countries: [] },
-  { id: 'central-asia', label: 'Central Asia', countries: [] },
-  { id: 'middle-east', label: 'Middle East', countries: [] },
-  { id: 'north-east-asia', label: 'North-East Asia', countries: [] },
-  { id: 'south-east-asia', label: 'South-East Asia', countries: [] },
-  { id: 'southern-asia', label: 'Southern Asia', countries: [] },
-  { id: 'oceania', label: 'Oceania', countries: [] },
-  { id: 'central-america', label: 'Central America', countries: [] },
-  { id: 'north-america', label: 'North America', countries: [] },
-  { id: 'south-america', label: 'South America', countries: [] },
+  ...COUNTRY_GROUPS.map((region) => ({
+    id: slugifyPreferenceId(region.label),
+    label: region.label,
+    countries: region.options.map((country) => ({
+      id: slugifyPreferenceId(country),
+      label: country,
+    })),
+  })),
   { id: 'home-based', label: 'Home-Based', countries: [] },
   { id: 'multi-country', label: 'Multi-country', countries: [] },
 ];

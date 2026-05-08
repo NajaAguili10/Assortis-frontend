@@ -34,6 +34,7 @@ import CollaborationDetail from './modules/shared/pages/CollaborationDetail';
 import Experts from './modules/expert/pages/Experts';
 import ExpertsDatabase from './modules/expert/pages/ExpertsDatabase';
 import ExpertSearchPage from './modules/expert/pages/ExpertSearchPage';
+import ExpertPreviewPage from './modules/expert/pages/ExpertPreviewPage';
 import MyExpertsPage from './modules/expert/pages/MyExpertsPage';
 import ExpertsCVProfiles from './modules/expert/pages/ExpertsCVProfiles';
 import ExpertsEditProfile from './modules/expert/pages/ExpertsEditProfile';
@@ -367,6 +368,7 @@ const router = createBrowserRouter([
       { path: 'search/organisations', Component: SearchOrganisationsPage },
       { path: 'search/organizations', element: <Navigate to="/search/organisations" replace /> },
       { path: 'search/experts', Component: SearchExpertsPage },
+      { path: 'search/experts/:id/preview', Component: ExpertPreviewPage },
       { path: 'search/bid-writers', Component: SearchBidWritersPage },
       { path: 'search/calls/:id', Component: ProjectDetail },
       { path: 'search/projects/:id', Component: ProjectDetail },

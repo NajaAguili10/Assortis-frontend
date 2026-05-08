@@ -1,12 +1,13 @@
 import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Bell, CheckCircle2, Filter, Save, Search, UserCog } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, Filter, Save, Search, UserCog, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@app/contexts/AuthContext';
 import { AccountSubMenu } from '@app/components/AccountSubMenu';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
 import { Alert, AlertDescription, AlertTitle } from '@app/components/ui/alert';
+import { Badge } from '@app/components/ui/badge';
 import { Button } from '@app/components/ui/button';
 import { Card, CardContent } from '@app/components/ui/card';
 import { Checkbox } from '@app/components/ui/checkbox';
@@ -165,6 +166,7 @@ export default function OrganizationUserProfileSettingsPage() {
   const [specialitySearch, setSpecialitySearch] = useState('');
   const [countrySearch, setCountrySearch] = useState('');
   const [fundingSearch, setFundingSearch] = useState('');
+  const [openCountryRegions, setOpenCountryRegions] = useState<string[]>([]);
 
   const adminEmails = preferences.user_administrator_emails?.length
     ? preferences.user_administrator_emails
@@ -173,6 +175,11 @@ export default function OrganizationUserProfileSettingsPage() {
   const allCountryOptions = useMemo(
     () => ORGANIZATION_COUNTRY_REGIONS.flatMap((region) => region.countries),
     [],
+  );
+
+  const selectedCountryOptions = useMemo(
+    () => allCountryOptions.filter((country) => preferences.countries.includes(country.id)),
+    [allCountryOptions, preferences.countries],
   );
 
   const loadPreferences = async () => {
@@ -238,6 +245,12 @@ export default function OrganizationUserProfileSettingsPage() {
       regions: current.regions.includes(region.id) ? current.regions : [...current.regions, region.id],
       countries: Array.from(new Set([...current.countries, ...countryIds])),
     }));
+  };
+
+  const toggleCountryRegionOpen = (regionId: string) => {
+    setOpenCountryRegions((current) =>
+      current.includes(regionId) ? current.filter((id) => id !== regionId) : [...current, regionId],
+    );
   };
 
   const handleSave = async () => {
@@ -341,38 +354,84 @@ export default function OrganizationUserProfileSettingsPage() {
               </Button>
             </div>
 
+            {selectedCountryOptions.length > 0 && (
+              <div className="rounded-md border border-accent/20 bg-accent/5 p-3">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-primary">
+                    Selected countries ({selectedCountryOptions.length})
+                  </p>
+                  <Button type="button" variant="ghost" size="sm" className="h-8 text-accent hover:text-accent" onClick={() => setArrayField('countries', [])}>
+                    Clear countries
+                  </Button>
+                </div>
+                <div className="flex max-h-24 flex-wrap gap-2 overflow-y-auto pr-1">
+                  {selectedCountryOptions.map((country) => (
+                    <Badge key={country.id} variant="secondary" className="gap-1 bg-white text-primary">
+                      <span className="max-w-[180px] truncate">{country.label}</span>
+                      <button
+                        type="button"
+                        className="rounded-full text-muted-foreground hover:text-accent"
+                        onClick={() => toggleArrayValue('countries', country.id)}
+                        aria-label={`Remove ${country.label}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="space-y-3">
               {filteredRegions.map((region) => {
                 const visibleCountries = region.countries.filter((country) => includesQuery(country.label, countrySearch));
                 const hasCountries = region.countries.length > 0;
                 const selectedCountryCount = region.countries.filter((country) => preferences.countries.includes(country.id)).length;
+                const searchIsActive = Boolean(countrySearch.trim());
+                const isOpen = openCountryRegions.includes(region.id) || searchIsActive;
 
                 return (
                   <div key={region.id} className="overflow-hidden rounded-md border border-gray-200 bg-white">
                     <div className="flex flex-col gap-3 border-b border-gray-100 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                      <label htmlFor={region.id} className="flex min-w-0 cursor-pointer items-center gap-3">
-                        <Checkbox
-                          id={region.id}
-                          checked={preferences.regions.includes(region.id)}
-                          onCheckedChange={() => toggleArrayValue('regions', region.id)}
-                        />
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-semibold text-primary">{region.label}</span>
-                          {hasCountries && (
-                            <span className="block text-xs text-muted-foreground">
-                              {selectedCountryCount} of {region.countries.length} countries selected
-                            </span>
-                          )}
-                        </span>
-                      </label>
-                      {hasCountries && (
-                        <Button type="button" variant="outline" size="sm" onClick={() => selectRegionCountries(region)}>
-                          Select all countries in region
-                        </Button>
-                      )}
+                      <div className="flex min-w-0 items-center gap-3">
+                        {hasCountries ? (
+                          <button
+                            type="button"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border bg-white text-muted-foreground hover:border-accent hover:text-accent"
+                            onClick={() => toggleCountryRegionOpen(region.id)}
+                            aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${region.label}`}
+                          >
+                            {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          </button>
+                        ) : (
+                          <span className="h-8 w-8 shrink-0" />
+                        )}
+                        <label htmlFor={region.id} className="flex min-w-0 cursor-pointer items-center gap-3">
+                          <Checkbox
+                            id={region.id}
+                            checked={preferences.regions.includes(region.id)}
+                            onCheckedChange={() => toggleArrayValue('regions', region.id)}
+                          />
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-semibold text-primary">{region.label}</span>
+                            {hasCountries && (
+                              <span className="block text-xs text-muted-foreground">
+                                {selectedCountryCount} of {region.countries.length} countries selected
+                              </span>
+                            )}
+                          </span>
+                        </label>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {hasCountries && (
+                          <Button type="button" variant="outline" size="sm" onClick={() => selectRegionCountries(region)}>
+                            Select all countries in region
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                    {hasCountries && visibleCountries.length > 0 && (
-                      <div className="grid gap-2 p-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {hasCountries && isOpen && visibleCountries.length > 0 && (
+                      <div className="grid max-h-72 gap-2 overflow-y-auto p-4 sm:grid-cols-2 lg:grid-cols-3">
                         {visibleCountries.map((country) => (
                           <CheckboxTile
                             key={country.id}
@@ -382,6 +441,9 @@ export default function OrganizationUserProfileSettingsPage() {
                           />
                         ))}
                       </div>
+                    )}
+                    {hasCountries && isOpen && visibleCountries.length === 0 && (
+                      <p className="p-4 text-sm text-muted-foreground">No countries match your search in this region.</p>
                     )}
                   </div>
                 );

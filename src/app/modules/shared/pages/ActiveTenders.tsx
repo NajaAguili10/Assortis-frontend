@@ -1235,7 +1235,20 @@ export default function ActiveTenders() {
                               <div className="font-semibold text-gray-700">Contracted companies:</div>
                               {(row.awardCompanies || []).map(company => (
                                 <div key={company.name} className="px-2.5 py-1 text-[#a93245]">
-                                  <p className="text-xs font-semibold leading-tight">{company.name}</p>
+                                  {company.organizationId ? (
+                                    <button
+                                      type="button"
+                                      className="text-left text-xs font-semibold leading-tight text-accent hover:underline"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        navigate(`/organizations/${company.organizationId}`);
+                                      }}
+                                    >
+                                      {company.name}
+                                    </button>
+                                  ) : (
+                                    <p className="text-xs font-semibold leading-tight">{company.name}</p>
+                                  )}
                                   <p className="mt-0.5 text-[11px] text-gray-600">
                                     <span className="font-medium">{company.budget.formatted}</span>
                                     <span className="mx-1 text-gray-400">|</span>
@@ -1251,7 +1264,20 @@ export default function ActiveTenders() {
                               <div className="font-semibold text-gray-700">Shortlisted companies:</div>
                               {(row.shortlistCompanies || []).map((company, index) => (
                                 <div key={company.name} className="px-2.5 py-0.5 text-[#a93245]">
-                                  <p className="text-xs font-semibold leading-tight">{index + 1}. {company.name}</p>
+                                  {company.organizationId ? (
+                                    <button
+                                      type="button"
+                                      className="text-left text-xs font-semibold leading-tight text-accent hover:underline"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        navigate(`/organizations/${company.organizationId}`);
+                                      }}
+                                    >
+                                      {index + 1}. {company.name}
+                                    </button>
+                                  ) : (
+                                    <p className="text-xs font-semibold leading-tight">{index + 1}. {company.name}</p>
+                                  )}
                                 </div>
                               ))}
                             </div>
