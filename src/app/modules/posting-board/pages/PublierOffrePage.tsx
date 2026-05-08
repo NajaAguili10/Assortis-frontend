@@ -17,8 +17,11 @@ import {
 } from '../../../components/ui/select';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useProjectsContext } from '../../../contexts/ProjectsContext';
 import { JobOfferCreateDTO, JobOfferListDTO, JobOfferStatusEnum, JobOfferTypeEnum } from '../types/JobOffer.dto';
 import { createJobOffer, getJobOffersByRecruiter, deleteJobOffer } from '../services/jobOfferService';
+import { ProjectPriorityEnum, ProjectSectorEnum, ProjectStatusEnum, ProjectTypeEnum, RegionEnum } from '../../../types/project.dto';
+import { calculateProjectCompletion } from '../../../utils/project-completion';
 import {
   PlusCircle, AlertCircle, Briefcase, MapPin, Calendar, Users,
   Clock, Eye, Trash2, Edit2, Copy, Search, X,
@@ -41,6 +44,7 @@ type MainTab = 'publish' | 'jobs';
 export default function PublierOffrePage() {
   const { t } = useLanguage();
   const { user, isAuthenticated } = useAuth();
+  const { addProject } = useProjectsContext();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -87,10 +91,11 @@ export default function PublierOffrePage() {
 
     setDuplicateData(null);
     setProjectPrefillData({
-      type: JobOfferTypeEnum.PROJECT,
+      type: JobOfferTypeEnum.PROJECT_LINKED,
+      linkedProjectId: searchParams.get('projectId') || undefined,
       projectTitle,
       location: searchParams.get('location') || '',
-      description: searchParams.get('description') || '',
+      projectSummary: searchParams.get('description') || '',
     });
     setFormKey(k => k + 1);
   }, [searchParams]);
@@ -119,13 +124,72 @@ export default function PublierOffrePage() {
     }
   };
 
+  const createProjectFromVacancy = (data: JobOfferCreateDTO) => {
+    const now = new Date().toISOString().split('T')[0];
+    const projectId = `proj-${Date.now()}`;
+    const primarySector = (data.projectSectors?.[0] as ProjectSectorEnum) || ProjectSectorEnum.OTHER;
+    const primaryCategory = (data.projectCategories?.[0] as ProjectTypeEnum) || ProjectTypeEnum.DEVELOPMENT;
+    const primaryCountry = data.projectCountries?.[0] || data.countries?.[0] || 'Global';
+    const deadline = data.estimatedStartDate || data.deadline || now;
+    const durationMonths = Math.max(1, Math.ceil((new Date(deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30)));
+    const plainDescription = (data.projectDescriptionPlainText || data.projectSummary || data.descriptionPlainText || data.description || '').replace(/<[^>]+>/g, ' ');
+    const project = {
+      id: projectId,
+      organizationId: user?.id || 'org-1',
+      code: `PRJ-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      title: data.projectTitle || data.jobTitle,
+      name: data.projectTitle || data.jobTitle,
+      description: plainDescription,
+      status: ProjectStatusEnum.ACTIVE,
+      priority: ProjectPriorityEnum.MEDIUM,
+      type: primaryCategory,
+      country: primaryCountry,
+      region: RegionEnum.EUROPE,
+      sector: primarySector,
+      subsectors: data.subSectors || [],
+      budget: { total: 0, spent: 0, remaining: 0, currency: 'USD' },
+      timeline: {
+        startDate: now,
+        endDate: deadline,
+        duration: durationMonths,
+        completionPercentage: 0,
+      },
+      leadOrganization: data.organisationName || 'Assortis',
+      partners: [],
+      teamSize: 0,
+      tasksCompleted: 0,
+      totalTasks: 0,
+      createdDate: now,
+      updatedDate: now,
+      createdBy: user?.id || 'user-1',
+      ownedBy: user?.id || 'user-1',
+      tags: [...(data.projectSectors || []), ...(data.countries || [])].map((item) => item.toLowerCase()),
+    };
+
+    addProject({
+      ...project,
+      timeline: {
+        ...project.timeline,
+        completionPercentage: calculateProjectCompletion(project),
+      },
+    });
+
+    return projectId;
+  };
+
   const handleSubmit = async (data: JobOfferCreateDTO) => {
     if (!user) {
       toast.error(t('monEspace.message.unauthorized'));
       return;
     }
     try {
-      await createJobOffer(data, user.id);
+      const vacancyData = { ...data };
+      if (data.type === JobOfferTypeEnum.PROJECT_NEW) {
+        const projectId = createProjectFromVacancy(data);
+        vacancyData.linkedProjectId = projectId;
+        vacancyData.type = JobOfferTypeEnum.PROJECT_NEW;
+      }
+      await createJobOffer(vacancyData, user.id);
       toast.success(t('monEspace.message.publishSuccess'));
       setDuplicateData(null);
       await loadPublishedOffers();
@@ -161,12 +225,25 @@ export default function PublierOffrePage() {
   const handleDuplicate = (offer: JobOfferListDTO) => {
     const prefilled: Partial<JobOfferCreateDTO> = {
       jobTitle: offer.jobTitle,
+      publishOnBoard: offer.publishOnBoard,
+      linkedProjectId: offer.linkedProjectId,
       location: offer.location,
       projectTitle: offer.projectTitle,
+      projectSummary: offer.projectSummary,
       department: offer.department,
       type: offer.type,
       duration: offer.duration,
+      contractDurationDays: offer.contractDurationDays,
+      overDurationDays: offer.overDurationDays,
+      sectors: offer.sectors,
+      subSectors: offer.subSectors,
+      regions: offer.regions,
+      countries: offer.countries,
+      homeBased: offer.homeBased,
+      seniority: offer.seniority,
+      restrictions: offer.restrictions,
       description: offer.description,
+      descriptionPlainText: offer.descriptionPlainText,
       // deadline intentionally cleared – user must pick a new one
     };
     setDuplicateData(prefilled);
@@ -379,7 +456,6 @@ export default function PublierOffrePage() {
                   onSubmit={handleSubmit}
                   onCancel={handleCancel}
                   initialData={duplicateData || projectPrefillData || undefined}
-                  submitLabel={t('monEspace.action.publish')}
                   organisationName={user?.firstName ? `${user.firstName} ${user.lastName}`.trim() : 'Assortis'}
                 />
               </div>

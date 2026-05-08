@@ -1,10 +1,9 @@
-﻿import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Button } from '../../../components/ui/button';
+import { Checkbox } from '../../../components/ui/checkbox';
 import { Input } from '../../../components/ui/input';
 import { Label } from '../../../components/ui/label';
-import { Textarea } from '../../../components/ui/textarea';
-import { Checkbox } from '../../../components/ui/checkbox';
-import { Badge } from '../../../components/ui/badge';
+import { RadioGroup, RadioGroupItem } from '../../../components/ui/radio-group';
 import {
   Select,
   SelectContent,
@@ -12,52 +11,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../../components/ui/select';
-import { JobOfferCreateDTO, JobLanguageRequirement, JobOfferTypeEnum } from '../types/JobOffer.dto';
-import { useLanguage } from '../../../contexts/LanguageContext';
-import { Loader2, Plus, X, Globe, Building2, FileText, Languages, CalendarCheck } from 'lucide-react';
-
-const JOB_FUNCTIONS = [
-  'Project Management',
-  'Monitoring & Evaluation',
-  'Finance & Accounting',
-  'Procurement & Logistics',
-  'Communication & Outreach',
-  'Research & Analysis',
-  'Legal & Compliance',
-  'Technical Assistance',
-  'Human Resources',
-  'Administration',
-  'IT & Digital',
-  'Agriculture & Food Security',
-  'Health',
-  'Education',
-  'Environment & Climate',
-  'Governance & Rule of Law',
-  'Water & Sanitation',
-  'Gender & Social Inclusion',
-  'Other',
-];
-
-const REGIONS = [
-  'Sub-Saharan Africa',
-  'North Africa',
-  'Middle East',
-  'Europe',
-  'Central Asia',
-  'South Asia',
-  'Southeast Asia',
-  'East Asia & Pacific',
-  'Latin America & Caribbean',
-  'North America',
-  'Global',
-];
-
-const LANGUAGE_LEVELS = ['Excellent', 'Good', 'Fair', 'Basic', 'None'];
-
-const COMMON_LANGUAGES = [
-  'English', 'French', 'Spanish', 'Arabic', 'Portuguese', 'German',
-  'Russian', 'Chinese', 'Italian', 'Dutch', 'Swedish', 'Turkish',
-];
+import { Textarea } from '../../../components/ui/textarea';
+import { JobLanguageRequirement, JobOfferApplicationMethod, JobOfferCreateDTO, JobOfferTypeEnum } from '../types/JobOffer.dto';
+import { COUNTRY_GROUPS, LANGUAGE_OPTIONS, SECTOR_GROUPS, SENIORITY_OPTIONS } from '../../expert/data/expertSearchFilters';
+import { ProjectSectorEnum, ProjectTypeEnum } from '../../../types/project.dto';
+import { Briefcase, Building2, CalendarCheck, FileImage, FileText, Globe, Loader2, Plus, Target, Trash2, Upload, X } from 'lucide-react';
+import { GroupedSelection } from './GroupedSelection';
+import { RichTextEditor } from './RichTextEditor';
 
 interface JobFormProps {
   onSubmit: (data: JobOfferCreateDTO) => Promise<void>;
@@ -67,6 +27,45 @@ interface JobFormProps {
   organisationName?: string;
 }
 
+type ActiveVacancyType = JobOfferTypeEnum.PROJECT_LINKED | JobOfferTypeEnum.INTERNAL | JobOfferTypeEnum.PROJECT_NEW;
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const LANGUAGE_LEVELS = ['Basic', 'Good', 'Very Good', 'Excellent', 'Native'];
+
+const FUNCTION_GROUPS = [
+  { label: 'Programme', options: ['Project Manager', 'Programme Manager', 'Monitoring & Evaluation Specialist', 'Technical Expert'] },
+  { label: 'Operations', options: ['Finance Manager', 'Procurement Specialist', 'HR Officer', 'Administrative Officer'] },
+  { label: 'Technical', options: ['Engineer', 'Researcher', 'IT Specialist', 'Communication Specialist'] },
+  { label: 'Leadership', options: ['Team Leader', 'Country Director', 'Department Head'] },
+];
+
+const CITY_OPTIONS: Record<string, string[]> = {
+  Armenia: ['Yerevan', 'Shirak Province', 'Artashat', 'Armavir', 'Gavar', 'Gyumri', 'Lori Province', 'Ashtarak', 'Hrazdan', 'Vanadzor'],
+  Azerbaijan: ['Baku', 'Ganja', 'Sumqayit', 'Mingachevir', 'Khirdalan', 'Shirvan', 'Shaki', 'Yevlakh'],
+  Belarus: ['Minsk', 'Gomel', 'Mogilev', 'Vitebsk', 'Grodno', 'Brest', 'Bobruisk', 'Baranovichi', 'Pinsk', 'Orsha'],
+};
+
+const normalizeType = (type?: JobOfferTypeEnum): ActiveVacancyType => {
+  if (type === JobOfferTypeEnum.INTERNAL) return JobOfferTypeEnum.INTERNAL;
+  if (type === JobOfferTypeEnum.PROJECT_NEW) return JobOfferTypeEnum.PROJECT_NEW;
+  return JobOfferTypeEnum.PROJECT_LINKED;
+};
+
+const stripHtml = (html: string) => {
+  const element = document.createElement('div');
+  element.innerHTML = html;
+  return element.innerText || element.textContent || '';
+};
+
+const toggleValue = (values: string[], value: string) =>
+  values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
+
+const buildLocation = (countries: string[], cities: string[], customCities: string[], homeBased: boolean) => {
+  const parts = [...countries, ...cities, ...customCities];
+  if (homeBased) parts.unshift('Home-Based');
+  return Array.from(new Set(parts)).join(', ');
+};
+
 export function JobForm({
   onSubmit,
   onCancel,
@@ -74,445 +73,567 @@ export function JobForm({
   submitLabel,
   organisationName = 'Assortis',
 }: JobFormProps) {
-  const { t } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Organisation Details
-  const [orgName] = useState(initialData?.organisationName || organisationName);
-  const [website, setWebsite] = useState(initialData?.website || '');
-  const [logoPreview, setLogoPreview] = useState<string | null>(initialData?.logoUrl || null);
-
-  // Vacancy Details
+  const [vacancyType, setVacancyType] = useState<ActiveVacancyType>(normalizeType(initialData?.type));
+  const [logoUrl, setLogoUrl] = useState(initialData?.logoUrl || '');
   const [jobTitle, setJobTitle] = useState(initialData?.jobTitle || '');
+  const [functionQuery, setFunctionQuery] = useState('');
   const [jobFunction, setJobFunction] = useState(initialData?.jobFunction || '');
   const [otherFunction, setOtherFunction] = useState(initialData?.otherFunction || '');
-  const [selectedRegions, setSelectedRegions] = useState<string[]>(initialData?.regions || []);
-  const [countryInput, setCountryInput] = useState('');
-  const [countries, setCountries] = useState<string[]>(initialData?.countries || []);
-  const [cityInput, setCityInput] = useState('');
-  const [cities, setCities] = useState<string[]>(initialData?.cities || []);
 
-  // Languages
+  const [projectTitle, setProjectTitle] = useState(initialData?.projectTitle || '');
+  const [projectSummary, setProjectSummary] = useState(initialData?.projectSummary || '');
+  const [projectSummaryPlainText, setProjectSummaryPlainText] = useState(stripHtml(initialData?.projectSummary || ''));
+  const [projectDescription, setProjectDescription] = useState(initialData?.projectDescription || '');
+  const [projectDescriptionPlainText, setProjectDescriptionPlainText] = useState(initialData?.projectDescriptionPlainText || '');
+  const [projectSectors, setProjectSectors] = useState<string[]>(initialData?.projectSectors || []);
+  const [projectCountries, setProjectCountries] = useState<string[]>(initialData?.projectCountries || []);
+  const [projectCategories, setProjectCategories] = useState<string[]>(initialData?.projectCategories || []);
+
+  const [sectors, setSectors] = useState<string[]>(initialData?.sectors || []);
+  const [subSectors, setSubSectors] = useState<string[]>(initialData?.subSectors || []);
+  const [regions, setRegions] = useState<string[]>(initialData?.regions || []);
+  const [countries, setCountries] = useState<string[]>(initialData?.countries || []);
+  const [cities, setCities] = useState<string[]>(initialData?.cities || []);
+  const [customCityInput, setCustomCityInput] = useState((initialData?.customCities || []).join(', '));
+  const [homeBased, setHomeBased] = useState(Boolean(initialData?.homeBased));
+
   const [languages, setLanguages] = useState<JobLanguageRequirement[]>(
-    initialData?.languages || [{ name: '', writtenLevel: '', spokenLevel: '' }]
+    initialData?.languages?.length ? initialData.languages : [{ name: '', spokenLevel: '', writtenLevel: '' }],
   );
 
-  // Vacancy Text
   const [description, setDescription] = useState(initialData?.description || '');
-
-  // Application Details
+  const [descriptionPlainText, setDescriptionPlainText] = useState(initialData?.descriptionPlainText || stripHtml(initialData?.description || ''));
   const [deadline, setDeadline] = useState(initialData?.deadline || '');
   const [deadlineTime, setDeadlineTime] = useState(initialData?.deadlineTime || '');
-  const [applicationLink, setApplicationLink] = useState(initialData?.applicationLink || '');
-  const [privacyAccepted, setPrivacyAccepted] = useState(initialData?.privacyPolicyAccepted || false);
+  const [restrictions, setRestrictions] = useState(initialData?.restrictions || '');
+  const [seniority, setSeniority] = useState(initialData?.seniority || '');
+  const [contractDurationDays, setContractDurationDays] = useState(initialData?.contractDurationDays?.toString() || '');
+  const [estimatedStartDate, setEstimatedStartDate] = useState(initialData?.estimatedStartDate || '');
+  const [applicationMethod, setApplicationMethod] = useState<JobOfferApplicationMethod>(initialData?.applicationMethod || 'CONTACT_PERSON');
+  const [contactPerson, setContactPerson] = useState(initialData?.contactPerson || '');
+  const [contactPersonFunction, setContactPersonFunction] = useState(initialData?.contactPersonFunction || '');
+  const [contactEmail, setContactEmail] = useState(initialData?.contactEmail || '');
+  const [applicationLink, setApplicationLink] = useState(initialData?.applicationLink || initialData?.applicationUrl || '');
+  const [legalAccepted, setLegalAccepted] = useState(Boolean(initialData?.privacyPolicyAccepted));
 
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const customCities = useMemo(() => customCityInput.split(',').map((city) => city.trim()).filter(Boolean), [customCityInput]);
+  const selectedLocation = useMemo(() => buildLocation(countries, cities, customCities, homeBased), [countries, cities, customCities, homeBased]);
+  const filteredFunctionGroups = useMemo(() => {
+    const query = functionQuery.trim().toLowerCase();
+    return FUNCTION_GROUPS.map((group) => ({
+      ...group,
+      options: query ? group.options.filter((option) => option.toLowerCase().includes(query)) : group.options,
+    })).filter((group) => group.options.length > 0);
+  }, [functionQuery]);
+  const availableCities = useMemo(() => countries.flatMap((country) => CITY_OPTIONS[country] || []), [countries]);
+  const actionLabel = submitLabel || (vacancyType === JobOfferTypeEnum.PROJECT_NEW ? 'CREATE PROJECT & VACANCY' : 'CREATE VACANCY');
+
+  const handleLogoFile = (file?: File) => {
+    if (!file || !['image/jpeg', 'image/png'].includes(file.type)) return;
     const reader = new FileReader();
-    reader.onload = (ev) => setLogoPreview(ev.target?.result as string);
+    reader.onload = (event) => setLogoUrl(String(event.target?.result || ''));
     reader.readAsDataURL(file);
   };
 
-  const toggleRegion = (region: string) => {
-    setSelectedRegions((prev) =>
-      prev.includes(region) ? prev.filter((r) => r !== region) : [...prev, region]
-    );
+  const updateLanguage = (index: number, field: keyof JobLanguageRequirement, value: string) => {
+    setLanguages((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item));
   };
 
-  const handleAddTag = (
-    input: string,
-    setInput: (v: string) => void,
-    tags: string[],
-    setTags: (v: string[]) => void
-  ) => {
-    const val = input.trim();
-    if (val && !tags.includes(val)) setTags([...tags, val]);
-    setInput('');
+  const resetForm = () => {
+    setVacancyType(JobOfferTypeEnum.PROJECT_LINKED);
+    setLogoUrl('');
+    setJobTitle('');
+    setFunctionQuery('');
+    setJobFunction('');
+    setOtherFunction('');
+    setProjectTitle('');
+    setProjectSummary('');
+    setProjectSummaryPlainText('');
+    setProjectDescription('');
+    setProjectDescriptionPlainText('');
+    setProjectSectors([]);
+    setProjectCountries([]);
+    setProjectCategories([]);
+    setSectors([]);
+    setSubSectors([]);
+    setRegions([]);
+    setCountries([]);
+    setCities([]);
+    setCustomCityInput('');
+    setHomeBased(false);
+    setLanguages([{ name: '', spokenLevel: '', writtenLevel: '' }]);
+    setDescription('');
+    setDescriptionPlainText('');
+    setDeadline('');
+    setDeadlineTime('');
+    setRestrictions('');
+    setSeniority('');
+    setContractDurationDays('');
+    setEstimatedStartDate('');
+    setApplicationMethod('CONTACT_PERSON');
+    setContactPerson('');
+    setContactPersonFunction('');
+    setContactEmail('');
+    setApplicationLink('');
+    setLegalAccepted(false);
+    setErrors({});
+    onCancel();
   };
 
-  const handleTagKeyDown = (
-    e: React.KeyboardEvent<HTMLInputElement>,
-    input: string,
-    setInput: (v: string) => void,
-    tags: string[],
-    setTags: (v: string[]) => void
-  ) => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      handleAddTag(input, setInput, tags, setTags);
+  const validate = () => {
+    const nextErrors: Record<string, string> = {};
+    if (!jobTitle.trim()) nextErrors.jobTitle = 'Title is required.';
+    if (!jobFunction && !otherFunction.trim()) nextErrors.jobFunction = 'Function is required.';
+    if (!descriptionPlainText.trim()) nextErrors.description = 'Vacancy text is required.';
+    if (!deadline) nextErrors.deadline = 'Application deadline is required.';
+    if (vacancyType !== JobOfferTypeEnum.INTERNAL && !projectSummaryPlainText.trim() && !projectSummary.trim()) nextErrors.projectSummary = 'Project summary is required.';
+    if (vacancyType === JobOfferTypeEnum.PROJECT_NEW && !projectTitle.trim()) nextErrors.projectTitle = 'Project title is required.';
+    if (applicationMethod === 'CONTACT_PERSON') {
+      if (!contactPerson.trim()) nextErrors.contactPerson = 'Contact person name is required.';
+      if (!contactEmail.trim() || !emailRegex.test(contactEmail)) nextErrors.contactEmail = 'A valid contact email is required.';
     }
-  };
-
-  const addLanguage = () =>
-    setLanguages((prev) => [...prev, { name: '', writtenLevel: '', spokenLevel: '' }]);
-
-  const removeLanguage = (index: number) =>
-    setLanguages((prev) => prev.filter((_, i) => i !== index));
-
-  const updateLanguage = (index: number, field: keyof JobLanguageRequirement, value: string) =>
-    setLanguages((prev) => prev.map((l, i) => (i === index ? { ...l, [field]: value } : l)));
-
-  const validate = (): boolean => {
-    const newErrors: Record<string, string> = {};
-    if (!jobTitle.trim()) newErrors.jobTitle = t('monEspace.validation.jobTitle');
-    if (!jobFunction) newErrors.jobFunction = t('monEspace.validation.required');
-    if (!description.trim()) newErrors.description = t('monEspace.validation.description');
-    if (!deadline) {
-      newErrors.deadline = t('monEspace.validation.deadline');
-    } else {
-      const deadlineDate = new Date(deadline);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      if (deadlineDate < today) newErrors.deadline = t('monEspace.validation.deadline.future');
+    if (applicationMethod === 'EXTERNAL_LINK') {
+      try {
+        new URL(applicationLink);
+      } catch {
+        nextErrors.applicationLink = 'A valid application link is required.';
+      }
     }
-    if (!privacyAccepted) newErrors.privacy = t('monEspace.form.privacy.required');
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    if (!legalAccepted) nextErrors.legal = 'Privacy Policy and Terms of Use acceptance is required.';
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!validate()) return;
+
     setIsSubmitting(true);
     try {
-      const locationParts = [...countries, ...cities];
+      const days = Number(contractDurationDays);
       const data: JobOfferCreateDTO = {
-        organisationName: orgName,
-        website: website || undefined,
-        logoUrl: logoPreview || undefined,
-        jobTitle,
-        jobFunction,
-        otherFunction: otherFunction || undefined,
-        regions: selectedRegions,
+        publishOnBoard: true,
+        linkedProjectId: vacancyType === JobOfferTypeEnum.PROJECT_LINKED ? initialData?.linkedProjectId : undefined,
+        organisationName,
+        logoUrl: logoUrl || undefined,
+        jobTitle: jobTitle.trim(),
+        jobFunction: jobFunction || otherFunction.trim(),
+        otherFunction: otherFunction.trim() || undefined,
+        location: selectedLocation || 'Global',
+        regions,
         countries,
         cities,
-        location: locationParts.join(', ') || selectedRegions.join(', ') || 'Global',
-        type: initialData?.type || JobOfferTypeEnum.PROJECT,
-        duration: initialData?.duration || '',
-        projectTitle: initialData?.projectTitle,
-        department: initialData?.department,
-        languages: languages.filter((l) => l.name),
+        customCities,
+        sectors,
+        subSectors,
+        homeBased,
+        projectTitle: vacancyType === JobOfferTypeEnum.INTERNAL ? undefined : projectTitle.trim(),
+        projectSummary: vacancyType === JobOfferTypeEnum.INTERNAL ? undefined : projectSummary || projectSummaryPlainText,
+        projectDescription,
+        projectDescriptionPlainText,
+        projectSectors,
+        projectCountries,
+        projectCategories,
+        type: vacancyType,
+        duration: days > 0 ? `${days} days` : '',
+        contractDurationDays: Number.isFinite(days) && days > 0 ? days : undefined,
+        seniority: seniority || undefined,
+        restrictions: restrictions.trim() || undefined,
+        languages: languages.filter((language) => language.name || language.spokenLevel || language.writtenLevel),
         description,
+        descriptionPlainText,
         deadline,
         deadlineTime: deadlineTime || undefined,
-        applicationLink: applicationLink || undefined,
-        privacyPolicyAccepted: privacyAccepted,
+        estimatedStartDate: estimatedStartDate || undefined,
+        applicationMethod,
+        contactPerson: applicationMethod === 'CONTACT_PERSON' ? contactPerson.trim() : undefined,
+        contactPersonFunction: applicationMethod === 'CONTACT_PERSON' ? contactPersonFunction.trim() || undefined : undefined,
+        contactEmail: applicationMethod === 'CONTACT_PERSON' ? contactEmail.trim() : undefined,
+        applicationLink: applicationMethod === 'EXTERNAL_LINK' ? applicationLink.trim() : undefined,
+        privacyPolicyAccepted: legalAccepted,
       };
       await onSubmit(data);
-    } catch (error) {
-      console.error('Error submitting form:', error);
+      resetForm();
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-0 divide-y divide-gray-100">
-
-      {/* SECTION 1: Organisation Details */}
-      <div className="py-8 space-y-5">
-        <div className="flex items-center gap-2 mb-1">
-          <Building2 className="h-5 w-5 text-primary" />
-          <h3 className="text-base font-semibold text-primary">{t('monEspace.form.section.org')}</h3>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label>{t('monEspace.form.orgName')}</Label>
-          <Input value={orgName} readOnly className="bg-gray-50 text-gray-700 cursor-default" />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="website">{t('monEspace.form.website')}</Label>
-          <Input
-            id="website"
-            type="url"
-            value={website}
-            onChange={(e) => setWebsite(e.target.value)}
-            placeholder="https://www.example.org"
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label>{t('monEspace.form.logo')}</Label>
-          <div className="flex items-center gap-4">
-            {logoPreview ? (
-              <img
-                src={logoPreview}
-                alt="Logo preview"
-                className="h-14 w-14 rounded-md object-contain border border-gray-200 bg-white p-1"
-              />
+    <form onSubmit={handleSubmit} className="space-y-8">
+      <section className="rounded-lg border bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-accent">Assortis Job Posting</p>
+            <h2 className="mt-1 text-xl font-semibold text-primary">{organisationName}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Create professional vacancies for project and in-house recruitment.</p>
+          </div>
+          <div
+            className="flex min-h-28 w-full max-w-sm items-center gap-4 rounded-lg border border-dashed bg-slate-50 p-4"
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              handleLogoFile(event.dataTransfer.files?.[0]);
+            }}
+          >
+            {logoUrl ? (
+              <img src={logoUrl} alt="Organisation logo preview" className="h-16 w-16 rounded-md border bg-white object-contain p-1" />
             ) : (
-              <div className="h-14 w-14 rounded-md border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center text-gray-400 text-xs">
-                Logo
+              <div className="flex h-16 w-16 items-center justify-center rounded-md border bg-white text-muted-foreground">
+                <FileImage className="h-6 w-6" />
               </div>
             )}
-            <div>
-              <label htmlFor="logo-upload" className="inline-flex items-center gap-1.5 cursor-pointer text-sm font-medium text-primary hover:underline">
-                {logoPreview ? t('monEspace.form.logo.change') : t('monEspace.form.logo.upload')}
-              </label>
-              <input id="logo-upload" type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
-              <p className="text-xs text-gray-400 mt-0.5">{t('monEspace.form.logo.hint')}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-primary">Organisation logo</p>
+              <p className="text-xs text-muted-foreground">Drop JPG/PNG here or upload.</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <label className="inline-flex h-8 cursor-pointer items-center rounded-md border px-3 text-xs font-medium hover:bg-white">
+                  <Upload className="mr-1.5 h-3.5 w-3.5" />
+                  {logoUrl ? 'Replace' : 'Upload'}
+                  <input type="file" accept="image/png,image/jpeg" className="hidden" onChange={(event) => handleLogoFile(event.target.files?.[0])} />
+                </label>
+                {logoUrl && (
+                  <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => setLogoUrl('')}>
+                    <X className="mr-1 h-3.5 w-3.5" />
+                    Remove
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* SECTION 2: Vacancy Details */}
-      <div className="py-8 space-y-5">
-        <div className="flex items-center gap-2 mb-1">
-          <FileText className="h-5 w-5 text-primary" />
-          <h3 className="text-base font-semibold text-primary">{t('monEspace.form.section.vacancy')}</h3>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="jobTitle">{t('monEspace.form.jobTitle')} <span className="text-destructive">*</span></Label>
-          <Input
-            id="jobTitle"
-            value={jobTitle}
-            onChange={(e) => setJobTitle(e.target.value)}
-            placeholder={t('monEspace.form.jobTitle.placeholder')}
-            className={errors.jobTitle ? 'border-destructive' : ''}
-          />
-          {errors.jobTitle && <p className="text-xs text-destructive">{errors.jobTitle}</p>}
-        </div>
-
-        <div className="space-y-1.5">
-          <Label>{t('monEspace.form.function')} <span className="text-destructive">*</span></Label>
-          <Select value={jobFunction} onValueChange={setJobFunction}>
-            <SelectTrigger className={errors.jobFunction ? 'border-destructive' : ''}>
-              <SelectValue placeholder={t('monEspace.form.function.placeholder')} />
-            </SelectTrigger>
-            <SelectContent>
-              {JOB_FUNCTIONS.map((fn) => (
-                <SelectItem key={fn} value={fn}>{fn}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {errors.jobFunction && <p className="text-xs text-destructive">{errors.jobFunction}</p>}
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="otherFunction">{t('monEspace.form.otherFunction')}</Label>
-          <Input
-            id="otherFunction"
-            value={otherFunction}
-            onChange={(e) => setOtherFunction(e.target.value)}
-            placeholder={t('monEspace.form.otherFunction.placeholder')}
-          />
-        </div>
-
-        <div className="space-y-3">
-          <Label><Globe className="inline h-3.5 w-3.5 mr-1 text-gray-500" />{t('monEspace.form.geographicalScope')}</Label>
-
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-gray-600">{t('monEspace.form.regions')}</p>
-            <div className="flex flex-wrap gap-1.5">
-              {REGIONS.map((region) => (
-                <button
-                  key={region}
-                  type="button"
-                  onClick={() => toggleRegion(region)}
-                  className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                    selectedRegions.includes(region)
-                      ? 'bg-primary text-white border-primary'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary'
-                  }`}
-                >
-                  {region}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <p className="text-xs font-medium text-gray-600">{t('monEspace.form.countries')}</p>
-            <div className="flex flex-wrap gap-1.5 mb-1.5">
-              {countries.map((c) => (
-                <Badge key={c} variant="secondary" className="gap-1 pr-1">
-                  {c}
-                  <button type="button" onClick={() => setCountries(countries.filter((x) => x !== c))}><X className="h-3 w-3" /></button>
-                </Badge>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <Input
-                value={countryInput}
-                onChange={(e) => setCountryInput(e.target.value)}
-                onKeyDown={(e) => handleTagKeyDown(e, countryInput, setCountryInput, countries, setCountries)}
-                placeholder={t('monEspace.form.countries.placeholder')}
-                className="flex-1"
-              />
-              <Button type="button" variant="outline" size="sm" onClick={() => handleAddTag(countryInput, setCountryInput, countries, setCountries)}>
-                {t('monEspace.form.add')}
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <p className="text-xs font-medium text-gray-600">{t('monEspace.form.cities')} <span className="text-gray-400 font-normal">({t('monEspace.form.optional')})</span></p>
-            <div className="flex flex-wrap gap-1.5 mb-1.5">
-              {cities.map((c) => (
-                <Badge key={c} variant="secondary" className="gap-1 pr-1">
-                  {c}
-                  <button type="button" onClick={() => setCities(cities.filter((x) => x !== c))}><X className="h-3 w-3" /></button>
-                </Badge>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <Input
-                value={cityInput}
-                onChange={(e) => setCityInput(e.target.value)}
-                onKeyDown={(e) => handleTagKeyDown(e, cityInput, setCityInput, cities, setCities)}
-                placeholder={t('monEspace.form.cities.placeholder')}
-                className="flex-1"
-              />
-              <Button type="button" variant="outline" size="sm" onClick={() => handleAddTag(cityInput, setCityInput, cities, setCities)}>
-                {t('monEspace.form.add')}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* SECTION 3: Required Languages */}
-      <div className="py-8 space-y-5">
-        <div className="flex items-center gap-2 mb-1">
-          <Languages className="h-5 w-5 text-primary" />
-          <h3 className="text-base font-semibold text-primary">{t('monEspace.form.section.languages')}</h3>
-        </div>
-
-        <div className="space-y-3">
-          <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 text-xs font-medium text-gray-500 px-1">
-            <span>{t('monEspace.form.language')}</span>
-            <span>{t('monEspace.form.language.written')}</span>
-            <span>{t('monEspace.form.language.spoken')}</span>
-            <span />
-          </div>
-
-          {languages.map((lang, i) => (
-            <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-center">
-              <Select value={lang.name} onValueChange={(v) => updateLanguage(i, 'name', v)}>
-                <SelectTrigger><SelectValue placeholder={t('monEspace.form.language.placeholder')} /></SelectTrigger>
-                <SelectContent>
-                  {COMMON_LANGUAGES.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={lang.writtenLevel} onValueChange={(v) => updateLanguage(i, 'writtenLevel', v)}>
-                <SelectTrigger><SelectValue placeholder={t('monEspace.form.language.level.placeholder')} /></SelectTrigger>
-                <SelectContent>
-                  {LANGUAGE_LEVELS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Select value={lang.spokenLevel} onValueChange={(v) => updateLanguage(i, 'spokenLevel', v)}>
-                <SelectTrigger><SelectValue placeholder={t('monEspace.form.language.level.placeholder')} /></SelectTrigger>
-                <SelectContent>
-                  {LANGUAGE_LEVELS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
-                </SelectContent>
-              </Select>
+      <section className="rounded-lg border bg-white p-5 shadow-sm">
+        <h3 className="mb-4 text-base font-semibold text-primary">Vacancy type</h3>
+        <div className="grid gap-3 md:grid-cols-3">
+          {[
+            { type: JobOfferTypeEnum.PROJECT_LINKED, title: 'Existing Project', description: 'Link to a project already in Assortis.', icon: Briefcase },
+            { type: JobOfferTypeEnum.INTERNAL, title: 'In-House Vacancy', description: 'Recruit internally for the organisation.', icon: Building2 },
+            { type: JobOfferTypeEnum.PROJECT_NEW, title: 'New Project + Vacancy', description: 'Create a project during this workflow.', icon: Plus },
+          ].map((item) => {
+            const Icon = item.icon;
+            const active = vacancyType === item.type;
+            return (
               <button
+                key={item.type}
                 type="button"
-                onClick={() => removeLanguage(i)}
-                disabled={languages.length === 1}
-                className="p-1.5 text-gray-400 hover:text-destructive transition-colors rounded disabled:opacity-30"
+                onClick={() => setVacancyType(item.type as ActiveVacancyType)}
+                className={`rounded-lg border p-4 text-left transition ${active ? 'border-accent bg-accent/5 ring-2 ring-accent/15' : 'bg-white hover:border-accent/40'}`}
               >
-                <X className="h-4 w-4" />
+                <Icon className={`mb-3 h-5 w-5 ${active ? 'text-accent' : 'text-muted-foreground'}`} />
+                <p className="font-semibold text-primary">{item.title}</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{item.description}</p>
               </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="rounded-lg border bg-white p-5 shadow-sm">
+        <div className="mb-5 flex items-center gap-2">
+          <FileText className="h-5 w-5 text-accent" />
+          <h3 className="text-base font-semibold text-primary">Vacancy Details</h3>
+        </div>
+        <div className="grid gap-5 lg:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="jobTitle">Title <span className="text-destructive">*</span></Label>
+            <Input id="jobTitle" value={jobTitle} onChange={(event) => setJobTitle(event.target.value)} className={errors.jobTitle ? 'border-destructive' : ''} />
+            {errors.jobTitle && <p className="text-xs text-destructive">{errors.jobTitle}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label>Function <span className="text-destructive">*</span></Label>
+            <Input value={functionQuery} onChange={(event) => setFunctionQuery(event.target.value)} placeholder="Search functions" className="mb-2" />
+            <div className={`max-h-44 overflow-y-auto rounded-md border bg-slate-50 p-2 ${errors.jobFunction ? 'border-destructive' : ''}`}>
+              {filteredFunctionGroups.map((group) => (
+                <div key={group.label} className="mb-2 last:mb-0">
+                  <p className="px-2 pb-1 text-xs font-semibold uppercase text-muted-foreground">{group.label}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {group.options.map((option) => (
+                      <Button key={option} type="button" size="sm" variant={jobFunction === option ? 'default' : 'outline'} className="h-8 text-xs" onClick={() => setJobFunction(option)}>
+                        {option}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {errors.jobFunction && <p className="text-xs text-destructive">{errors.jobFunction}</p>}
+          </div>
+          <div className="space-y-1.5 lg:col-span-2">
+            <Label>Other function</Label>
+            <Input value={otherFunction} onChange={(event) => setOtherFunction(event.target.value)} placeholder="Fill this if no matching function exists" />
+          </div>
+        </div>
+      </section>
+
+      {vacancyType !== JobOfferTypeEnum.INTERNAL && (
+        <section className="rounded-lg border bg-white p-5 shadow-sm">
+          <div className="mb-5 flex items-center gap-2">
+            <Briefcase className="h-5 w-5 text-accent" />
+            <h3 className="text-base font-semibold text-primary">{vacancyType === JobOfferTypeEnum.PROJECT_NEW ? 'Project Creation' : 'Project'}</h3>
+          </div>
+          <div className="grid gap-5 lg:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Project title {vacancyType === JobOfferTypeEnum.PROJECT_NEW && <span className="text-destructive">*</span>}</Label>
+              <Input value={projectTitle} onChange={(event) => setProjectTitle(event.target.value)} className={errors.projectTitle ? 'border-destructive' : ''} />
+              {errors.projectTitle && <p className="text-xs text-destructive">{errors.projectTitle}</p>}
+            </div>
+            {vacancyType === JobOfferTypeEnum.PROJECT_NEW && (
+              <div className="space-y-1.5">
+                <Label>Project categories</Label>
+                <Select value={projectCategories[0] || ''} onValueChange={(value) => setProjectCategories([value])}>
+                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                  <SelectContent>
+                    {Object.values(ProjectTypeEnum).map((option) => <SelectItem key={option} value={option}>{option.replace(/_/g, ' ')}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="space-y-1.5 lg:col-span-2">
+              <Label>Project summary <span className="text-destructive">*</span></Label>
+              <RichTextEditor
+                value={projectSummary}
+                error={Boolean(errors.projectSummary)}
+                placeholder="Summarize project objectives, context, and expected results."
+                minHeightClassName="min-h-[120px]"
+                onChange={(html, plainText) => {
+                  setProjectSummary(html);
+                  setProjectSummaryPlainText(plainText);
+                }}
+              />
+              {errors.projectSummary && <p className="text-xs text-destructive">{errors.projectSummary}</p>}
+            </div>
+            {vacancyType === JobOfferTypeEnum.PROJECT_NEW && (
+              <>
+                <div className="space-y-1.5 lg:col-span-2">
+                  <Label>Project description</Label>
+                  <RichTextEditor
+                    value={projectDescription}
+                    placeholder="Describe scope, activities, and implementation context."
+                    onChange={(html, plainText) => {
+                      setProjectDescription(html);
+                      setProjectDescriptionPlainText(plainText);
+                    }}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Project sectors</Label>
+                  <Select value={projectSectors[0] || ''} onValueChange={(value) => setProjectSectors([value])}>
+                    <SelectTrigger><SelectValue placeholder="Select project sector" /></SelectTrigger>
+                    <SelectContent>
+                      {Object.values(ProjectSectorEnum).map((option) => <SelectItem key={option} value={option}>{option.replace(/_/g, ' ')}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Project countries</Label>
+                  <Input value={projectCountries.join(', ')} onChange={(event) => setProjectCountries(event.target.value.split(',').map((item) => item.trim()).filter(Boolean))} placeholder="Countries separated by commas" />
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+      )}
+
+      <section className="rounded-lg border bg-white p-5 shadow-sm">
+        <div className="mb-5 flex items-center gap-2">
+          <Globe className="h-5 w-5 text-accent" />
+          <h3 className="text-base font-semibold text-primary">Location</h3>
+        </div>
+        <GroupedSelection
+          title="Regions and Countries"
+          groupLabel="Region"
+          optionLabel="Country"
+          groups={COUNTRY_GROUPS}
+          selectedGroups={regions}
+          selectedOptions={countries}
+          onSelectedGroupsChange={setRegions}
+          onSelectedOptionsChange={setCountries}
+          includeHomeBased
+          homeBased={homeBased}
+          onHomeBasedChange={setHomeBased}
+        />
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          <div className="rounded-lg border bg-slate-50 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-sm font-semibold text-primary">Cities</p>
+              {availableCities.length > 0 && (
+                <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setCities(availableCities.every((city) => cities.includes(city)) ? [] : Array.from(new Set([...cities, ...availableCities])))}>
+                  Select all
+                </Button>
+              )}
+            </div>
+            <div className="max-h-44 space-y-1 overflow-y-auto">
+              {availableCities.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Select Armenia, Azerbaijan, or Belarus to load example cities.</p>
+              ) : availableCities.map((city) => (
+                <label key={city} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-white">
+                  <Checkbox checked={cities.includes(city)} onCheckedChange={() => setCities(toggleValue(cities, city))} />
+                  <span>{city}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>and/or fill another city</Label>
+            <Textarea value={customCityInput} onChange={(event) => setCustomCityInput(event.target.value)} rows={5} placeholder="Multiple custom cities separated with commas" />
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-lg border bg-white p-5 shadow-sm">
+        <div className="mb-5 flex items-center gap-2">
+          <Target className="h-5 w-5 text-accent" />
+          <h3 className="text-base font-semibold text-primary">Required Expertise</h3>
+        </div>
+        <GroupedSelection
+          title="Sectors"
+          groupLabel="Sector"
+          optionLabel="Sub-sector"
+          groups={SECTOR_GROUPS}
+          selectedGroups={sectors}
+          selectedOptions={subSectors}
+          onSelectedGroupsChange={setSectors}
+          onSelectedOptionsChange={setSubSectors}
+        />
+      </section>
+
+      <section className="rounded-lg border bg-white p-5 shadow-sm">
+        <h3 className="mb-5 text-base font-semibold text-primary">Languages</h3>
+        <div className="space-y-3">
+          {languages.map((language, index) => (
+            <div key={index} className="grid gap-2 rounded-lg border bg-slate-50 p-3 md:grid-cols-[1fr_1fr_1fr_auto]">
+              <Select value={language.name} onValueChange={(value) => updateLanguage(index, 'name', value)}>
+                <SelectTrigger><SelectValue placeholder="Language" /></SelectTrigger>
+                <SelectContent>{LANGUAGE_OPTIONS.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent>
+              </Select>
+              <Select value={language.spokenLevel} onValueChange={(value) => updateLanguage(index, 'spokenLevel', value)}>
+                <SelectTrigger><SelectValue placeholder="Spoken" /></SelectTrigger>
+                <SelectContent>{LANGUAGE_LEVELS.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent>
+              </Select>
+              <Select value={language.writtenLevel} onValueChange={(value) => updateLanguage(index, 'writtenLevel', value)}>
+                <SelectTrigger><SelectValue placeholder="Written" /></SelectTrigger>
+                <SelectContent>{LANGUAGE_LEVELS.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent>
+              </Select>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setLanguages((current) => current.filter((_, itemIndex) => itemIndex !== index))} disabled={languages.length === 1}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
             </div>
           ))}
-
-          <Button type="button" variant="outline" size="sm" onClick={addLanguage} className="gap-1.5">
-            <Plus className="h-3.5 w-3.5" />
-            {t('monEspace.form.language.add')}
+          <Button type="button" variant="outline" size="sm" onClick={() => setLanguages((current) => [...current, { name: '', spokenLevel: '', writtenLevel: '' }])}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add language
           </Button>
         </div>
-      </div>
+      </section>
 
-      {/* SECTION 4: Vacancy Text */}
-      <div className="py-8 space-y-5">
-        <div className="flex items-center gap-2 mb-1">
-          <FileText className="h-5 w-5 text-primary" />
-          <h3 className="text-base font-semibold text-primary">
-            {t('monEspace.form.section.vacancyText')} <span className="text-destructive">*</span>
-          </h3>
-        </div>
-        <div className="space-y-1.5">
-          <Textarea
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder={t('monEspace.form.description.placeholder')}
-            rows={14}
-            className={errors.description ? 'border-destructive text-sm' : 'text-sm'}
-          />
-          {errors.description && <p className="text-xs text-destructive">{errors.description}</p>}
-          <p className="text-xs text-gray-400">{t('monEspace.form.description.helper')}</p>
-        </div>
-      </div>
+      <section className="rounded-lg border bg-white p-5 shadow-sm">
+        <h3 className="mb-5 text-base font-semibold text-primary">Vacancy text</h3>
+        <RichTextEditor
+          value={description}
+          error={Boolean(errors.description)}
+          placeholder="Describe responsibilities, expected outputs, qualifications, and application instructions."
+          onChange={(html, plainText) => {
+            setDescription(html);
+            setDescriptionPlainText(plainText);
+          }}
+        />
+        {errors.description && <p className="mt-1 text-xs text-destructive">{errors.description}</p>}
+      </section>
 
-      {/* SECTION 5: Application Details */}
-      <div className="py-8 space-y-5">
-        <div className="flex items-center gap-2 mb-1">
-          <CalendarCheck className="h-5 w-5 text-primary" />
-          <h3 className="text-base font-semibold text-primary">{t('monEspace.form.section.application')}</h3>
+      <section className="rounded-lg border bg-white p-5 shadow-sm">
+        <div className="mb-5 flex items-center gap-2">
+          <CalendarCheck className="h-5 w-5 text-accent" />
+          <h3 className="text-base font-semibold text-primary">Application Details</h3>
         </div>
-
-        <div className="space-y-1.5">
-          <Label>{t('monEspace.form.deadline')} <span className="text-destructive">*</span></Label>
-          <div className="flex gap-2">
-            <Input
-              type="date"
-              value={deadline}
-              onChange={(e) => setDeadline(e.target.value)}
-              className={`flex-1 ${errors.deadline ? 'border-destructive' : ''}`}
-            />
-            <Input
-              type="time"
-              value={deadlineTime}
-              onChange={(e) => setDeadlineTime(e.target.value)}
-              className="w-32"
-            />
+        <div className="grid gap-5 md:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label>Application deadline <span className="text-destructive">*</span></Label>
+            <Input type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} className={errors.deadline ? 'border-destructive' : ''} />
+            {errors.deadline && <p className="text-xs text-destructive">{errors.deadline}</p>}
           </div>
-          {errors.deadline && <p className="text-xs text-destructive">{errors.deadline}</p>}
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="applicationLink">{t('monEspace.form.applicationLink')}</Label>
-          <Input
-            id="applicationLink"
-            type="url"
-            value={applicationLink}
-            onChange={(e) => setApplicationLink(e.target.value)}
-            placeholder="https://careers.example.org/apply"
-          />
-          <p className="text-xs text-gray-400">{t('monEspace.form.applicationLink.hint')}</p>
-        </div>
-
-        <div className="space-y-1.5">
-          <div className="flex items-start gap-2.5">
-            <Checkbox
-              id="privacy"
-              checked={privacyAccepted}
-              onCheckedChange={(checked) => setPrivacyAccepted(!!checked)}
-              className="mt-0.5"
-            />
-            <Label htmlFor="privacy" className="text-sm font-normal leading-snug cursor-pointer">
-              {t('monEspace.form.privacy')}
-            </Label>
+          <div className="space-y-1.5">
+            <Label>Deadline hour</Label>
+            <Input type="time" value={deadlineTime} onChange={(event) => setDeadlineTime(event.target.value)} />
           </div>
-          {errors.privacy && <p className="text-xs text-destructive">{errors.privacy}</p>}
+          <div className="space-y-1.5 md:col-span-2">
+            <Label>Restrictions</Label>
+            <Input value={restrictions} onChange={(event) => setRestrictions(event.target.value)} placeholder="EU nationalities consultants, US consultants, Consultants from ADB countries" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Seniority</Label>
+            <Select value={seniority} onValueChange={setSeniority}>
+              <SelectTrigger><SelectValue placeholder="Select seniority" /></SelectTrigger>
+              <SelectContent>{SENIORITY_OPTIONS.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Contract duration</Label>
+            <Input type="number" min="1" value={contractDurationDays} onChange={(event) => setContractDurationDays(event.target.value)} placeholder="Number of days" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Estimated contract start</Label>
+            <Input type="date" value={estimatedStartDate} onChange={(event) => setEstimatedStartDate(event.target.value)} />
+          </div>
+          <div className="space-y-3 md:col-span-2">
+            <Label>Send applications to</Label>
+            <RadioGroup value={applicationMethod} onValueChange={(value) => setApplicationMethod(value as JobOfferApplicationMethod)} className="grid gap-3 md:grid-cols-2">
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border p-3">
+                <RadioGroupItem value="CONTACT_PERSON" />
+                <span className="text-sm font-medium">Contact Person</span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border p-3">
+                <RadioGroupItem value="EXTERNAL_LINK" />
+                <span className="text-sm font-medium">External Application Link</span>
+              </label>
+            </RadioGroup>
+          </div>
+          {applicationMethod === 'CONTACT_PERSON' ? (
+            <>
+              <div className="space-y-1.5">
+                <Label>Name</Label>
+                <Input value={contactPerson} onChange={(event) => setContactPerson(event.target.value)} className={errors.contactPerson ? 'border-destructive' : ''} />
+                {errors.contactPerson && <p className="text-xs text-destructive">{errors.contactPerson}</p>}
+              </div>
+              <div className="space-y-1.5">
+                <Label>Function</Label>
+                <Input value={contactPersonFunction} onChange={(event) => setContactPersonFunction(event.target.value)} />
+              </div>
+              <div className="space-y-1.5 md:col-span-2">
+                <Label>Email</Label>
+                <Input type="email" value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} className={errors.contactEmail ? 'border-destructive' : ''} />
+                {errors.contactEmail && <p className="text-xs text-destructive">{errors.contactEmail}</p>}
+              </div>
+            </>
+          ) : (
+            <div className="space-y-1.5 md:col-span-2">
+              <Label>Application link</Label>
+              <Input type="url" value={applicationLink} onChange={(event) => setApplicationLink(event.target.value)} className={errors.applicationLink ? 'border-destructive' : ''} />
+              {errors.applicationLink && <p className="text-xs text-destructive">{errors.applicationLink}</p>}
+            </div>
+          )}
         </div>
-      </div>
+      </section>
 
-      {/* Form Actions */}
-      <div className="pt-6 flex flex-col sm:flex-row items-center justify-end gap-3">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting} className="w-full sm:w-auto">
-          {t('monEspace.action.cancel')}
+      <section className="rounded-lg border bg-white p-5 shadow-sm">
+        <label className="flex cursor-pointer items-start gap-3 text-sm">
+          <Checkbox checked={legalAccepted} onCheckedChange={(checked) => setLegalAccepted(Boolean(checked))} className="mt-0.5" />
+          <span>I accept the Privacy Policy and Terms of Use of Assortis.</span>
+        </label>
+        {errors.legal && <p className="mt-2 text-xs text-destructive">{errors.legal}</p>}
+      </section>
+
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <Button type="button" variant="outline" onClick={resetForm} disabled={isSubmitting}>
+          Clear selection
         </Button>
-        <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto min-w-[150px]">
-          {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-          {submitLabel || t('monEspace.action.publish')}
+        <Button type="submit" disabled={isSubmitting} className="min-w-52">
+          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {actionLabel}
         </Button>
       </div>
     </form>

@@ -1,1 +1,0 @@
-    'offers.become.selectMemberType': 'Sélectionnez votre type d'adhésion',

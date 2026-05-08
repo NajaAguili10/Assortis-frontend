@@ -33,6 +33,8 @@ import EditProject from './modules/shared/pages/EditProject';
 import CollaborationDetail from './modules/shared/pages/CollaborationDetail';
 import Experts from './modules/expert/pages/Experts';
 import ExpertsDatabase from './modules/expert/pages/ExpertsDatabase';
+import ExpertSearchPage from './modules/expert/pages/ExpertSearchPage';
+import MyExpertsPage from './modules/expert/pages/MyExpertsPage';
 import ExpertsCVProfiles from './modules/expert/pages/ExpertsCVProfiles';
 import ExpertsEditProfile from './modules/expert/pages/ExpertsEditProfile';
 import ExpertsCreateAccount from './modules/expert/pages/ExpertsCreateAccount';
@@ -241,6 +243,8 @@ const router = createBrowserRouter([
       { path: 'projects/new', Component: NewProject },
       { path: 'expert', element: <Navigate to="/experts" replace /> },
       { path: 'experts', Component: Experts },
+      { path: 'experts/search', Component: ExpertSearchPage },
+      { path: 'experts/my-experts', Component: MyExpertsPage },
       { path: 'experts/database', Component: ExpertsDatabase },
       { path: 'experts/cv-profiles', Component: ExpertsCVProfiles },
       { path: 'experts/edit-profile', Component: ExpertsEditProfile },

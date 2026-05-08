@@ -35,6 +35,8 @@ export function JobCard({
   const isUrgent = job.daysRemaining <= 7 && job.daysRemaining >= 0;
   const isExpired = job.daysRemaining < 0;
   
+  const descriptionText = job.descriptionPlainText || (job.description || '').replace(/<[^>]+>/g, ' ');
+
   // Get deadline display text
   const getDeadlineDisplay = () => {
     if (job.daysRemaining === 0) {
@@ -89,7 +91,7 @@ export function JobCard({
             {t(`monEspace.status.${job.status.toLowerCase()}`)}
           </Badge>
           <Badge variant="secondary" className="text-xs">
-            {job.type === JobOfferTypeEnum.PROJECT 
+            {job.type === JobOfferTypeEnum.PROJECT || job.type === JobOfferTypeEnum.PROJECT_LINKED || job.type === JobOfferTypeEnum.PROJECT_NEW
               ? t('monEspace.type.project') 
               : t('monEspace.type.internal')}
           </Badge>
@@ -110,8 +112,8 @@ export function JobCard({
       {/* Title & Description - Fixed Height */}
       <div className="px-5 pb-3">
         <h3 className="font-semibold text-primary mb-2 line-clamp-2 min-h-[48px]">{job.jobTitle}</h3>
-        {job.description && (
-          <p className="text-sm text-muted-foreground line-clamp-3 min-h-[60px]">{job.description}</p>
+        {descriptionText && (
+          <p className="text-sm text-muted-foreground line-clamp-3 min-h-[60px]">{descriptionText}</p>
         )}
       </div>
 
@@ -119,13 +121,13 @@ export function JobCard({
       {(job.organizationName || job.projectTitle) && (
         <div className="px-5 pb-3">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            {job.type === JobOfferTypeEnum.PROJECT ? (
+            {job.type === JobOfferTypeEnum.PROJECT || job.type === JobOfferTypeEnum.PROJECT_LINKED || job.type === JobOfferTypeEnum.PROJECT_NEW ? (
               <Briefcase className="w-4 h-4 flex-shrink-0" />
             ) : (
               <Building2 className="w-4 h-4 flex-shrink-0" />
             )}
             <span className="truncate">
-              {job.type === JobOfferTypeEnum.PROJECT && job.projectTitle
+              {(job.type === JobOfferTypeEnum.PROJECT || job.type === JobOfferTypeEnum.PROJECT_LINKED || job.type === JobOfferTypeEnum.PROJECT_NEW) && job.projectTitle
                 ? job.projectTitle
                 : job.organizationName}
             </span>

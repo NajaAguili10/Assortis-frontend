@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
-import { ChevronDown, ChevronRight, Database, Eye, Loader2, Lock, Search, ShieldCheck, X } from 'lucide-react';
+import { Navigate, useNavigate, useSearchParams } from 'react-router';
+import { ChevronDown, ChevronRight, Database, Download, Eye, Link2, Loader2, Lock, Search, ShieldCheck, X } from 'lucide-react';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
 import { ExpertsSubMenu } from '@app/components/ExpertsSubMenu';
@@ -38,6 +38,9 @@ import { useAuth } from '@app/contexts/AuthContext';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useCVCredits } from '@app/contexts/CVCreditsContext';
 import { savedSearchService } from '@app/services/savedSearchService';
+import { JobOfferListDTO, JobOfferStatusEnum } from '@app/modules/posting-board/types/JobOffer.dto';
+import { getAllJobOffers } from '@app/modules/posting-board/services/jobOfferService';
+import { downloadExpertCvFile } from '@app/modules/expert/services/expertReferenceGeneration.service';
 import { toast } from 'sonner';
 
 const EMPTY_FILTERS: ExpertSearchFilters = {
@@ -530,6 +533,11 @@ function ExpertPreviewDialog({
   onOpenChange,
   onUnlock,
   onViewFullProfile,
+  projectVacancies,
+  selectedVacancyId,
+  onVacancyChange,
+  onLinkToVacancy,
+  onDownload,
 }: {
   open: boolean;
   preview: ExpertPreviewDTO | null;
@@ -539,6 +547,11 @@ function ExpertPreviewDialog({
   onOpenChange: (open: boolean) => void;
   onUnlock: () => void;
   onViewFullProfile: () => void;
+  projectVacancies: JobOfferListDTO[];
+  selectedVacancyId: string;
+  onVacancyChange: (vacancyId: string) => void;
+  onLinkToVacancy: () => void;
+  onDownload: () => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -583,12 +596,23 @@ function ExpertPreviewDialog({
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-lg border border-gray-200 p-4">
+                <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Personal Information</h4>
+                <div className="grid gap-2 text-sm text-gray-700">
+                  <p><span className="font-medium text-gray-900">Year of birth:</span> Available in unlocked CV</p>
+                  <p><span className="font-medium text-gray-900">Nationality:</span> {preview.country || 'Not specified'}</p>
+                  <p><span className="font-medium text-gray-900">Gender:</span> Not specified in preview</p>
+                  <p><span className="font-medium text-gray-900">Marital status:</span> Not specified in preview</p>
+                </div>
+              </div>
               <PreviewList title="Sectors" items={preview.sectors} />
               <PreviewList title="Countries" items={preview.countries} />
               <PreviewList title="Skills" items={preview.skills} />
               <PreviewList title="Languages" items={preview.languages} />
               <PreviewList title="Education" items={preview.education} />
-              <PreviewList title="Key projects" items={preview.keyProjects} />
+              <PreviewList title="Training" items={preview.skills.slice(0, 4)} />
+              <PreviewList title="Professional Experience" items={preview.keyProjects} />
+              <PreviewList title="Employment Record & Completed Projects" items={preview.keyProjects} />
             </div>
 
             <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
@@ -602,6 +626,29 @@ function ExpertPreviewDialog({
                 </div>
               </div>
             </div>
+
+            <div className="rounded-lg border border-primary/15 bg-white p-4">
+              <h4 className="text-sm font-semibold text-primary">Link expert to my project vacancy</h4>
+              <p className="mt-1 text-sm text-gray-600">Attach this expert as a recommended profile for an open vacancy.</p>
+              <div className="mt-3 grid gap-2 md:grid-cols-[1fr_auto]">
+                <Select value={selectedVacancyId} onValueChange={onVacancyChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a project vacancy" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projectVacancies.map((vacancy) => (
+                      <SelectItem key={vacancy.id} value={vacancy.id}>
+                        {vacancy.jobTitle}{vacancy.projectTitle ? ` - ${vacancy.projectTitle}` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button type="button" variant="outline" onClick={onLinkToVacancy} disabled={!selectedVacancyId || !preview}>
+                  <Link2 className="mr-2 h-4 w-4" />
+                  Link
+                </Button>
+              </div>
+            </div>
           </div>
         ) : (
           <p className="py-8 text-center text-sm text-gray-500">Preview is unavailable.</p>
@@ -610,7 +657,13 @@ function ExpertPreviewDialog({
         <DialogFooter className="gap-2 sm:gap-0">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
           {isUnlocked ? (
-            <Button type="button" onClick={onViewFullProfile}>View full profile</Button>
+            <>
+              <Button type="button" variant="outline" onClick={onDownload}>
+                <Download className="mr-2 h-4 w-4" />
+                Download CV
+              </Button>
+              <Button type="button" onClick={onViewFullProfile}>View full profile</Button>
+            </>
           ) : (
             <Button type="button" onClick={onUnlock} disabled={!preview}>
               Use credit to view full details ({availableCredits} available)
@@ -627,7 +680,7 @@ export function ExpertsSearchFiltersWorkspace() {
   const { language } = useLanguage();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { availableCredits, libraryExpertIds, unlockExpertCV } = useCVCredits();
+  const { availableCredits, libraryExpertIds, unlockExpertCV, recordExpertDownload, linkExpertToVacancy } = useCVCredits();
   const [filters, setFilters] = useState<ExpertSearchFilters>(EMPTY_FILTERS);
   const [results, setResults] = useState<ExpertSearchResult[]>([]);
   const [totalItems, setTotalItems] = useState(0);
@@ -642,6 +695,11 @@ export function ExpertsSearchFiltersWorkspace() {
   const [previewExpert, setPreviewExpert] = useState<ExpertSearchResult | null>(null);
   const [preview, setPreview] = useState<ExpertPreviewDTO | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [searchOnlyDownloaded, setSearchOnlyDownloaded] = useState(false);
+  const [showSectorFilter, setShowSectorFilter] = useState(false);
+  const [showCountryFilter, setShowCountryFilter] = useState(false);
+  const [projectVacancies, setProjectVacancies] = useState<JobOfferListDTO[]>([]);
+  const [selectedVacancyId, setSelectedVacancyId] = useState('');
 
   const activeChips = useMemo(() => {
     const chips: { key: keyof ExpertSearchFilters; label: string; value: string }[] = [];
@@ -663,7 +721,10 @@ export function ExpertsSearchFiltersWorkspace() {
     setError('');
     searchExperts(filters, page, pageSize, sort)
       .then(response => {
-        setResults(response.data || []);
+        const nextResults = searchOnlyDownloaded
+          ? (response.data || []).filter((expert) => libraryExpertIds.includes(String(expert.id)))
+          : response.data || [];
+        setResults(nextResults);
         setTotalItems(response.meta?.totalItems || 0);
       })
       .catch(error => {
@@ -677,7 +738,15 @@ export function ExpertsSearchFiltersWorkspace() {
       });
 
     return () => controller.abort();
-  }, [filters, page, pageSize, sort]);
+  }, [filters, page, pageSize, sort, searchOnlyDownloaded, libraryExpertIds]);
+
+  useEffect(() => {
+    getAllJobOffers()
+      .then((offers) => {
+        setProjectVacancies(offers.filter((offer) => offer.status === JobOfferStatusEnum.PUBLISHED && Boolean(offer.projectTitle || offer.linkedProjectId)));
+      })
+      .catch(() => setProjectVacancies([]));
+  }, []);
 
   const updateFilters = (patch: Partial<ExpertSearchFilters>) => {
     setPage(0);
@@ -743,6 +812,7 @@ export function ExpertsSearchFiltersWorkspace() {
   const openPreview = (expert: ExpertSearchResult) => {
     setPreviewExpert(expert);
     setPreview(null);
+    setSelectedVacancyId('');
     setIsPreviewLoading(true);
     getExpertPreview(expert.id, expert)
       .then(setPreview)
@@ -774,6 +844,25 @@ export function ExpertsSearchFiltersWorkspace() {
     toast.success('Expert profile unlocked');
   };
 
+  const handleDownloadPreview = () => {
+    if (!previewExpert) return;
+    const fileName = downloadExpertCvFile(previewExpert, 'Full CV');
+    recordExpertDownload(String(previewExpert.id), 'Full CV', fileName);
+    toast.success('CV downloaded');
+  };
+
+  const handleLinkPreviewToVacancy = () => {
+    if (!previewExpert || !selectedVacancyId) return;
+    const vacancy = projectVacancies.find((item) => item.id === selectedVacancyId);
+    if (!vacancy) return;
+    linkExpertToVacancy(String(previewExpert.id), {
+      vacancyId: vacancy.id,
+      vacancyTitle: vacancy.jobTitle,
+      projectTitle: vacancy.projectTitle,
+    });
+    toast.success('Expert linked to vacancy');
+  };
+
   const handleViewFullProfile = () => {
     if (!previewExpert) return;
     navigate(`/search/experts/${previewExpert.id}`, { state: { searchSection: 'experts' } });
@@ -783,161 +872,194 @@ export function ExpertsSearchFiltersWorkspace() {
 
   return (
     <div className="space-y-6">
-      <div className="border-t border-gray-200 pt-5">
-        <h1 className="text-2xl font-semibold uppercase tracking-wide text-gray-400">SEARCH FOR EXPERTS</h1>
-        <p className="mt-2 text-sm italic text-gray-700">
-          Search among {EXPERT_SEARCH_TOTAL} experts in ICA Members Databases
-        </p>
-        <p className="mt-3 text-sm italic text-gray-700">
-          You can also access the CVs registered in the Assortis Database of Experts.
-        </p>
-      </div>
+      <div className="rounded-sm border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between border-b border-red-200 pb-2">
+          <h2 className="text-xs font-bold uppercase tracking-wide text-red-500">Keywords and Options</h2>
+          <Badge className="border border-emerald-200 bg-emerald-50 text-emerald-700">
+            {libraryExpertIds.length.toLocaleString()} Downloaded CVs
+          </Badge>
+        </div>
 
-      <ReferenceSection title="Keywords search">
-        <div className="grid border-primary/20 md:grid-cols-[320px_1fr]">
-          <div className="border-b border-primary/20 bg-white px-4 py-4 text-sm font-medium text-primary md:border-b-0 md:border-r md:text-right">
-            Expert name
-          </div>
-          <div className="grid gap-3 bg-sky-50/60 px-3 py-3 md:grid-cols-[180px_240px_1fr] md:items-start">
-            <div>
-              <Input className="h-8 bg-white" value={filters.firstName || ''} onChange={event => updateFilters({ firstName: event.target.value })} />
-              <span className="mt-1 block text-[11px] font-medium text-primary">First name</span>
-            </div>
-            <div>
-              <Input className="h-8 bg-white" value={filters.familyName || ''} onChange={event => updateFilters({ familyName: event.target.value })} />
-              <span className="mt-1 block text-[11px] font-medium text-primary">Family name</span>
-            </div>
-            <div>
-              <Input className="h-8 bg-white" value={filters.expertId || ''} onChange={event => updateFilters({ expertId: event.target.value })} />
-              <span className="mt-1 block text-[11px] font-medium text-primary">ID</span>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <label className="flex items-center gap-2 text-xs text-gray-600">
+            <input type="checkbox" checked={searchOnlyDownloaded} onChange={(event) => setSearchOnlyDownloaded(event.target.checked)} />
+            Search only in Downloaded CVs
+          </label>
+          <p className="text-xs text-gray-500">Open an expert preview to link that expert to a project vacancy.</p>
+        </div>
+
+        <div className="mt-5 grid gap-x-4 gap-y-4 lg:grid-cols-3">
+          <div>
+            <Label className="mb-1 block text-sm font-semibold text-primary">Expert name</Label>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Input className="h-9 bg-white text-xs" placeholder="Expert first name" value={filters.firstName || ''} onChange={event => updateFilters({ firstName: event.target.value })} />
+              <Input className="h-9 bg-white text-xs" placeholder="Expert family name or ID" value={filters.familyName || filters.expertId || ''} onChange={event => updateFilters({ familyName: event.target.value, expertId: event.target.value })} />
             </div>
           </div>
 
-          <div className="border-b border-primary/20 bg-white px-4 py-4 text-sm font-medium text-primary md:border-b-0 md:border-r md:text-right">
-            Keyword search
+          <div className="lg:col-span-2">
+            <Label className="mb-1 block text-sm font-semibold text-primary">Keywords</Label>
+            <div className="grid gap-2 md:grid-cols-[1fr_190px]">
+              <Input
+                className="h-9 bg-white text-xs"
+                value={filters.keywords || ''}
+                onChange={(event) => updateFilters({ keywords: event.target.value })}
+                placeholder="Please enter your keyword to search by keyword"
+              />
+              <Select value={filters.allWords ? 'all' : 'any'} onValueChange={value => updateFilters({ allWords: value === 'all' })}>
+                <SelectTrigger className="h-9 bg-white text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">all of the words</SelectItem>
+                  <SelectItem value="any">any of the words</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div className="grid gap-3 bg-sky-50/60 px-3 py-3 md:grid-cols-[170px_1fr] md:items-start">
-            <Select value={filters.allWords ? 'all' : 'any'} onValueChange={value => updateFilters({ allWords: value === 'all' })}>
-              <SelectTrigger className="h-8 bg-white"><SelectValue /></SelectTrigger>
+
+          <div>
+            <Label className="mb-1 block text-sm font-semibold text-primary">Timeframe of past relevant experience</Label>
+            <Select value={filters.timeframeExperience || 'all'} onValueChange={value => updateFilters({ timeframeExperience: value === 'all' ? undefined : value })}>
+              <SelectTrigger className="h-9 bg-white text-xs"><SelectValue placeholder="Select timeframe" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">all of the words</SelectItem>
-                <SelectItem value="any">any of the words</SelectItem>
+                <SelectItem value="all">Select timeframe</SelectItem>
+                {TIMEFRAME_OPTIONS.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
               </SelectContent>
             </Select>
-            <div>
-              <Input className="h-8 bg-white" value={filters.keywords || ''} onChange={event => updateFilters({ keywords: event.target.value })} />
-              <label className="mt-2 flex items-center gap-2 text-xs font-medium text-primary">
-                <input type="checkbox" checked={Boolean(filters.searchOnlineCvs)} onChange={event => updateFilters({ searchOnlineCvs: event.target.checked })} />
-                This searches the entire content of all the online CVs.
-              </label>
-            </div>
           </div>
-        </div>
-        <div className="flex gap-3 bg-white px-3 py-3 md:pl-[320px]">
-          <Button type="button" size="sm" className="h-8 bg-accent px-5 text-xs uppercase hover:bg-accent/90">
-            Search
-          </Button>
-          <Button type="button" size="sm" variant="outline" className="h-8 px-5 text-xs uppercase" onClick={() => setIsSaveSearchDialogOpen(true)}>
-            Save Search
-          </Button>
-          <Button type="button" size="sm" className="h-8 bg-accent px-5 text-xs uppercase hover:bg-accent/90" onClick={clearAll}>
-            Clear all
-          </Button>
-        </div>
-      </ReferenceSection>
+          <div>
+            <Label className="mb-1 block text-sm font-semibold text-primary">Consider experience on at least (n° of projects)</Label>
+            <Select value={filters.minProjects || 'all'} onValueChange={value => updateFilters({ minProjects: value === 'all' ? undefined : value })}>
+              <SelectTrigger className="h-9 bg-white text-xs"><SelectValue placeholder="Please select" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Please select</SelectItem>
+                {[1, 2, 3, 5, 10, 15, 20].map(option => <SelectItem key={option} value={String(option)}>{option}+ projects</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="mb-1 block text-sm font-semibold text-primary">Currently working in <span className="font-normal">(now or in the past 6 months)</span></Label>
+            <Select value={filters.currentlyWorkingIn || 'all'} onValueChange={value => updateFilters({ currentlyWorkingIn: value === 'all' ? undefined : value })}>
+              <SelectTrigger className="h-9 bg-white text-xs"><SelectValue placeholder="Please select" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Please select</SelectItem>
+                <SelectItem value="now">now</SelectItem>
+                <SelectItem value="past-6-months">in the past 6 months</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-      <ReferenceSection title="Sectors of experts' experience" count={filters.sectors.length + filters.subSectors.length}>
-        <ReferenceGroupedFilter
-          groups={SECTOR_GROUPS}
-          selectedGroup={selectedSectorPanel}
-          selectedGroups={filters.sectors}
-          selectedOptions={filters.subSectors}
-          onSelectedGroupChange={setSelectedSectorPanel}
-          onGroupsChange={sectors => updateFilters({ sectors })}
-          onOptionsChange={subSectors => updateFilters({ subSectors })}
-          selectAllLabel="[ select all sub-sectors ]"
-          simultaneousLabel="All selected sectors simultaneously"
-        />
-      </ReferenceSection>
-
-      <ReferenceSection title="Countries of experts' experience" count={filters.regions.length + filters.countries.length}>
-        <ReferenceGroupedFilter
-          groups={COUNTRY_GROUPS}
-          selectedGroup={selectedCountryPanel}
-          selectedGroups={filters.regions}
-          selectedOptions={filters.countries}
-          onSelectedGroupChange={setSelectedCountryPanel}
-          onGroupsChange={regions => updateFilters({ regions })}
-          onOptionsChange={countries => updateFilters({ countries })}
-          selectAllLabel="[ select all countries in this region ]"
-        />
-      </ReferenceSection>
-
-      <ReferenceSection title="Funding agencies of experts' experience" count={filters.fundingAgencies.length}>
-        <div className="grid gap-5 bg-white p-4 lg:grid-cols-2">
-          <MultiOptionList title="Major funding agencies" options={MAJOR_FUNDING_AGENCIES} selected={filters.fundingAgencies} onChange={fundingAgencies => updateFilters({ fundingAgencies })} searchable={false} />
-          <MultiOptionList title="Bonus funding agencies" options={BONUS_FUNDING_AGENCIES} selected={filters.fundingAgencies} onChange={fundingAgencies => updateFilters({ fundingAgencies })} />
-        </div>
-      </ReferenceSection>
-
-      <ReferenceSection title="Search options" count={filters.databases.length + filters.nationality.length + filters.education.length + filters.languages.length}>
-        <div className="grid gap-5 bg-white p-4 lg:grid-cols-2">
-          <MultiOptionList title="Database(s)" options={DATABASES} selected={filters.databases} onChange={databases => updateFilters({ databases: normalizeList(databases) })} />
-          <MultiOptionList title="Nationality" options={NATIONALITY_OPTIONS} selected={filters.nationality} onChange={nationality => updateFilters({ nationality })} />
-          <MultiOptionList title="Education" options={EDUCATION_OPTIONS} selected={filters.education} onChange={education => updateFilters({ education })} />
-          <MultiOptionList title="Languages" options={LANGUAGE_OPTIONS} selected={filters.languages} onChange={languages => updateFilters({ languages })} />
-          <div className="grid gap-3 md:grid-cols-2 lg:col-span-2 xl:grid-cols-5">
+          <div>
+            <Label className="mb-1 block text-sm font-semibold text-primary">Nationality</Label>
+            <Select value={filters.nationality[0] || 'all'} onValueChange={value => updateFilters({ nationality: value === 'all' ? [] : [value] })}>
+              <SelectTrigger className="h-9 bg-white text-xs"><SelectValue placeholder="Please select" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Please select</SelectItem>
+                {NATIONALITY_OPTIONS.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="mb-1 block text-sm font-semibold text-primary">Education</Label>
+            <Select value={filters.education[0] || 'all'} onValueChange={value => updateFilters({ education: value === 'all' ? [] : [value] })}>
+              <SelectTrigger className="h-9 bg-white text-xs"><SelectValue placeholder="Please select" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Please select</SelectItem>
+                {EDUCATION_OPTIONS.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
             <div>
-              <Label>Timeframe of past relevant experience</Label>
-              <Select value={filters.timeframeExperience || 'all'} onValueChange={value => updateFilters({ timeframeExperience: value === 'all' ? undefined : value })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Label className="mb-1 block text-sm font-semibold text-primary">Languages</Label>
+              <Select value={filters.languages[0] || 'all'} onValueChange={value => updateFilters({ languages: value === 'all' ? [] : [value] })}>
+                <SelectTrigger className="h-9 bg-white text-xs"><SelectValue placeholder="Please select" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Any time</SelectItem>
-                  {TIMEFRAME_OPTIONS.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+                  <SelectItem value="all">Please select</SelectItem>
+                  {LANGUAGE_OPTIONS.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label>At least number of projects</Label>
-              <Input type="number" min="0" value={filters.minProjects || ''} onChange={event => updateFilters({ minProjects: event.target.value })} />
-            </div>
-            <div>
-              <Label>Currently working in</Label>
-              <Input value={filters.currentlyWorkingIn || ''} onChange={event => updateFilters({ currentlyWorkingIn: event.target.value })} />
-            </div>
-            <div>
-              <Label>Level of knowledge</Label>
+              <Label className="mb-1 block text-sm font-semibold text-primary">Level of knowledge</Label>
               <Select value={filters.languageLevel || 'all'} onValueChange={value => updateFilters({ languageLevel: value === 'all' ? undefined : value })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9 bg-white text-xs"><SelectValue placeholder="Please select" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Any level</SelectItem>
+                  <SelectItem value="all">Please select</SelectItem>
                   {LANGUAGE_LEVELS.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>Seniority</Label>
-              <Select value={filters.seniority || 'all'} onValueChange={value => updateFilters({ seniority: value === 'all' ? undefined : value })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Any seniority</SelectItem>
-                  {SENIORITY_OPTIONS.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>CV language</Label>
-              <Select value={filters.cvLanguage || 'all'} onValueChange={value => updateFilters({ cvLanguage: value === 'all' ? undefined : value })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Any CV language</SelectItem>
-                  {CV_LANGUAGE_OPTIONS.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+          </div>
+
+          <div>
+            <Label className="mb-1 block text-sm font-semibold text-primary">Experience</Label>
+            <Select value={filters.seniority || 'all'} onValueChange={value => updateFilters({ seniority: value === 'all' ? undefined : value })}>
+              <SelectTrigger className="h-9 bg-white text-xs"><SelectValue placeholder="Please select" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Please select</SelectItem>
+                {SENIORITY_OPTIONS.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
         </div>
-      </ReferenceSection>
+
+        <div className="mt-7 border-b border-red-200 pb-2">
+          <h2 className="text-xs font-bold uppercase tracking-wide text-red-500">Experience</h2>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Button
+            type="button"
+            className="h-9 min-w-32 justify-between gap-3 rounded-none bg-red-500 px-4 text-xs font-bold uppercase hover:bg-red-600"
+            onClick={() => setShowSectorFilter((current) => !current)}
+          >
+            Sectors <Badge className="bg-white/20 text-white">{filters.sectors.length + filters.subSectors.length}</Badge>
+          </Button>
+          <Button
+            type="button"
+            className="h-9 min-w-32 justify-between gap-3 rounded-none bg-red-500 px-4 text-xs font-bold uppercase hover:bg-red-600"
+            onClick={() => setShowCountryFilter((current) => !current)}
+          >
+            Countries <Badge className="bg-white/20 text-white">{filters.regions.length + filters.countries.length}</Badge>
+          </Button>
+          <Button type="button" size="sm" variant="outline" className="h-9 px-5 text-xs uppercase" onClick={() => setIsSaveSearchDialogOpen(true)}>
+            Save Search
+          </Button>
+          <Button type="button" size="sm" variant="outline" className="h-9 px-5 text-xs uppercase" onClick={clearAll}>
+            Clear all
+          </Button>
+        </div>
+      </div>
+
+      {showSectorFilter && (
+        <ReferenceSection title="Sectors" count={filters.sectors.length + filters.subSectors.length}>
+          <ReferenceGroupedFilter
+            groups={SECTOR_GROUPS}
+            selectedGroup={selectedSectorPanel}
+            selectedGroups={filters.sectors}
+            selectedOptions={filters.subSectors}
+            onSelectedGroupChange={setSelectedSectorPanel}
+            onGroupsChange={sectors => updateFilters({ sectors })}
+            onOptionsChange={subSectors => updateFilters({ subSectors })}
+            selectAllLabel="[ select all sub-sectors ]"
+            simultaneousLabel="All selected sectors simultaneously"
+          />
+        </ReferenceSection>
+      )}
+
+      {showCountryFilter && (
+        <ReferenceSection title="Countries" count={filters.regions.length + filters.countries.length}>
+          <ReferenceGroupedFilter
+            groups={COUNTRY_GROUPS}
+            selectedGroup={selectedCountryPanel}
+            selectedGroups={filters.regions}
+            selectedOptions={filters.countries}
+            onSelectedGroupChange={setSelectedCountryPanel}
+            onGroupsChange={regions => updateFilters({ regions })}
+            onOptionsChange={countries => updateFilters({ countries })}
+            selectAllLabel="[ select all countries in this region ]"
+          />
+        </ReferenceSection>
+      )}
 
       <section className="space-y-4">
         <div className="rounded-md border border-gray-200 bg-white p-4 shadow-sm">
@@ -1032,12 +1154,22 @@ export function ExpertsSearchFiltersWorkspace() {
         }}
         onUnlock={handleUnlockPreview}
         onViewFullProfile={handleViewFullProfile}
+        projectVacancies={projectVacancies}
+        selectedVacancyId={selectedVacancyId}
+        onVacancyChange={setSelectedVacancyId}
+        onLinkToVacancy={handleLinkPreviewToVacancy}
+        onDownload={handleDownloadPreview}
       />
     </div>
   );
 }
 
 export default function ExpertsDatabase() {
+  const { user } = useAuth();
+  if (user?.accountType === 'organization' || user?.accountType === 'admin') {
+    return <Navigate to="/experts/search" replace />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-100">
       <PageBanner

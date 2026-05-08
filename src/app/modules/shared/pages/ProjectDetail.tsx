@@ -2,6 +2,7 @@
 import { Link, useParams, useLocation, useNavigate } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
+import { useCVCredits } from '@app/contexts/CVCreditsContext';
 import { useProjects } from '@app/hooks/useProjects';
 import { useExperts } from '@app/modules/expert/hooks/useExperts';
 import { PIPELINE_STAGES, usePipeline } from '@app/modules/expert/hooks/usePipeline';
@@ -61,6 +62,8 @@ import {
 import { ProjectStatusEnum, ProjectPriorityEnum } from '@app/types/project.dto';
 import { aiDiscountSamples, expertPricingBySeniority } from '@app/modules/shared/data/statistics.mock';
 import { canAssignProjectTasks } from '@app/services/permissions.service';
+import { JobOfferListDTO } from '@app/modules/posting-board/types/JobOffer.dto';
+import { getJobOffersByProject } from '@app/modules/posting-board/services/jobOfferService';
 
 type LifecycleGroupKey = 'early-intelligence' | 'open-procurement' | 'contract-shortlist';
 
@@ -105,6 +108,17 @@ interface SuggestedExpert {
   role: string;
   matchScore: number;
   tags: string[];
+}
+
+interface VacancyExpertMatch {
+  id: string;
+  name: string;
+  role: string;
+  country: string;
+  expertise: string[];
+  matchScore: number;
+  sectorRelevance: string;
+  reasons: string[];
 }
 
 interface ProjectDocument {
@@ -399,8 +413,9 @@ export default function ProjectDetail() {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const { user } = useAuth();
+  const { libraryExpertIds } = useCVCredits();
   const { kpis, allProjects } = useProjects();
-  const { experts } = useExperts();
+  const { experts, allExperts } = useExperts();
   const { allOrganizations } = useOrganizations();
   const { isBookmarked, toggleBookmark } = useOrganizationBookmarks();
   const { addToPipeline, removeFromPipeline, getPipelineItem, updatePipelineStage } = usePipeline();
@@ -715,12 +730,37 @@ export default function ProjectDetail() {
     projectAccessSource === 'my-alerts'
   );
   const showAddVacanciesTab = showProjectStageSelect && currentPipelineStage === 'tender_preparation';
+  const [projectVacancies, setProjectVacancies] = useState<JobOfferListDTO[]>([]);
+  const [isLoadingProjectVacancies, setIsLoadingProjectVacancies] = useState(false);
+  const [selectedVacancyForExperts, setSelectedVacancyForExperts] = useState<JobOfferListDTO | null>(null);
+  const [vacancyExpertMatches, setVacancyExpertMatches] = useState<VacancyExpertMatch[]>([]);
 
   useEffect(() => {
     if (!showAddVacanciesTab && activeDetailTab === 'add-vacancies') {
       setActiveDetailTab('notice');
     }
   }, [activeDetailTab, showAddVacanciesTab]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadProjectVacancies = async () => {
+      if (!project.id) return;
+      setIsLoadingProjectVacancies(true);
+      try {
+        const vacancies = await getJobOffersByProject(project.id);
+        if (!cancelled) setProjectVacancies(vacancies);
+      } catch (error) {
+        if (!cancelled) setProjectVacancies([]);
+      } finally {
+        if (!cancelled) setIsLoadingProjectVacancies(false);
+      }
+    };
+
+    loadProjectVacancies();
+    return () => {
+      cancelled = true;
+    };
+  }, [project.id]);
 
   const handleCreateProjectVacancy = () => {
     const params = new URLSearchParams({
@@ -729,7 +769,7 @@ export default function ProjectDetail() {
       projectId: project.id || '',
       projectTitle: project.title,
       location: project.country || '',
-      description: `Project vacancy for ${project.title}`,
+      description: project.description || `Project vacancy for ${project.title}`,
     });
 
     navigate(`/posting-board/publish?${params.toString()}`, {
@@ -1100,6 +1140,65 @@ export default function ProjectDetail() {
     if (hasCvAccess(expertId)) return expertName;
     return `Expert ${getExpertPublicId(expertId)}`;
   };
+  const hasUnlockedExpertAccess = (expertId: string) => hasCvAccess(expertId) || libraryExpertIds.includes(expertId);
+
+  const getVacancySummary = (vacancy: JobOfferListDTO) =>
+    (vacancy.projectSummary || vacancy.descriptionPlainText || vacancy.description || '').replace(/<[^>]+>/g, ' ').slice(0, 220);
+
+  const calculateVacancyExpertMatches = (vacancy: JobOfferListDTO): VacancyExpertMatch[] => {
+    const keywords = (vacancy.descriptionPlainText || vacancy.description || '')
+      .replace(/<[^>]+>/g, ' ')
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((word) => word.length > 4);
+
+    const uniqueKeywords = Array.from(new Set(keywords)).slice(0, 20);
+    const vacancySectors = [...(vacancy.sectors || []), ...(vacancy.subSectors || [])].map((item) => item.toLowerCase());
+    const vacancyCountries = (vacancy.countries || []).map((item) => item.toLowerCase());
+    const vacancySeniority = (vacancy.seniority || '').toLowerCase();
+
+    return allExperts
+      .filter((expert) => hasUnlockedExpertAccess(expert.id))
+      .map((expert) => {
+        const expertText = [
+          expert.title,
+          expert.bio,
+          expert.country,
+          ...expert.skills,
+          ...expert.sectors,
+        ].join(' ').toLowerCase();
+        const sectorHits = vacancySectors.filter((sector) => expertText.includes(sector) || sector.includes(expert.title.toLowerCase())).length;
+        const countryHit = vacancyCountries.some((country) => expert.country.toLowerCase().includes(country));
+        const seniorityHit = vacancySeniority && expert.level.toLowerCase().includes(vacancySeniority.split(' ')[0]);
+        const keywordHits = uniqueKeywords.filter((keyword) => expertText.includes(keyword)).length;
+        const score = Math.min(99, 35 + sectorHits * 14 + keywordHits * 4 + (countryHit ? 12 : 0) + (seniorityHit ? 10 : 0));
+        const reasons = [
+          sectorHits > 0 ? `${sectorHits} sector signal${sectorHits > 1 ? 's' : ''}` : '',
+          keywordHits > 0 ? `${keywordHits} keyword match${keywordHits > 1 ? 'es' : ''}` : '',
+          countryHit ? 'country experience' : '',
+          seniorityHit ? 'seniority alignment' : '',
+        ].filter(Boolean);
+
+        return {
+          id: expert.id,
+          name: `${expert.firstName} ${expert.lastName}`,
+          role: expert.title,
+          country: expert.country,
+          expertise: [...expert.sectors, ...expert.skills].slice(0, 5),
+          matchScore: score,
+          sectorRelevance: sectorHits > 0 ? 'Strong' : keywordHits > 0 ? 'Moderate' : 'General',
+          reasons: reasons.length ? reasons : ['unlocked profile'],
+        };
+      })
+      .sort((a, b) => b.matchScore - a.matchScore)
+      .slice(0, 5);
+  };
+
+  const handleShowVacancyExperts = (vacancy: JobOfferListDTO) => {
+    setSelectedVacancyForExperts(vacancy);
+    setVacancyExpertMatches(calculateVacancyExpertMatches(vacancy));
+  };
+
   const unlockExpertCv = (expertId: string) => {
     if (hasCvAccess(expertId)) return;
 
@@ -2075,6 +2174,9 @@ export default function ProjectDetail() {
                     <TabsTrigger value="team-members" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
                       <span className="inline-flex items-center gap-2"><Users className="h-4 w-4" aria-hidden />{t('projects.details.teamMembers')}</span>
                     </TabsTrigger>
+                    <TabsTrigger value="vacancies" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
+                      <span className="inline-flex items-center gap-2"><UserPlus className="h-4 w-4" aria-hidden />Vacancies</span>
+                    </TabsTrigger>
                     {showAddVacanciesTab && (
                       <TabsTrigger value="add-vacancies" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
                         <span className="inline-flex items-center gap-2"><UserPlus className="h-4 w-4" aria-hidden />Add Vacancies</span>
@@ -2588,6 +2690,59 @@ export default function ProjectDetail() {
                         </div>
                       </div>
                     </TabsContent>
+
+                  <TabsContent value="vacancies" className="mt-0">
+                    <div className="rounded-2xl border border-[#4A5568]/15 bg-white p-4 sm:p-5">
+                      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <h3 className="text-base font-semibold text-[#4A5568]">Vacancies</h3>
+                          <p className="mt-1 text-sm text-[#4A5568]/75">Project-linked job postings created for this project.</p>
+                        </div>
+                        <Button type="button" variant="outline" onClick={handleCreateProjectVacancy}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add Vacancy
+                        </Button>
+                      </div>
+
+                      {isLoadingProjectVacancies ? (
+                        <div className="rounded-xl border border-dashed border-[#4A5568]/20 bg-[#F8FAFC] p-5 text-sm text-[#4A5568]/80">
+                          Loading vacancies...
+                        </div>
+                      ) : projectVacancies.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-[#4A5568]/20 bg-[#F8FAFC] p-5 text-sm text-[#4A5568]/80">
+                          No vacancies are linked to this project yet.
+                        </div>
+                      ) : (
+                        <div className="grid gap-4 xl:grid-cols-2">
+                          {projectVacancies.map((vacancy) => (
+                            <article key={vacancy.id} className="rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-4">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <h4 className="text-base font-semibold text-primary">{vacancy.jobTitle}</h4>
+                                  <p className="mt-1 text-sm text-[#4A5568]/80">{getVacancySummary(vacancy) || 'No summary provided.'}</p>
+                                </div>
+                                <Badge variant="outline" className="shrink-0 border-emerald-200 bg-emerald-50 text-emerald-700">
+                                  {vacancy.status}
+                                </Badge>
+                              </div>
+                              <div className="mt-4 grid gap-2 text-sm text-[#4A5568] sm:grid-cols-2">
+                                <p><span className="font-semibold">Seniority:</span> {vacancy.seniority || 'Not specified'}</p>
+                                <p><span className="font-semibold">Location:</span> {vacancy.location || 'Not specified'}</p>
+                                <p><span className="font-semibold">Deadline:</span> {formatDate(vacancy.deadline)}</p>
+                                <p><span className="font-semibold">Duration:</span> {vacancy.duration || 'Not specified'}</p>
+                              </div>
+                              <div className="mt-4 flex justify-end">
+                                <Button type="button" size="sm" onClick={() => handleShowVacancyExperts(vacancy)}>
+                                  <Search className="mr-2 h-4 w-4" />
+                                  Show Experts
+                                </Button>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
 
                   {showAddVacanciesTab && (
                     <TabsContent value="add-vacancies" className="mt-0">
@@ -3315,6 +3470,51 @@ export default function ProjectDetail() {
           </div>
         </main>
       </PageContainer>
+
+      <Dialog open={Boolean(selectedVacancyForExperts)} onOpenChange={(open) => !open && setSelectedVacancyForExperts(null)}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Top matching experts</DialogTitle>
+            <DialogDescription>
+              {selectedVacancyForExperts?.jobTitle} - showing only experts already unlocked by your organisation.
+            </DialogDescription>
+          </DialogHeader>
+          {vacancyExpertMatches.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-[#4A5568]/20 bg-[#F8FAFC] p-5 text-sm text-[#4A5568]/80">
+              No unlocked experts are available for this vacancy yet. Unlock expert profiles from Expert Search to make them eligible for project vacancy matching.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {vacancyExpertMatches.map((match, index) => (
+                <article key={match.id} className="rounded-xl border border-[#4A5568]/15 bg-white p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="secondary">#{index + 1}</Badge>
+                        <h4 className="text-sm font-semibold text-primary">{match.name}</h4>
+                        <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">{match.matchScore}% match</Badge>
+                      </div>
+                      <p className="mt-1 text-sm text-[#4A5568]/80">{match.role}</p>
+                      <p className="mt-1 text-xs text-[#4A5568]/70">{match.country}</p>
+                    </div>
+                    <Badge variant="outline" className="w-fit border-[#E63462]/25 bg-[#FFF1F4] text-[#E63462]">
+                      {match.sectorRelevance} sector relevance
+                    </Badge>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {match.expertise.map((item) => (
+                      <Badge key={item} variant="secondary">{item}</Badge>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-xs font-medium text-[#4A5568]">
+                    Match signals: {match.reasons.join(', ')}
+                  </p>
+                </article>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={Boolean(taskToAssign)} onOpenChange={(open) => !open && setTaskToAssign(null)}>
         <DialogContent className="sm:max-w-md">

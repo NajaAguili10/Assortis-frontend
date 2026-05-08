@@ -758,6 +758,11 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
           <Button type="button" variant="outline" className="min-h-11" onClick={openLoadSearchDialog}>
             Load Search
           </Button>
+          {tab === 'projects' && (
+            <Button type="button" variant="outline" className="min-h-11" onClick={() => navigate('/account/my-selection')}>
+              Manage Searches
+            </Button>
+          )}
           <Button type="button" variant="outline" className="min-h-11" onClick={() => setShowFilters(prev => !prev)}>
             {showFilters ? <><ChevronUp className="h-4 w-4 mr-2" />{t('activeTenders.action.hideFilters')}</> : <><ChevronDown className="h-4 w-4 mr-2" />{t('activeTenders.action.showFilters')}</>}
           </Button>
