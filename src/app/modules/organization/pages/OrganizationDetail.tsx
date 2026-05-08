@@ -1,6 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { Button } from '@app/components/ui/button';
+import { Badge } from '@app/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@app/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@app/components/ui/tabs';
+import { Separator } from '@app/components/ui/separator';
+import { PageBanner } from '@app/components/PageBanner';
+import { PageContainer } from '@app/components/PageContainer';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useOrganizations } from '@app/modules/organization/hooks/useOrganizations';
 import {
@@ -216,11 +222,11 @@ export default function OrganizationDetail() {
 
   if (!organization) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f2f2f2]">
+      <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <Building2 className="mx-auto mb-4 h-14 w-14 text-[#52617f]" />
-          <h2 className="mb-2 text-2xl font-bold text-[#52617f]">{t('organizations.details.notFound')}</h2>
-          <p className="mb-6 text-sm text-[#52617f]/75">{t('organizations.details.notFound.message')}</p>
+          <Building2 className="mx-auto mb-4 h-14 w-14 text-muted-foreground" />
+          <h2 className="mb-2 text-2xl font-bold text-primary">{t('organizations.details.notFound')}</h2>
+          <p className="mb-6 text-sm text-muted-foreground">{t('organizations.details.notFound.message')}</p>
           <Button onClick={() => navigate('/organizations/database')}>{t('organizations.actions.backToList')}</Button>
         </div>
       </div>
@@ -243,59 +249,77 @@ export default function OrganizationDetail() {
   const donors = new Set([...legacyData.contracts, ...legacyData.shortlists].map(item => item.donor));
 
   const renderProjectRows = (rows: LegacyProjectRow[]) => (
-    <div className="space-y-4">
-      <div className="hidden grid-cols-[2.7fr_1fr_0.8fr_0.8fr_1fr_0.85fr] gap-4 px-5 text-xs font-semibold text-[#bd4057] md:grid">
+    <div className="space-y-3">
+      {/* Header row */}
+      <div className="hidden grid-cols-[2.7fr_1fr_0.8fr_0.8fr_1fr_0.85fr] gap-4 px-4 text-xs font-semibold uppercase tracking-wide text-accent md:grid">
         <span>Project</span>
         <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />Location</span>
         <span>Donor</span>
         <span>Role</span>
-        <span className="underline">Budget</span>
-        <span className="underline">Published</span>
+        <span>Budget</span>
+        <span>Published</span>
       </div>
       {rows.map((row, index) => (
-        <article
-          key={`${row.project}-${index}`}
-          className="grid gap-3 bg-white px-5 py-6 text-sm text-[#52617f] shadow-[0_2px_7px_rgba(15,23,42,0.16)] md:grid-cols-[2.7fr_1fr_0.8fr_0.8fr_1fr_0.85fr] md:items-center"
-        >
-          <p className="font-medium leading-snug">
-            <span className="mr-1 text-[#8a94aa]">{index + 1}.</span>
-            {row.project}
-          </p>
-          <p>{row.location}</p>
-          <p>{row.donor}</p>
-          <p>{row.role}</p>
-          <p>{row.budget}</p>
-          <p>{row.published}</p>
-        </article>
+        <Card key={`${row.project}-${index}`}>
+          <CardContent className="grid gap-3 px-4 py-4 text-sm text-foreground md:grid-cols-[2.7fr_1fr_0.8fr_0.8fr_1fr_0.85fr] md:items-center">
+            <p className="font-medium leading-snug">
+              <span className="mr-1 text-muted-foreground">{index + 1}.</span>
+              {row.project}
+            </p>
+            <p className="text-muted-foreground">{row.location}</p>
+            <p>
+              <Badge variant="outline" className="text-xs">{row.donor}</Badge>
+            </p>
+            <p>
+              <Badge variant="secondary" className="text-xs">{row.role}</Badge>
+            </p>
+            <p className="font-semibold text-primary">{row.budget}</p>
+            <p className="text-muted-foreground text-xs">{row.published}</p>
+          </CardContent>
+        </Card>
       ))}
     </div>
   );
 
   const renderStatistics = () => (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      {[
-        { label: 'Contracts', value: legacyData.contracts.length.toString() },
-        { label: 'Shortlists', value: legacyData.shortlists.length.toString() },
-        { label: 'Countries', value: countries.size.toString() },
-        { label: 'Donors', value: donors.size.toString() },
-      ].map(stat => (
-        <div key={stat.label} className="bg-white p-6 shadow-[0_2px_7px_rgba(15,23,42,0.16)]">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[#bd4057]">{stat.label}</p>
-          <p className="mt-3 text-3xl font-bold text-[#52617f]">{stat.value}</p>
-        </div>
-      ))}
-      <div className="bg-white p-6 shadow-[0_2px_7px_rgba(15,23,42,0.16)] md:col-span-2 lg:col-span-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[#bd4057]">Total known contract value</p>
-        <p className="mt-3 text-3xl font-bold text-[#52617f]">
-          {new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(totalContractValue)} EUR
-        </p>
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {[
+          { label: 'Contracts', value: legacyData.contracts.length.toString(), icon: Briefcase },
+          { label: 'Shortlists', value: legacyData.shortlists.length.toString(), icon: ListChecks },
+          { label: 'Countries', value: countries.size.toString(), icon: Globe },
+          { label: 'Donors', value: donors.size.toString(), icon: Building2 },
+        ].map(stat => {
+          const StatIcon = stat.icon;
+          return (
+            <Card key={stat.label}>
+              <CardContent className="flex items-center gap-4 p-5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
+                  <StatIcon className="h-5 w-5 text-accent" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-primary">{stat.value}</p>
+                  <p className="text-xs text-muted-foreground">{stat.label}</p>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
+      <Card>
+        <CardContent className="p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total known contract value</p>
+          <p className="mt-2 text-3xl font-bold text-primary">
+            {new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(totalContractValue)} EUR
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 
   const renderPartners = () => (
-    <div className="space-y-4">
-      <div className="hidden grid-cols-[1.6fr_1fr_1.4fr_0.75fr_0.75fr] gap-4 px-5 text-xs font-semibold text-[#bd4057] md:grid">
+    <div className="space-y-3">
+      <div className="hidden grid-cols-[1.6fr_1fr_1.4fr_0.75fr_0.75fr] gap-4 px-4 text-xs font-semibold uppercase tracking-wide text-accent md:grid">
         <span>Partner</span>
         <span>Location</span>
         <span>Sectors</span>
@@ -303,41 +327,48 @@ export default function OrganizationDetail() {
         <span>Shortlists</span>
       </div>
       {legacyData.partners.map(partner => (
-        <article
-          key={partner.name}
-          className="grid gap-3 bg-white px-5 py-6 text-sm text-[#52617f] shadow-[0_2px_7px_rgba(15,23,42,0.16)] md:grid-cols-[1.6fr_1fr_1.4fr_0.75fr_0.75fr] md:items-center"
-        >
-          <p className="font-semibold">{partner.name}</p>
-          <p>{partner.location}</p>
-          <p>{partner.sectors}</p>
-          <p>{partner.contracts}</p>
-          <p>{partner.shortlists}</p>
-        </article>
+        <Card key={partner.name}>
+          <CardContent className="grid gap-3 px-4 py-4 text-sm md:grid-cols-[1.6fr_1fr_1.4fr_0.75fr_0.75fr] md:items-center">
+            <p className="font-semibold text-primary">{partner.name}</p>
+            <p className="text-muted-foreground">{partner.location}</p>
+            <p className="text-muted-foreground">{partner.sectors}</p>
+            <Badge variant="secondary" className="w-fit">{partner.contracts}</Badge>
+            <Badge variant="outline" className="w-fit">{partner.shortlists}</Badge>
+          </CardContent>
+        </Card>
       ))}
     </div>
   );
 
   const renderPricing = () => (
-    <div className="grid gap-4 lg:grid-cols-3">
-      {[
-        { label: 'Average contract', value: legacyData.pricing.averageContract },
-        { label: 'Median budget', value: legacyData.pricing.medianBudget },
-        { label: 'Usual range', value: legacyData.pricing.usualRange },
-      ].map(item => (
-        <div key={item.label} className="bg-white p-6 shadow-[0_2px_7px_rgba(15,23,42,0.16)]">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[#bd4057]">{item.label}</p>
-          <p className="mt-3 text-xl font-bold text-[#52617f]">{item.value}</p>
-        </div>
-      ))}
-      <div className="bg-white p-6 text-sm text-[#52617f] shadow-[0_2px_7px_rgba(15,23,42,0.16)] lg:col-span-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[#bd4057]">Positioning</p>
-        <p className="mt-3 font-semibold">{legacyData.pricing.positioning}</p>
-        <ul className="mt-4 list-disc space-y-2 pl-5">
-          {legacyData.pricing.notes.map(note => (
-            <li key={note}>{note}</li>
-          ))}
-        </ul>
+    <div className="space-y-4">
+      <div className="grid gap-4 lg:grid-cols-3">
+        {[
+          { label: 'Average contract', value: legacyData.pricing.averageContract },
+          { label: 'Median budget', value: legacyData.pricing.medianBudget },
+          { label: 'Usual range', value: legacyData.pricing.usualRange },
+        ].map(item => (
+          <Card key={item.label}>
+            <CardContent className="p-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{item.label}</p>
+              <p className="mt-2 text-xl font-bold text-primary">{item.value}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Positioning</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <p className="font-semibold text-primary">{legacyData.pricing.positioning}</p>
+          <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
+            {legacyData.pricing.notes.map(note => (
+              <li key={note}>{note}</li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
     </div>
   );
 
@@ -350,51 +381,55 @@ export default function OrganizationDetail() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f1f1f1]">
-      <header className="bg-[#4f5f7f] text-white">
-        <div className="mx-auto max-w-7xl px-5 pb-0 pt-7 sm:px-8">
-          <div className="text-xs font-medium text-white/75">Assortis &gt; Organisations</div>
-          <div className="mt-4 flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <h1 className="text-4xl font-semibold leading-tight tracking-normal text-white md:text-5xl">
-                {organizationName}
-              </h1>
-              <div className="mt-10 grid gap-8 border-t border-white/10 pt-5 text-sm text-white/90 md:grid-cols-[230px_320px]">
-                <div className="flex gap-2">
-                  <MapPin className="mt-1 h-4 w-4 shrink-0" />
-                  <p className="whitespace-pre-line leading-relaxed">{address}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="flex items-center gap-2">
-                    <Phone className="h-4 w-4" />
-                    <span>Phone: {phone}</span>
-                  </p>
-                  {email && (
-                    <p className="flex items-center gap-2">
-                      <Mail className="h-4 w-4" />
-                      <a href={`mailto:${email}`} className="underline decoration-white/40 underline-offset-2">
-                        {email}
-                      </a>
-                    </p>
-                  )}
-                  {website && (
-                    <p className="flex items-center gap-2">
-                      <Globe className="h-4 w-4" />
-                      <a href={website} target="_blank" rel="noopener noreferrer" className="underline decoration-white/40 underline-offset-2">
-                        {formatWebsite(website)}
-                      </a>
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 pt-12 text-xs text-white/90">
-              <ListChecks className="h-4 w-4" />
-              <span>Last updated contracts/shortlists: {legacyData.lastUpdated}</span>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gray-50">
+      <PageBanner
+        icon={Building2}
+        title={organizationName}
+        description={address}
+        stats={[
+          { value: legacyData.contracts.length, label: 'Contracts' },
+          { value: legacyData.shortlists.length, label: 'Shortlists' },
+        ]}
+      />
 
-          <nav className="mt-12 flex flex-wrap items-end gap-1">
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-5 lg:px-6">
+        {/* Contact info card */}
+        <Card className="mb-6">
+          <CardContent className="flex flex-wrap gap-6 p-5 text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <MapPin className="h-4 w-4 shrink-0 text-accent" />
+              <span>{address}</span>
+            </div>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Phone className="h-4 w-4 shrink-0 text-accent" />
+              <span>{phone}</span>
+            </div>
+            {email && (
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4 shrink-0 text-accent" />
+                <a href={`mailto:${email}`} className="text-accent underline underline-offset-2 hover:no-underline">
+                  {email}
+                </a>
+              </div>
+            )}
+            {website && (
+              <div className="flex items-center gap-2">
+                <Globe className="h-4 w-4 shrink-0 text-accent" />
+                <a href={website} target="_blank" rel="noopener noreferrer" className="text-accent underline underline-offset-2 hover:no-underline">
+                  {formatWebsite(website)}
+                </a>
+              </div>
+            )}
+            <div className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
+              <ListChecks className="h-3.5 w-3.5" />
+              <span>Last updated: {legacyData.lastUpdated}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as LegacyTab)}>
+          <TabsList className="mb-6 flex h-auto flex-wrap gap-1 bg-transparent p-0">
             {TAB_CONFIG.map(tab => {
               const Icon = tab.icon;
               const count = tab.id === 'contracts'
@@ -402,30 +437,26 @@ export default function OrganizationDetail() {
                 : tab.id === 'shortlists'
                 ? legacyData.shortlists.length
                 : undefined;
-
               return (
-                <button
+                <TabsTrigger
                   key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex h-12 items-center gap-2 border border-[#d8dde7] px-5 text-sm font-semibold transition-colors ${
-                    activeTab === tab.id
-                      ? 'bg-white text-[#52617f]'
-                      : 'bg-[#f8f9fb] text-[#52617f] hover:bg-white'
-                  }`}
+                  value={tab.id}
+                  className="h-auto rounded-lg border border-border bg-white px-4 py-2 text-sm font-semibold text-muted-foreground shadow-sm transition-all data-[state=active]:border-accent data-[state=active]:bg-accent data-[state=active]:text-white"
                 >
-                  <Icon className="h-4 w-4" />
-                  <span>{count ? `${count} ${tab.label}` : tab.label}</span>
-                </button>
+                  <Icon className="mr-2 h-4 w-4" />
+                  {count !== undefined ? `${count} ${tab.label}` : tab.label}
+                </TabsTrigger>
               );
             })}
-          </nav>
-        </div>
-      </header>
+          </TabsList>
 
-      <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8">
-        {renderActiveTab()}
-      </main>
+          {TAB_CONFIG.map(tab => (
+            <TabsContent key={tab.id} value={tab.id} className="mt-0">
+              {renderActiveTab()}
+            </TabsContent>
+          ))}
+        </Tabs>
+      </div>
     </div>
   );
 }

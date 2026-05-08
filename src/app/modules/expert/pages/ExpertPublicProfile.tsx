@@ -1,5 +1,6 @@
 ﻿import { useLanguage } from '@app/contexts/LanguageContext';
 import { useAssistanceHistory } from '@app/contexts/AssistanceHistoryContext';
+import { useCVCredits } from '@app/contexts/CVCreditsContext';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
 import { ExpertsSubMenu } from '@app/components/ExpertsSubMenu';
@@ -11,8 +12,10 @@ import { useExperts } from '@app/modules/expert/hooks/useExperts';
 import { useAssistance } from '@app/hooks/useAssistance';
 import { useNotifications } from '@app/modules/administrator/hooks/useNotifications';
 import { NotificationTypeEnum, NotificationPriorityEnum } from '@app/types/notification.dto';
+import { downloadExpertCvFile, EXPERT_DONOR_REFERENCE_FORMATS } from '@app/modules/expert/services/expertReferenceGeneration.service';
+import { getAllJobOffers } from '@app/modules/posting-board/services/jobOfferService';
 import { toast } from 'sonner';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router';
 import {
   UserCircle,
@@ -39,6 +42,10 @@ import {
   UserCheck,
   FileText,
   ArrowLeft,
+  Download,
+  Link2,
+  FileDown,
+  LinkIcon,
 } from 'lucide-react';
 import {
   Dialog,
@@ -61,6 +68,7 @@ export default function ExpertPublicProfile() {
   const { addNotification } = useNotifications();
   const { addHistoryEntry } = useAssistanceHistory();
   const { allExperts: assistanceExperts } = useAssistance();
+  const { recordExpertDownload, linkExpertToVacancy, expertLibrary } = useCVCredits();
 
   // Detect search context from navigation state first, then fallback to pathname.
   const searchSection: SearchSectionTab | null = useMemo(() => {
@@ -267,6 +275,26 @@ export default function ExpertPublicProfile() {
   const [invitationDialogOpen, setInvitationDialogOpen] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
+  // Download CV dialog state
+  const [downloadCvDialogOpen, setDownloadCvDialogOpen] = useState(false);
+  const [selectedCvFormat, setSelectedCvFormat] = useState<string>('Full CV');
+
+  // Link to vacancy dialog state
+  const [linkVacancyDialogOpen, setLinkVacancyDialogOpen] = useState(false);
+  const [availableVacancies, setAvailableVacancies] = useState<Array<{ id: string; jobTitle: string; projectTitle?: string }>>([]);
+  const [selectedVacancyId, setSelectedVacancyId] = useState<string>('');
+
+  // Load available vacancies when dialog opens
+  useEffect(() => {
+    if (linkVacancyDialogOpen) {
+      getAllJobOffers().then((offers) => {
+        setAvailableVacancies(
+          offers.map((o) => ({ id: o.id, jobTitle: o.jobTitle, projectTitle: o.projectTitle }))
+        );
+      }).catch(() => setAvailableVacancies([]));
+    }
+  }, [linkVacancyDialogOpen]);
+
   // Form states
   const [contactSubject, setContactSubject] = useState('');
   const [contactMessage, setContactMessage] = useState('');
@@ -428,6 +456,14 @@ export default function ExpertPublicProfile() {
                   <Button onClick={openContactDialog}>
                     <Mail className="w-4 h-4 mr-2" />
                     {t('experts.publicProfile.contactExpert')}
+                  </Button>
+                  <Button variant="outline" onClick={() => setDownloadCvDialogOpen(true)}>
+                    <FileDown className="w-4 h-4 mr-2" />
+                    Download CV
+                  </Button>
+                  <Button variant="outline" onClick={() => { setSelectedVacancyId(''); setLinkVacancyDialogOpen(true); }}>
+                    <LinkIcon className="w-4 h-4 mr-2" />
+                    Link to Vacancy
                   </Button>
                 </div>
               </div>
@@ -736,10 +772,170 @@ export default function ExpertPublicProfile() {
                   </div>
                 </div>
               </div>
+
+              {/* Linked Vacancies */}
+              {(() => {
+                const expertRecord = expertLibrary.find((r) => r.expertId === id);
+                const linkedVacancies = expertRecord?.linkedVacancies || [];
+                if (linkedVacancies.length === 0) return null;
+                return (
+                  <div className="bg-white rounded-lg border p-6">
+                    <h3 className="text-base font-semibold text-primary mb-3 flex items-center gap-2">
+                      <LinkIcon className="w-4 h-4" />
+                      Linked Vacancies
+                    </h3>
+                    <div className="space-y-2">
+                      {linkedVacancies.map((link) => (
+                        <div key={link.vacancyId} className="rounded-lg border bg-gray-50 p-3 text-sm">
+                          <p className="font-medium text-primary">{link.vacancyTitle}</p>
+                          {link.projectTitle && (
+                            <p className="text-xs text-muted-foreground">{link.projectTitle}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Linked {new Date(link.linkedAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
       </PageContainer>
+
+      {/* Download CV Dialog */}
+      <Dialog open={downloadCvDialogOpen} onOpenChange={setDownloadCvDialogOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileDown className="w-5 h-5 text-accent" />
+              Download CV
+            </DialogTitle>
+            <DialogDescription>
+              Select a format to download the expert's CV.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-primary">Standard Format</p>
+            <div
+              className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
+                selectedCvFormat === 'Full CV' ? 'border-accent bg-accent/5' : 'border-gray-200 hover:border-gray-300'
+              }`}
+              onClick={() => setSelectedCvFormat('Full CV')}
+            >
+              <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${selectedCvFormat === 'Full CV' ? 'border-accent' : 'border-gray-300'}`}>
+                {selectedCvFormat === 'Full CV' && <div className="h-2 w-2 rounded-full bg-accent" />}
+              </div>
+              <div>
+                <p className="text-sm font-medium">Full CV</p>
+                <p className="text-xs text-muted-foreground">Complete profile document</p>
+              </div>
+            </div>
+
+            <p className="text-sm font-medium text-primary pt-1">Donor Formats</p>
+            <div className="grid grid-cols-1 gap-2">
+              {EXPERT_DONOR_REFERENCE_FORMATS.map((fmt) => (
+                <div
+                  key={fmt}
+                  className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
+                    selectedCvFormat === fmt ? 'border-accent bg-accent/5' : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                  onClick={() => setSelectedCvFormat(fmt)}
+                >
+                  <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${selectedCvFormat === fmt ? 'border-accent' : 'border-gray-300'}`}>
+                    {selectedCvFormat === fmt && <div className="h-2 w-2 rounded-full bg-accent" />}
+                  </div>
+                  <p className="text-sm font-medium">{fmt}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDownloadCvDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                const fileName = downloadExpertCvFile(expert, selectedCvFormat);
+                recordExpertDownload(String(expert.id), selectedCvFormat, fileName);
+                toast.success(`CV downloaded: ${selectedCvFormat}`);
+                setDownloadCvDialogOpen(false);
+              }}
+            >
+              <FileDown className="w-4 h-4 mr-2" />
+              Download
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Link to Vacancy Dialog */}
+      <Dialog open={linkVacancyDialogOpen} onOpenChange={setLinkVacancyDialogOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LinkIcon className="w-5 h-5 text-accent" />
+              Link Expert to Vacancy
+            </DialogTitle>
+            <DialogDescription>
+              Select a vacancy to link this expert's CV to.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-72 overflow-y-auto space-y-2">
+            {availableVacancies.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted-foreground">No vacancies available.</p>
+            ) : (
+              availableVacancies.map((vacancy) => (
+                <div
+                  key={vacancy.id}
+                  className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+                    selectedVacancyId === vacancy.id ? 'border-accent bg-accent/5' : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                  onClick={() => setSelectedVacancyId(vacancy.id)}
+                >
+                  <div className={`mt-0.5 h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${selectedVacancyId === vacancy.id ? 'border-accent' : 'border-gray-300'}`}>
+                    {selectedVacancyId === vacancy.id && <div className="h-2 w-2 rounded-full bg-accent" />}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-primary">{vacancy.jobTitle}</p>
+                    {vacancy.projectTitle && (
+                      <p className="text-xs text-muted-foreground">{vacancy.projectTitle}</p>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLinkVacancyDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!selectedVacancyId}
+              onClick={() => {
+                const vacancy = availableVacancies.find((v) => v.id === selectedVacancyId);
+                if (!vacancy) return;
+                linkExpertToVacancy(String(expert.id), {
+                  vacancyId: vacancy.id,
+                  vacancyTitle: vacancy.jobTitle,
+                  projectTitle: vacancy.projectTitle,
+                });
+                toast.success(`Expert linked to "${vacancy.jobTitle}"`);
+                setLinkVacancyDialogOpen(false);
+              }}
+            >
+              <LinkIcon className="w-4 h-4 mr-2" />
+              Link Expert
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Contact Dialog */}
       <Dialog open={contactDialogOpen} onOpenChange={setContactDialogOpen}>

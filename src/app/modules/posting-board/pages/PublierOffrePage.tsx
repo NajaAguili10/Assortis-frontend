@@ -76,6 +76,8 @@ export default function PublierOffrePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('newest');
+  type VacancyOwnerFilter = 'all' | 'in-house' | 'my-own' | 'my-org';
+  const [vacancyOwnerFilter, setVacancyOwnerFilter] = useState<VacancyOwnerFilter>('all');
 
   useEffect(() => {
     if (user?.id && isAuthenticated) {
@@ -257,6 +259,19 @@ export default function PublierOffrePage() {
   // ── Filtered offers for Job Offers tab ─────────────────────────────────────
   const filteredOffers = useMemo(() => {
     let result = [...publishedOffers];
+
+    // Vacancy type/owner filter
+    if (vacancyOwnerFilter === 'in-house') {
+      result = result.filter((o) => o.type === JobOfferTypeEnum.INTERNAL);
+    } else if (vacancyOwnerFilter === 'my-own') {
+      result = result.filter((o) => o.recruiterId === user?.id);
+    } else if (vacancyOwnerFilter === 'my-org') {
+      const orgName = user ? `${user.firstName} ${user.lastName}`.trim() : '';
+      result = result.filter(
+        (o) => !orgName || o.organizationName === orgName || o.recruiterId === user?.id
+      );
+    }
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(o =>
@@ -280,14 +295,15 @@ export default function PublierOffrePage() {
       }
     });
     return result;
-  }, [publishedOffers, searchQuery, statusFilter, sortBy]);
+  }, [publishedOffers, searchQuery, statusFilter, sortBy, vacancyOwnerFilter, user]);
 
-  const hasActiveFilters = searchQuery.trim() !== '' || statusFilter !== 'all';
+  const hasActiveFilters = searchQuery.trim() !== '' || statusFilter !== 'all' || vacancyOwnerFilter !== 'all';
 
   const clearFilters = () => {
     setSearchQuery('');
     setStatusFilter('all');
     setSortBy('newest');
+    setVacancyOwnerFilter('all');
   };
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -464,6 +480,57 @@ export default function PublierOffrePage() {
 
             {/* ── Tab 2: Job Offers ─────────────────────────────────────────── */}
             <TabsContent value="jobs" className="space-y-6 mt-6">
+              {/* Vacancy type filters */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Main filter buttons */}
+                  {(['all', 'in-house'] as const).map((f) => (
+                    <Button
+                      key={f}
+                      size="sm"
+                      variant={vacancyOwnerFilter === f ? 'default' : 'outline'}
+                      onClick={() => setVacancyOwnerFilter(f)}
+                    >
+                      {f === 'all' ? 'All Vacancies' : 'In-house Vacancies'}
+                    </Button>
+                  ))}
+
+                  {/* My Vacancies group */}
+                  <div className="flex items-center gap-1">
+                    <span
+                      className={`inline-flex h-9 items-center rounded-l-md border px-3 text-sm font-medium transition-colors cursor-pointer select-none ${
+                        vacancyOwnerFilter === 'my-own' || vacancyOwnerFilter === 'my-org'
+                          ? 'bg-primary text-white border-primary'
+                          : 'bg-white text-foreground border-input hover:bg-accent hover:text-white'
+                      }`}
+                      onClick={() => setVacancyOwnerFilter(vacancyOwnerFilter === 'my-own' || vacancyOwnerFilter === 'my-org' ? 'all' : 'my-own')}
+                    >
+                      My Vacancies
+                    </span>
+                    {(vacancyOwnerFilter === 'my-own' || vacancyOwnerFilter === 'my-org') && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant={vacancyOwnerFilter === 'my-own' ? 'default' : 'outline'}
+                          className="rounded-none border-l-0 h-9"
+                          onClick={() => setVacancyOwnerFilter('my-own')}
+                        >
+                          My Own
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={vacancyOwnerFilter === 'my-org' ? 'default' : 'outline'}
+                          className="rounded-l-none border-l-0 h-9"
+                          onClick={() => setVacancyOwnerFilter('my-org')}
+                        >
+                          My Org
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Search + filters bar */}
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
                 <div className="flex flex-col sm:flex-row gap-3 mb-3">

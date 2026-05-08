@@ -92,7 +92,17 @@ export function MatchingTenderListView({ opportunities, type }: MatchingTenderLi
                     <div className="mt-3 space-y-1.5">
                       {(row.shortlistCompanies || []).map((company) => (
                         <div key={`${row.id}-${company.name}`} className="rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5">
-                          <p className="text-xs font-semibold text-gray-900">{company.name}</p>
+                          {company.organizationId ? (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); navigate(`/organizations/${company.organizationId}`); }}
+                              className="text-xs font-semibold text-accent hover:underline text-left"
+                            >
+                              {company.name}
+                            </button>
+                          ) : (
+                            <p className="text-xs font-semibold text-gray-900">{company.name}</p>
+                          )}
                           <p className="text-[11px] text-gray-600">{format(company.date, 'dd MMM yyyy')}</p>
                         </div>
                       ))}

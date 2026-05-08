@@ -631,7 +631,7 @@ export default function ModifierProfilPage() {
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-[300px] overflow-y-auto">
                       {countries.map((country) => (
                         <SelectItem key={country.code} value={country.code}>
                           {country.name[language as 'en' | 'fr' | 'es']}
@@ -684,7 +684,7 @@ export default function ModifierProfilPage() {
                     <SelectTrigger className={validationErrors.title ? 'border-red-500' : ''}>
                       <SelectValue placeholder={t('experts.editProfile.selectTitle')} />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-[300px] overflow-y-auto">
                       {PROFESSIONAL_TITLES.map((title) => (
                         <SelectItem key={title} value={title}>
                           {title}
@@ -881,7 +881,7 @@ export default function ModifierProfilPage() {
                           <SelectTrigger>
                             <SelectValue placeholder={t('experts.editProfile.selectCountry')} />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="max-h-[300px] overflow-y-auto">
                             {countries.map((country) => (
                               <SelectItem key={country.code} value={country.name[language as 'en' | 'fr' | 'es']}>
                                 {country.name[language as 'en' | 'fr' | 'es']}
@@ -1007,7 +1007,7 @@ export default function ModifierProfilPage() {
                           <SelectTrigger className={validationErrors[`education_${edu.id}_year`] ? 'border-red-500' : ''}>
                             <SelectValue placeholder={t('experts.editProfile.selectYear')} />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="max-h-[300px] overflow-y-auto">
                             {yearOptions.map((year) => (
                               <SelectItem key={year} value={year.toString()}>
                                 {year}

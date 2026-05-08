@@ -15,9 +15,10 @@ import { Textarea } from '../../../components/ui/textarea';
 import { JobLanguageRequirement, JobOfferApplicationMethod, JobOfferCreateDTO, JobOfferTypeEnum } from '../types/JobOffer.dto';
 import { COUNTRY_GROUPS, LANGUAGE_OPTIONS, SECTOR_GROUPS, SENIORITY_OPTIONS } from '../../expert/data/expertSearchFilters';
 import { ProjectSectorEnum, ProjectTypeEnum } from '../../../types/project.dto';
-import { Briefcase, Building2, CalendarCheck, FileImage, FileText, Globe, Loader2, Plus, Target, Trash2, Upload, X } from 'lucide-react';
+import { Briefcase, Building2, CalendarCheck, FileImage, FileText, Globe, Loader2, Plus, Search, Target, Trash2, Upload, X } from 'lucide-react';
 import { GroupedSelection } from './GroupedSelection';
 import { RichTextEditor } from './RichTextEditor';
+import { useProjectsContext } from '@app/contexts/ProjectsContext';
 
 interface JobFormProps {
   onSubmit: (data: JobOfferCreateDTO) => Promise<void>;
@@ -75,6 +76,20 @@ export function JobForm({
 }: JobFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const { projects: allProjects } = useProjectsContext();
+  const [linkedProjectSearch, setLinkedProjectSearch] = useState('');
+  const [linkedProjectId, setLinkedProjectId] = useState(initialData?.linkedProjectId || '');
+
+  const filteredLinkedProjects = useMemo(() => {
+    const q = linkedProjectSearch.trim().toLowerCase();
+    return q
+      ? allProjects.filter((p) =>
+          p.title.toLowerCase().includes(q) ||
+          (p.code || '').toLowerCase().includes(q)
+        )
+      : allProjects;
+  }, [allProjects, linkedProjectSearch]);
 
   const [vacancyType, setVacancyType] = useState<ActiveVacancyType>(normalizeType(initialData?.type));
   const [logoUrl, setLogoUrl] = useState(initialData?.logoUrl || '');
@@ -144,6 +159,8 @@ export function JobForm({
 
   const resetForm = () => {
     setVacancyType(JobOfferTypeEnum.PROJECT_LINKED);
+    setLinkedProjectId('');
+    setLinkedProjectSearch('');
     setLogoUrl('');
     setJobTitle('');
     setFunctionQuery('');
@@ -216,7 +233,7 @@ export function JobForm({
       const days = Number(contractDurationDays);
       const data: JobOfferCreateDTO = {
         publishOnBoard: true,
-        linkedProjectId: vacancyType === JobOfferTypeEnum.PROJECT_LINKED ? initialData?.linkedProjectId : undefined,
+        linkedProjectId: vacancyType === JobOfferTypeEnum.PROJECT_LINKED ? linkedProjectId || initialData?.linkedProjectId : undefined,
         organisationName,
         logoUrl: logoUrl || undefined,
         jobTitle: jobTitle.trim(),
@@ -376,6 +393,50 @@ export function JobForm({
             <Briefcase className="h-5 w-5 text-accent" />
             <h3 className="text-base font-semibold text-primary">{vacancyType === JobOfferTypeEnum.PROJECT_NEW ? 'Project Creation' : 'Project'}</h3>
           </div>
+          {vacancyType === JobOfferTypeEnum.PROJECT_LINKED && (
+            <div className="mb-5 space-y-2">
+              <Label>Select existing project <span className="text-destructive">*</span></Label>
+              <div className="relative mb-2">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={linkedProjectSearch}
+                  onChange={(e) => setLinkedProjectSearch(e.target.value)}
+                  placeholder="Search by name or reference…"
+                  className="pl-9"
+                />
+              </div>
+              <div className="max-h-48 overflow-y-auto rounded-md border bg-slate-50">
+                {filteredLinkedProjects.length === 0 ? (
+                  <p className="px-4 py-3 text-sm text-muted-foreground">No projects found.</p>
+                ) : (
+                  filteredLinkedProjects.map((project) => (
+                    <button
+                      key={project.id}
+                      type="button"
+                      onClick={() => {
+                        setLinkedProjectId(project.id);
+                        setProjectTitle(project.title);
+                        setLinkedProjectSearch('');
+                      }}
+                      className={`w-full px-4 py-2.5 text-left text-sm transition hover:bg-accent/10 ${
+                        linkedProjectId === project.id ? 'bg-accent/10 font-semibold text-accent' : 'text-primary'
+                      }`}
+                    >
+                      <span className="block font-medium">{project.title}</span>
+                      {project.code && (
+                        <span className="text-xs text-muted-foreground">{project.code}</span>
+                      )}
+                    </button>
+                  ))
+                )}
+              </div>
+              {linkedProjectId && (
+                <p className="text-xs text-emerald-600">
+                  Selected: {allProjects.find((p) => p.id === linkedProjectId)?.title}
+                </p>
+              )}
+            </div>
+          )}
           <div className="grid gap-5 lg:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Project title {vacancyType === JobOfferTypeEnum.PROJECT_NEW && <span className="text-destructive">*</span>}</Label>

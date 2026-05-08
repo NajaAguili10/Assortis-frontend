@@ -64,6 +64,7 @@ export interface MatchingOpportunityDTO {
   shortlistCompanies?: Array<{
     name: string;
     date: Date;
+    organizationId?: string;
   }>;
   matchedViaProfile?: string;  // Profile name that generated this match
   matchedViaAlert?: string;   // Alert name that generated this match

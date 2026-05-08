@@ -264,43 +264,41 @@ export default function Projects() {
                 })}
               </div>
 
-              {/* Tabs */}
-              <div className="mb-4 flex items-center gap-1 rounded-xl bg-slate-100 p-1 w-fit">
-                {(['open', 'past', 'deleted'] as CreatedProjectsTab[]).map((tabId) => {
-                  const tabLabels: Record<CreatedProjectsTab, string> = {
-                    open: t('projects.active.tabs.open'),
-                    past: t('projects.active.tabs.past'),
-                    deleted: t('projects.active.tabs.deleted'),
-                  };
-                  return (
-                    <Button
-                      key={tabId}
-                      variant="ghost"
-                      className={`flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-bold transition-all ${
-                        activeCreatedProjectsTab === tabId
-                          ? 'bg-white text-accent shadow-sm hover:bg-white hover:text-accent'
-                          : 'bg-transparent text-slate-700 hover:bg-accent hover:text-white'
-                      }`}
-                      onClick={() => setActiveCreatedProjectsTab(tabId)}
-                    >
-                      {tabLabels[tabId]}
-                      <Badge
-                        variant="secondary"
-                        className={`ml-2 rounded-full px-2 py-0.5 text-[10px] ${
+              {/* Tabs + Search on same row */}
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1 w-fit">
+                  {(['open', 'past', 'deleted'] as CreatedProjectsTab[]).map((tabId) => {
+                    const tabLabels: Record<CreatedProjectsTab, string> = {
+                      open: t('projects.active.tabs.open'),
+                      past: t('projects.active.tabs.past'),
+                      deleted: t('projects.active.tabs.deleted'),
+                    };
+                    return (
+                      <Button
+                        key={tabId}
+                        variant="ghost"
+                        className={`flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-bold transition-all ${
                           activeCreatedProjectsTab === tabId
-                            ? 'bg-accent/10 text-accent'
-                            : 'bg-slate-200 text-slate-600'
+                            ? 'bg-white text-accent shadow-sm hover:bg-white hover:text-accent'
+                            : 'bg-transparent text-slate-700 hover:bg-accent hover:text-white'
                         }`}
+                        onClick={() => setActiveCreatedProjectsTab(tabId)}
                       >
-                        {createdProjectsByTab[tabId].length}
-                      </Badge>
-                    </Button>
-                  );
-                })}
-              </div>
-
-              {/* Search */}
-              <div className="mb-4 flex justify-end">
+                        {tabLabels[tabId]}
+                        <Badge
+                          variant="secondary"
+                          className={`ml-2 rounded-full px-2 py-0.5 text-[10px] ${
+                            activeCreatedProjectsTab === tabId
+                              ? 'bg-accent/10 text-accent'
+                              : 'bg-slate-200 text-slate-600'
+                          }`}
+                        >
+                          {createdProjectsByTab[tabId].length}
+                        </Badge>
+                      </Button>
+                    );
+                  })}
+                </div>
                 <div className="relative w-full sm:max-w-sm">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input

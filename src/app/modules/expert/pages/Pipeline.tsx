@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@app/components/ui/select';
+import { useAuth } from '@app/contexts/AuthContext';
 import { usePipeline, PIPELINE_STAGES, RESULT_STAGES } from '@app/modules/expert/hooks/usePipeline';
 import { useTenders } from '@app/hooks/useTenders';
 import { useToRs } from '@app/hooks/useToRs';
@@ -213,6 +214,8 @@ export default function Pipeline() {
   const { allProjects } = useProjects();
 
   // State for filters and dialogs
+  const { user } = useAuth();
+  const [ownerFilter, setOwnerFilter] = useState<'all' | 'mine' | 'team'>('all');
   const [selectedStage, setSelectedStage] = useState<string | 'all'>('all');
   const [selectedMemberUser, setSelectedMemberUser] = useState<string | 'all'>('all');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
@@ -425,6 +428,24 @@ export default function Pipeline() {
   // Filter tenders by stage and search
   const filteredTenders = useMemo(() => {
     let filtered = pipelineTenders;
+
+    // Filter by owner
+    if (ownerFilter === 'mine') {
+      const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ');
+      const email = user?.email || '';
+      filtered = filtered.filter((t) =>
+        Array.isArray(t.memberUserNames) &&
+        t.memberUserNames.some(
+          (name: string) =>
+            (fullName && name.toLowerCase() === fullName.toLowerCase()) ||
+            (email && name.toLowerCase() === email.toLowerCase())
+        )
+      );
+    } else if (ownerFilter === 'team') {
+      filtered = filtered.filter(
+        (t) => Array.isArray(t.memberUserNames) && t.memberUserNames.length > 0
+      );
+    }
     
     // Filter by stage (only for active view)
     if (viewMode === 'active' && selectedStage !== 'all') {
@@ -465,7 +486,7 @@ export default function Pipeline() {
     }
 
     return filtered;
-  }, [selectedStage, selectedMemberUser, pipelineTenders, searchQuery, sortBy, viewMode]);
+  }, [selectedStage, selectedMemberUser, pipelineTenders, searchQuery, sortBy, viewMode, ownerFilter, user]);
 
   // Calculate KPIs
   const activeOpportunities = getActiveOpportunities();
@@ -641,6 +662,20 @@ export default function Pipeline() {
               iconBgColor="bg-orange-50"
               iconColor="text-orange-500"
             />
+          </div>
+
+          {/* Owner Filter Buttons */}
+          <div className="mb-4 flex flex-wrap gap-2">
+            {(['all', 'mine', 'team'] as const).map((f) => (
+              <Button
+                key={f}
+                variant={ownerFilter === f ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setOwnerFilter(f)}
+              >
+                {f === 'all' ? 'All Projects' : f === 'mine' ? 'My Projects' : 'Team Projects'}
+              </Button>
+            ))}
           </div>
 
           {/* View Mode Tabs */}

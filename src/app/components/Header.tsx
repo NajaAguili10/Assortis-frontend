@@ -108,10 +108,10 @@ export function Header() {
     }
   }, [userMenuOpen]);
 
-  // Navigate to profile
+  // Navigate to account dashboard
   const handleProfileClick = () => {
     setUserMenuOpen(false);
-    navigate('/compte-utilisateur');
+    navigate('/account');
   };
 
   const handleFAQClick = () => {

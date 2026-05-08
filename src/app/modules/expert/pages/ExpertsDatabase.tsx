@@ -698,6 +698,7 @@ export function ExpertsSearchFiltersWorkspace() {
   const [searchOnlyDownloaded, setSearchOnlyDownloaded] = useState(false);
   const [showSectorFilter, setShowSectorFilter] = useState(false);
   const [showCountryFilter, setShowCountryFilter] = useState(false);
+  const [pendingUnlockPreview, setPendingUnlockPreview] = useState(false);
   const [projectVacancies, setProjectVacancies] = useState<JobOfferListDTO[]>([]);
   const [selectedVacancyId, setSelectedVacancyId] = useState('');
 
@@ -834,13 +835,18 @@ export function ExpertsSearchFiltersWorkspace() {
 
   const handleUnlockPreview = () => {
     if (!previewExpert) return;
+    setPendingUnlockPreview(true);
+  };
+
+  const confirmUnlockPreview = () => {
+    if (!previewExpert) return;
+    setPendingUnlockPreview(false);
     const displayName = previewExpert.fullName || [previewExpert.firstName, previewExpert.lastName].filter(Boolean).join(' ') || `Expert #${previewExpert.id}`;
     const unlockResult = unlockExpertCV(String(previewExpert.id), displayName, 1);
     if (!unlockResult.success && unlockResult.error === 'INSUFFICIENT_CREDITS') {
       toast.error('Not enough credits to unlock this profile');
       return;
     }
-
     toast.success('Expert profile unlocked');
   };
 
@@ -1160,6 +1166,46 @@ export function ExpertsSearchFiltersWorkspace() {
         onLinkToVacancy={handleLinkPreviewToVacancy}
         onDownload={handleDownloadPreview}
       />
+
+      {/* Unlock CV Confirmation */}
+      <Dialog open={pendingUnlockPreview} onOpenChange={(open) => !open && setPendingUnlockPreview(false)}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>Unlock CV</DialogTitle>
+            <DialogDescription>
+              Unlock this expert's full CV to view their complete profile and contact details.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-lg border bg-muted/40 px-4 py-3 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Credits required</span>
+              <span className="font-semibold text-foreground">1 credit</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Your available credits</span>
+              <span className={`font-semibold ${availableCredits < 1 ? 'text-red-600' : 'text-green-600'}`}>
+                {availableCredits} credit{availableCredits !== 1 ? 's' : ''}
+              </span>
+            </div>
+          </div>
+
+          {availableCredits < 1 && (
+            <p className="text-sm text-red-600 font-medium">
+              You do not have enough credits to unlock this CV.
+            </p>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingUnlockPreview(false)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmUnlockPreview} disabled={availableCredits < 1}>
+              Unlock CV
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

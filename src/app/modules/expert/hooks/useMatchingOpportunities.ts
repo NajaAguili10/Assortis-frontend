@@ -166,10 +166,12 @@ const MOCK_OPPORTUNITIES: MatchingOpportunityDTO[] = [
       {
         name: 'Urban Futures Advisory',
         date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        organizationId: '1',
       },
       {
         name: 'Civic Planning Partners',
         date: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000),
+        organizationId: '2',
       },
     ],
   },
@@ -194,6 +196,7 @@ const MOCK_OPPORTUNITIES: MatchingOpportunityDTO[] = [
       {
         name: 'Green Metrics Labs',
         date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+        organizationId: '3',
       },
     ],
   },

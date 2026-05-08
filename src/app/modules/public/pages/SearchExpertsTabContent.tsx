@@ -1298,11 +1298,32 @@ function LegacySearchExpertsTabContent({ mode }: SearchExpertsTabContentProps) {
               })}
             </DialogDescription>
           </DialogHeader>
+
+          {/* Credits info */}
+          <div className="rounded-lg border bg-muted/40 px-4 py-3 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Credits required</span>
+              <span className="font-semibold text-foreground">1 credit</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Your available credits</span>
+              <span className={`font-semibold ${availableCredits < 1 ? 'text-red-600' : 'text-green-600'}`}>
+                {availableCredits} credit{availableCredits !== 1 ? 's' : ''}
+              </span>
+            </div>
+          </div>
+
+          {availableCredits < 1 && (
+            <p className="text-sm text-red-600 font-medium">
+              You do not have enough credits to unlock this CV. Please purchase more credits.
+            </p>
+          )}
+
           <DialogFooter className="flex gap-2">
             <Button variant="outline" onClick={() => setPendingUnlockExpert(null)}>
               {t('experts.credits.confirm.cancel')}
             </Button>
-            <Button onClick={handleConfirmUnlock}>
+            <Button onClick={handleConfirmUnlock} disabled={availableCredits < 1}>
               {t('experts.credits.confirm.action')}
             </Button>
           </DialogFooter>

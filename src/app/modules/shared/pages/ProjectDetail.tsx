@@ -459,6 +459,7 @@ export default function ProjectDetail() {
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [availableCredits, setAvailableCredits] = useState(120);
   const [purchasedCvExpertIds, setPurchasedCvExpertIds] = useState<Set<string>>(new Set());
+  const [pendingCvUnlockId, setPendingCvUnlockId] = useState<string | null>(null);
   const [isProjectSaved, setIsProjectSaved] = useState<boolean>(() => {
     if (!id) return stateFavorited;
     const savedIds = readSavedProjectIds();
@@ -730,16 +731,20 @@ export default function ProjectDetail() {
     projectAccessSource === 'my-alerts'
   );
   const showAddVacanciesTab = showProjectStageSelect && currentPipelineStage === 'tender_preparation';
+  const showVacanciesTab = currentPipelineStage === 'tender_preparation';
   const [projectVacancies, setProjectVacancies] = useState<JobOfferListDTO[]>([]);
   const [isLoadingProjectVacancies, setIsLoadingProjectVacancies] = useState(false);
   const [selectedVacancyForExperts, setSelectedVacancyForExperts] = useState<JobOfferListDTO | null>(null);
   const [vacancyExpertMatches, setVacancyExpertMatches] = useState<VacancyExpertMatch[]>([]);
 
   useEffect(() => {
-    if (!showAddVacanciesTab && activeDetailTab === 'add-vacancies') {
+    if (!showVacanciesTab && activeDetailTab === 'vacancies') {
       setActiveDetailTab('notice');
     }
-  }, [activeDetailTab, showAddVacanciesTab]);
+    if (activeDetailTab === 'add-vacancies') {
+      setActiveDetailTab('vacancies');
+    }
+  }, [activeDetailTab, showVacanciesTab]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1201,6 +1206,13 @@ export default function ProjectDetail() {
 
   const unlockExpertCv = (expertId: string) => {
     if (hasCvAccess(expertId)) return;
+    setPendingCvUnlockId(expertId);
+  };
+
+  const confirmUnlockExpertCv = () => {
+    const expertId = pendingCvUnlockId;
+    if (!expertId) return;
+    setPendingCvUnlockId(null);
 
     if (availableCredits < CV_UNLOCK_COST) {
       toast.error('Not enough credits to unlock this CV.');
@@ -2174,12 +2186,9 @@ export default function ProjectDetail() {
                     <TabsTrigger value="team-members" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
                       <span className="inline-flex items-center gap-2"><Users className="h-4 w-4" aria-hidden />{t('projects.details.teamMembers')}</span>
                     </TabsTrigger>
-                    <TabsTrigger value="vacancies" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
-                      <span className="inline-flex items-center gap-2"><UserPlus className="h-4 w-4" aria-hidden />Vacancies</span>
-                    </TabsTrigger>
-                    {showAddVacanciesTab && (
-                      <TabsTrigger value="add-vacancies" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
-                        <span className="inline-flex items-center gap-2"><UserPlus className="h-4 w-4" aria-hidden />Add Vacancies</span>
+                    {showVacanciesTab && (
+                      <TabsTrigger value="vacancies" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
+                        <span className="inline-flex items-center gap-2"><UserPlus className="h-4 w-4" aria-hidden />Vacancies</span>
                       </TabsTrigger>
                     )}
                   </TabsList>
@@ -2692,6 +2701,28 @@ export default function ProjectDetail() {
                     </TabsContent>
 
                   <TabsContent value="vacancies" className="mt-0">
+                    {showAddVacanciesTab && (
+                      <div className="mb-4 rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-5 shadow-sm">
+                        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                          <div className="min-w-0">
+                            <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                              <UserPlus className="h-3.5 w-3.5" aria-hidden />
+                              Tender Preparation
+                            </div>
+                            <h3 className="mt-3 text-lg font-bold text-primary">Add project vacancies</h3>
+                            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+                              Create a project vacancy on the Posting Board for this tender preparation project.
+                            </p>
+                            <div className="mt-3 grid gap-2 text-sm text-[#1E293B] sm:grid-cols-2">
+                              <p><span className="font-semibold text-[#4A5568]">Project:</span> {project.title}</p>
+                              <p><span className="font-semibold text-[#4A5568]">Reference:</span> {project.code}</p>
+                              <p><span className="font-semibold text-[#4A5568]">Location:</span> {project.country}</p>
+                              <p><span className="font-semibold text-[#4A5568]">Current stage:</span> Tender Preparation</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     <div className="rounded-2xl border border-[#4A5568]/15 bg-white p-4 sm:p-5">
                       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
@@ -2743,35 +2774,6 @@ export default function ProjectDetail() {
                       )}
                     </div>
                   </TabsContent>
-
-                  {showAddVacanciesTab && (
-                    <TabsContent value="add-vacancies" className="mt-0">
-                      <div className="rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-5 shadow-sm">
-                        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                          <div className="min-w-0">
-                            <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                              <UserPlus className="h-3.5 w-3.5" aria-hidden />
-                              Tender Preparation
-                            </div>
-                            <h3 className="mt-3 text-lg font-bold text-primary">Add project vacancies</h3>
-                            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-                              Create a project vacancy on the Posting Board for this tender preparation project.
-                            </p>
-                            <div className="mt-3 grid gap-2 text-sm text-[#1E293B] sm:grid-cols-2">
-                              <p><span className="font-semibold text-[#4A5568]">Project:</span> {project.title}</p>
-                              <p><span className="font-semibold text-[#4A5568]">Reference:</span> {project.code}</p>
-                              <p><span className="font-semibold text-[#4A5568]">Location:</span> {project.country}</p>
-                              <p><span className="font-semibold text-[#4A5568]">Current stage:</span> Tender Preparation</p>
-                            </div>
-                          </div>
-                          <Button type="button" className="shrink-0 bg-accent hover:bg-accent/90" onClick={handleCreateProjectVacancy}>
-                            <Plus className="mr-2 h-4 w-4" aria-hidden />
-                            Add Vacancy
-                          </Button>
-                        </div>
-                      </div>
-                    </TabsContent>
-                  )}
 
                   {showSensitiveSections && (
                     <TabsContent value="tasks" className="mt-0">
@@ -3552,6 +3554,46 @@ export default function ProjectDetail() {
               {taskToAssign && hasAssignedMember(taskToAssign)
                 ? t('projects.actions.manageMember')
                 : t('projects.actions.assignToMember')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unlock CV Confirmation Dialog */}
+      <Dialog open={!!pendingCvUnlockId} onOpenChange={(open) => !open && setPendingCvUnlockId(null)}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>Unlock CV</DialogTitle>
+            <DialogDescription>
+              Unlock this expert's full CV to view their complete profile.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-lg border bg-muted/40 px-4 py-3 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Credits required</span>
+              <span className="font-semibold text-foreground">1 credit</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Your available credits</span>
+              <span className={`font-semibold ${availableCredits < CV_UNLOCK_COST ? 'text-red-600' : 'text-green-600'}`}>
+                {availableCredits} credit{availableCredits !== 1 ? 's' : ''}
+              </span>
+            </div>
+          </div>
+
+          {availableCredits < CV_UNLOCK_COST && (
+            <p className="text-sm text-red-600 font-medium">
+              You do not have enough credits to unlock this CV.
+            </p>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingCvUnlockId(null)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmUnlockExpertCv} disabled={availableCredits < CV_UNLOCK_COST}>
+              Unlock CV
             </Button>
           </DialogFooter>
         </DialogContent>
