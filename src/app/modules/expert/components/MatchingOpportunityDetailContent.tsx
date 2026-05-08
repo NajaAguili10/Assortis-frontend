@@ -61,7 +61,17 @@ export function MatchingOpportunityDetailContent({ opportunity, variant }: Match
             <div className="space-y-2">
               {(opportunity.awardCompanies || []).map(company => (
                 <div key={company.name} className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
-                  <p className="text-sm font-semibold text-gray-900">{company.name}</p>
+                  {company.organizationId ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/organizations/${company.organizationId}`)}
+                      className="text-left text-sm font-semibold text-accent hover:underline"
+                    >
+                      {company.name}
+                    </button>
+                  ) : (
+                    <p className="text-sm font-semibold text-gray-900">{company.name}</p>
+                  )}
                   <p className="text-xs text-gray-600">
                     {(company.amount ?? 0).toLocaleString()} {opportunity.currency ?? ''} | {new Date(company.date).toLocaleDateString()}
                   </p>

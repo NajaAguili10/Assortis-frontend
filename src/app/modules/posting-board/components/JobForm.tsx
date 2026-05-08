@@ -67,6 +67,9 @@ const buildLocation = (countries: string[], cities: string[], customCities: stri
   return Array.from(new Set(parts)).join(', ');
 };
 
+const getProjectOptionId = (project: { id?: string; code?: string; title: string }) =>
+  project.id || project.code || project.title;
+
 export function JobForm({
   onSubmit,
   onCancel,
@@ -206,6 +209,7 @@ export function JobForm({
     if (!jobFunction && !otherFunction.trim()) nextErrors.jobFunction = 'Function is required.';
     if (!descriptionPlainText.trim()) nextErrors.description = 'Vacancy text is required.';
     if (!deadline) nextErrors.deadline = 'Application deadline is required.';
+    if (vacancyType === JobOfferTypeEnum.PROJECT_LINKED && !linkedProjectId) nextErrors.linkedProject = 'Please select an existing project.';
     if (vacancyType !== JobOfferTypeEnum.INTERNAL && !projectSummaryPlainText.trim() && !projectSummary.trim()) nextErrors.projectSummary = 'Project summary is required.';
     if (vacancyType === JobOfferTypeEnum.PROJECT_NEW && !projectTitle.trim()) nextErrors.projectTitle = 'Project title is required.';
     if (applicationMethod === 'CONTACT_PERSON') {
@@ -401,38 +405,49 @@ export function JobForm({
                 <Input
                   value={linkedProjectSearch}
                   onChange={(e) => setLinkedProjectSearch(e.target.value)}
-                  placeholder="Search by name or reference…"
-                  className="pl-9"
+                  placeholder="Search by name or reference..."
+                  className={`pl-9 ${errors.linkedProject ? 'border-destructive' : ''}`}
                 />
               </div>
-              <div className="max-h-48 overflow-y-auto rounded-md border bg-slate-50">
+              <div className={`max-h-64 overflow-y-auto rounded-md border bg-white ${errors.linkedProject ? 'border-destructive' : 'border-gray-200'}`}>
                 {filteredLinkedProjects.length === 0 ? (
                   <p className="px-4 py-3 text-sm text-muted-foreground">No projects found.</p>
                 ) : (
-                  filteredLinkedProjects.map((project) => (
-                    <button
-                      key={project.id}
-                      type="button"
-                      onClick={() => {
-                        setLinkedProjectId(project.id);
-                        setProjectTitle(project.title);
-                        setLinkedProjectSearch('');
-                      }}
-                      className={`w-full px-4 py-2.5 text-left text-sm transition hover:bg-accent/10 ${
-                        linkedProjectId === project.id ? 'bg-accent/10 font-semibold text-accent' : 'text-primary'
-                      }`}
-                    >
-                      <span className="block font-medium">{project.title}</span>
-                      {project.code && (
-                        <span className="text-xs text-muted-foreground">{project.code}</span>
-                      )}
-                    </button>
-                  ))
+                  filteredLinkedProjects.map((project) => {
+                    const projectOptionId = getProjectOptionId(project);
+                    const selected = linkedProjectId === projectOptionId;
+
+                    return (
+                      <button
+                        key={projectOptionId}
+                        type="button"
+                        onClick={() => {
+                          setLinkedProjectId(projectOptionId);
+                          setProjectTitle(project.title);
+                          setProjectSummary(project.description || '');
+                          setProjectSummaryPlainText(project.description || '');
+                          setLinkedProjectSearch('');
+                        }}
+                        className={`flex w-full items-start gap-3 border-b border-gray-100 px-4 py-3 text-left text-sm transition last:border-b-0 hover:bg-slate-50 ${
+                          selected ? 'bg-accent/5' : 'bg-white'
+                        }`}
+                      >
+                        <span className={`mt-0.5 h-4 w-4 rounded-full border-2 ${selected ? 'border-accent bg-accent' : 'border-gray-300'}`} />
+                        <span className="min-w-0 flex-1">
+                          <span className={`block truncate font-medium ${selected ? 'text-accent' : 'text-primary'}`}>{project.title}</span>
+                          <span className="mt-0.5 block text-xs text-muted-foreground">
+                            {[project.code, project.country, project.status].filter(Boolean).join(' | ') || 'Existing project'}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })
                 )}
               </div>
+              {errors.linkedProject && <p className="text-xs text-destructive">{errors.linkedProject}</p>}
               {linkedProjectId && (
                 <p className="text-xs text-emerald-600">
-                  Selected: {allProjects.find((p) => p.id === linkedProjectId)?.title}
+                  Selected: {allProjects.find((p) => getProjectOptionId(p) === linkedProjectId)?.title}
                 </p>
               )}
             </div>

@@ -341,19 +341,30 @@ export default function OrganizationUserProfileSettingsPage() {
               </Button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               {filteredRegions.map((region) => {
                 const visibleCountries = region.countries.filter((country) => includesQuery(country.label, countrySearch));
                 const hasCountries = region.countries.length > 0;
+                const selectedCountryCount = region.countries.filter((country) => preferences.countries.includes(country.id)).length;
 
                 return (
-                  <div key={region.id} className="rounded-lg border bg-white p-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <CheckboxTile
-                        option={region}
-                        checked={preferences.regions.includes(region.id)}
-                        onToggle={(id) => toggleArrayValue('regions', id)}
-                      />
+                  <div key={region.id} className="overflow-hidden rounded-md border border-gray-200 bg-white">
+                    <div className="flex flex-col gap-3 border-b border-gray-100 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                      <label htmlFor={region.id} className="flex min-w-0 cursor-pointer items-center gap-3">
+                        <Checkbox
+                          id={region.id}
+                          checked={preferences.regions.includes(region.id)}
+                          onCheckedChange={() => toggleArrayValue('regions', region.id)}
+                        />
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-semibold text-primary">{region.label}</span>
+                          {hasCountries && (
+                            <span className="block text-xs text-muted-foreground">
+                              {selectedCountryCount} of {region.countries.length} countries selected
+                            </span>
+                          )}
+                        </span>
+                      </label>
                       {hasCountries && (
                         <Button type="button" variant="outline" size="sm" onClick={() => selectRegionCountries(region)}>
                           Select all countries in region
@@ -361,7 +372,7 @@ export default function OrganizationUserProfileSettingsPage() {
                       )}
                     </div>
                     {hasCountries && visibleCountries.length > 0 && (
-                      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      <div className="grid gap-2 p-4 sm:grid-cols-2 lg:grid-cols-3">
                         {visibleCountries.map((country) => (
                           <CheckboxTile
                             key={country.id}

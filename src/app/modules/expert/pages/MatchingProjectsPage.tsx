@@ -307,6 +307,7 @@ export default function MatchingProjectsPage() {
                   onApply={openDetail}
                   onExpressInterest={openDetail}
                   onNotInterested={dismissOpportunity}
+                  onOrganizationClick={(organizationId) => navigate(`/organizations/${organizationId}`)}
                 />
               </div>
             ))

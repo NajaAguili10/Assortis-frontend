@@ -60,6 +60,7 @@ export interface MatchingOpportunityDTO {
     name: string;
     amount?: number;
     date: Date;
+    organizationId?: string;
   }>;
   shortlistCompanies?: Array<{
     name: string;
