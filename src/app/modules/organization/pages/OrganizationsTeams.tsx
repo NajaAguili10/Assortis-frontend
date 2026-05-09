@@ -85,15 +85,14 @@ interface TeamMembersResponse {
 }
 
 const mapBackendRole = (role?: string | null, isAdmin?: boolean | null): TeamMember['role'] => {
-  if (isAdmin) return 'admin';
-
   const normalizedRole = (role || '').toLowerCase();
-  if (normalizedRole.includes('admin') || normalizedRole.includes('manager') || normalizedRole.includes('owner')) {
+  if (normalizedRole === 'admin' || normalizedRole.includes('manager') || normalizedRole.includes('owner')) {
     return 'admin';
   }
-  if (normalizedRole.includes('viewer') || normalizedRole.includes('observer')) {
+  if (normalizedRole === 'viewer' || normalizedRole.includes('observer')) {
     return 'viewer';
   }
+  if (isAdmin) return 'admin';
 
   return 'member';
 };
@@ -160,6 +159,9 @@ export default function OrganizationsTeams() {
   const [editName, setEditName] = useState('');
   const [editRole, setEditRole] = useState<'admin' | 'member' | 'viewer'>('member');
   const [editDepartment, setEditDepartment] = useState('');
+  const [editStatus, setEditStatus] = useState<'active' | 'pending' | 'inactive'>('active');
+  const [departmentOptions, setDepartmentOptions] = useState<string[]>([]);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [experts, setExperts] = useState<ExpertDTO[]>([]);
 
   console.log('🔥 USER:', user);
@@ -180,58 +182,54 @@ export default function OrganizationsTeams() {
     console.log('🔥 STATE teamMembers:', teamMembers);
   }, [teamMembers]);
 
+  const fetchTeamMembers = async () => {
+    setIsLoadingTeamMembers(true);
+    setTeamMembersError(null);
+
+    try {
+      const response = await apiClient.get<TeamMembersResponse>('/team-members');
+
+      setOrganization(response.organization ? {
+        id: String(response.organization.id ?? ''),
+        name: response.organization.name || '',
+        type: response.organization.type || '',
+      } : null);
+      setTeamMembers((response.members || []).map(mapBackendTeamMember));
+    } catch (error) {
+      console.error('Error fetching team members:', error);
+      setTeamMembers([]);
+      setTeamMembersError(error instanceof Error ? error.message : t('organizations.teams.noResults'));
+    } finally {
+      setIsLoadingTeamMembers(false);
+    }
+  };
+
+  const fetchDepartments = async () => {
+    try {
+      const response = await apiClient.get<string[]>('/team-members/departments');
+      setDepartmentOptions(
+        Array.isArray(response)
+          ? Array.from(new Set(response.map((department) => department?.trim()).filter(Boolean) as string[]))
+          : [],
+      );
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+      setDepartmentOptions([]);
+    }
+  };
+
   useEffect(() => {
     if (!user) {
       setTeamMembers([]);
       setOrganization(null);
       setIsLoadingTeamMembers(false);
+      setDepartmentOptions([]);
       return;
     }
 
-    let isMounted = true;
-
-    const fetchTeamMembers = async () => {
-      setIsLoadingTeamMembers(true);
-      setTeamMembersError(null);
-
-      try {
-        const response = await apiClient.get<TeamMembersResponse>('/team-members');
-
-        console.log('🔥 API RESPONSE:', response);
-        console.log('🔥 MEMBERS RAW:', response.members);
-
-        if (!isMounted) return;
-
-        setOrganization(response.organization ? {
-          id: String(response.organization.id ?? ''),
-          name: response.organization.name || '',
-          type: response.organization.type || '',
-        } : null);
-       // setTeamMembers((response.members || []).map(mapBackendTeamMember));
-        const mapped = (response.members || []).map(mapBackendTeamMember);
-
-        console.log('🔥 MAPPED MEMBERS:', mapped);
-
-        setTeamMembers(mapped);
-
-      } catch (error) {
-        console.error('Error fetching team members:', error);
-        if (!isMounted) return;
-
-        setTeamMembers([]);
-        setTeamMembersError(error instanceof Error ? error.message : t('organizations.teams.noResults'));
-      } finally {
-        if (isMounted) {
-          setIsLoadingTeamMembers(false);
-        }
-      }
-    };
-
     fetchTeamMembers();
-
-    return () => {
-      isMounted = false;
-    };
+    fetchDepartments();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t, user]);
       
   
@@ -252,7 +250,10 @@ export default function OrganizationsTeams() {
     return matchesSearch && matchesRole && matchesStatus;
   });
 
-  const departments = Array.from(new Set(teamMembers.map(member => member.department).filter(Boolean))).sort();
+  const departments = Array.from(new Set([
+    ...departmentOptions,
+    ...teamMembers.map(member => member.department).filter(Boolean),
+  ])).sort((a, b) => a.localeCompare(b));
 
   const resetInviteForm = () => {
     setSelectedExpert(null);
@@ -384,26 +385,36 @@ export default function OrganizationsTeams() {
     setEditName(member.name);
     setEditRole(member.role);
     setEditDepartment(member.department);
+    setEditStatus(member.status);
     setShowEditDialog(true);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editingMember) return;
 
-    const updatedMembers = teamMembers.map(m =>
-      m.id === editingMember.id
-        ? { ...m, name: editName, role: editRole, department: editDepartment }
-        : m
-    );
+    setIsSavingEdit(true);
+    try {
+      await apiClient.put(`/team-members/${editingMember.id}`, {
+        role: editRole,
+        department: editDepartment,
+        status: editStatus,
+      });
 
-    setTeamMembers(updatedMembers);
+      await fetchTeamMembers();
+      await fetchDepartments();
 
-    toast.success(t('organizations.teams.edit.success'), {
-      description: t('organizations.teams.edit.success.description', { name: editName }),
-    });
+      toast.success(t('organizations.teams.edit.success'), {
+        description: t('organizations.teams.edit.success.description', { name: editName }),
+      });
 
-    setShowEditDialog(false);
-    setEditingMember(null);
+      setShowEditDialog(false);
+      setEditingMember(null);
+    } catch (error) {
+      console.error('Error updating team member:', error);
+      toast.error(t('common.error'));
+    } finally {
+      setIsSavingEdit(false);
+    }
   };
 
   const handleDeleteMember = (member: TeamMember) => {
@@ -411,28 +422,33 @@ export default function OrganizationsTeams() {
     setShowDeleteDialog(true);
   };
 
-  const confirmDeleteMember = () => {
+  const confirmDeleteMember = async () => {
     if (!deletingMember) return;
 
-    const updatedMembers = teamMembers.filter(m => m.id !== deletingMember.id);
-    setTeamMembers(updatedMembers);
+    try {
+      await apiClient.delete(`/team-members/${deletingMember.id}`);
+      await fetchTeamMembers();
+      await fetchDepartments();
 
-    toast.success(t('organizations.teams.member.removed'), {
-      description: t('organizations.teams.member.removed.description', { name: deletingMember.name }),
-    });
+      toast.success(t('organizations.teams.member.removed'), {
+        description: t('organizations.teams.member.removed.description', { name: deletingMember.name }),
+      });
 
-    // Add notification
-    addNotification({
-      type: NotificationTypeEnum.ALERT,
-      priority: NotificationPriorityEnum.MEDIUM,
-      titleKey: 'notifications.team.removed.title',
-      messageKey: 'notifications.team.removed.message',
-      params: { name: deletingMember.name },
-      link: '/organizations/teams',
-    });
+      addNotification({
+        type: NotificationTypeEnum.ALERT,
+        priority: NotificationPriorityEnum.MEDIUM,
+        titleKey: 'notifications.team.removed.title',
+        messageKey: 'notifications.team.removed.message',
+        params: { name: deletingMember.name },
+        link: '/organizations/teams',
+      });
 
-    setShowDeleteDialog(false);
-    setDeletingMember(null);
+      setShowDeleteDialog(false);
+      setDeletingMember(null);
+    } catch (error) {
+      console.error('Error deleting team member:', error);
+      toast.error(t('common.error'));
+    }
   };
 
   const getRoleBadgeColor = (role: string) => {
@@ -980,8 +996,10 @@ export default function OrganizationsTeams() {
                     <Input
                       type="text"
                       value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
+                      readOnly
+                      disabled
                       placeholder={t('organizations.teams.invite.name.placeholder')}
+                      className="bg-gray-50"
                     />
                   </div>
 
@@ -1020,6 +1038,22 @@ export default function OrganizationsTeams() {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-foreground mb-2 block">
+                      {t('organizations.teams.table.status')}
+                    </label>
+                    <Select value={editStatus} onValueChange={(value: 'active' | 'pending' | 'inactive') => setEditStatus(value)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">{t('organizations.teams.status.active')}</SelectItem>
+                        <SelectItem value="pending">{t('organizations.teams.status.pending')}</SelectItem>
+                        <SelectItem value="inactive">{t('organizations.teams.status.inactive')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 <Separator className="my-4" />
@@ -1028,12 +1062,22 @@ export default function OrganizationsTeams() {
                   <Button
                     variant="outline"
                     onClick={() => setShowEditDialog(false)}
+                    disabled={isSavingEdit}
                   >
                     {t('organizations.invite.action.cancel')}
                   </Button>
-                  <Button onClick={handleSaveEdit} className="bg-primary hover:bg-primary/90">
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                    {t('organizations.teams.edit.save')}
+                  <Button onClick={handleSaveEdit} className="bg-primary hover:bg-primary/90" disabled={isSavingEdit}>
+                    {isSavingEdit ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                        {t('organizations.teams.invite.sending')}
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                        {t('organizations.teams.edit.save')}
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
