@@ -143,6 +143,7 @@ function LegacySearchExpertsTabContent({ mode }: SearchExpertsTabContentProps) {
     const [saveSearchName, setSaveSearchName] = useState('');
     const [editingSearchId, setEditingSearchId] = useState<string | null>(null);
     const [editingSearchName, setEditingSearchName] = useState('');
+    const [isSaveSearchDialogOpen, setIsSaveSearchDialogOpen] = useState(false);
     const [isAiDialogOpen, setIsAiDialogOpen] = useState(false);
     const [aiFile, setAiFile] = useState<File | null>(null);
     const [aiDescription, setAiDescription] = useState('');
@@ -531,167 +532,11 @@ function LegacySearchExpertsTabContent({ mode }: SearchExpertsTabContentProps) {
     toast.success('Search saved');
   };
 
-      if (!unlockResult.success && unlockResult.error === 'INSUFFICIENT_CREDITS') {
-        toast.error(t('experts.credits.notEnough'), {
-          action: {
-            label: t('experts.credits.buyMore'),
-            onClick: handleBuyPack,
-          },
-        });
-        return;
-      }
+  const handleRunSearch = () => {
+    setHasSearched(true);
+    setShowSavedSearchesPanel(true);
+  };
 
-      toast.success(t('experts.credits.unlockSuccess', { name: expertName }), {
-        description: t('experts.credits.remainingAfterUnlock', { count: availableCredits - 1 }),
-      });
-    };
-
-    const handleOpenUnlockConfirmation = (expertId: string, expertName: string) => {
-      if (availableCredits < 1) {
-        toast.error(t('experts.credits.notEnough'), {
-          action: {
-            label: t('experts.credits.buyMore'),
-            onClick: handleBuyPack,
-          },
-        });
-        return;
-      }
-
-      setPendingUnlockExpert({ id: expertId, name: expertName });
-    };
-
-    const handleConfirmUnlock = () => {
-      if (!pendingUnlockExpert) return;
-      handleAccessCV(pendingUnlockExpert.id, pendingUnlockExpert.name);
-      setPendingUnlockExpert(null);
-    };
-
-    const writingTextFilterCount = [comfortableToWriteOnQuery, donorProcurementQuery, writingCommentsQuery].filter((value) => value.trim()).length;
-    const bidWriterFiltersCount =
-      mode === 'bid-writers'
-        ? selectedWritingMethodologies.length + selectedWritingContributions.length + selectedWritingLanguages.length + writingTextFilterCount
-        : 0;
-    const activeFiltersCount = selectedSectors.length + selectedSubSectors.length + selectedRegions.length + selectedCountries.length + selectedExperience.length + (sourceFilter === 'all' ? 0 : 1) + bidWriterFiltersCount;
-
-    const clearAllFilters = () => {
-      setSearchQuery('');
-      setSelectedSectors([]);
-      setSelectedSubSectors([]);
-      setSelectedRegions([]);
-      setSelectedCountries([]);
-      setSelectedExperience([]);
-      setSourceFilter('all');
-      setSelectedWritingMethodologies([]);
-      setSelectedWritingContributions([]);
-      setSelectedWritingLanguages([]);
-      setComfortableToWriteOnQuery('');
-      setDonorProcurementQuery('');
-      setWritingCommentsQuery('');
-    };
-
-    const readSavedSearches = (): SavedSearchEntry<ExpertsSavedPayload>[] => {
-      const raw = localStorage.getItem(storageKey);
-      if (!raw) return [];
-
-      try {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          return parsed.filter(item => item && item.payload);
-        }
-
-        if (parsed && typeof parsed === 'object') {
-          return [{
-            id: `legacy-${mode}`,
-            label: `Saved ${mode}`,
-            createdAt: new Date().toISOString(),
-            payload: parsed,
-          }];
-        }
-      } catch {
-        return [];
-      }
-
-      return [];
-    };
-
-    const applySavedSearch = (payload: ExpertsSavedPayload) => {
-      setSearchQuery(payload.searchQuery || '');
-      setSelectedSectors(payload.selectedSectors || []);
-      setSelectedSubSectors(payload.selectedSubSectors || []);
-      setSelectedRegions(payload.selectedRegions || []);
-      setSelectedCountries(payload.selectedCountries || []);
-      setSelectedExperience(payload.selectedExperience || []);
-      setSourceFilter(payload.sourceFilter || 'all');
-      setSelectedWritingMethodologies(payload.selectedWritingMethodologies || []);
-      setSelectedWritingContributions(payload.selectedWritingContributions || []);
-      setSelectedWritingLanguages(payload.selectedWritingLanguages || []);
-      setComfortableToWriteOnQuery(payload.comfortableToWriteOnQuery || '');
-      setDonorProcurementQuery(payload.donorProcurementQuery || '');
-      setWritingCommentsQuery(payload.writingCommentsQuery || '');
-      setHasSearched(true);
-    };
-
-    const saveSearch = () => {
-      const label = saveSearchName.trim();
-      if (!label) {
-        toast.error('Enter a search name');
-        return;
-      }
-
-      const existing = readSavedSearches();
-      const now = new Date();
-      const entry: SavedSearchEntry<ExpertsSavedPayload> = {
-        id: `saved-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
-        label,
-        createdAt: now.toISOString(),
-        payload: {
-          searchQuery,
-          selectedSectors,
-          selectedSubSectors,
-          selectedRegions,
-          selectedCountries,
-          selectedExperience,
-          sourceFilter,
-          selectedWritingMethodologies,
-          selectedWritingContributions,
-          selectedWritingLanguages,
-          comfortableToWriteOnQuery,
-          donorProcurementQuery,
-          writingCommentsQuery,
-        },
-      };
-
-      const next = [entry, ...existing];
-      localStorage.setItem(storageKey, JSON.stringify(next));
-      setSavedSearches(next);
-      setSaveSearchName('');
-      toast.success('Search saved');
-    };
-
-    const handleRunSearch = () => {
-      setHasSearched(true);
-      setShowSavedSearchesPanel(true);
-    };
-
-    const updateSavedSearch = (entry: SavedSearchEntry<ExpertsSavedPayload>) => {
-      const nextLabel = editingSearchName.trim();
-      if (!nextLabel) {
-        toast.error('Enter a search name');
-        return;
-      }
-      const next = readSavedSearches().map((item) =>
-        item.id === entry.id
-          ? {
-            ...item,
-            label: nextLabel,
-          }
-          : item
-      );
-      localStorage.setItem(storageKey, JSON.stringify(next));
-      setSavedSearches(next);
-      setEditingSearchId(null);
-      setEditingSearchName('');
-      toast.success('Saved search updated');
   const updateSavedSearch = (entry: SavedSearchEntry<ExpertsSavedPayload>) => {
     const nextLabel = editingSearchName.trim();
     if (!nextLabel) {
