@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
+import { useOrganizationProfile } from '@app/contexts/OrganizationProfileContext';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
 import { OrganizationsSubMenu } from '@app/components/OrganizationsSubMenu';
@@ -14,6 +15,7 @@ import { Separator } from '@app/components/ui/separator';
 import { useOrganizations } from '@app/modules/organization/hooks/useOrganizations';
 import { hasOrganizationsAccess } from '@app/services/permissions.service';
 import { apiClient } from '@app/api/apiClient';
+import { organizationService } from '@app/services/organizationService';
 
 import {
   Building2,
@@ -49,6 +51,7 @@ export default function OrganizationsHub() {
   const navigate = useNavigate();
   const { kpis } = useOrganizations();
   const { user } = useAuth();
+  const { calculateCompletionRate } = useOrganizationProfile();
 
   // V�rifier les permissions d'acc�s
   const hasAccess = hasOrganizationsAccess(user?.accountType);
@@ -69,6 +72,11 @@ export default function OrganizationsHub() {
   });
   const [teamKpisError, setTeamKpisError] = useState<string | null>(null);
   const [loadingTeamsKpis, setLoadingTeamsKpis] = useState(true);
+  const [myOrganizationKpis, setMyOrganizationKpis] = useState({
+    completionRate: 0,
+    activeProjects: 0,
+  });
+  const [loadingMyOrganizationKpis, setLoadingMyOrganizationKpis] = useState(true);
 
   useEffect(() => {
     const fetchTeamKpis = async () => {
@@ -119,6 +127,72 @@ export default function OrganizationsHub() {
       departments: 0,
     });
   }, [isOrgOrAdmin]);
+
+  useEffect(() => {
+    const fetchMyOrganizationKpis = async () => {
+      setLoadingMyOrganizationKpis(true);
+
+      try {
+        const profileData = await organizationService.getCurrentOrganizationProfile();
+        const completionRate = calculateCompletionRate({
+          id: profileData.id,
+          name: profileData.name,
+          description: profileData.description,
+          sectors: profileData.sectors as any,
+          subsectors: profileData.subsectors as any,
+          countries: profileData.country ? [profileData.country] : [],
+          languages: profileData.languages,
+          selectedServices: profileData.selectedServices,
+          annualBudget: profileData.annualBudget,
+          projectsCompleted: profileData.projectsCompleted,
+          budgetRange: {
+            min: profileData.annualBudget ? Math.round(profileData.annualBudget * 0.1) : 0,
+            max: profileData.annualBudget || 0,
+          },
+          teamSize: profileData.teamSize,
+          yearsOfExperience: profileData.yearFounded ? Math.max(0, 2026 - profileData.yearFounded) : 0,
+          completionRate: 0,
+          exists: true,
+          validationState: {
+            pendingValidation: false,
+            pendingValidationMessage: null,
+            lastSubmittedAt: null,
+            sectionStatuses: {
+              information: 'verified',
+              contact: 'verified',
+              operations: 'verified',
+              resources: 'verified',
+              projects: 'verified',
+            },
+          },
+        });
+
+        setMyOrganizationKpis({
+          completionRate,
+          activeProjects: profileData.activeProjects || 0,
+        });
+      } catch (error) {
+        console.error('Error fetching My Organization KPIs:', error);
+        setMyOrganizationKpis({
+          completionRate: 0,
+          activeProjects: 0,
+        });
+      } finally {
+        setLoadingMyOrganizationKpis(false);
+      }
+    };
+
+    if (isOrgOrAdmin) {
+      fetchMyOrganizationKpis();
+      return;
+    }
+
+    setLoadingMyOrganizationKpis(false);
+    setMyOrganizationKpis({
+      completionRate: 0,
+      activeProjects: 0,
+    });
+  }, [calculateCompletionRate, isOrgOrAdmin]);
 
   // D�finir les sous-menus et leurs descriptions pour la page d'acc�s refus�
   const subMenuItems = [
@@ -325,8 +399,14 @@ export default function OrganizationsHub() {
                       iconBgColor="bg-cyan-50"
                       iconColor="text-cyan-500"
                       stats={[
-                        { labelKey: 'organizations.myOrganization.completionRate', value: 87 },
-                        { labelKey: 'organizations.myOrganization.projects.active', value: 24 },
+                        {
+                          labelKey: 'organizations.myOrganization.completionRate',
+                          value: loadingMyOrganizationKpis ? '...' : myOrganizationKpis.completionRate
+                        },
+                        {
+                          labelKey: 'organizations.myOrganization.projects.active',
+                          value: loadingMyOrganizationKpis ? '...' : myOrganizationKpis.activeProjects
+                        },
                       ]}
                       link="/organizations/my-organization"
                   />

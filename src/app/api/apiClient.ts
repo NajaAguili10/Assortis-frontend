@@ -87,7 +87,6 @@ export const apiClient = {
       try {
         errorData = await response.json();
       } catch (e) {}
-
       if (response.status === 401) {
         localStorage.removeItem('assortis_token');
         localStorage.removeItem('assortis_user');
@@ -112,7 +111,6 @@ export const apiClient = {
       try {
         errorData = await response.json();
       } catch (e) {}
-
       if (response.status === 401) {
         localStorage.removeItem('assortis_token');
         localStorage.removeItem('assortis_user');
