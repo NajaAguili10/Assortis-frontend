@@ -44,6 +44,15 @@ export interface MatchingOpportunityDTO {
   postedDate: Date;
   organization?: string;
   location?: string;
+  procurementType?: ProcurementTypeEnum | string;
+  noticeType?: NoticeTypeEnum | string;
+  countries?: string[];
+  fundingAgency?: FundingAgencyEnum | string;
+  documents?: Array<{
+    id: string;
+    title: string;
+    url?: string;
+  }>;
   contractValue?: number;
   position?: string;
   requirements?: string[];
@@ -51,10 +60,12 @@ export interface MatchingOpportunityDTO {
     name: string;
     amount?: number;
     date: Date;
+    organizationId?: string;
   }>;
   shortlistCompanies?: Array<{
     name: string;
     date: Date;
+    organizationId?: string;
   }>;
   matchedViaProfile?: string;  // Profile name that generated this match
   matchedViaAlert?: string;   // Alert name that generated this match
@@ -104,6 +115,12 @@ export interface MatchingTenderFiltersDTO {
 
 export interface MatchingVacancyFiltersDTO {
   searchInput: string;
+  searchMode: 'allWords' | 'anyWords' | 'exactPhrase';
+  publishedFrom?: Date;
+  publishedTo?: Date;
+  selectedSectors: SectorEnum[];
+  selectedCountries: CountryEnum[];
+  selectedFundingAgencies: FundingAgencyEnum[];
   status: 'all' | 'active' | 'closing-soon' | 'closed';
   location: string;
   department: string;

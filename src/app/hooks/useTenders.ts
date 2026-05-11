@@ -196,6 +196,7 @@ const generateMockTenders = (count: number): TenderListDTO[] => {
         ? [
             {
               name: `Awarded Company ${i + 1}`,
+              organizationId: String((i % 3) + 1),
               budget: {
                 amount: Math.floor(amount * 0.6),
                 currency: selectedCurrency,
@@ -205,6 +206,7 @@ const generateMockTenders = (count: number): TenderListDTO[] => {
             },
             {
               name: `Joint Venture ${i + 2}`,
+              organizationId: String(((i + 1) % 3) + 1),
               budget: {
                 amount: Math.floor(amount * 0.4),
                 currency: selectedCurrency,
@@ -218,10 +220,12 @@ const generateMockTenders = (count: number): TenderListDTO[] => {
         ? [
             {
               name: `Shortlisted Partner ${i + 1}`,
+              organizationId: String((i % 3) + 1),
               date: new Date(publishedDate.getTime() + 2 * 24 * 60 * 60 * 1000),
             },
             {
               name: `Consortium Candidate ${i + 3}`,
+              organizationId: String(((i + 1) % 3) + 1),
               date: new Date(publishedDate.getTime() + 4 * 24 * 60 * 60 * 1000),
             },
           ]

@@ -13,6 +13,8 @@ import {
   BookOpen,
   Building2,
   Star,
+  Bookmark,
+  Home,
 } from 'lucide-react';
 
 export function ProjectsSubMenu() {
@@ -31,8 +33,8 @@ export function ProjectsSubMenu() {
     const path = location.pathname;
     // If navigated from pipeline context, highlight pipeline tab
     if ((location.state as Record<string, unknown>)?.fromPipeline) return 'pipeline';
-    // Si on est sur la page overview, aucun onglet n'est actif
-    if (path === '/projects' || path === '/projects/overview') return null;
+    // Home tab active on hub
+    if (path === '/projects' || path === '/projects/overview') return 'home';
     if (path.startsWith('/projects/active')) return 'active';
     if (path.startsWith('/projects/pipeline')) return 'pipeline';
     if (path.startsWith('/projects/tasks')) return 'tasks';
@@ -40,6 +42,7 @@ export function ProjectsSubMenu() {
     if (path.startsWith('/projects/collaborations')) return 'collaborations';
     if (path.startsWith('/projects/contractors')) return 'contractors';
     if (path.startsWith('/projects/organizations-scoring')) return 'organizations-scoring';
+    if (path.startsWith('/projects/saved')) return 'saved';
     if (path.startsWith('/projects/matching-archive')) return 'matching-archive';
     if (path.startsWith('/projects/matching')) return 'matching';
     // Par défaut, aucun onglet actif
@@ -50,6 +53,14 @@ export function ProjectsSubMenu() {
 
   // Construction conditionnelle des items selon le rôle
   const items = [
+    // Home : visible pour expert uniquement
+    ...(isExpertOnly ? [{
+      label: t('projects.submenu.home'),
+      active: activeTab === 'home',
+      icon: Home,
+      onClick: hasAccess ? () => navigate('/projects') : undefined,
+      disabled: !hasAccess
+    }] : []),
     // Pipeline : NON visible pour expert uniquement
     ...(!isExpertOnly ? [{
       label: t('projects.submenu.pipeline'),
@@ -82,7 +93,17 @@ export function ProjectsSubMenu() {
       onClick: hasAccess ? () => navigate('/projects/collaborations') : undefined,
       disabled: !hasAccess
     }] : []),
-    // Contractors : visible pour expert uniquement
+    // Contractors : NON visible pour expert (déplacé vers Matching Opportunities)
+    // Organizations scoring : NON visible pour expert (déplacé vers My CV)
+    // Saved Projects : visible pour expert uniquement
+    ...(isExpertOnly ? [{
+      label: t('projects.submenu.savedProjects'),
+      active: activeTab === 'saved',
+      icon: Bookmark,
+      onClick: hasAccess ? () => navigate('/projects/saved') : undefined,
+      disabled: !hasAccess
+    }] : []),
+    // Contractors : visible pour expert (my projects) ET non-expert
     ...(isExpertOnly ? [{
       label: t('projects.submenu.contractors'),
       active: activeTab === 'contractors',
@@ -90,8 +111,8 @@ export function ProjectsSubMenu() {
       onClick: hasAccess ? () => navigate('/projects/contractors') : undefined,
       disabled: !hasAccess
     }] : []),
-    // Organizations scoring : visible pour expert uniquement
-    ...(isExpertOnly ? [{
+    // Organizations scoring : visible pour non-expert uniquement (expert a le sien dans My CV)
+    ...(!isExpertOnly ? [{
       label: t('projects.submenu.organizationsScoring'),
       active: activeTab === 'organizations-scoring',
       icon: Star,

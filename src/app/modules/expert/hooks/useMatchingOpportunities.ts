@@ -19,7 +19,9 @@ import {
 import { ProjectSectorEnum } from '@app/types/project.dto';
 import {
   CountryEnum,
+  FundingAgencyEnum,
   RegionEnum,
+  SectorEnum,
   SECTOR_SUBSECTOR_MAP,
   REGION_COUNTRY_MAP,
 } from '@app/types/tender.dto';
@@ -109,11 +111,13 @@ const MOCK_OPPORTUNITIES: MatchingOpportunityDTO[] = [
         name: 'Atlas Engineering Group',
         amount: 850000,
         date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
+        organizationId: '1',
       },
       {
         name: 'North Corridor Consulting',
         amount: 650000,
         date: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000),
+        organizationId: '2',
       },
     ],
   },
@@ -140,6 +144,7 @@ const MOCK_OPPORTUNITIES: MatchingOpportunityDTO[] = [
         name: 'EduTech Advisory',
         amount: 500000,
         date: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000),
+        organizationId: '3',
       },
     ],
   },
@@ -166,10 +171,12 @@ const MOCK_OPPORTUNITIES: MatchingOpportunityDTO[] = [
       {
         name: 'Urban Futures Advisory',
         date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        organizationId: '1',
       },
       {
         name: 'Civic Planning Partners',
         date: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000),
+        organizationId: '2',
       },
     ],
   },
@@ -194,6 +201,7 @@ const MOCK_OPPORTUNITIES: MatchingOpportunityDTO[] = [
       {
         name: 'Green Metrics Labs',
         date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+        organizationId: '3',
       },
     ],
   },
@@ -340,6 +348,37 @@ function writeDismissedIds(ids: string[]) {
   }
 }
 
+function readRemovedIds(): string[] {
+  try {
+    const stored = localStorage.getItem('matching.removedIds');
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeRemovedIds(ids: string[]) {
+  try {
+    localStorage.setItem('matching.removedIds', JSON.stringify(ids));
+  } catch {
+    // ignore
+  }
+}
+
+const normalizeFilterText = (value: unknown) => String(value ?? '').toLowerCase().replace(/[_-]+/g, ' ').trim();
+
+const getCountryLabels = (country: CountryEnum) => {
+  const enumLabel = Object.entries(CountryEnum).find(([, value]) => value === country)?.[0] || country;
+  return [country, enumLabel.replace(/_/g, ' ')].map(normalizeFilterText);
+};
+
+const getFundingAgencyLabels = (agency: FundingAgencyEnum) => {
+  const enumLabel = Object.entries(FundingAgencyEnum).find(([, value]) => value === agency)?.[0] || agency;
+  return [agency, enumLabel.replace(/_/g, ' ')].map(normalizeFilterText);
+};
+
 // --- Saved profiles storage helpers ---
 const MOCK_PROFILES: MatchingProfileDTO[] = [
   {
@@ -393,10 +432,14 @@ const DEFAULT_ALERT_CONFIG: AlertFusionConfigDTO = {
 export function useMatchingOpportunities() {
   const [savedOpportunityIds, setSavedOpportunityIds] = useState<string[]>([]);
   const [dismissedIds, setDismissedIds] = useState<string[]>(() => readDismissedIds());
+  const [removedIds, setRemovedIds] = useState<string[]>(() => readRemovedIds());
   const [profiles, setProfiles] = useState<MatchingProfileDTO[]>(MOCK_PROFILES);
   const [alertConfig, setAlertConfig] = useState<AlertFusionConfigDTO>(DEFAULT_ALERT_CONFIG);
 
-  const allOpportunities = useMemo(() => MOCK_OPPORTUNITIES, []);
+  const allOpportunities = useMemo(
+    () => MOCK_OPPORTUNITIES.filter(opp => !removedIds.includes(opp.id)),
+    [removedIds]
+  );
 
   const stats = useMemo<MatchingStatsDTO>(() => {
     const matching = allOpportunities.filter(opp => opp.relevanceScore >= 75);
@@ -541,8 +584,43 @@ export function useMatchingOpportunities() {
       if (opp.type !== filters.activeType) return false;
 
       if (filters.searchInput.trim()) {
-        const haystack = `${opp.title} ${opp.description} ${opp.organization ?? ''} ${opp.location ?? ''}`.toLowerCase();
-        if (!haystack.includes(filters.searchInput.toLowerCase())) return false;
+        const haystack = normalizeFilterText(`${opp.title} ${opp.description} ${opp.organization ?? ''} ${opp.location ?? ''} ${opp.country} ${opp.donor} ${opp.keywords.join(' ')}`);
+        const query = normalizeFilterText(filters.searchInput);
+
+        if (filters.searchMode === 'exactPhrase' && !haystack.includes(query)) return false;
+
+        if (filters.searchMode === 'anyWords') {
+          const words = query.split(/\s+/).filter(Boolean);
+          if (!words.some(word => haystack.includes(word))) return false;
+        }
+
+        if (filters.searchMode === 'allWords') {
+          const words = query.split(/\s+/).filter(Boolean);
+          if (!words.every(word => haystack.includes(word))) return false;
+        }
+      }
+
+      if (filters.publishedFrom && opp.postedDate < filters.publishedFrom) return false;
+      if (filters.publishedTo && opp.postedDate > filters.publishedTo) return false;
+
+      if (filters.selectedSectors.length > 0 && !filters.selectedSectors.includes(opp.sector as unknown as SectorEnum)) {
+        return false;
+      }
+
+      if (filters.selectedCountries.length > 0) {
+        const countryText = normalizeFilterText(`${opp.country} ${opp.location ?? ''}`);
+        const matchesCountry = filters.selectedCountries.some(country =>
+          getCountryLabels(country).some(label => countryText.includes(label) || label.includes(countryText))
+        );
+        if (!matchesCountry) return false;
+      }
+
+      if (filters.selectedFundingAgencies.length > 0) {
+        const fundingText = normalizeFilterText(`${opp.fundingAgency ?? ''} ${opp.donor} ${opp.organization ?? ''}`);
+        const matchesAgency = filters.selectedFundingAgencies.some(agency =>
+          getFundingAgencyLabels(agency).some(label => fundingText.includes(label) || label.includes(fundingText))
+        );
+        if (!matchesAgency) return false;
       }
 
       if (filters.status !== 'all') {
@@ -622,6 +700,27 @@ export function useMatchingOpportunities() {
     setDismissedIds(prev => {
       const next = prev.includes(opportunityId) ? prev : [...prev, opportunityId];
       writeDismissedIds(next);
+      return next;
+    });
+  };
+
+  const restoreOpportunity = (opportunityId: string) => {
+    setDismissedIds(prev => {
+      const next = prev.filter(id => id !== opportunityId);
+      writeDismissedIds(next);
+      return next;
+    });
+  };
+
+  const permanentlyRemoveOpportunity = (opportunityId: string) => {
+    setDismissedIds(prev => {
+      const next = prev.filter(id => id !== opportunityId);
+      writeDismissedIds(next);
+      return next;
+    });
+    setRemovedIds(prev => {
+      const next = prev.includes(opportunityId) ? prev : [...prev, opportunityId];
+      writeRemovedIds(next);
       return next;
     });
   };
@@ -731,6 +830,8 @@ export function useMatchingOpportunities() {
     dismissOpportunity,
     isDismissed,
     getDismissedOpportunities,
+    restoreOpportunity,
+    permanentlyRemoveOpportunity,
     // Profiles
     profiles,
     createProfile,

@@ -112,7 +112,6 @@ export function CollaborationScoringRow({
           <div key={category.key} className="space-y-2">
             <div className="flex items-center justify-between gap-3 text-sm">
               <label className="text-muted-foreground">{t(category.labelKey)}</label>
-              <span className="font-semibold text-primary">{form[category.key]}</span>
             </div>
 
             <div className="grid grid-cols-[1fr_76px] gap-3 items-center">

@@ -17,6 +17,14 @@ export const isOrganizationAccount = (accountType?: AccountType): boolean => {
   return accountType === 'organization';
 };
 
+export const isExpertAccount = (accountType?: AccountType): boolean => {
+  return accountType === 'expert';
+};
+
+export const isOrganizationOrAdminAccount = (accountType?: AccountType): boolean => {
+  return accountType === 'organization' || accountType === 'admin';
+};
+
 export const isOrganizationUserRole = (accountType?: AccountType, role?: string): boolean => {
   return isOrganizationAccount(accountType) && role === 'organization-user';
 };

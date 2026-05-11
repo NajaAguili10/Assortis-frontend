@@ -125,7 +125,7 @@ export default function JobOfferDetailPage() {
         icon={Briefcase}
         title={job.jobTitle}
         description={
-          job.type === JobOfferTypeEnum.PROJECT && job.projectTitle
+          (job.type === JobOfferTypeEnum.PROJECT || job.type === JobOfferTypeEnum.PROJECT_LINKED || job.type === JobOfferTypeEnum.PROJECT_NEW) && job.projectTitle
             ? job.projectTitle
             : job.organizationName || ''
         }
@@ -178,7 +178,7 @@ export default function JobOfferDetailPage() {
                   </span>
                 </div>
 
-                {job.type === JobOfferTypeEnum.PROJECT && job.projectTitle && (
+                {(job.type === JobOfferTypeEnum.PROJECT || job.type === JobOfferTypeEnum.PROJECT_LINKED || job.type === JobOfferTypeEnum.PROJECT_NEW) && job.projectTitle && (
                   <div className="flex items-center text-gray-600">
                     <Briefcase className="w-4 h-4 mr-2 text-gray-400" />
                     <span className="text-sm">
@@ -219,9 +219,39 @@ export default function JobOfferDetailPage() {
                 {t('monEspace.form.description')}
               </h2>
               <div className="prose prose-sm max-w-none text-gray-700">
-                <p>{job.description || t('monEspace.message.noOffers.description')}</p>
+                {job.description ? (
+                  <div dangerouslySetInnerHTML={{ __html: job.description }} />
+                ) : (
+                  <p>{t('monEspace.message.noOffers.description')}</p>
+                )}
               </div>
             </Card>
+
+            {job.projectSummary && (
+              <Card className="p-6">
+                <h2 className="mb-4 flex items-center text-lg font-semibold text-primary">
+                  <Briefcase className="mr-2 h-5 w-5" />
+                  Project summary
+                </h2>
+                <p className="whitespace-pre-line text-sm leading-relaxed text-gray-700">{job.projectSummary}</p>
+              </Card>
+            )}
+
+            {(job.sectors?.length || job.subSectors?.length || job.countries?.length || job.seniority) && (
+              <Card className="p-6">
+                <h2 className="mb-4 flex items-center text-lg font-semibold text-primary">
+                  <CheckCircle className="mr-2 h-5 w-5" />
+                  Required expertise
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {job.seniority && <Badge variant="secondary">{job.seniority}</Badge>}
+                  {job.homeBased && <Badge variant="outline">Home-Based</Badge>}
+                  {job.sectors?.map((item) => <Badge key={item} variant="outline">{item}</Badge>)}
+                  {job.subSectors?.map((item) => <Badge key={item} variant="secondary">{item}</Badge>)}
+                  {job.countries?.map((item) => <Badge key={item} variant="outline">{item}</Badge>)}
+                </div>
+              </Card>
+            )}
 
             {/* Additional Sections - would be populated from full job data */}
             {job.requirements && (

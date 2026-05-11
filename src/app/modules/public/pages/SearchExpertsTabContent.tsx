@@ -6,6 +6,7 @@ import { useAuth } from '@app/contexts/AuthContext';
 import { organizationService } from '@app/services/organizationService';
 import { useCVCredits } from '@app/contexts/CVCreditsContext';
 import CVCreditsSummaryCard from '@app/components/CVCreditsSummaryCard';
+import { SaveSearchDialog } from '@app/components/SaveSearchDialog';
 import { SectorSubsectorFilter } from '@app/components/SectorSubsectorFilter';
 import { RegionCountryFilter } from '@app/components/RegionCountryFilter';
 import { Button } from '@app/components/ui/button';
@@ -26,7 +27,9 @@ import {
 } from '@app/components/ui/dialog';
 import { ExpertDTO } from '@app/modules/expert/hooks/useExperts';
 import { useExperts } from '@app/modules/expert/hooks/useExperts';
+import { ExpertsSearchFiltersWorkspace } from '@app/modules/expert/pages/ExpertsDatabase';
 import { generateCV } from '@app/modules/expert/services/cvGenerator.service';
+import { savedSearchService, type SavedSearchType } from '@app/services/savedSearchService';
 import type { ExpertProfile } from '@app/modules/expert/services/expertsData.service';
 import { ExpertStatusEnum, type WritingContribution, type WritingLanguage, type WritingMethodology } from '@app/modules/expert/types/expert.dto';
 import { SECTOR_SUBSECTOR_MAP } from '@app/config/subsectors.config';
@@ -95,8 +98,8 @@ const isBidWriter = (expert: any) => {
   return /bid|proposal|tender|writer/.test(haystack);
 };
 
-  export default function SearchExpertsTabContent({ mode }: SearchExpertsTabContentProps) {
-    const { t } = useLanguage();
+function LegacySearchExpertsTabContent({ mode }: SearchExpertsTabContentProps) {
+  const { t } = useLanguage();
     const navigate = useNavigate();
     const {
       availableCredits,
@@ -343,8 +346,190 @@ const isBidWriter = (expert: any) => {
       navigate('/compte-utilisateur/credits');
     };
 
-    const handleAccessCV = (expertId: string, expertName: string) => {
-      const unlockResult = unlockExpertCV(expertId, expertName, 1);
+  const handleAccessCV = (expertId: string, expertName: string) => {
+    const unlockResult = unlockExpertCV(expertId, expertName, 1);
+
+    if (!unlockResult.success && unlockResult.error === 'INSUFFICIENT_CREDITS') {
+      toast.error(t('experts.credits.notEnough'), {
+        action: {
+          label: t('experts.credits.buyMore'),
+          onClick: handleBuyPack,
+        },
+      });
+      return;
+    }
+
+    toast.success(t('experts.credits.unlockSuccess', { name: expertName }), {
+      description: t('experts.credits.remainingAfterUnlock', { count: availableCredits - 1 }),
+    });
+  };
+
+  const handleOpenUnlockConfirmation = (expertId: string, expertName: string) => {
+    if (availableCredits < 1) {
+      toast.error(t('experts.credits.notEnough'), {
+        action: {
+          label: t('experts.credits.buyMore'),
+          onClick: handleBuyPack,
+        },
+      });
+      return;
+    }
+
+    setPendingUnlockExpert({ id: expertId, name: expertName });
+  };
+
+  const handleConfirmUnlock = () => {
+    if (!pendingUnlockExpert) return;
+    handleAccessCV(pendingUnlockExpert.id, pendingUnlockExpert.name);
+    setPendingUnlockExpert(null);
+  };
+
+  const writingTextFilterCount = [comfortableToWriteOnQuery, donorProcurementQuery, writingCommentsQuery].filter((value) => value.trim()).length;
+  const bidWriterFiltersCount =
+    mode === 'bid-writers'
+      ? selectedWritingMethodologies.length + selectedWritingContributions.length + selectedWritingLanguages.length + writingTextFilterCount
+      : 0;
+  const activeFiltersCount = selectedSectors.length + selectedSubSectors.length + selectedRegions.length + selectedCountries.length + selectedExperience.length + (sourceFilter === 'all' ? 0 : 1) + bidWriterFiltersCount;
+
+  const clearAllFilters = () => {
+    setSearchQuery('');
+    setSelectedSectors([]);
+    setSelectedSubSectors([]);
+    setSelectedRegions([]);
+    setSelectedCountries([]);
+    setSelectedExperience([]);
+    setSourceFilter('all');
+    setSelectedWritingMethodologies([]);
+    setSelectedWritingContributions([]);
+    setSelectedWritingLanguages([]);
+    setComfortableToWriteOnQuery('');
+    setDonorProcurementQuery('');
+    setWritingCommentsQuery('');
+  };
+
+  const readSavedSearches = (): SavedSearchEntry<ExpertsSavedPayload>[] => {
+    const unifiedType = mode === 'bid-writers' ? 'bid-writers' : 'experts';
+    const unified = savedSearchService.list(user?.id, unifiedType as SavedSearchType).map((item) => ({
+      id: item.id,
+      label: item.name,
+      createdAt: item.created_at,
+      payload: item.filters as ExpertsSavedPayload,
+    }));
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return unified;
+
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        const legacy = parsed.filter(item => item && item.payload);
+        return [...unified, ...legacy.filter((item) => !unified.some((saved) => saved.id === item.id))];
+      }
+
+      if (parsed && typeof parsed === 'object') {
+        return [...unified, {
+          id: `legacy-${mode}`,
+          label: `Saved ${mode}`,
+          createdAt: new Date().toISOString(),
+          payload: parsed,
+        }];
+      }
+    } catch {
+      return unified;
+    }
+
+    return unified;
+  };
+
+  const applySavedSearch = (payload: ExpertsSavedPayload) => {
+    setSearchQuery(payload.searchQuery || '');
+    setSelectedSectors(payload.selectedSectors || []);
+    setSelectedSubSectors(payload.selectedSubSectors || []);
+    setSelectedRegions(payload.selectedRegions || []);
+    setSelectedCountries(payload.selectedCountries || []);
+    setSelectedExperience(payload.selectedExperience || []);
+    setSourceFilter(payload.sourceFilter || 'all');
+    setSelectedWritingMethodologies(payload.selectedWritingMethodologies || []);
+    setSelectedWritingContributions(payload.selectedWritingContributions || []);
+    setSelectedWritingLanguages(payload.selectedWritingLanguages || []);
+    setComfortableToWriteOnQuery(payload.comfortableToWriteOnQuery || '');
+    setDonorProcurementQuery(payload.donorProcurementQuery || '');
+    setWritingCommentsQuery(payload.writingCommentsQuery || '');
+    setHasSearched(true);
+  };
+
+  useEffect(() => {
+    const savedSearchId = searchParams.get('savedSearchId');
+    if (!savedSearchId) return;
+    const expectedType = mode === 'bid-writers' ? 'bid-writers' : 'experts';
+    const saved = savedSearchService.get(savedSearchId);
+    if (saved?.context.type === expectedType) {
+      applySavedSearch(saved.filters as ExpertsSavedPayload);
+      toast.success('Search loaded');
+    }
+  }, [searchParams, mode]);
+
+  const buildPayload = (): ExpertsSavedPayload => ({
+    searchQuery,
+    selectedSectors,
+    selectedSubSectors,
+    selectedRegions,
+    selectedCountries,
+    selectedExperience,
+    sourceFilter,
+    selectedWritingMethodologies,
+    selectedWritingContributions,
+    selectedWritingLanguages,
+    comfortableToWriteOnQuery,
+    donorProcurementQuery,
+    writingCommentsQuery,
+  });
+
+  const buildSummary = () => [
+    searchQuery ? `Keywords: ${searchQuery}` : '',
+    selectedSectors.length ? `Sectors: ${selectedSectors.length}` : '',
+    selectedSubSectors.length ? `Subsectors: ${selectedSubSectors.length}` : '',
+    selectedCountries.length ? `Countries: ${selectedCountries.length}` : '',
+    selectedRegions.length ? `Regions: ${selectedRegions.length}` : '',
+    selectedExperience.length ? `Experience: ${selectedExperience.length}` : '',
+    sourceFilter !== 'all' ? `Source: ${sourceFilter.replace(/-/g, ' ')}` : '',
+    selectedWritingMethodologies.length ? `Methodologies: ${selectedWritingMethodologies.length}` : '',
+    selectedWritingLanguages.length ? `Languages: ${selectedWritingLanguages.length}` : '',
+  ].filter(Boolean);
+
+  const saveSearch = (providedName?: string) => {
+    const label = (providedName || saveSearchName).trim();
+    if (!label) {
+      toast.error('Enter a search name');
+      return;
+    }
+
+    const now = new Date();
+    const entry: SavedSearchEntry<ExpertsSavedPayload> = {
+      id: `saved-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
+      label,
+      createdAt: now.toISOString(),
+      payload: buildPayload(),
+    };
+
+    const type = mode === 'bid-writers' ? 'bid-writers' : 'experts';
+    savedSearchService.save({
+      userId: user?.id,
+      name: label,
+      filters: entry.payload,
+      context: {
+        type,
+        route: type === 'bid-writers' ? '/search/bid-writers' : '/search/experts',
+        label: type === 'bid-writers' ? 'Bid Writers' : 'Experts',
+        summary: buildSummary(),
+        language: undefined,
+        accountType: user?.accountType,
+      },
+    });
+    setSavedSearches(readSavedSearches());
+    setSaveSearchName('');
+    setIsSaveSearchDialogOpen(false);
+    toast.success('Search saved');
+  };
 
       if (!unlockResult.success && unlockResult.error === 'INSUFFICIENT_CREDITS') {
         toast.error(t('experts.credits.notEnough'), {
@@ -507,24 +692,67 @@ const isBidWriter = (expert: any) => {
       setEditingSearchId(null);
       setEditingSearchName('');
       toast.success('Saved search updated');
-    };
+  const updateSavedSearch = (entry: SavedSearchEntry<ExpertsSavedPayload>) => {
+    const nextLabel = editingSearchName.trim();
+    if (!nextLabel) {
+      toast.error('Enter a search name');
+      return;
+    }
+    if (entry.id.startsWith('saved-search-')) {
+      const type = mode === 'bid-writers' ? 'bid-writers' : 'experts';
+      savedSearchService.update(entry.id, {
+        name: nextLabel,
+        filters: buildPayload(),
+        context: {
+          type,
+          route: type === 'bid-writers' ? '/search/bid-writers' : '/search/experts',
+          label: type === 'bid-writers' ? 'Bid Writers' : 'Experts',
+          summary: buildSummary(),
+          accountType: user?.accountType,
+        },
+      });
+      setSavedSearches(readSavedSearches());
+      setEditingSearchId(null);
+      setEditingSearchName('');
+      toast.success('Saved search updated');
+      return;
+    }
+    const next = readSavedSearches().map((item) =>
+      item.id === entry.id
+        ? {
+            ...item,
+            label: nextLabel,
+          }
+        : item
+    );
+    localStorage.setItem(storageKey, JSON.stringify(next));
+    setSavedSearches(next);
+    setEditingSearchId(null);
+    setEditingSearchName('');
+    toast.success('Saved search updated');
+  };
 
-    const deleteSavedSearch = (id: string) => {
-      const next = readSavedSearches().filter((entry) => entry.id !== id);
-      localStorage.setItem(storageKey, JSON.stringify(next));
-      setSavedSearches(next);
-    };
+  const deleteSavedSearch = (id: string) => {
+    if (id.startsWith('saved-search-')) {
+      savedSearchService.remove(id);
+      setSavedSearches(readSavedSearches());
+      return;
+    }
+    const next = readSavedSearches().filter((entry) => entry.id !== id);
+    localStorage.setItem(storageKey, JSON.stringify(next));
+    setSavedSearches(next);
+  };
 
-    const isExpertInLibrary = (expert: (typeof allExperts)[number]) =>
-      expert.organizationId === 'org-1' || libraryExpertIds.includes(expert.id);
+  const isExpertInLibrary = (expert: (typeof experts.data)[number]) =>
+    expert.organizationId === 'org-1' || libraryExpertIds.includes(expert.id);
 
-    const isExpertBlocked = (expert: (typeof allExperts)[number]) =>
-      expert.verificationStatus === ExpertStatusEnum.SUSPENDED;
+  const isExpertBlocked = (expert: (typeof experts.data)[number]) =>
+    expert.status === ExpertStatusEnum.SUSPENDED;
 
-    const canDownloadExpertCv = (expert: (typeof allExperts)[number]) =>
-      isExpertInLibrary(expert) && !isExpertBlocked(expert);
+  const canDownloadExpertCv = (expert: (typeof experts.data)[number]) =>
+    isExpertInLibrary(expert) && !isExpertBlocked(expert);
 
-    const mapExpertToCvProfile = (expert: (typeof allExperts)[number]): ExpertProfile => {
+  const mapExpertToCvProfile = (expert: (typeof allExperts)[number]): ExpertProfile => {
       // Standardize the expert object to the backend DTO structure
       const e = expert as ExpertDTO;
 
@@ -656,6 +884,9 @@ const isBidWriter = (expert: any) => {
               {showFilters ? 'Hide filters' : 'Show filters'}
             </Button>
             <Button variant="default" size="sm" onClick={handleRunSearch}>Search</Button>
+            <Button variant="outline" size="sm" onClick={() => setIsSaveSearchDialogOpen(true)}>
+              Save Search
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setShowSavedSearchesPanel((prev) => !prev)}>
               Saved Experts Searches
             </Button>
@@ -1230,66 +1461,102 @@ const isBidWriter = (expert: any) => {
           </>
         )}
 
-        <Dialog open={!!pendingUnlockExpert} onOpenChange={(isOpen) => !isOpen && setPendingUnlockExpert(null)}>
-          <DialogContent className="sm:max-w-[460px]">
-            <DialogHeader>
-              <DialogTitle>{t('experts.credits.confirm.title')}</DialogTitle>
-              <DialogDescription>
-                {t('experts.credits.confirm.description', {
-                  name: pendingUnlockExpert?.name || '',
-                  count: availableCredits,
-                })}
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="flex gap-2">
-              <Button variant="outline" onClick={() => setPendingUnlockExpert(null)}>
-                {t('experts.credits.confirm.cancel')}
-              </Button>
-              <Button onClick={handleConfirmUnlock}>
-                {t('experts.credits.confirm.action')}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+      <Dialog open={!!pendingUnlockExpert} onOpenChange={(isOpen) => !isOpen && setPendingUnlockExpert(null)}>
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>{t('experts.credits.confirm.title')}</DialogTitle>
+            <DialogDescription>
+              {t('experts.credits.confirm.description', {
+                name: pendingUnlockExpert?.name || '',
+                count: availableCredits,
+              })}
+            </DialogDescription>
+          </DialogHeader>
 
-        <Dialog open={isAiDialogOpen} onOpenChange={setIsAiDialogOpen}>
-          <DialogContent className="sm:max-w-[560px]">
-            <DialogHeader>
-              <DialogTitle>Expert Matching (AI)</DialogTitle>
-              <DialogDescription>Simulates an OpenAI matching request locally. No file leaves the browser.</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="ai-match-file">File upload</Label>
-                <Input id="ai-match-file" type="file" onChange={(event) => setAiFile(event.target.files?.[0] || null)} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ai-match-description">Optional description</Label>
-                <Textarea
-                  id="ai-match-description"
-                  value={aiDescription}
-                  onChange={(event) => setAiDescription(event.target.value)}
-                  rows={4}
-                />
-              </div>
+          {/* Credits info */}
+          <div className="rounded-lg border bg-muted/40 px-4 py-3 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Credits required</span>
+              <span className="font-semibold text-foreground">1 credit</span>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAiDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleAiMatching} disabled={isAiProcessing || !aiFile}>
-                {isAiProcessing ? 'Processing...' : 'Run matching'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {(mode !== 'experts' || hasSearched) && filteredExperts.length === 0 && (
-          <div className="text-center py-12 bg-white rounded-lg border">
-            <Search className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-            <h3 className="text-lg font-semibold text-primary mb-1">{t('experts.list.noResults')}</h3>
-            <p className="text-sm text-muted-foreground">{t('experts.list.noResults.message')}</p>
-            <Button variant="outline" onClick={clearAllFilters} className="mt-4">{t('filters.clear')}</Button>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Your available credits</span>
+              <span className={`font-semibold ${availableCredits < 1 ? 'text-red-600' : 'text-green-600'}`}>
+                {availableCredits} credit{availableCredits !== 1 ? 's' : ''}
+              </span>
+            </div>
           </div>
-        )}
-      </div>
-    );
+
+          {availableCredits < 1 && (
+            <p className="text-sm text-red-600 font-medium">
+              You do not have enough credits to unlock this CV. Please purchase more credits.
+            </p>
+          )}
+
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" onClick={() => setPendingUnlockExpert(null)}>
+              {t('experts.credits.confirm.cancel')}
+            </Button>
+            <Button onClick={handleConfirmUnlock} disabled={availableCredits < 1}>
+              {t('experts.credits.confirm.action')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAiDialogOpen} onOpenChange={setIsAiDialogOpen}>
+        <DialogContent className="sm:max-w-[560px]">
+          <DialogHeader>
+            <DialogTitle>Expert Matching (AI)</DialogTitle>
+            <DialogDescription>Simulates an OpenAI matching request locally. No file leaves the browser.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="ai-match-file">File upload</Label>
+              <Input id="ai-match-file" type="file" onChange={(event) => setAiFile(event.target.files?.[0] || null)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ai-match-description">Optional description</Label>
+              <Textarea
+                id="ai-match-description"
+                value={aiDescription}
+                onChange={(event) => setAiDescription(event.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAiDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleAiMatching} disabled={isAiProcessing || !aiFile}>
+              {isAiProcessing ? 'Processing...' : 'Run matching'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <SaveSearchDialog
+        open={isSaveSearchDialogOpen}
+        defaultName={searchQuery.trim() || `Saved ${mode} search`}
+        onOpenChange={setIsSaveSearchDialogOpen}
+        onSave={saveSearch}
+      />
+
+      {(mode !== 'experts' || hasSearched) && filteredExperts.length === 0 && (
+        <div className="text-center py-12 bg-white rounded-lg border">
+          <Search className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+          <h3 className="text-lg font-semibold text-primary mb-1">{t('experts.list.noResults')}</h3>
+          <p className="text-sm text-muted-foreground">{t('experts.list.noResults.message')}</p>
+          <Button variant="outline" onClick={clearAllFilters} className="mt-4">{t('filters.clear')}</Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function SearchExpertsTabContent({ mode }: SearchExpertsTabContentProps) {
+  if (mode === 'experts') {
+    return <ExpertsSearchFiltersWorkspace />;
   }
+
+  return <LegacySearchExpertsTabContent mode={mode} />;
+}

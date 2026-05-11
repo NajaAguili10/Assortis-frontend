@@ -1,5 +1,6 @@
 ﻿import { useState } from 'react';
 import { useLanguage } from '@app/contexts/LanguageContext';
+import { useAuth } from '@app/contexts/AuthContext';
 import { useNavigate } from 'react-router';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
@@ -30,16 +31,19 @@ import {
 export default function ProjectsTasks() {
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isExpertOnly = user?.accountType === 'expert';
   const { tasks, kpis } = useProjects();
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredTasks = tasks.filter((task) => {
     const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
+    const description = task.description || '';
     const matchesSearch = 
       task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       task.projectTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.description.toLowerCase().includes(searchQuery.toLowerCase());
+      description.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
@@ -73,7 +77,8 @@ export default function ProjectsTasks() {
     }
   };
 
-  const isOverdue = (dueDate: string) => {
+  const isOverdue = (dueDate?: string) => {
+    if (!dueDate) return false;
     return new Date(dueDate) < new Date();
   };
 
@@ -107,10 +112,12 @@ export default function ProjectsTasks() {
               <h2 className="text-2xl font-bold text-primary mb-2">{t('projects.tasks.title')}</h2>
               <p className="text-muted-foreground">{t('projects.tasks.subtitle')}</p>
             </div>
-            <Button onClick={() => navigate('/projects/tasks/new')} className="h-11 flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              {t('projects.actions.newTask')}
-            </Button>
+            {!isExpertOnly && (
+              <Button onClick={() => navigate('/projects/tasks/new')} className="h-11 flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                {t('projects.actions.newTask')}
+              </Button>
+            )}
           </div>
 
           {/* Stats Cards */}
@@ -187,7 +194,7 @@ export default function ProjectsTasks() {
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
                           <h3 className="font-semibold text-primary mb-1">{task.title}</h3>
-                          <p className="text-sm text-muted-foreground mb-2">{task.description}</p>
+                          <p className="text-sm text-muted-foreground mb-2">{task.description || 'Additional details can be completed later.'}</p>
                           <p className="text-xs text-muted-foreground">{task.projectTitle}</p>
                         </div>
                         <div className="flex flex-col items-end gap-2 ml-4">
@@ -207,11 +214,11 @@ export default function ProjectsTasks() {
                         </span>
                         <span className="flex items-center gap-1 text-muted-foreground">
                           <Calendar className="w-4 h-4" />
-                          {t('projects.tasks.startDate')}: {new Date(task.startDate).toLocaleDateString()}
+                          {t('projects.tasks.startDate')}: {task.startDate ? new Date(task.startDate).toLocaleDateString() : 'Not set'}
                         </span>
                         <span className={`flex items-center gap-1 ${isOverdue(task.dueDate) && task.status !== 'COMPLETED' ? 'text-red-500 font-semibold' : 'text-muted-foreground'}`}>
                           <Calendar className="w-4 h-4" />
-                          {t('projects.tasks.dueDate')}: {new Date(task.dueDate).toLocaleDateString()}
+                          {t('projects.tasks.dueDate')}: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'Not set'}
                           {isOverdue(task.dueDate) && task.status !== 'COMPLETED' && (
                             <Badge variant="outline" className="ml-2 bg-red-50 text-red-700 border-red-200">
                               {t('projects.tasks.overdue')}

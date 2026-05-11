@@ -1,37 +1,98 @@
-import { useState } from 'react';
-import { Layers, Bell, BellOff, Settings2, ShieldCheck, UserCircle2, Plus, Check, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
+import {
+  Bell,
+  BellOff,
+  CalendarClock,
+  Copy,
+  Edit3,
+  Layers,
+  PauseCircle,
+  Play,
+  Plus,
+  Search,
+  Trash2,
+  UserCircle2,
+  Check,
+  X,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from '@app/contexts/LanguageContext';
+import { useAuth } from '@app/contexts/AuthContext';
 import { AccountSubMenu } from '@app/components/AccountSubMenu';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
-import { Button } from '@app/components/ui/button';
 import { Badge } from '@app/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@app/components/ui/card';
-import { Separator } from '@app/components/ui/separator';
+import { Button } from '@app/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@app/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@app/components/ui/dialog';
+import { Input } from '@app/components/ui/input';
+import { Label } from '@app/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@app/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@app/components/ui/select';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@app/components/ui/select';
+  CountryEnum,
+  FundingAgencyEnum,
+  NoticeTypeEnum,
+  ProcurementTypeEnum,
+  RegionEnum,
+  SectorEnum,
+} from '@app/types/tender.dto';
+import {
+  OrganizationTypeEnum,
+  RegionEnum as OrganizationRegionEnum,
+} from '@app/types/organization.dto';
+import {
+  getSavedSearchTypeRoute,
+  savedSearchService,
+  type SavedSearch,
+  type SavedSearchAlertFrequency,
+  type SavedSearchEmailFormat,
+  type SavedSearchStatus,
+  type SavedSearchType,
+} from '@app/services/savedSearchService';
 import { useMatchingOpportunities } from '@app/modules/expert/hooks/useMatchingOpportunities';
-import { AlertFrequency } from '@app/types/matchingOpportunities.dto';
+import type { AlertFrequency } from '@app/types/matchingOpportunities.dto';
 
-const FREQUENCY_KEYS: Record<AlertFrequency, string> = {
-  realtime: 'matching-opportunities.alerts.frequency.realtime',
-  daily: 'matching-opportunities.alerts.frequency.daily',
-  weekly: 'matching-opportunities.alerts.frequency.weekly',
-  none: 'matching-opportunities.alerts.frequency.none',
-};
+type ManagedSearchType = 'projects' | 'awards' | 'shortlists' | 'organisations';
+type KeywordMode = 'allWords' | 'anyWords';
+type BudgetMode = 'any' | 'above' | 'below';
+type TenderScope = 'open' | 'past' | 'all';
 
-const FREQUENCY_COLORS: Record<AlertFrequency, string> = {
-  realtime: 'bg-red-100 text-red-700',
-  daily: 'bg-blue-100 text-blue-700',
-  weekly: 'bg-purple-100 text-purple-700',
-  none: 'bg-gray-100 text-gray-500',
-};
+interface ManagedFilters {
+  tenderScope: TenderScope;
+  searchInput: string;
+  searchQuery: string;
+  searchMode: KeywordMode;
+  selectedProcurementTypes: string[];
+  selectedNoticeTypes: string[];
+  publishedFrom: string | null;
+  publishedTo: string | null;
+  budgetMode: BudgetMode;
+  budgetValue: string;
+  selectedSectors: string[];
+  selectedRegions: string[];
+  selectedCountries: string[];
+  selectedFundingAgencies: string[];
+  projectBudget: string;
+  selection: string[];
+  organisationName: string;
+  officeLocation: string;
+  city: string;
+  organizationTypes: string[];
+}
+
+interface SearchEditorState {
+  id?: string;
+  name: string;
+  type: ManagedSearchType;
+  filters: ManagedFilters;
+  alertFrequency: SavedSearchAlertFrequency;
+  alertDays: string[];
+  alertHour: string;
+  emailFormat: SavedSearchEmailFormat;
+  status: SavedSearchStatus;
+}
 
 interface ProfileFormState {
   name: string;
@@ -43,7 +104,33 @@ interface ProfileFormState {
   isActive: boolean;
 }
 
-const emptyForm: ProfileFormState = {
+const MANAGED_TYPES: { type: ManagedSearchType; label: string; description: string }[] = [
+  { type: 'projects', label: 'Projects', description: 'Open, past, and all tender opportunities.' },
+  { type: 'awards', label: 'Awards', description: 'Award notices and contract results.' },
+  { type: 'shortlists', label: 'Shortlists', description: 'Shortlisted organisations and pre-award signals.' },
+  { type: 'organisations', label: 'Organisations', description: 'Organisation profiles and market actors.' },
+];
+
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const DAILY_DAYS = ['Every day', ...WEEKDAYS];
+const PROJECT_BUDGET_OPTIONS = ['Any project budget', 'Under 100k', '100k - 500k', '500k - 1M', '1M - 5M', 'Over 5M'];
+const SELECTION_OPTIONS = ['My selected sectors', 'My selected countries', 'My active subscription scope', 'Only new notices'];
+
+const PROFILE_FREQUENCY_LABELS: Record<AlertFrequency, string> = {
+  realtime: 'Realtime',
+  daily: 'Daily',
+  weekly: 'Weekly',
+  none: 'None',
+};
+
+const PROFILE_FREQUENCY_CLASSES: Record<AlertFrequency, string> = {
+  realtime: 'bg-red-100 text-red-700',
+  daily: 'bg-blue-100 text-blue-700',
+  weekly: 'bg-purple-100 text-purple-700',
+  none: 'bg-gray-100 text-gray-500',
+};
+
+const emptyProfileForm: ProfileFormState = {
   name: '',
   sectors: '',
   countries: '',
@@ -53,117 +140,650 @@ const emptyForm: ProfileFormState = {
   isActive: true,
 };
 
-function splitCSV(value: string): string[] {
-  return value.split(',').map(s => s.trim()).filter(Boolean);
+const emptyFilters: ManagedFilters = {
+  tenderScope: 'open',
+  searchInput: '',
+  searchQuery: '',
+  searchMode: 'allWords',
+  selectedProcurementTypes: [],
+  selectedNoticeTypes: [],
+  publishedFrom: null,
+  publishedTo: null,
+  budgetMode: 'any',
+  budgetValue: '',
+  selectedSectors: [],
+  selectedRegions: [],
+  selectedCountries: [],
+  selectedFundingAgencies: [],
+  projectBudget: '',
+  selection: [],
+  organisationName: '',
+  officeLocation: '',
+  city: '',
+  organizationTypes: [],
+};
+
+const defaultEditor = (type: ManagedSearchType = 'projects'): SearchEditorState => ({
+  name: '',
+  type,
+  filters: { ...emptyFilters },
+  alertFrequency: 'daily',
+  alertDays: ['Every day'],
+  alertHour: '08:00',
+  emailFormat: 'summary',
+  status: 'active',
+});
+
+const humanize = (value: string) => value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
+const formatDateTime = (value?: string) => value ? new Date(value).toLocaleString() : 'Never';
+
+function uniqueValues(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean)));
 }
 
-interface ProfileFormProps {
+function splitCSV(value: string) {
+  return value.split(',').map((item) => item.trim()).filter(Boolean);
+}
+
+function coerceManagedType(type: SavedSearchType): ManagedSearchType {
+  return ['projects', 'awards', 'shortlists', 'organisations'].includes(type) ? type as ManagedSearchType : 'projects';
+}
+
+function getFilters(search?: SavedSearch): ManagedFilters {
+  const filters = (search?.filters || {}) as Partial<ManagedFilters>;
+  return {
+    ...emptyFilters,
+    ...filters,
+    searchInput: filters.searchInput || filters.searchQuery || '',
+    searchQuery: filters.searchQuery || filters.searchInput || '',
+    selectedProcurementTypes: uniqueValues((filters.selectedProcurementTypes || []) as string[]),
+    selectedNoticeTypes: uniqueValues((filters.selectedNoticeTypes || []) as string[]),
+    selectedSectors: uniqueValues((filters.selectedSectors || []) as string[]),
+    selectedRegions: uniqueValues((filters.selectedRegions || []) as string[]),
+    selectedCountries: uniqueValues((filters.selectedCountries || []) as string[]),
+    selectedFundingAgencies: uniqueValues((filters.selectedFundingAgencies || []) as string[]),
+    selection: uniqueValues((filters.selection || []) as string[]),
+    organizationTypes: uniqueValues(((filters as any).organizationTypes || (filters as any).type || []) as string[]),
+  };
+}
+
+function buildSummary(filters: ManagedFilters, type: ManagedSearchType) {
+  return [
+    filters.searchQuery ? `Keywords: ${filters.searchQuery}` : '',
+    type === 'projects' ? `Search for: ${humanize(filters.tenderScope)}` : '',
+    filters.selectedProcurementTypes.length ? `Procurement: ${filters.selectedProcurementTypes.length}` : '',
+    filters.selectedNoticeTypes.length ? `Notice types: ${filters.selectedNoticeTypes.length}` : '',
+    filters.selectedSectors.length ? `Sectors: ${filters.selectedSectors.length}` : '',
+    filters.selectedCountries.length ? `Countries: ${filters.selectedCountries.length}` : '',
+    filters.selectedFundingAgencies.length ? `Funding agencies: ${filters.selectedFundingAgencies.length}` : '',
+    filters.projectBudget ? `Project budget: ${filters.projectBudget}` : '',
+    filters.budgetValue ? `Budget ${filters.budgetMode}: ${filters.budgetValue}` : '',
+    filters.publishedFrom ? `From: ${filters.publishedFrom}` : '',
+    filters.publishedTo ? `To: ${filters.publishedTo}` : '',
+  ].filter(Boolean);
+}
+
+function toRoutePayload(state: SearchEditorState) {
+  const filters = state.filters;
+  if (state.type === 'organisations') {
+    return {
+      searchQuery: filters.organisationName || filters.searchQuery,
+      selectedSectors: filters.selectedSectors,
+      selectedSubSectors: [],
+      selectedRegions: filters.selectedRegions,
+      selectedCountries: filters.selectedCountries,
+      type: filters.organizationTypes,
+      publishedFrom: filters.publishedFrom,
+      publishedTo: filters.publishedTo,
+      keywords: filters.searchQuery,
+      searchMode: filters.searchMode,
+      officeLocation: filters.officeLocation,
+      city: filters.city,
+      selectedProcurementTypes: filters.selectedProcurementTypes,
+      projectBudget: filters.projectBudget,
+      budgetMode: filters.budgetMode,
+      budgetValue: filters.budgetValue,
+    };
+  }
+
+  return {
+    showFilters: true,
+    showSectorFilters: state.type === 'projects',
+    showRegionFilters: state.type === 'projects',
+    searchInput: filters.searchQuery,
+    searchQuery: filters.searchQuery,
+    searchMode: filters.searchMode,
+    selectedProcurementTypes: filters.selectedProcurementTypes,
+    selectedNoticeTypes: filters.selectedNoticeTypes,
+    publishedFrom: filters.publishedFrom,
+    publishedTo: filters.publishedTo,
+    budgetMode: filters.budgetMode,
+    budgetValue: filters.budgetValue,
+    hideMultiCountry: false,
+    selectedSectors: filters.selectedSectors,
+    selectedSubSectors: [],
+    selectedRegions: filters.selectedRegions,
+    selectedCountries: filters.selectedCountries,
+    selectedFundingAgencies: filters.selectedFundingAgencies,
+    fundingAgencySearch: '',
+    sortField: null,
+    sortDirection: 'none',
+    locationFilters: filters.selection,
+    donorFilters: [],
+    tenderScope: filters.tenderScope,
+    projectBudget: filters.projectBudget,
+  };
+}
+
+function SearchableMultiSelect({
+  label,
+  options,
+  selected,
+  onChange,
+}: {
+  label: string;
+  options: string[];
+  selected: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return needle ? options.filter((option) => humanize(option).toLowerCase().includes(needle)) : options;
+  }, [options, query]);
+
+  const toggle = (value: string) => {
+    onChange(selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value]);
+  };
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" className="h-10 w-full justify-between">
+          <span className="truncate">{label}</span>
+          <Badge variant="secondary">{selected.length}</Badge>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-80 p-3">
+        <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${label.toLowerCase()}...`} className="mb-3 h-9" />
+        <div className="mb-2 flex gap-2">
+          <Button type="button" size="sm" variant="outline" onClick={() => onChange(uniqueValues([...selected, ...filtered]))}>Select all</Button>
+          <Button type="button" size="sm" variant="ghost" onClick={() => onChange([])}>Clear</Button>
+        </div>
+        <div className="max-h-64 space-y-1 overflow-auto">
+          {filtered.map((option, index) => (
+            <label key={`${option}-${index}`} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-gray-50">
+              <input type="checkbox" checked={selected.includes(option)} onChange={() => toggle(option)} />
+              <span>{humanize(option)}</span>
+            </label>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function ProfileForm({
+  initial,
+  onSave,
+  onCancel,
+}: {
   initial: ProfileFormState;
   onSave: (data: ProfileFormState) => void;
   onCancel: () => void;
-  t: (key: string) => string;
-}
-
-function ProfileForm({ initial, onSave, onCancel, t }: ProfileFormProps) {
+}) {
   const [form, setForm] = useState<ProfileFormState>(initial);
   return (
-    <Card className="border-blue-200 bg-blue-50/40">
-      <CardContent className="p-4 space-y-3">
-        <div>
-          <label className="text-xs font-medium text-gray-600 block mb-1">
-            {t('matching-opportunities.profiles.form.name')}
-          </label>
-          <input
-            className="w-full border border-gray-200 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+    <div className="rounded-lg border border-blue-200 bg-blue-50/40 p-4">
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <Label>Profile name</Label>
+          <Input
             value={form.name}
-            onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+            onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
             placeholder="e.g. Africa Agriculture Profile"
           />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {(['sectors', 'countries', 'donors', 'keywords'] as const).map(field => (
-            <div key={field}>
-              <label className="text-xs font-medium text-gray-600 block mb-1">
-                {t(`matching-opportunities.profiles.form.${field}`)}
-              </label>
-              <input
-                className="w-full border border-gray-200 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                value={form[field]}
-                onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}
-              />
-            </div>
-          ))}
+        <div>
+          <Label>Sectors</Label>
+          <Input value={form.sectors} onChange={(event) => setForm((current) => ({ ...current, sectors: event.target.value }))} placeholder="Agriculture, Education" />
         </div>
-        <div className="flex items-center gap-4 flex-wrap">
+        <div>
+          <Label>Countries</Label>
+          <Input value={form.countries} onChange={(event) => setForm((current) => ({ ...current, countries: event.target.value }))} placeholder="Morocco, Kenya" />
+        </div>
+        <div>
+          <Label>Funding agencies</Label>
+          <Input value={form.donors} onChange={(event) => setForm((current) => ({ ...current, donors: event.target.value }))} placeholder="EU, World Bank" />
+        </div>
+        <div>
+          <Label>Keywords</Label>
+          <Input value={form.keywords} onChange={(event) => setForm((current) => ({ ...current, keywords: event.target.value }))} placeholder="capacity building, evaluation" />
+        </div>
+        <div>
+          <Label>Alert frequency</Label>
+          <Select value={form.alertFrequency} onValueChange={(value: AlertFrequency) => setForm((current) => ({ ...current, alertFrequency: value }))}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {(Object.keys(PROFILE_FREQUENCY_LABELS) as AlertFrequency[]).map((frequency) => (
+                <SelectItem key={frequency} value={frequency}>{PROFILE_FREQUENCY_LABELS[frequency]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <label className="flex items-end gap-2 pb-2 text-sm text-gray-700">
+          <input type="checkbox" checked={form.isActive} onChange={(event) => setForm((current) => ({ ...current, isActive: event.target.checked }))} />
+          Active profile
+        </label>
+      </div>
+      <div className="mt-4 flex gap-2">
+        <Button size="sm" onClick={() => onSave(form)} disabled={!form.name.trim()}>
+          <Check className="mr-1.5 h-4 w-4" />
+          Save profile
+        </Button>
+        <Button size="sm" variant="outline" onClick={onCancel}>
+          <X className="mr-1.5 h-4 w-4" />
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function AlertSettings({
+  state,
+  onChange,
+}: {
+  state: SearchEditorState;
+  onChange: (patch: Partial<SearchEditorState>) => void;
+}) {
+  const dayOptions = state.alertFrequency === 'weekly' ? WEEKDAYS : DAILY_DAYS;
+  const disabled = state.alertFrequency === 'unsubscribe';
+
+  return (
+    <section className="rounded-lg border bg-gray-50 p-4">
+      <h3 className="mb-3 text-sm font-semibold text-primary">Alert settings</h3>
+      <div className="grid gap-4 md:grid-cols-3">
+        <div>
+          <Label>Alert frequency</Label>
+          <Select
+            value={state.alertFrequency}
+            onValueChange={(value: SavedSearchAlertFrequency) => onChange({
+              alertFrequency: value,
+              status: value === 'unsubscribe' ? 'paused' : 'active',
+              alertDays: value === 'weekly' ? ['Monday'] : value === 'daily' ? ['Every day'] : [],
+            })}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="daily">Daily</SelectItem>
+              <SelectItem value="weekly">Weekly</SelectItem>
+              <SelectItem value="unsubscribe">Unsubscribe</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Sending hour</Label>
+          <Input type="time" value={state.alertHour} disabled={disabled} onChange={(event) => onChange({ alertHour: event.target.value })} />
+        </div>
+        <div>
+          <Label>Email format</Label>
+          <Select value={state.emailFormat} onValueChange={(value: SavedSearchEmailFormat) => onChange({ emailFormat: value })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="summary">Summary alerts</SelectItem>
+              <SelectItem value="detailed">Detailed alerts</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      {!disabled && (
+        <div className="mt-4">
+          <Label>{state.alertFrequency === 'weekly' ? 'Weekday selection' : 'Choose specific day(s)'}</Label>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {dayOptions.map((day) => (
+              <button
+                key={day}
+                type="button"
+                onClick={() => onChange({ alertDays: state.alertDays.includes(day) ? state.alertDays.filter((item) => item !== day) : [...state.alertDays, day] })}
+                className={`rounded-full border px-3 py-1 text-xs font-medium ${state.alertDays.includes(day) ? 'border-primary bg-primary text-white' : 'border-gray-200 bg-white text-gray-600'}`}
+              >
+                {day}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SearchCriteriaForm({
+  state,
+  onChange,
+}: {
+  state: SearchEditorState;
+  onChange: (patch: Partial<SearchEditorState>) => void;
+}) {
+  const filters = state.filters;
+  const updateFilters = (patch: Partial<ManagedFilters>) => onChange({ filters: { ...filters, ...patch } });
+  const isProject = state.type === 'projects';
+  const isOrganisation = state.type === 'organisations';
+  const isShortlist = state.type === 'shortlists';
+
+  return (
+    <section className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div>
+          <Label>Search name</Label>
+          <Input value={state.name} onChange={(event) => onChange({ name: event.target.value })} placeholder="e.g. Health projects in West Africa" />
+        </div>
+        <div>
+          <Label>Search type</Label>
+          <Select value={state.type} onValueChange={(value: ManagedSearchType) => onChange({ type: value, filters: { ...emptyFilters } })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {MANAGED_TYPES.map((item) => <SelectItem key={item.type} value={item.type}>{item.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        {isProject && (
           <div>
-            <label className="text-xs font-medium text-gray-600 block mb-1">
-              {t('matching-opportunities.profiles.alert-frequency')}
-            </label>
-            <Select value={form.alertFrequency} onValueChange={(v: AlertFrequency) => setForm(f => ({ ...f, alertFrequency: v }))}>
-              <SelectTrigger className="w-44 h-8 text-sm"><SelectValue /></SelectTrigger>
+            <Label>Search for</Label>
+            <Select value={filters.tenderScope} onValueChange={(value: TenderScope) => updateFilters({ tenderScope: value })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {(Object.keys(FREQUENCY_KEYS) as AlertFrequency[]).map(freq => (
-                  <SelectItem key={freq} value={freq}>{t(FREQUENCY_KEYS[freq])}</SelectItem>
-                ))}
+                <SelectItem value="open">Open tenders</SelectItem>
+                <SelectItem value="past">Past tenders</SelectItem>
+                <SelectItem value="all">All tenders</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center gap-2 mt-4">
-            <input
-              type="checkbox"
-              id="profile-active"
-              checked={form.isActive}
-              onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))}
-              className="h-4 w-4 accent-blue-600"
-            />
-            <label htmlFor="profile-active" className="text-sm text-gray-700">
-              {form.isActive ? t('matching-opportunities.profiles.active') : t('matching-opportunities.profiles.inactive')}
-            </label>
+        )}
+        {isOrganisation && (
+          <div>
+            <Label>Name of organisation</Label>
+            <Input value={filters.organisationName} onChange={(event) => updateFilters({ organisationName: event.target.value })} placeholder="Enter organisation name" />
+          </div>
+        )}
+        <div>
+          <Label>Keywords</Label>
+          <Input value={filters.searchQuery} onChange={(event) => updateFilters({ searchQuery: event.target.value, searchInput: event.target.value })} placeholder="Enter keywords to search" />
+        </div>
+        <div>
+          <Label>Keyword logic</Label>
+          <Select value={filters.searchMode} onValueChange={(value: KeywordMode) => updateFilters({ searchMode: value })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="allWords">search all of the words</SelectItem>
+              <SelectItem value="anyWords">search any of the words</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Procurement type</Label>
+          <SearchableMultiSelect label="Procurement type" options={Object.values(ProcurementTypeEnum)} selected={filters.selectedProcurementTypes} onChange={(selectedProcurementTypes) => updateFilters({ selectedProcurementTypes })} />
+        </div>
+        <div>
+          <Label>Published from</Label>
+          <Input type="date" value={filters.publishedFrom || ''} onChange={(event) => updateFilters({ publishedFrom: event.target.value || null })} />
+        </div>
+        <div>
+          <Label>To</Label>
+          <Input type="date" value={filters.publishedTo || ''} onChange={(event) => updateFilters({ publishedTo: event.target.value || null })} />
+        </div>
+        <div>
+          <Label>Project budget</Label>
+          <Select value={filters.projectBudget || 'any'} onValueChange={(value) => updateFilters({ projectBudget: value === 'any' ? '' : value })}>
+            <SelectTrigger><SelectValue placeholder="Select project budget" /></SelectTrigger>
+            <SelectContent>
+              {PROJECT_BUDGET_OPTIONS.map((option) => <SelectItem key={option} value={option === 'Any project budget' ? 'any' : option}>{option}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Budget</Label>
+          <div className="grid grid-cols-[120px_1fr] gap-2">
+            <Select value={filters.budgetMode} onValueChange={(value: BudgetMode) => updateFilters({ budgetMode: value })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="any">Any</SelectItem>
+                <SelectItem value="above">Above</SelectItem>
+                <SelectItem value="below">Below</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input value={filters.budgetValue} onChange={(event) => updateFilters({ budgetValue: event.target.value })} placeholder="Amount" />
           </div>
         </div>
-        <div className="flex gap-2 pt-1">
-          <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => onSave(form)} disabled={!form.name.trim()}>
-            <Check className="w-3.5 h-3.5 mr-1" />{t('matching-opportunities.profiles.form.save')}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={onCancel}>
-            <X className="w-3.5 h-3.5 mr-1" />{t('matching-opportunities.profiles.form.cancel')}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+        {isOrganisation && (
+          <>
+            <div>
+              <Label>Office Location</Label>
+              <SearchableMultiSelect label="Office Location" options={Object.values(OrganizationRegionEnum)} selected={filters.selectedRegions} onChange={(selectedRegions) => updateFilters({ selectedRegions, officeLocation: selectedRegions[0] || '' })} />
+            </div>
+            <div>
+              <Label>City</Label>
+              <Input value={filters.city} onChange={(event) => updateFilters({ city: event.target.value })} placeholder="City" />
+            </div>
+            <div>
+              <Label>Organisation type</Label>
+              <SearchableMultiSelect label="Organisation type" options={Object.values(OrganizationTypeEnum)} selected={filters.organizationTypes} onChange={(organizationTypes) => updateFilters({ organizationTypes })} />
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {isProject && <SearchableMultiSelect label="Selection" options={SELECTION_OPTIONS} selected={filters.selection} onChange={(selection) => updateFilters({ selection })} />}
+        {isProject && <SearchableMultiSelect label="Sectors" options={Object.values(SectorEnum)} selected={filters.selectedSectors} onChange={(selectedSectors) => updateFilters({ selectedSectors })} />}
+        {isProject && <SearchableMultiSelect label="Countries" options={Object.values(CountryEnum)} selected={filters.selectedCountries} onChange={(selectedCountries) => updateFilters({ selectedCountries })} />}
+        {isProject && <SearchableMultiSelect label="Funding Agencies" options={Object.values(FundingAgencyEnum).slice(0, 80)} selected={filters.selectedFundingAgencies} onChange={(selectedFundingAgencies) => updateFilters({ selectedFundingAgencies })} />}
+        {isProject && <SearchableMultiSelect label="Notice Type" options={Object.values(NoticeTypeEnum)} selected={filters.selectedNoticeTypes} onChange={(selectedNoticeTypes) => updateFilters({ selectedNoticeTypes })} />}
+        {isOrganisation && <SearchableMultiSelect label="Countries" options={Object.values(CountryEnum)} selected={filters.selectedCountries} onChange={(selectedCountries) => updateFilters({ selectedCountries })} />}
+        {(isShortlist || state.type === 'awards') && <SearchableMultiSelect label="Countries" options={Object.values(CountryEnum)} selected={filters.selectedCountries} onChange={(selectedCountries) => updateFilters({ selectedCountries })} />}
+        {(isShortlist || state.type === 'awards') && <SearchableMultiSelect label="Funding Agencies" options={Object.values(FundingAgencyEnum).slice(0, 80)} selected={filters.selectedFundingAgencies} onChange={(selectedFundingAgencies) => updateFilters({ selectedFundingAgencies })} />}
+        {(isShortlist || state.type === 'awards') && <SearchableMultiSelect label="Sectors" options={Object.values(SectorEnum)} selected={filters.selectedSectors} onChange={(selectedSectors) => updateFilters({ selectedSectors })} />}
+        {isProject && <SearchableMultiSelect label="Regions" options={Object.values(RegionEnum)} selected={filters.selectedRegions} onChange={(selectedRegions) => updateFilters({ selectedRegions })} />}
+      </div>
+    </section>
+  );
+}
+
+function SearchEditorDialog({
+  open,
+  mode,
+  state,
+  onOpenChange,
+  onStateChange,
+  onSave,
+}: {
+  open: boolean;
+  mode: 'create' | 'edit';
+  state: SearchEditorState;
+  onOpenChange: (open: boolean) => void;
+  onStateChange: (next: SearchEditorState) => void;
+  onSave: () => void;
+}) {
+  const updateState = (patch: Partial<SearchEditorState>) => onStateChange({ ...state, ...patch });
+  const lastExecution = state.id ? savedSearchService.get(state.id)?.lastExecutionAt : undefined;
+  const lastCount = state.id ? savedSearchService.get(state.id)?.lastMatchCount : undefined;
+  const hasChosenType = mode === 'edit' || Boolean(state.name.trim());
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{mode === 'create' ? 'Create New Saved Search' : 'Edit Search'}</DialogTitle>
+          <DialogDescription>
+            Manage criteria, alert settings, notification preferences, and execution details.
+          </DialogDescription>
+        </DialogHeader>
+
+        {mode === 'create' && (
+          <div className="grid gap-3 md:grid-cols-4">
+            {MANAGED_TYPES.map((item) => (
+              <button
+                key={item.type}
+                type="button"
+                onClick={() => onStateChange({ ...defaultEditor(item.type), name: `${item.label} saved search` })}
+                className={`rounded-lg border p-4 text-left transition hover:border-primary hover:bg-primary/5 ${hasChosenType && state.type === item.type ? 'border-primary bg-primary/5' : 'border-gray-200 bg-white'}`}
+              >
+                <p className="font-semibold text-primary">{item.label}</p>
+                <p className="mt-1 text-xs text-gray-500">{item.description}</p>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {hasChosenType ? (
+          <>
+            <SearchCriteriaForm state={state} onChange={updateState} />
+            <AlertSettings state={state} onChange={updateState} />
+          </>
+        ) : (
+          <div className="rounded-lg border border-dashed bg-gray-50 p-8 text-center">
+            <p className="text-sm font-medium text-primary">Choose a saved search type to continue.</p>
+            <p className="mt-1 text-sm text-gray-500">The dedicated form and alert settings will appear after your selection.</p>
+          </div>
+        )}
+
+        {mode === 'edit' && (
+          <div className="grid gap-3 rounded-lg border bg-white p-4 text-sm md:grid-cols-3">
+            <div>
+              <p className="text-xs font-semibold uppercase text-gray-500">Search type</p>
+              <p className="mt-1 capitalize text-primary">{state.type}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase text-gray-500">Last execution</p>
+              <p className="mt-1 text-primary">{formatDateTime(lastExecution)}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase text-gray-500">Matching results</p>
+              <p className="mt-1 text-primary">{lastCount ?? 0}</p>
+            </div>
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          {hasChosenType && (
+            <Button type="button" onClick={onSave} disabled={!state.name.trim()}>
+              {mode === 'create' ? 'Create saved search' : 'Save changes'}
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 export default function MySelectionAlertsPage() {
   const { t } = useTranslation();
-  const {
-    profiles,
-    alertConfig,
-    createProfile,
-    updateProfile,
-    deleteProfile,
-    updateAlertConfig,
-    updateProfileAlertSettings,
-  } = useMatchingOpportunities();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { profiles, createProfile, updateProfile, deleteProfile } = useMatchingOpportunities();
+  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
+  const [editor, setEditor] = useState<SearchEditorState>(() => defaultEditor());
+  const [showProfileCreate, setShowProfileCreate] = useState(false);
+  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
 
-  // Profile state
-  const [showCreate, setShowCreate] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const refresh = () => setSavedSearches(savedSearchService.list(user?.id).filter((search) => MANAGED_TYPES.some((item) => item.type === search.context.type)));
 
-  // Alert state
-  const [globalFreq, setGlobalFreq] = useState<AlertFrequency>(alertConfig.globalFrequency);
-  const [dedup, setDedup] = useState(alertConfig.deduplicationEnabled);
-  const [isDirty, setIsDirty] = useState(false);
+  useEffect(() => {
+    refresh();
+  }, [user?.id]);
 
-  const getProfileSetting = (profileId: string) =>
-    alertConfig.profileSettings.find(s => s.profileId === profileId) ?? {
-      profileId,
-      isEnabled: false,
-      frequency: 'none' as AlertFrequency,
+  const stats = useMemo(() => {
+    const active = savedSearches.filter((search) => search.status === 'active' && search.alertFrequency !== 'unsubscribe').length;
+    const paused = savedSearches.filter((search) => search.status === 'paused' || search.alertFrequency === 'unsubscribe').length;
+    const latest = savedSearches
+      .map((search) => search.lastExecutionAt)
+      .filter(Boolean)
+      .sort()
+      .at(-1);
+    return { active, paused, latest };
+  }, [savedSearches]);
+
+  const openCreate = () => {
+    setDialogMode('create');
+    setEditor(defaultEditor());
+    setDialogOpen(true);
+  };
+
+  const openEdit = (search: SavedSearch) => {
+    setDialogMode('edit');
+    setEditor({
+      id: search.id,
+      name: search.name,
+      type: coerceManagedType(search.context.type),
+      filters: getFilters(search),
+      alertFrequency: search.alertFrequency || 'daily',
+      alertDays: search.alertDays || [],
+      alertHour: search.alertHour || '08:00',
+      emailFormat: search.emailFormat || 'summary',
+      status: search.status || 'active',
+    });
+    setDialogOpen(true);
+  };
+
+  const saveEditor = () => {
+    const payload = toRoutePayload(editor);
+    const context = {
+      type: editor.type as SavedSearchType,
+      route: getSavedSearchTypeRoute(editor.type),
+      label: MANAGED_TYPES.find((item) => item.type === editor.type)?.label || humanize(editor.type),
+      summary: buildSummary(editor.filters, editor.type),
+      accountType: user?.accountType,
+    };
+    const patch = {
+      name: editor.name,
+      filters: payload,
+      context,
+      alertsEnabled: editor.alertFrequency !== 'unsubscribe' && editor.status === 'active',
+      alertFrequency: editor.alertFrequency,
+      alertDays: editor.alertDays,
+      alertHour: editor.alertHour,
+      emailFormat: editor.emailFormat,
+      status: editor.status,
     };
 
-  // Profile handlers
-  const handleCreate = (form: ProfileFormState) => {
+    if (dialogMode === 'edit' && editor.id) {
+      savedSearchService.update(editor.id, patch);
+      toast.success('Saved search updated');
+    } else {
+      savedSearchService.save({ userId: user?.id, ...patch });
+      toast.success('Saved search created');
+    }
+    setDialogOpen(false);
+    refresh();
+  };
+
+  const duplicateSearch = (id: string) => {
+    savedSearchService.duplicate(id);
+    refresh();
+    toast.success('Saved search duplicated');
+  };
+
+  const pauseSearch = (search: SavedSearch) => {
+    savedSearchService.setPaused(search.id, search.status === 'active');
+    refresh();
+  };
+
+  const deleteSearch = (id: string) => {
+    savedSearchService.remove(id);
+    refresh();
+    toast.success('Saved search deleted');
+  };
+
+  const runSearch = (search: SavedSearch) => {
+    savedSearchService.recordRun(search.id);
+    refresh();
+    navigate(`${search.context.route}?savedSearchId=${encodeURIComponent(search.id)}`);
+  };
+
+  const handleCreateProfile = (form: ProfileFormState) => {
     createProfile({
       name: form.name.trim(),
       sectors: splitCSV(form.sectors),
@@ -173,11 +793,11 @@ export default function MySelectionAlertsPage() {
       alertFrequency: form.alertFrequency,
       isActive: form.isActive,
     });
-    setShowCreate(false);
-    toast.success(t('matching-opportunities.profiles.toast.created'));
+    setShowProfileCreate(false);
+    toast.success('Search profile created');
   };
 
-  const handleUpdate = (id: string, form: ProfileFormState) => {
+  const handleUpdateProfile = (id: string, form: ProfileFormState) => {
     updateProfile(id, {
       name: form.name.trim(),
       sectors: splitCSV(form.sectors),
@@ -187,30 +807,13 @@ export default function MySelectionAlertsPage() {
       alertFrequency: form.alertFrequency,
       isActive: form.isActive,
     });
-    setEditingId(null);
-    toast.success(t('matching-opportunities.profiles.toast.updated'));
+    setEditingProfileId(null);
+    toast.success('Search profile updated');
   };
 
-  const handleDelete = (id: string) => {
+  const handleDeleteProfile = (id: string) => {
     deleteProfile(id);
-    toast.success(t('matching-opportunities.profiles.toast.deleted'));
-  };
-
-  // Alert handlers
-  const handleSaveAlerts = () => {
-    updateAlertConfig({ globalFrequency: globalFreq, deduplicationEnabled: dedup });
-    setIsDirty(false);
-    toast.success(t('matching-opportunities.alerts.toast.saved'));
-  };
-
-  const handleToggleProfile = (profileId: string) => {
-    const current = getProfileSetting(profileId);
-    updateProfileAlertSettings(profileId, current.frequency, !current.isEnabled);
-  };
-
-  const handleProfileFrequency = (profileId: string, frequency: AlertFrequency) => {
-    const current = getProfileSetting(profileId);
-    updateProfileAlertSettings(profileId, frequency, current.isEnabled);
+    toast.success('Search profile deleted');
   };
 
   return (
@@ -218,48 +821,134 @@ export default function MySelectionAlertsPage() {
       <PageBanner
         icon={Layers}
         title={t('account.mySelection.banner.title')}
-        description={t('account.mySelection.banner.description')}
+        description="Create, edit, and monitor saved searches with professional alert settings."
       />
-
       <AccountSubMenu activeTab="my-selection" onTabChange={() => undefined} mode="profile-settings" />
 
       <PageContainer className="my-6">
-        <div className="px-4 sm:px-5 lg:px-6 py-6 space-y-8">
+        <div className="space-y-6 px-4 py-6 sm:px-5 lg:px-6">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-primary">Saved Searches & Alerts</h2>
+              <p className="text-sm text-gray-600">Manage search profiles, notification frequency, and saved criteria in one place.</p>
+            </div>
+            <Button onClick={openCreate} className="w-fit">
+              <Plus className="mr-2 h-4 w-4" />
+              Create New Saved Search
+            </Button>
+          </div>
 
-          {/* ── Profiles section ── */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card><CardContent className="p-4"><p className="text-sm text-gray-500">Total searches</p><p className="mt-1 text-2xl font-semibold text-primary">{savedSearches.length}</p></CardContent></Card>
+            <Card><CardContent className="p-4"><p className="text-sm text-gray-500">Active alerts</p><p className="mt-1 text-2xl font-semibold text-primary">{stats.active}</p></CardContent></Card>
+            <Card><CardContent className="p-4"><p className="text-sm text-gray-500">Paused alerts</p><p className="mt-1 text-2xl font-semibold text-primary">{stats.paused}</p></CardContent></Card>
+            <Card><CardContent className="p-4"><p className="text-sm text-gray-500">Latest execution</p><p className="mt-1 text-sm font-semibold text-primary">{formatDateTime(stats.latest)}</p></CardContent></Card>
+          </div>
+
           <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Search className="h-5 w-5 text-primary" />
+                My Selection & Alerts
+              </CardTitle>
+              <CardDescription>All saved searches from projects, awards, shortlists, and organisations.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {savedSearches.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-10 text-center">
+                  <Search className="mx-auto mb-3 h-10 w-10 text-gray-400" />
+                  <p className="font-semibold text-primary">No saved searches yet</p>
+                  <p className="mt-1 text-sm text-gray-500">Create your first saved search to start managing alerts.</p>
+                  <Button className="mt-4" onClick={openCreate}>Create New Saved Search</Button>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {savedSearches.map((search) => {
+                    const active = search.status === 'active' && search.alertFrequency !== 'unsubscribe';
+                    return (
+                      <article key={search.id} className="rounded-lg border bg-white p-4 shadow-sm">
+                        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="font-semibold text-primary">{search.name}</h3>
+                              <Badge variant="outline">{search.context.label}</Badge>
+                              <Badge className={active ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-gray-100 text-gray-600'}>
+                                {active ? <Bell className="mr-1 h-3 w-3" /> : <BellOff className="mr-1 h-3 w-3" />}
+                                {active ? 'Active' : 'Paused'}
+                              </Badge>
+                            </div>
+                            <div className="mt-3 grid gap-2 text-sm text-gray-600 md:grid-cols-5">
+                              <span><strong>Frequency:</strong> {humanize(search.alertFrequency || 'daily')}</span>
+                              <span><strong>Mode:</strong> {humanize(search.emailFormat || 'summary')}</span>
+                              <span><strong>Last run:</strong> {formatDateTime(search.lastExecutionAt)}</span>
+                              <span><strong>Matches:</strong> {search.lastMatchCount ?? 0}</span>
+                              <span><strong>Hour:</strong> {search.alertHour || '08:00'}</span>
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-1">
+                              {(search.context.summary?.length ? search.context.summary : ['No filters selected']).slice(0, 8).map((item) => (
+                                <Badge key={item} variant="secondary">{item}</Badge>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button size="sm" variant="outline" onClick={() => openEdit(search)}><Edit3 className="mr-1.5 h-4 w-4" />Edit</Button>
+                            <Button size="sm" variant="outline" onClick={() => duplicateSearch(search.id)}><Copy className="mr-1.5 h-4 w-4" />Duplicate</Button>
+                            <Button size="sm" variant="outline" onClick={() => pauseSearch(search)}><PauseCircle className="mr-1.5 h-4 w-4" />{active ? 'Pause alerts' : 'Resume alerts'}</Button>
+                            <Button size="sm" variant="outline" onClick={() => runSearch(search)}><Play className="mr-1.5 h-4 w-4" />Run search now</Button>
+                            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => deleteSearch(search.id)}><Trash2 className="h-4 w-4" /></Button>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2 text-base">
                     <UserCircle2 className="h-5 w-5 text-primary" />
-                    {t('account.mySelection.profiles.title')}
+                    Search Profiles
                   </CardTitle>
-                  <CardDescription className="mt-1">{t('account.mySelection.profiles.description')}</CardDescription>
+                  <CardDescription>Profile-based matching criteria used for opportunity monitoring and alert fusion.</CardDescription>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => { setShowCreate(true); setEditingId(null); }} disabled={showCreate}>
-                  <Plus className="h-4 w-4 mr-1.5" />{t('account.mySelection.profiles.new')}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setShowProfileCreate(true);
+                    setEditingProfileId(null);
+                  }}
+                  disabled={showProfileCreate}
+                >
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  New Profile
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              {showCreate && (
+              {showProfileCreate && (
                 <ProfileForm
-                  initial={emptyForm}
-                  onSave={handleCreate}
-                  onCancel={() => setShowCreate(false)}
-                  t={t}
+                  initial={emptyProfileForm}
+                  onSave={handleCreateProfile}
+                  onCancel={() => setShowProfileCreate(false)}
                 />
               )}
-              {profiles.length === 0 && !showCreate ? (
-                <p className="text-sm text-muted-foreground py-6 text-center">
-                  {t('account.mySelection.profiles.empty')}
-                </p>
+
+              {profiles.length === 0 && !showProfileCreate ? (
+                <div className="rounded-lg border border-dashed p-8 text-center">
+                  <UserCircle2 className="mx-auto mb-3 h-10 w-10 text-gray-400" />
+                  <p className="font-semibold text-primary">No search profiles yet</p>
+                  <p className="mt-1 text-sm text-gray-500">Create a profile to receive tailored matching opportunities.</p>
+                </div>
               ) : (
-                <div className="space-y-3">
-                  {profiles.map(profile => {
-                    const setting = getProfileSetting(profile.id);
-                    if (editingId === profile.id) {
+                <div className="grid gap-3">
+                  {profiles.map((profile) => {
+                    if (editingProfileId === profile.id) {
                       return (
                         <ProfileForm
                           key={profile.id}
@@ -272,151 +961,65 @@ export default function MySelectionAlertsPage() {
                             alertFrequency: profile.alertFrequency,
                             isActive: profile.isActive,
                           }}
-                          onSave={form => handleUpdate(profile.id, form)}
-                          onCancel={() => setEditingId(null)}
-                          t={t}
+                          onSave={(form) => handleUpdateProfile(profile.id, form)}
+                          onCancel={() => setEditingProfileId(null)}
                         />
                       );
                     }
+
                     return (
-                      <div key={profile.id} className="flex items-start justify-between gap-4 rounded-lg border bg-white p-4 flex-wrap">
-                        <div className="flex items-start gap-3 min-w-0 flex-1">
-                          <UserCircle2 className="h-8 w-8 text-blue-400 shrink-0 mt-0.5" />
-                          <div className="min-w-0">
-                            <p className="font-medium text-sm truncate">{profile.name}</p>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {profile.sectors.slice(0, 2).map(s => <Badge key={s} className="bg-blue-50 text-blue-600 text-xs border-0">{s}</Badge>)}
-                              {profile.countries.slice(0, 2).map(c => <Badge key={c} className="bg-green-50 text-green-600 text-xs border-0">{c}</Badge>)}
-                              <Badge className={`text-xs border-0 ${FREQUENCY_COLORS[setting.frequency]}`}>
-                                {t(FREQUENCY_KEYS[setting.frequency])}
-                              </Badge>
-                              {setting.isEnabled
-                                ? <Badge className="bg-amber-50 text-amber-700 text-xs border-0 gap-1"><Bell className="h-3 w-3" /> ON</Badge>
-                                : <Badge className="bg-gray-100 text-gray-500 text-xs border-0 gap-1"><BellOff className="h-3 w-3" /> OFF</Badge>}
-                            </div>
+                      <article key={profile.id} className="flex flex-col gap-3 rounded-lg border bg-white p-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold text-primary">{profile.name}</p>
+                            <Badge className={PROFILE_FREQUENCY_CLASSES[profile.alertFrequency]}>{PROFILE_FREQUENCY_LABELS[profile.alertFrequency]}</Badge>
+                            <Badge className={profile.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}>
+                              {profile.isActive ? 'Active' : 'Inactive'}
+                            </Badge>
+                            <Badge variant="outline">{profile.matchCount} matches</Badge>
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-1">
+                            {[...profile.sectors.slice(0, 3), ...profile.countries.slice(0, 3), ...profile.donors.slice(0, 2), ...profile.keywords.slice(0, 2)].map((item) => (
+                              <Badge key={item} variant="secondary">{item}</Badge>
+                            ))}
+                            {profile.sectors.length + profile.countries.length + profile.donors.length + profile.keywords.length === 0 && (
+                              <span className="text-sm text-gray-500">No criteria selected</span>
+                            )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <Button size="sm" variant="ghost" onClick={() => { setEditingId(profile.id); setShowCreate(false); }}>
-                            {t('common.edit')}
+                        <div className="flex shrink-0 gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingProfileId(profile.id);
+                              setShowProfileCreate(false);
+                            }}
+                          >
+                            Edit
                           </Button>
-                          <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => handleDelete(profile.id)}>
-                            {t('common.delete')}
+                          <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => handleDeleteProfile(profile.id)}>
+                            Delete
                           </Button>
                         </div>
-                      </div>
+                      </article>
                     );
                   })}
                 </div>
               )}
             </CardContent>
           </Card>
-
-          <Separator />
-
-          {/* ── Alert settings section ── */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Bell className="h-5 w-5 text-primary" />
-                {t('account.mySelection.alerts.title')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Global frequency + deduplication row */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Global frequency */}
-                <div className="rounded-lg border bg-white p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Settings2 className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium">{t('account.mySelection.alerts.globalFrequency')}</span>
-                  </div>
-                  <Select value={globalFreq} onValueChange={(v: AlertFrequency) => { setGlobalFreq(v); setIsDirty(true); }}>
-                    <SelectTrigger className="w-full text-sm"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {(Object.keys(FREQUENCY_KEYS) as AlertFrequency[]).map(freq => (
-                        <SelectItem key={freq} value={freq}>{t(FREQUENCY_KEYS[freq])}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Badge className={`mt-2 text-xs ${FREQUENCY_COLORS[globalFreq]}`}>{t(FREQUENCY_KEYS[globalFreq])}</Badge>
-                </div>
-
-                {/* Deduplication */}
-                <div className="rounded-lg border bg-white p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <ShieldCheck className="h-4 w-4 text-green-600" />
-                    <span className="text-sm font-medium">{t('account.mySelection.alerts.deduplication')}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-3">{t('account.mySelection.alerts.deduplication.desc')}</p>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={dedup}
-                    onClick={() => { setDedup(d => !d); setIsDirty(true); }}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${dedup ? 'bg-blue-600' : 'bg-gray-200'}`}
-                  >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${dedup ? 'translate-x-6' : 'translate-x-1'}`} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Per-profile toggles */}
-              {profiles.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium mb-3">{t('account.mySelection.alerts.perProfile')}</p>
-                  <div className="space-y-2">
-                    {profiles.map(profile => {
-                      const setting = getProfileSetting(profile.id);
-                      return (
-                        <div key={profile.id} className="flex items-center justify-between gap-4 rounded-lg border bg-white px-4 py-3 flex-wrap">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <UserCircle2 className="h-5 w-5 text-blue-400 shrink-0" />
-                            <span className="text-sm font-medium truncate">{profile.name}</span>
-                          </div>
-                          <div className="flex items-center gap-3 shrink-0">
-                            <Select
-                              value={setting.frequency}
-                              onValueChange={(v: AlertFrequency) => handleProfileFrequency(profile.id, v)}
-                              disabled={!setting.isEnabled}
-                            >
-                              <SelectTrigger className="w-32 h-7 text-xs"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {(Object.keys(FREQUENCY_KEYS) as AlertFrequency[]).map(freq => (
-                                  <SelectItem key={freq} value={freq}>{t(FREQUENCY_KEYS[freq])}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <button
-                              type="button"
-                              role="switch"
-                              aria-checked={setting.isEnabled}
-                              onClick={() => handleToggleProfile(profile.id)}
-                              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${setting.isEnabled ? 'bg-blue-600' : 'bg-gray-200'}`}
-                            >
-                              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${setting.isEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                            </button>
-                            {setting.isEnabled ? <Bell className="h-4 w-4 text-amber-500" /> : <BellOff className="h-4 w-4 text-gray-400" />}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {isDirty && (
-                <div className="flex justify-end">
-                  <Button onClick={handleSaveAlerts}>
-                    {t('account.mySelection.alerts.saveSettings')}
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
         </div>
       </PageContainer>
+
+      <SearchEditorDialog
+        open={dialogOpen}
+        mode={dialogMode}
+        state={editor}
+        onOpenChange={setDialogOpen}
+        onStateChange={setEditor}
+        onSave={saveEditor}
+      />
     </div>
   );
 }

@@ -65,7 +65,7 @@ export function Header() {
         ? [{ path: '/matching-opportunities', label: t('matching-opportunities.page.title'), icon: Target }]
         : [{ path: '/calls/active', label: t('nav.calls'), icon: FileText }]),
       { path: '/projects', label: t('nav.projects'), icon: BarChart3 },
-      { path: '/search', label: t('nav.search') || 'Search', icon: Search },
+      { path: '/search/projects', label: t('nav.search') || 'Search', icon: Search },
       ...(isAuthenticated ? [{ path: '/statistics', label: t('nav.statistics'), icon: PieChart }] : []),
       ...(user?.accountType !== 'expert' ? [{ path: '/posting-board', label: 'Posting Board', icon: Briefcase }] : []),
       { path: '/training', label: t('nav.training'), icon: GraduationCap },
@@ -85,7 +85,7 @@ export function Header() {
         e.preventDefault();
         // Only navigate to search if user has access
         if (hasAccess) {
-          navigate('/search');
+          navigate('/search/projects');
         }
       }
     };
@@ -108,10 +108,10 @@ export function Header() {
     }
   }, [userMenuOpen]);
 
-  // Navigate to profile
+  // Navigate to account dashboard
   const handleProfileClick = () => {
     setUserMenuOpen(false);
-    navigate('/compte-utilisateur');
+    navigate('/account');
   };
 
   const handleFAQClick = () => {
@@ -169,6 +169,8 @@ export function Header() {
                 isActive = location.pathname.startsWith('/services/training');
               } else if (item.path === '/experts/my-cv/dashboard') {
                 isActive = location.pathname.startsWith('/experts/my-cv');
+              } else if (item.path === '/search/projects') {
+                isActive = location.pathname.startsWith('/search');
               } else {
                 isActive = location.pathname.startsWith(item.path);
               }
@@ -376,6 +378,8 @@ export function Header() {
                   isActive = location.pathname.startsWith('/services/training');
                 } else if (item.path === '/experts/my-cv/dashboard') {
                   isActive = location.pathname.startsWith('/experts/my-cv');
+                } else if (item.path === '/search/projects') {
+                  isActive = location.pathname.startsWith('/search');
                 } else {
                   isActive = location.pathname.startsWith(item.path);
                 }
@@ -404,7 +408,7 @@ export function Header() {
               <button
                 onClick={() => {
                   if (hasAccess) {
-                    navigate('/search');
+                    navigate('/search/projects');
                     setMobileMenuOpen(false);
                   }
                 }}

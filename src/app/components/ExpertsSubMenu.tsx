@@ -5,10 +5,12 @@ import { SubMenu } from './SubMenu';
 import { hasExpertsAccess } from '../services/permissions.service';
 import {
   Database,
+  Search,
   Zap,
   FileText,
   Archive,
   Building2,
+  Users,
 } from 'lucide-react';
 
 export function ExpertsSubMenu() {
@@ -34,6 +36,8 @@ export function ExpertsSubMenu() {
     const path = location.pathname;
     // Si on est sur la page overview, aucun onglet n'est actif
     if (path === '/experts' || path === '/experts/overview') return null;
+    if (path.startsWith('/experts/search')) return 'search';
+    if (path.startsWith('/experts/my-experts')) return 'myExperts';
     if (path.startsWith('/experts/database')) return 'database';
     if (path.startsWith('/experts/matching-archive')) return 'matchingArchive';
     if (path.startsWith('/experts/matching-organisation-archive')) return 'matchingOrganisationArchive';
@@ -54,16 +58,33 @@ export function ExpertsSubMenu() {
   return (
     <SubMenu
       items={[
-        {
-          label: t('experts.submenu.database'),
-          active: activeTab === 'database',
-          icon: Database,
-          onClick: hasAccess ? () => navigate('/experts/database') : undefined,
-          disabled: !hasAccess
-        },
+        ...(isOrgOrAdmin ? [
+          {
+            label: 'Search Experts',
+            active: activeTab === 'search',
+            icon: Search,
+            onClick: hasAccess ? () => navigate('/experts/search') : undefined,
+            disabled: !hasAccess
+          },
+          {
+            label: 'My Experts',
+            active: activeTab === 'myExperts',
+            icon: Users,
+            onClick: hasAccess ? () => navigate('/experts/my-experts') : undefined,
+            disabled: !hasAccess
+          }
+        ] : [
+          {
+            label: t('experts.submenu.database'),
+            active: activeTab === 'database',
+            icon: Database,
+            onClick: hasAccess ? () => navigate('/experts/database') : undefined,
+            disabled: !hasAccess
+          }
+        ]),
         // Matching Organisation : pour Organization, Organization, Admin
         // PAS pour Expert
-        ...(canAccessOrgMatching ? [
+        ...(!isOrgOrAdmin && canAccessOrgMatching ? [
           {
             label: t('experts.submenu.matchingOrganisation'),
             active: activeTab === 'matchingOrganisation',

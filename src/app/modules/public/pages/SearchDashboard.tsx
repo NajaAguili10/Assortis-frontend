@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Search, X, BarChart3, Award, ListChecks, Building2, Users, UserCheck, PenSquare, ChevronRight } from 'lucide-react';
+import { Search, X, BarChart3, Award, ListChecks, Building2, Users, PenSquare, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
 import { PageBanner } from '@app/components/PageBanner';
@@ -22,7 +22,6 @@ type DashboardCategory =
   | 'shortlists'
   | 'organisations'
   | 'experts'
-  | 'my-experts'
   | 'bid-writers';
 
 const isBidWriter = (expert: {
@@ -102,10 +101,6 @@ export default function SearchDashboard() {
     );
   }, [allExperts, normalizedQuery]);
 
-  const myExperts = useMemo(() => {
-    return experts.filter((expert) => expert.organizationId === 'org-1');
-  }, [experts]);
-
   const bidWriters = useMemo(() => {
     return experts.filter((expert) => isBidWriter(expert));
   }, [experts]);
@@ -116,10 +111,9 @@ export default function SearchDashboard() {
     shortlists: shortlists.length,
     organisations: organisations.length,
     experts: experts.length,
-    'my-experts': myExperts.length,
     'bid-writers': bidWriters.length,
     all: projects.length + awards.length + shortlists.length + organisations.length +
-      (!isExpert ? experts.length + myExperts.length + bidWriters.length : 0),
+      (!isExpert ? experts.length + bidWriters.length : 0),
   };
 
   const categories = [
@@ -130,7 +124,6 @@ export default function SearchDashboard() {
     { id: 'organisations' as DashboardCategory, label: t('search.dashboard.categories.organisations'), icon: Building2, count: counts.organisations },
     ...(!isExpert ? [
       { id: 'experts' as DashboardCategory, label: t('search.dashboard.categories.experts'), icon: Users, count: counts.experts },
-      { id: 'my-experts' as DashboardCategory, label: t('search.dashboard.categories.myExperts'), icon: UserCheck, count: counts['my-experts'] },
       { id: 'bid-writers' as DashboardCategory, label: t('search.dashboard.categories.bidWriters'), icon: PenSquare, count: counts['bid-writers'] },
     ] : []),
   ];
@@ -340,33 +333,6 @@ export default function SearchDashboard() {
                   </div>
                   <div className="divide-y">
                     {experts.slice(0, 3).map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => navigate(`/search/experts/${item.id}`)}
-                        className="w-full text-left p-4 hover:bg-gray-50"
-                      >
-                        <p className="font-medium text-gray-900 line-clamp-1">{item.firstName} {item.lastName}</p>
-                        <p className="text-sm text-gray-500 line-clamp-1">{item.title}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {!isExpert && shouldShow('my-experts') && myExperts.length > 0 && (
-                <div className="bg-white rounded-lg border">
-                  <div className="p-4 border-b flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-primary">{t('search.dashboard.categories.myExperts')}</h3>
-                      <Badge variant="outline">{myExperts.length}</Badge>
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={() => navigate(buildSectionPath('/search/my-experts'))}>
-                      {t('search.viewAll')}
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </div>
-                  <div className="divide-y">
-                    {myExperts.slice(0, 3).map((item) => (
                       <button
                         key={item.id}
                         onClick={() => navigate(`/search/experts/${item.id}`)}

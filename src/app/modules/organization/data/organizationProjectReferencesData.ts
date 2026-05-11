@@ -1,4 +1,4 @@
-import {
+﻿import {
   CountryEnum,
   FundingAgencyEnum,
   RegionEnum,
@@ -25,7 +25,7 @@ export const organizationProjectReferencesSeed: OrganizationProjectReferenceDTO[
     donor: FundingAgencyEnum.WORLD_BANK,
     startDate: '2022-02-01',
     endDate: '2024-11-30',
-    status: 'ongoing',
+    status: 'notVerified',
     documents: [
       {
         id: 'org-ref-1-doc-1',
@@ -61,7 +61,7 @@ export const organizationProjectReferencesSeed: OrganizationProjectReferenceDTO[
     donor: FundingAgencyEnum.AFRICAN_DEVELOPMENT_BANK,
     startDate: '2021-06-15',
     endDate: '2023-12-20',
-    status: 'completed',
+    status: 'verified',
     documents: [
       {
         id: 'org-ref-2-doc-1',
@@ -90,7 +90,7 @@ export const organizationProjectReferencesSeed: OrganizationProjectReferenceDTO[
     donor: FundingAgencyEnum.EUROPEAN_UNION,
     startDate: '2023-09-01',
     endDate: '2025-03-31',
-    status: 'ongoing',
+    status: 'notVerified',
     documents: [
       {
         id: 'org-ref-3-doc-1',
@@ -105,3 +105,4 @@ export const organizationProjectReferencesSeed: OrganizationProjectReferenceDTO[
     updatedAt: now,
   },
 ];
+

@@ -286,12 +286,21 @@ export interface OrganizationKPIs {
 
 export interface OrganizationFilters {
   searchQuery?: string;
-  type?: string[];
-  sectors?: SectorDTO[];
-  subSectors?: SubsectorDTO[];
-  status?: string[];
-  regions?: string[];
-  countries?: CountryDTO[];
+  procurementType?: string;
+  publishedFrom?: string;
+  publishedTo?: string;
+  projectBudget?: string;
+  keywords?: string;
+  officeLocation?: string;
+  city?: string;
+  type?: OrganizationTypeEnum[];
+  sectors?: OrganizationSectorEnum[];
+  subSectors?: SubSectorEnum[];
+  status?: OrganizationStatusEnum[];
+  region?: RegionEnum[];
+  country?: string[];
+  regions?: RegionEnum[];
+  countries?: string[];
 }
 
 export interface OrganizationFiltersData {

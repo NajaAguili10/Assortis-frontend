@@ -16,7 +16,7 @@ export default function StatisticsUsageAnalytics() {
   const isExpert = isExpertAccountType(user?.accountType);
 
   const usedPercent = usageBreakdown.find((item) => item.name === 'Used')?.value ?? 0;
-  const pageTitle = isExpert ? t('statistics.tabs.myInsights') : t('statistics.usageAnalytics.title');
+  const pageTitle = t('statistics.tabs.usageAnalytics');
 
   return (
     <StatisticsSectionLayout icon={Activity}>

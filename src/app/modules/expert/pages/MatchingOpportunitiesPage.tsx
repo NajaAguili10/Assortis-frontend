@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router';
 import {
   Award,
   Briefcase,
@@ -6,9 +7,11 @@ import {
   CalendarIcon,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   FolderOpen,
   ListChecks,
   PanelRight,
+  Plus,
   RotateCcw,
   Search,
   Target,
@@ -63,8 +66,27 @@ function toggleInArray<T>(arr: T[], value: T): T[] {
   return arr.includes(value) ? arr.filter(item => item !== value) : [...arr, value];
 }
 
+const createDefaultVacancyFilters = (
+  activeType: OpportunityTypeEnum.PROJECT_VACANCY | OpportunityTypeEnum.IN_HOUSE_VACANCY,
+): MatchingVacancyFiltersDTO => ({
+  searchInput: '',
+  searchMode: 'allWords',
+  publishedFrom: undefined,
+  publishedTo: undefined,
+  selectedSectors: [],
+  selectedCountries: [],
+  selectedFundingAgencies: [],
+  status: 'all',
+  location: 'all',
+  department: 'all',
+  deadline: 'all',
+  sort: 'newest',
+  activeType,
+});
+
 export default function MatchingOpportunitiesPage() {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
   const {
     pendingMatches,
     saveOpportunity,
@@ -74,10 +96,27 @@ export default function MatchingOpportunitiesPage() {
     getFilteredVacancyOpportunities,
   } = useMatchingOpportunities();
 
+  const getInitialTab = (): OpportunityTypeEnum => {
+    const type = searchParams.get('type');
+    if (type === 'shortlist' || type === 'shortlists') return OpportunityTypeEnum.SHORTLIST;
+    if (type === 'contract' || type === 'contract-awards') return OpportunityTypeEnum.CONTRACT_AWARD;
+    if (type === 'vacancy' || type === 'project-vacancies') return OpportunityTypeEnum.PROJECT_VACANCY;
+    if (type === 'in-house-vacancies') return OpportunityTypeEnum.IN_HOUSE_VACANCY;
+    return OpportunityTypeEnum.OPEN_PROJECT;
+  };
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<OpportunityTypeEnum>(OpportunityTypeEnum.OPEN_PROJECT);
+  const [activeTab, setActiveTab] = useState<OpportunityTypeEnum>(getInitialTab);
+
+  useEffect(() => {
+    const type = searchParams.get('type');
+    if (type === 'shortlist' || type === 'shortlists') setActiveTab(OpportunityTypeEnum.SHORTLIST);
+    else if (type === 'contract' || type === 'contract-awards') setActiveTab(OpportunityTypeEnum.CONTRACT_AWARD);
+    else if (type === 'vacancy' || type === 'project-vacancies') setActiveTab(OpportunityTypeEnum.PROJECT_VACANCY);
+    else if (type === 'in-house-vacancies') setActiveTab(OpportunityTypeEnum.IN_HOUSE_VACANCY);
+    else if (!type) setActiveTab(OpportunityTypeEnum.OPEN_PROJECT);
+  }, [searchParams]);
   const [showTenderFilters, setShowTenderFilters] = useState(false);
-  const [showVacancyFilters, setShowVacancyFilters] = useState(false);
   const [tenderSearchInput, setTenderSearchInput] = useState('');
   const [vacancySearchInput, setVacancySearchInput] = useState('');
 
@@ -99,20 +138,35 @@ export default function MatchingOpportunitiesPage() {
     activeType: OpportunityTypeEnum.OPEN_PROJECT,
   });
 
-  const [vacancyFilters, setVacancyFilters] = useState<MatchingVacancyFiltersDTO>({
-    searchInput: '',
-    status: 'all',
-    location: 'all',
-    department: 'all',
-    deadline: 'all',
-    sort: 'newest',
-    activeType: OpportunityTypeEnum.PROJECT_VACANCY,
+  const [expandedVacancySections, setExpandedVacancySections] = useState({
+    sectors: false,
+    countries: false,
+    fundingAgencies: false,
+  });
+  const [vacancyFiltersByType, setVacancyFiltersByType] = useState<Record<OpportunityTypeEnum.PROJECT_VACANCY | OpportunityTypeEnum.IN_HOUSE_VACANCY, MatchingVacancyFiltersDTO>>({
+    [OpportunityTypeEnum.PROJECT_VACANCY]: createDefaultVacancyFilters(OpportunityTypeEnum.PROJECT_VACANCY),
+    [OpportunityTypeEnum.IN_HOUSE_VACANCY]: createDefaultVacancyFilters(OpportunityTypeEnum.IN_HOUSE_VACANCY),
   });
 
   const isTenderTab =
     activeTab === OpportunityTypeEnum.OPEN_PROJECT ||
     activeTab === OpportunityTypeEnum.CONTRACT_AWARD ||
     activeTab === OpportunityTypeEnum.SHORTLIST;
+
+  const activeVacancyType = activeTab === OpportunityTypeEnum.IN_HOUSE_VACANCY
+    ? OpportunityTypeEnum.IN_HOUSE_VACANCY
+    : OpportunityTypeEnum.PROJECT_VACANCY;
+  const vacancyFilters = vacancyFiltersByType[activeVacancyType];
+  const setActiveVacancyFilters = (updater: (current: MatchingVacancyFiltersDTO) => MatchingVacancyFiltersDTO) => {
+    setVacancyFiltersByType(prev => ({
+      ...prev,
+      [activeVacancyType]: updater(prev[activeVacancyType]),
+    }));
+  };
+
+  useEffect(() => {
+    setVacancySearchInput(vacancyFilters.searchInput);
+  }, [activeVacancyType]);
 
   const tenderRows = useMemo(() => {
     if (!isTenderTab) return [];
@@ -161,6 +215,12 @@ export default function MatchingOpportunitiesPage() {
 
   const vacancyFilterCount =
     (vacancyFilters.searchInput ? 1 : 0) +
+    (vacancyFilters.searchMode !== 'allWords' ? 1 : 0) +
+    (vacancyFilters.publishedFrom ? 1 : 0) +
+    (vacancyFilters.publishedTo ? 1 : 0) +
+    vacancyFilters.selectedSectors.length +
+    vacancyFilters.selectedCountries.length +
+    vacancyFilters.selectedFundingAgencies.length +
     (vacancyFilters.status !== 'all' ? 1 : 0) +
     (vacancyFilters.location !== 'all' ? 1 : 0) +
     (vacancyFilters.department !== 'all' ? 1 : 0) +
@@ -187,16 +247,16 @@ export default function MatchingOpportunitiesPage() {
       onClick: () => setActiveTab(OpportunityTypeEnum.SHORTLIST),
     },
     {
-      label: t('matching-opportunities.tabs.projectVacancies'),
-      icon: Briefcase,
-      active: activeTab === OpportunityTypeEnum.PROJECT_VACANCY,
-      onClick: () => setActiveTab(OpportunityTypeEnum.PROJECT_VACANCY),
-    },
-    {
-      label: t('matching-opportunities.tabs.inHouseVacancies'),
+      label: 'My In-house Vacancies',
       icon: Building2,
       active: activeTab === OpportunityTypeEnum.IN_HOUSE_VACANCY,
       onClick: () => setActiveTab(OpportunityTypeEnum.IN_HOUSE_VACANCY),
+    },
+    {
+      label: 'Project Vacancies',
+      icon: Briefcase,
+      active: activeTab === OpportunityTypeEnum.PROJECT_VACANCY,
+      onClick: () => setActiveTab(OpportunityTypeEnum.PROJECT_VACANCY),
     },
   ];
 
@@ -553,149 +613,224 @@ export default function MatchingOpportunitiesPage() {
                 )}
               </div>
             ) : (
-              <div className="bg-white rounded-lg border p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-800">{t('matching-opportunities.opportunities.filters')}</h3>
+              <div className="bg-white rounded-lg border p-5 space-y-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-800">Job Vacancies</h3>
+                    <p className="text-sm text-muted-foreground">Search matching in-house and project vacancies.</p>
+                  </div>
                   {vacancyFilterCount > 0 && <Badge>{vacancyFilterCount}</Badge>}
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_auto] gap-3">
-                  <Input
-                    value={vacancySearchInput}
-                    onChange={event => setVacancySearchInput(event.target.value)}
-                    placeholder={t('matching-opportunities.opportunities.searchPlaceholder')}
-                    className="min-h-11"
-                  />
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {[
+                    { type: OpportunityTypeEnum.IN_HOUSE_VACANCY, label: 'My In-house Vacancies', icon: Building2 },
+                    { type: OpportunityTypeEnum.PROJECT_VACANCY, label: 'Project Vacancies', icon: Briefcase },
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    const active = activeTab === item.type;
+                    return (
+                      <button
+                        key={item.type}
+                        type="button"
+                        className={`flex min-h-11 items-center justify-center gap-2 rounded-md border px-3 text-sm font-semibold transition-colors ${
+                          active
+                            ? 'border-[#E63462] bg-[#E63462] text-white shadow-sm'
+                            : 'border-gray-200 bg-white text-primary hover:border-[#E63462] hover:text-[#E63462]'
+                        }`}
+                        onClick={() => setActiveTab(item.type)}
+                      >
+                        <Icon className="h-4 w-4" />
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
 
+                <div className="rounded-lg border border-gray-200">
+                  <div className="border-b px-4 py-3">
+                    <h4 className="text-sm font-bold uppercase tracking-wide text-[#E63462]">Search Criteria</h4>
+                  </div>
+                  <div className="grid gap-4 p-4 lg:grid-cols-[180px_180px_minmax(0,1fr)_240px]">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-gray-600">Published from</label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-full justify-start min-h-10">
+                            <CalendarIcon className="h-4 w-4 mr-2" />
+                            {vacancyFilters.publishedFrom ? vacancyFilters.publishedFrom.toLocaleDateString() : 'Select date'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar mode="single" selected={vacancyFilters.publishedFrom} onSelect={(date) => setActiveVacancyFilters(prev => ({ ...prev, publishedFrom: date }))} initialFocus />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-gray-600">Published to</label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-full justify-start min-h-10">
+                            <CalendarIcon className="h-4 w-4 mr-2" />
+                            {vacancyFilters.publishedTo ? vacancyFilters.publishedTo.toLocaleDateString() : 'Select date'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar mode="single" selected={vacancyFilters.publishedTo} onSelect={(date) => setActiveVacancyFilters(prev => ({ ...prev, publishedTo: date }))} initialFocus />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-gray-600">Keywords</label>
+                      <Input
+                        value={vacancySearchInput}
+                        onChange={event => setVacancySearchInput(event.target.value)}
+                        placeholder="Keywords"
+                        className="min-h-10"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-gray-600">Keyword match type</label>
+                      <Select
+                        value={vacancyFilters.searchMode}
+                        onValueChange={(value: 'allWords' | 'anyWords' | 'exactPhrase') =>
+                          setActiveVacancyFilters(prev => ({ ...prev, searchMode: value }))
+                        }
+                      >
+                        <SelectTrigger className="min-h-10">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="allWords">Search all of the words</SelectItem>
+                          <SelectItem value="anyWords">Search any of the words</SelectItem>
+                          <SelectItem value="exactPhrase">Exact phrase</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-gray-200">
+                  <div className="border-b px-4 py-3">
+                    <h4 className="text-sm font-bold uppercase tracking-wide text-[#E63462]">Selection</h4>
+                  </div>
+                  <div className="space-y-3 p-4">
+                    {[
+                      { key: 'sectors' as const, label: 'Sectors', count: vacancyFilters.selectedSectors.length },
+                      { key: 'countries' as const, label: 'Countries', count: vacancyFilters.selectedCountries.length },
+                      { key: 'fundingAgencies' as const, label: 'Funding Agencies', count: vacancyFilters.selectedFundingAgencies.length },
+                    ].map((section) => {
+                      const expanded = expandedVacancySections[section.key];
+                      return (
+                        <div key={section.key} className="rounded-md border border-gray-200">
+                          <button
+                            type="button"
+                            className="flex w-full items-center justify-between bg-[#E63462] px-4 py-2.5 text-left text-sm font-semibold text-white transition-colors hover:bg-[#cf2c55]"
+                            onClick={() => setExpandedVacancySections(prev => ({ ...prev, [section.key]: !expanded }))}
+                          >
+                            <span className="inline-flex items-center gap-2">
+                              <Plus className={`h-4 w-4 transition-transform ${expanded ? 'rotate-45' : ''}`} />
+                              {section.label}
+                              {section.count > 0 && <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs">{section.count}</span>}
+                            </span>
+                            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          </button>
+                          {expanded && (
+                            <div className="max-h-64 overflow-auto bg-white p-3">
+                              {section.key === 'sectors' && (
+                                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                  {Object.values(SectorEnum).map(item => (
+                                    <label key={item} className="flex items-center gap-2 text-sm">
+                                      <Checkbox
+                                        checked={vacancyFilters.selectedSectors.includes(item)}
+                                        onCheckedChange={() =>
+                                          setActiveVacancyFilters(prev => ({
+                                            ...prev,
+                                            selectedSectors: toggleInArray(prev.selectedSectors, item),
+                                          }))
+                                        }
+                                      />
+                                      <span>{item.replace(/_/g, ' ')}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              )}
+                              {section.key === 'countries' && (
+                                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                                  {Object.values(CountryEnum).map(item => (
+                                    <label key={item} className="flex items-center gap-2 text-sm">
+                                      <Checkbox
+                                        checked={vacancyFilters.selectedCountries.includes(item)}
+                                        onCheckedChange={() =>
+                                          setActiveVacancyFilters(prev => ({
+                                            ...prev,
+                                            selectedCountries: toggleInArray(prev.selectedCountries, item),
+                                          }))
+                                        }
+                                      />
+                                      <span>{item}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              )}
+                              {section.key === 'fundingAgencies' && (
+                                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                  {Object.values(FundingAgencyEnum).map(item => (
+                                    <label key={item} className="flex items-center gap-2 text-sm">
+                                      <Checkbox
+                                        checked={vacancyFilters.selectedFundingAgencies.includes(item)}
+                                        onCheckedChange={() =>
+                                          setActiveVacancyFilters(prev => ({
+                                            ...prev,
+                                            selectedFundingAgencies: toggleInArray(prev.selectedFundingAgencies, item),
+                                          }))
+                                        }
+                                      />
+                                      <span>{item}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
                   <Button
                     type="button"
-                    variant="outline"
-                    className="min-h-11"
-                    onClick={() => setShowVacancyFilters(prev => !prev)}
-                  >
-                    {showVacancyFilters
-                      ? t('matching-opportunities.filters.hide')
-                      : t('matching-opportunities.filters.show')}
-                  </Button>
-
-                  <Button
-                    type="button"
-                    className="min-h-11"
+                    variant="ghost"
+                    className="text-[#E63462] hover:text-[#E63462]"
                     onClick={() =>
-                      setVacancyFilters(prev => ({
+                      {
+                        setVacancySearchInput('');
+                        setVacancyFiltersByType(prev => ({
+                          ...prev,
+                          [activeVacancyType]: createDefaultVacancyFilters(activeVacancyType),
+                        }));
+                      }
+                    }
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Clear selection
+                  </Button>
+                  <Button
+                    type="button"
+                    className="min-h-10"
+                    onClick={() =>
+                      setActiveVacancyFilters(prev => ({
                         ...prev,
                         searchInput: vacancySearchInput.trim(),
                       }))
                     }
                   >
                     <Search className="w-4 h-4 mr-2" />
-                    {t('matching-opportunities.filters.search')}
+                    Search
                   </Button>
                 </div>
-
-                {showVacancyFilters && (
-                  <>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
-
-                  <Select
-                    value={vacancyFilters.status}
-                    onValueChange={(value: 'all' | 'active' | 'closing-soon' | 'closed') =>
-                      setVacancyFilters(prev => ({ ...prev, status: value }))
-                    }
-                  >
-                    <SelectTrigger className="min-h-11">
-                      <SelectValue placeholder={t('matching-opportunities.vacancies.status')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All status</SelectItem>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="closing-soon">Closing soon</SelectItem>
-                      <SelectItem value="closed">Closed</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Select value={vacancyFilters.location} onValueChange={(value) => setVacancyFilters(prev => ({ ...prev, location: value }))}>
-                    <SelectTrigger className="min-h-11">
-                      <SelectValue placeholder={t('matching-opportunities.vacancies.location')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All locations</SelectItem>
-                      {[...new Set(vacancyRows.map(item => item.location ?? item.country))].map(item => (
-                        <SelectItem key={item} value={item}>{item}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {activeTab === OpportunityTypeEnum.IN_HOUSE_VACANCY ? (
-                    <Select value={vacancyFilters.department} onValueChange={(value) => setVacancyFilters(prev => ({ ...prev, department: value }))}>
-                      <SelectTrigger className="min-h-11">
-                        <SelectValue placeholder={t('matching-opportunities.vacancies.department')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All departments</SelectItem>
-                        {[...new Set(vacancyRows.map(item => item.sector.toLowerCase()))].map(item => (
-                          <SelectItem key={item} value={item}>{item.replace(/_/g, ' ')}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <div />
-                  )}
-
-                  <Select
-                    value={vacancyFilters.deadline}
-                    onValueChange={(value: 'all' | 'urgent' | 'month' | 'expired') => setVacancyFilters(prev => ({ ...prev, deadline: value }))}
-                  >
-                    <SelectTrigger className="min-h-11">
-                      <SelectValue placeholder={t('matching-opportunities.vacancies.deadline')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All deadlines</SelectItem>
-                      <SelectItem value="urgent">Urgent (7 days)</SelectItem>
-                      <SelectItem value="month">This month</SelectItem>
-                      <SelectItem value="expired">Expired</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <Select
-                    value={vacancyFilters.sort}
-                    onValueChange={(value: 'newest' | 'oldest' | 'deadline' | 'title') =>
-                      setVacancyFilters(prev => ({ ...prev, sort: value }))
-                    }
-                  >
-                    <SelectTrigger className="min-h-11">
-                      <SelectValue placeholder={t('matching-opportunities.vacancies.sort')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="newest">Newest</SelectItem>
-                      <SelectItem value="oldest">Oldest</SelectItem>
-                      <SelectItem value="deadline">Deadline</SelectItem>
-                      <SelectItem value="title">Title A-Z</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex justify-end">
-                  <Button
-                    variant="ghost"
-                    onClick={() =>
-                      setVacancyFilters(prev => ({
-                        ...prev,
-                        searchInput: '',
-                        status: 'all',
-                        location: 'all',
-                        department: 'all',
-                        deadline: 'all',
-                        sort: 'newest',
-                      }))
-                    }
-                  >
-                    <RotateCcw className="w-4 h-4 mr-2" />
-                    {t('matching-opportunities.opportunities.clearFilters')}
-                  </Button>
-                </div>
-                  </>
-                )}
               </div>
             )}
 

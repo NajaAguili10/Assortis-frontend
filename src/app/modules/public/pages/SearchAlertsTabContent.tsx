@@ -17,8 +17,14 @@ import {
 } from 'lucide-react';
 import { type DateRange } from 'react-day-picker';
 import { useLanguage } from '@app/contexts/LanguageContext';
+import { useAuth } from '@app/contexts/AuthContext';
 import { SectorSubsectorFilter } from '@app/components/SectorSubsectorFilter';
 import { RegionCountryFilter } from '@app/components/RegionCountryFilter';
+import {
+  SavedSearchEditorDialog,
+  type SavedSearchEditorSavePayload,
+  type SavedSearchReviewItem,
+} from '@app/components/SavedSearchEditorDialog';
 import { Badge } from '@app/components/ui/badge';
 import { Button } from '@app/components/ui/button';
 import { Input } from '@app/components/ui/input';
@@ -35,6 +41,11 @@ import {
   DialogTitle,
 } from '@app/components/ui/dialog';
 import { useTenders } from '@app/hooks/useTenders';
+import {
+  savedSearchService,
+  type SavedSearchAlertSettings,
+  type SavedSearchType,
+} from '@app/services/savedSearchService';
 import {
   CountryEnum,
   FundingAgencyEnum,
@@ -103,6 +114,7 @@ interface SavedAlertPreference {
 
 export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentProps) {
   const { t, language } = useLanguage();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { allTenders } = useTenders();
@@ -135,6 +147,8 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
   const [locationFilters, setLocationFilters] = useState<string[]>([]);
   const [donorFilters, setDonorFilters] = useState<string[]>([]);
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
+  const [isSaveSearchDialogOpen, setIsSaveSearchDialogOpen] = useState(false);
+  const [editingSavedSearch, setEditingSavedSearch] = useState<SavedSearchEntry<AlertsSavedPayload> | null>(null);
   const [savedSearches, setSavedSearches] = useState<SavedSearchEntry<AlertsSavedPayload>[]>([]);
   const [hasSearched, setHasSearched] = useState(tab !== 'projects');
   const [alertPreferences, setAlertPreferences] = useState<SavedAlertPreference[]>([]);
@@ -280,17 +294,24 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
   };
 
   const readSavedSearches = (): SavedSearchEntry<AlertsSavedPayload>[] => {
+    const unified = savedSearchService.list(user?.id, tab as SavedSearchType).map((item) => ({
+      id: item.id,
+      label: item.name,
+      createdAt: item.created_at,
+      payload: item.filters as AlertsSavedPayload,
+    }));
     const raw = localStorage.getItem(storageKey);
-    if (!raw) return [];
+    if (!raw) return unified;
 
     try {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        return parsed.filter(item => item && item.payload);
+        const legacy = parsed.filter(item => item && item.payload);
+        return [...unified, ...legacy.filter((item) => !unified.some((saved) => saved.id === item.id))];
       }
 
       if (parsed && typeof parsed === 'object') {
-        return [{
+        return [...unified, {
           id: `legacy-${tab}`,
           label: `Saved ${tab}`,
           createdAt: new Date().toISOString(),
@@ -298,10 +319,10 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
         }];
       }
     } catch {
-      return [];
+      return unified;
     }
 
-    return [];
+    return unified;
   };
 
   const applySavedSearch = (payload: AlertsSavedPayload) => {
@@ -331,6 +352,16 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
     setHasSearched(true);
   };
 
+  useEffect(() => {
+    const savedSearchId = searchParams.get('savedSearchId');
+    if (!savedSearchId) return;
+    const saved = savedSearchService.get(savedSearchId);
+    if (saved?.context.type === tab) {
+      applySavedSearch(saved.filters as AlertsSavedPayload);
+      toast.success('Search loaded');
+    }
+  }, [searchParams, tab]);
+
   const buildPayload = (): AlertsSavedPayload => ({
       showFilters,
       showSectorFilters,
@@ -357,11 +388,98 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
       donorFilters,
   });
 
-  const saveSearch = () => {
-    const existing = readSavedSearches();
+  const buildSummary = () => [
+    searchQuery ? `Keywords: ${searchQuery}` : '',
+    selectedProcurementTypes.length ? `Procurement: ${selectedProcurementTypes.length}` : '',
+    selectedNoticeTypes.length ? `Notice types: ${selectedNoticeTypes.length}` : '',
+    selectedSectors.length ? `Sectors: ${selectedSectors.length}` : '',
+    selectedSubSectors.length ? `Subsectors: ${selectedSubSectors.length}` : '',
+    selectedCountries.length ? `Countries: ${selectedCountries.length}` : '',
+    selectedRegions.length ? `Regions: ${selectedRegions.length}` : '',
+    selectedFundingAgencies.length ? `Donors: ${selectedFundingAgencies.length}` : '',
+    budgetValue ? `Budget ${budgetMode}: ${budgetValue}` : '',
+    publishedFrom ? `From: ${format(publishedFrom, 'yyyy-MM-dd')}` : '',
+    publishedTo ? `To: ${format(publishedTo, 'yyyy-MM-dd')}` : '',
+  ].filter(Boolean);
+
+  const formatList = (items: string[]) => items.map((item) => item.replace(/_/g, ' '));
+
+  const formatDateString = (value?: string | null) => {
+    if (!value) return '';
+    try {
+      return format(new Date(value), 'yyyy-MM-dd');
+    } catch {
+      return value;
+    }
+  };
+
+  const buildReviewItemsFromPayload = (payload: AlertsSavedPayload): SavedSearchReviewItem[] => [
+    { label: 'Type', value: tab.charAt(0).toUpperCase() + tab.slice(1) },
+    { label: 'Search Type', value: payload.searchMode?.replace(/([A-Z])/g, ' $1') },
+    { label: 'Keywords', value: payload.searchQuery || payload.searchInput },
+    { label: 'Procurement Type', value: formatList((payload.selectedProcurementTypes || []) as string[]) },
+    { label: 'Notice Type', value: formatList((payload.selectedNoticeTypes || []) as string[]) },
+    { label: 'Published From', value: formatDateString(payload.publishedFrom) },
+    { label: 'Published To', value: formatDateString(payload.publishedTo) },
+    { label: 'Budget', value: payload.budgetValue ? `${payload.budgetMode || 'any'} ${payload.budgetValue}` : '' },
+    { label: 'Sectors', value: formatList((payload.selectedSectors || []) as string[]) },
+    { label: 'Subsectors', value: formatList((payload.selectedSubSectors || []) as string[]) },
+    { label: 'Countries', value: formatList((payload.selectedCountries || []) as string[]) },
+    { label: 'Regions', value: formatList((payload.selectedRegions || []) as string[]) },
+    { label: 'Donors', value: formatList((payload.selectedFundingAgencies || []) as string[]) },
+    { label: 'Office Location', value: payload.locationFilters },
+    { label: 'Organisation Name', value: payload.donorFilters },
+    { label: 'Hide multi-country', value: payload.hideMultiCountry ? 'Yes' : '' },
+  ];
+
+  const getAlertSettingsForEntry = (entry?: SavedSearchEntry<AlertsSavedPayload> | null): Partial<SavedSearchAlertSettings> => {
+    if (entry?.id.startsWith('saved-search-')) {
+      const saved = savedSearchService.get(entry.id);
+      if (saved) {
+        return {
+          alertFrequency: saved.alertFrequency || 'daily',
+          alertDays: saved.alertDays || [],
+          alertHour: saved.alertHour || '08:00',
+          emailFormat: saved.emailFormat || 'summary',
+          status: saved.status || 'active',
+        };
+      }
+    }
+
+    const legacyPreference = entry ? alertPreferences.find((preference) => preference.searchId === entry.id) : undefined;
+    if (legacyPreference) {
+      return {
+        alertFrequency: legacyPreference.enabled ? (legacyPreference.frequency === 'daily' ? 'daily' : 'weekly') : 'unsubscribe',
+        alertDays: legacyPreference.frequency === 'weekly' ? ['Monday'] : legacyPreference.enabled ? ['Every day'] : [],
+        alertHour: '08:00',
+        emailFormat: 'summary',
+        status: legacyPreference.enabled ? 'active' : 'paused',
+      };
+    }
+
+    return { alertFrequency: 'daily', alertDays: ['Every day'], alertHour: '08:00', emailFormat: 'summary', status: 'active' };
+  };
+
+  const openCreateSavedSearch = () => {
+    setEditingSavedSearch(null);
+    setIsSaveSearchDialogOpen(true);
+  };
+
+  const openEditSavedSearch = (entry: SavedSearchEntry<AlertsSavedPayload>) => {
+    setEditingSavedSearch(entry);
+    setIsSaveSearchDialogOpen(true);
+  };
+
+  const saveSearch = ({ name, alertSettings, useCurrentCriteria }: SavedSearchEditorSavePayload) => {
+    if (editingSavedSearch) {
+      updateSavedSearch(editingSavedSearch, { name, alertSettings, useCurrentCriteria });
+      setIsSaveSearchDialogOpen(false);
+      setEditingSavedSearch(null);
+      return;
+    }
+
     const now = new Date();
-    const labelBase = (searchInput || searchQuery).trim();
-    const label = labelBase || `Saved ${tab} ${format(now, 'yyyy-MM-dd HH:mm')}`;
+    const label = name.trim() || `Saved ${tab} ${format(now, 'yyyy-MM-dd HH:mm')}`;
     const nextEntry: SavedSearchEntry<AlertsSavedPayload> = {
       id: `saved-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
       label,
@@ -369,9 +487,28 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
       payload: buildPayload(),
     };
 
-    const next = [nextEntry, ...existing];
-    localStorage.setItem(storageKey, JSON.stringify(next));
-    setSavedSearches(next);
+    savedSearchService.save({
+      userId: user?.id,
+      name: label,
+      filters: nextEntry.payload,
+      context: {
+        type: tab as SavedSearchType,
+        route: `/search/${tab}`,
+        label: tab.charAt(0).toUpperCase() + tab.slice(1),
+        summary: buildSummary(),
+        language,
+        accountType: user?.accountType,
+      },
+      alertsEnabled: alertSettings.alertFrequency !== 'unsubscribe' && alertSettings.status === 'active',
+      alertFrequency: alertSettings.alertFrequency,
+      alertDays: alertSettings.alertDays,
+      alertHour: alertSettings.alertHour,
+      emailFormat: alertSettings.emailFormat,
+      status: alertSettings.status,
+    });
+    setSavedSearches(readSavedSearches());
+    setIsSaveSearchDialogOpen(false);
+    setEditingSavedSearch(null);
     toast.success('Search saved');
   };
 
@@ -380,16 +517,69 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
     setIsLoadDialogOpen(true);
   };
 
-  const updateSavedSearch = (entry: SavedSearchEntry<AlertsSavedPayload>) => {
+  const updateSavedSearch = (
+    entry: SavedSearchEntry<AlertsSavedPayload>,
+    editorPayload?: SavedSearchEditorSavePayload,
+  ) => {
+    const nextFilters = editorPayload?.useCurrentCriteria ? buildPayload() : entry.payload;
+    const nextName = editorPayload?.name || entry.label;
+    const alertSettings = editorPayload?.alertSettings;
+
+    if (entry.id.startsWith('saved-search-')) {
+      savedSearchService.update(entry.id, {
+        name: nextName,
+        filters: nextFilters,
+        context: editorPayload?.useCurrentCriteria
+          ? {
+              type: tab as SavedSearchType,
+              route: `/search/${tab}`,
+              label: tab.charAt(0).toUpperCase() + tab.slice(1),
+              summary: buildSummary(),
+              language,
+              accountType: user?.accountType,
+            }
+          : savedSearchService.get(entry.id)?.context,
+        ...(alertSettings ? {
+          alertsEnabled: alertSettings.alertFrequency !== 'unsubscribe' && alertSettings.status === 'active',
+          alertFrequency: alertSettings.alertFrequency,
+          alertDays: alertSettings.alertDays,
+          alertHour: alertSettings.alertHour,
+          emailFormat: alertSettings.emailFormat,
+          status: alertSettings.status,
+        } : {}),
+      });
+      setSavedSearches(readSavedSearches());
+      toast.success('Saved search updated');
+      return;
+    }
     const next = readSavedSearches().map((item) =>
-      item.id === entry.id ? { ...item, label: entry.label, payload: buildPayload() } : item
+      item.id === entry.id ? { ...item, label: nextName, payload: nextFilters } : item
     );
     localStorage.setItem(storageKey, JSON.stringify(next));
+    if (alertSettings) {
+      const legacyAlertPreference: SavedAlertPreference = {
+        searchId: entry.id,
+        enabled: alertSettings.alertFrequency !== 'unsubscribe' && alertSettings.status === 'active',
+        frequency: alertSettings.alertFrequency === 'daily' ? 'daily' : 'weekly',
+        intervalDays: alertSettings.alertFrequency === 'daily' ? 1 : 7,
+      };
+      const existingPreference = alertPreferences.some((preference) => preference.searchId === entry.id);
+      const nextAlerts = existingPreference
+        ? alertPreferences.map((preference) => preference.searchId === entry.id ? legacyAlertPreference : preference)
+        : [...alertPreferences, legacyAlertPreference];
+      localStorage.setItem(alertsStorageKey, JSON.stringify(nextAlerts));
+      setAlertPreferences(nextAlerts);
+    }
     setSavedSearches(next);
     toast.success('Saved search updated');
   };
 
   const deleteSavedSearch = (id: string) => {
+    if (id.startsWith('saved-search-')) {
+      savedSearchService.remove(id);
+      setSavedSearches(readSavedSearches());
+      return;
+    }
     const next = readSavedSearches().filter((entry) => entry.id !== id);
     localStorage.setItem(storageKey, JSON.stringify(next));
     setSavedSearches(next);
@@ -683,12 +873,17 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
             <Download className="h-4 w-4 mr-2" />
             {t('activeTenders.action.csv')}
           </Button>
-          <Button type="button" variant="outline" className="min-h-11" onClick={saveSearch}>
+          <Button type="button" variant="outline" className="min-h-11" onClick={openCreateSavedSearch}>
             Save Search
           </Button>
           <Button type="button" variant="outline" className="min-h-11" onClick={openLoadSearchDialog}>
             Load Search
           </Button>
+          {tab === 'projects' && (
+            <Button type="button" variant="outline" className="min-h-11" onClick={() => navigate('/account/my-selection')}>
+              Manage Searches
+            </Button>
+          )}
           <Button type="button" variant="outline" className="min-h-11" onClick={() => setShowFilters(prev => !prev)}>
             {showFilters ? <><ChevronUp className="h-4 w-4 mr-2" />{t('activeTenders.action.hideFilters')}</> : <><ChevronDown className="h-4 w-4 mr-2" />{t('activeTenders.action.showFilters')}</>}
           </Button>
@@ -988,7 +1183,7 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
                         </div>
                         <div className="flex flex-wrap gap-2">
                           <Button size="sm" variant="outline" onClick={() => applySavedSearch(entry.payload)}>Load</Button>
-                          <Button size="sm" variant="outline" onClick={() => updateSavedSearch(entry)}>Edit</Button>
+                          <Button size="sm" variant="outline" onClick={() => openEditSavedSearch(entry)}>Edit</Button>
                           <Button size="sm" variant="ghost" onClick={() => deleteSavedSearch(entry.id)}>Delete</Button>
                         </div>
                       </div>
@@ -1293,25 +1488,56 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
           ) : (
             <div className="max-h-80 overflow-auto space-y-2">
               {savedSearches.map(entry => (
-                <Button
-                  key={entry.id}
-                  type="button"
-                  variant="outline"
-                  className="w-full justify-between h-auto py-2"
-                  onClick={() => {
-                    applySavedSearch(entry.payload);
-                    setIsLoadDialogOpen(false);
-                    toast.success('Search loaded');
-                  }}
-                >
-                  <span className="truncate text-left max-w-[70%]">{entry.label}</span>
-                  <span className="text-xs text-muted-foreground">{format(new Date(entry.createdAt), 'yyyy-MM-dd HH:mm')}</span>
-                </Button>
+                <div key={entry.id} className="rounded-md border border-gray-200 p-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-primary">{entry.label}</p>
+                      <p className="text-xs text-muted-foreground">{format(new Date(entry.createdAt), 'yyyy-MM-dd HH:mm')}</p>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          applySavedSearch(entry.payload);
+                          setIsLoadDialogOpen(false);
+                          toast.success('Search loaded');
+                        }}
+                      >
+                        Load
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setIsLoadDialogOpen(false);
+                          openEditSavedSearch(entry);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => deleteSavedSearch(entry.id)}>Delete</Button>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           )}
         </DialogContent>
       </Dialog>
+      <SavedSearchEditorDialog
+        open={isSaveSearchDialogOpen}
+        mode={editingSavedSearch ? 'edit' : 'create'}
+        searchType={tab as SavedSearchType}
+        initialName={editingSavedSearch?.label || (searchInput || searchQuery).trim() || `Saved ${tab} search`}
+        reviewItems={buildReviewItemsFromPayload(editingSavedSearch?.payload || buildPayload())}
+        initialAlertSettings={getAlertSettingsForEntry(editingSavedSearch)}
+        onOpenChange={(open) => {
+          setIsSaveSearchDialogOpen(open);
+          if (!open) setEditingSavedSearch(null);
+        }}
+        onSave={saveSearch}
+      />
     </div>
   );
 }

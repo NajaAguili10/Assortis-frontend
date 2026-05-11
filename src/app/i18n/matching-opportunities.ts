@@ -224,6 +224,11 @@ export const matchingOpportunitiesTranslations = {
     'matching-opportunities.projects.not-interested': 'Not interested',
     'matching-opportunities.projects.results': 'results',
     'matching-opportunities.nav.projects': 'Matching Projects',
+    'matching-opportunities.nav.openProjects': 'Open Projects',
+    'matching-opportunities.nav.shortlists': 'Shortlists',
+    'matching-opportunities.nav.contracts': 'Contracts',
+    'matching-opportunities.nav.jobVacancies': 'Job Vacancies',
+    'matching-opportunities.nav.contractors': 'Contractors',
 
     // Date filter
     'matching-opportunities.projects.filter.date-range': 'Posted within',
@@ -517,6 +522,11 @@ export const matchingOpportunitiesTranslations = {
     'matching-opportunities.projects.not-interested': 'Pas intéressé',
     'matching-opportunities.projects.results': 'résultats',
     'matching-opportunities.nav.projects': 'Projets Correspondants',
+    'matching-opportunities.nav.openProjects': 'Projets ouverts',
+    'matching-opportunities.nav.shortlists': 'Shortlists',
+    'matching-opportunities.nav.contracts': 'Contrats',
+    'matching-opportunities.nav.jobVacancies': 'Offres d\'emploi',
+    'matching-opportunities.nav.contractors': 'Contractants',
 
     // Date filter
     'matching-opportunities.projects.filter.date-range': 'Publié dans',
@@ -810,6 +820,11 @@ export const matchingOpportunitiesTranslations = {
     'matching-opportunities.projects.not-interested': 'No me interesa',
     'matching-opportunities.projects.results': 'resultados',
     'matching-opportunities.nav.projects': 'Proyectos Coincidentes',
+    'matching-opportunities.nav.openProjects': 'Proyectos abiertos',
+    'matching-opportunities.nav.shortlists': 'Shortlists',
+    'matching-opportunities.nav.contracts': 'Contratos',
+    'matching-opportunities.nav.jobVacancies': 'Vacantes de empleo',
+    'matching-opportunities.nav.contractors': 'Contratistas',
 
     // Date filter
     'matching-opportunities.projects.filter.date-range': 'Publicado dentro de',

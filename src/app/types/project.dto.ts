@@ -311,12 +311,12 @@ export interface TaskDTO {
   projectId: string;
   projectTitle: string;
   title: string;
-  description: string;
+  description?: string;
   status: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'COMPLETED';
   priority: ProjectPriorityEnum;
   assignedTo: TaskAssigneeDTO[];
   startDate?: string;
-  dueDate: string;
+  dueDate?: string;
   completedDate?: string;
   tags: string[];
 }

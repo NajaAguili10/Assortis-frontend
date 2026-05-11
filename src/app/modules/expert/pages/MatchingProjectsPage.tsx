@@ -1,7 +1,6 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
-import { Filter, RotateCcw, Layers, Lock, CalendarDays, Sparkles } from 'lucide-react';
-import { toast } from 'sonner';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
+import { Briefcase, Building2, CalendarDays, CalendarIcon, ChevronRight, ChevronUp, Filter, Layers, Lock, Plus, RotateCcw, Search, Sparkles } from 'lucide-react';
 import { useTranslation } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
 import { PageBanner } from '@app/components/PageBanner';
@@ -10,6 +9,14 @@ import { MatchingOpportunitiesSubMenu } from '@app/components/MatchingOpportunit
 import { MatchingOpportunityCard } from '@app/components/MatchingOpportunityCard';
 import { Button } from '@app/components/ui/button';
 import { Badge } from '@app/components/ui/badge';
+import { Input } from '@app/components/ui/input';
+import { Checkbox } from '@app/components/ui/checkbox';
+import { Calendar } from '@app/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@app/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -20,19 +27,25 @@ import {
 import { useMatchingOpportunities } from '@app/modules/expert/hooks/useMatchingOpportunities';
 import {
   MatchingProjectsFilterDTO,
+  MatchingVacancyFiltersDTO,
   OpportunityTypeEnum,
 } from '@app/types/matchingOpportunities.dto';
+import {
+  CountryEnum,
+  FundingAgencyEnum,
+  SectorEnum,
+} from '@app/types/tender.dto';
 
-const OPPORTUNITY_TYPE_OPTIONS: { value: OpportunityTypeEnum | 'ALL'; labelKey: string }[] = [
+const OPPORTUNITY_TYPE_OPTIONS = [
   { value: 'ALL', labelKey: 'matching-opportunities.projects.filter.all-categories' },
-  { value: OpportunityTypeEnum.OPEN_PROJECT, labelKey: 'matching-opportunities.types.openProject' },
-  { value: OpportunityTypeEnum.CONTRACT_AWARD, labelKey: 'matching-opportunities.types.contractAward' },
-  { value: OpportunityTypeEnum.SHORTLIST, labelKey: 'matching-opportunities.types.shortlist' },
-  { value: OpportunityTypeEnum.PROJECT_VACANCY, labelKey: 'matching-opportunities.types.projectVacancy' },
-  { value: OpportunityTypeEnum.IN_HOUSE_VACANCY, labelKey: 'matching-opportunities.types.inHouseVacancy' },
+  { value: OpportunityTypeEnum.OPEN_PROJECT, label: 'Open Projects' },
+  { value: OpportunityTypeEnum.CONTRACT_AWARD, label: 'Contract Awards' },
+  { value: OpportunityTypeEnum.SHORTLIST, label: 'Shortlists' },
+  { value: OpportunityTypeEnum.IN_HOUSE_VACANCY, label: 'My In-house Vacancies' },
+  { value: OpportunityTypeEnum.PROJECT_VACANCY, label: 'Project Vacancies' },
 ];
 
-const FREE_PREVIEW_COUNT = 3;
+const FREE_PREVIEW_COUNT = 2;
 
 const DEFAULT_FILTERS: MatchingProjectsFilterDTO = {
   sort: 'relevance',
@@ -42,12 +55,48 @@ const DEFAULT_FILTERS: MatchingProjectsFilterDTO = {
   dateRange: '5days',
 };
 
+const TYPE_PARAM_MAP: Record<string, OpportunityTypeEnum | 'ALL'> = {
+  'open-projects': OpportunityTypeEnum.OPEN_PROJECT,
+  project: OpportunityTypeEnum.OPEN_PROJECT,
+  'contract-awards': OpportunityTypeEnum.CONTRACT_AWARD,
+  contract: OpportunityTypeEnum.CONTRACT_AWARD,
+  shortlists: OpportunityTypeEnum.SHORTLIST,
+  shortlist: OpportunityTypeEnum.SHORTLIST,
+  'project-vacancies': OpportunityTypeEnum.PROJECT_VACANCY,
+  vacancy: OpportunityTypeEnum.PROJECT_VACANCY,
+  vacancies: OpportunityTypeEnum.PROJECT_VACANCY,
+  'in-house-vacancies': OpportunityTypeEnum.IN_HOUSE_VACANCY,
+  'in-house': OpportunityTypeEnum.IN_HOUSE_VACANCY,
+};
+
+function toggleInArray<T>(items: T[], value: T): T[] {
+  return items.includes(value) ? items.filter(item => item !== value) : [...items, value];
+}
+
+const createDefaultVacancyFilters = (
+  activeType: OpportunityTypeEnum.PROJECT_VACANCY | OpportunityTypeEnum.IN_HOUSE_VACANCY,
+): MatchingVacancyFiltersDTO => ({
+  searchInput: '',
+  searchMode: 'allWords',
+  publishedFrom: undefined,
+  publishedTo: undefined,
+  selectedSectors: [],
+  selectedCountries: [],
+  selectedFundingAgencies: [],
+  status: 'all',
+  location: 'all',
+  department: 'all',
+  deadline: 'all',
+  sort: 'newest',
+  activeType,
+});
+
 export default function MatchingProjectsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const isSubscribed = user?.isSubscribed !== false;
-
   const {
     opportunities,
     saveOpportunity,
@@ -55,55 +104,77 @@ export default function MatchingProjectsPage() {
     isSaved,
     dismissOpportunity,
     getFilteredMatchingProjects,
+    getFilteredVacancyOpportunities,
   } = useMatchingOpportunities();
 
-  const [filters, setFilters] = useState<MatchingProjectsFilterDTO>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState<MatchingProjectsFilterDTO>(() => {
+    const typeParam = searchParams.get('type');
+    return {
+      ...DEFAULT_FILTERS,
+      category: typeParam ? TYPE_PARAM_MAP[typeParam] ?? 'ALL' : 'ALL',
+    };
+  });
   const [showCustomDate, setShowCustomDate] = useState(false);
+  const [vacancySearchInput, setVacancySearchInput] = useState('');
+  const [expandedVacancySections, setExpandedVacancySections] = useState({
+    sectors: false,
+    countries: false,
+    fundingAgencies: false,
+  });
+  const [vacancyFiltersByType, setVacancyFiltersByType] = useState<Record<OpportunityTypeEnum.PROJECT_VACANCY | OpportunityTypeEnum.IN_HOUSE_VACANCY, MatchingVacancyFiltersDTO>>({
+    [OpportunityTypeEnum.PROJECT_VACANCY]: createDefaultVacancyFilters(OpportunityTypeEnum.PROJECT_VACANCY),
+    [OpportunityTypeEnum.IN_HOUSE_VACANCY]: createDefaultVacancyFilters(OpportunityTypeEnum.IN_HOUSE_VACANCY),
+  });
+
+  useEffect(() => {
+    const typeParam = searchParams.get('type');
+    if (!typeParam) return;
+    setFilters(prev => ({
+      ...prev,
+      category: TYPE_PARAM_MAP[typeParam] ?? 'ALL',
+    }));
+  }, [searchParams]);
 
   const countries = useMemo(() => {
-    const unique = Array.from(new Set(opportunities.map(o => o.country))).sort();
-    return unique;
+    return Array.from(new Set(opportunities.map(opportunity => opportunity.country))).sort();
   }, [opportunities]);
 
-  // For non-subscribers, skip the date filter so they still see something
-  const effectiveFilters = useMemo<MatchingProjectsFilterDTO>(() => {
-    if (!isSubscribed) return { ...filters, dateRange: '30days', minScore: 0 };
-    return filters;
-  }, [filters, isSubscribed]);
+  const filteredProjects = useMemo(() => {
+    const effectiveFilters = isSubscribed
+      ? filters
+      : { ...filters, dateRange: '30days' as const, minScore: 0 as const };
+    return getFilteredMatchingProjects(effectiveFilters);
+  }, [filters, getFilteredMatchingProjects, isSubscribed]);
 
-  const allFilteredProjects = useMemo(
-    () => getFilteredMatchingProjects(effectiveFilters),
-    [effectiveFilters, getFilteredMatchingProjects, opportunities]
-  );
-
-  // Subscribers see everything; non-subscribers see the first FREE_PREVIEW_COUNT
-  const visibleProjects = isSubscribed
-    ? allFilteredProjects
-    : allFilteredProjects.slice(0, FREE_PREVIEW_COUNT);
-  const lockedCount = isSubscribed ? 0 : Math.max(0, allFilteredProjects.length - FREE_PREVIEW_COUNT);
-
-  const handleDismiss = (id: string) => {
-    dismissOpportunity(id);
-    toast.info(t('matching-opportunities.toast.dismissed'));
+  const isVacancyView =
+    filters.category === OpportunityTypeEnum.PROJECT_VACANCY ||
+    filters.category === OpportunityTypeEnum.IN_HOUSE_VACANCY;
+  const activeVacancyType = filters.category === OpportunityTypeEnum.IN_HOUSE_VACANCY
+    ? OpportunityTypeEnum.IN_HOUSE_VACANCY
+    : OpportunityTypeEnum.PROJECT_VACANCY;
+  const vacancyFilters = vacancyFiltersByType[activeVacancyType];
+  const setActiveVacancyFilters = (updater: (current: MatchingVacancyFiltersDTO) => MatchingVacancyFiltersDTO) => {
+    setVacancyFiltersByType(prev => ({
+      ...prev,
+      [activeVacancyType]: updater(prev[activeVacancyType]),
+    }));
   };
 
-  const handleApply = (id: string) => {
-    toast.success(t('matching-opportunities.toast.applicationSubmitted'));
-  };
+  useEffect(() => {
+    setVacancySearchInput(vacancyFilters.searchInput);
+  }, [activeVacancyType, vacancyFilters.searchInput]);
 
-  const handleExpressInterest = (id: string) => {
-    toast.success(t('matching-opportunities.toast.interestExpressed'));
-  };
+  const vacancyProjects = useMemo(() => {
+    if (!isVacancyView) return [];
+    return getFilteredVacancyOpportunities({
+      ...vacancyFilters,
+      activeType: activeVacancyType,
+    });
+  }, [activeVacancyType, getFilteredVacancyOpportunities, isVacancyView, vacancyFilters]);
 
-  const handleSave = (id: string) => {
-    saveOpportunity(id);
-    toast.success(t('matching-opportunities.toast.opportunitySaved'));
-  };
-
-  const handleRemove = (id: string) => {
-    removeOpportunity(id);
-    toast.info(t('matching-opportunities.toast.opportunityRemoved'));
-  };
+  const resultProjects = isVacancyView ? vacancyProjects : filteredProjects;
+  const visibleProjects = isSubscribed ? resultProjects : resultProjects.slice(0, FREE_PREVIEW_COUNT);
+  const hiddenCount = Math.max(resultProjects.length - visibleProjects.length, 0);
 
   const isFiltered =
     filters.sort !== 'relevance' ||
@@ -112,11 +183,49 @@ export default function MatchingProjectsPage() {
     filters.minScore !== 0 ||
     filters.dateRange !== '5days';
 
-  const dateRangeLabelKey: Record<string, string> = {
+  const vacancyFilterCount =
+    (vacancyFilters.searchInput ? 1 : 0) +
+    (vacancyFilters.searchMode !== 'allWords' ? 1 : 0) +
+    (vacancyFilters.publishedFrom ? 1 : 0) +
+    (vacancyFilters.publishedTo ? 1 : 0) +
+    vacancyFilters.selectedSectors.length +
+    vacancyFilters.selectedCountries.length +
+    vacancyFilters.selectedFundingAgencies.length;
+
+  const selectVacancyType = (type: OpportunityTypeEnum.PROJECT_VACANCY | OpportunityTypeEnum.IN_HOUSE_VACANCY) => {
+    setFilters(prev => ({ ...prev, category: type }));
+  };
+
+  const openDetail = (opportunityId: string) => {
+    const opportunity = opportunities.find(item => item.id === opportunityId);
+    if (!opportunity) return;
+
+    if (opportunity.type === OpportunityTypeEnum.CONTRACT_AWARD) {
+      navigate(`/matching-opportunities/opportunities/award/${opportunityId}`);
+      return;
+    }
+
+    if (opportunity.type === OpportunityTypeEnum.SHORTLIST) {
+      navigate(`/matching-opportunities/opportunities/shortlist/${opportunityId}`);
+      return;
+    }
+
+    if (
+      opportunity.type === OpportunityTypeEnum.PROJECT_VACANCY ||
+      opportunity.type === OpportunityTypeEnum.IN_HOUSE_VACANCY
+    ) {
+      navigate(`/matching-opportunities/opportunities/vacancy/${opportunityId}`);
+      return;
+    }
+
+    navigate(`/matching-opportunities/opportunities/project/${opportunityId}`);
+  };
+
+  const dateRangeLabelKey: Record<MatchingProjectsFilterDTO['dateRange'], string> = {
     '5days': 'matching-opportunities.projects.filter.date-5days',
     '7days': 'matching-opportunities.projects.filter.date-7days',
     '30days': 'matching-opportunities.projects.filter.date-30days',
-    'custom': 'matching-opportunities.projects.filter.date-custom',
+    custom: 'matching-opportunities.projects.filter.date-custom',
   };
 
   return (
@@ -130,278 +239,383 @@ export default function MatchingProjectsPage() {
       <PageContainer>
         <MatchingOpportunitiesSubMenu />
 
-        {/* Non-subscriber banner */}
-        {!isSubscribed && (
-          <div className="mt-6 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-5 text-white flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <Sparkles className="w-5 h-5" />
-                <span className="font-semibold text-lg">{t('matching-opportunities.gate.title')}</span>
-              </div>
-              <p className="text-blue-100 text-sm">{t('matching-opportunities.gate.description')}</p>
+        <div className="mt-6 rounded-xl border bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-3 text-sm text-gray-600">
+              <Filter className="h-5 w-5 text-primary" />
+              <span>{t('matching-opportunities.projects.sort.label')}:</span>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+
+            <Select
+              value={filters.sort}
+              onValueChange={(value: 'relevance' | 'date') => setFilters(prev => ({ ...prev, sort: value }))}
+              disabled={!isSubscribed}
+            >
+              <SelectTrigger className="w-[180px] bg-gray-50">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="relevance">{t('matching-opportunities.projects.sort.relevance')}</SelectItem>
+                <SelectItem value="date">{t('matching-opportunities.projects.sort.date')}</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={filters.dateRange}
+              onValueChange={(value: MatchingProjectsFilterDTO['dateRange']) => {
+                setFilters(prev => ({ ...prev, dateRange: value, customDateFrom: undefined, customDateTo: undefined }));
+                setShowCustomDate(value === 'custom');
+              }}
+              disabled={!isSubscribed}
+            >
+              <SelectTrigger className="w-[190px] bg-gray-50">
+                <CalendarDays className="mr-2 h-4 w-4 text-gray-400" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5days">{t('matching-opportunities.projects.filter.date-5days')}</SelectItem>
+                <SelectItem value="7days">{t('matching-opportunities.projects.filter.date-7days')}</SelectItem>
+                <SelectItem value="30days">{t('matching-opportunities.projects.filter.date-30days')}</SelectItem>
+                <SelectItem value="custom">{t('matching-opportunities.projects.filter.date-custom')}</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={String(filters.category)}
+              onValueChange={(value: string) => setFilters(prev => ({ ...prev, category: value as MatchingProjectsFilterDTO['category'] }))}
+              disabled={!isSubscribed}
+            >
+              <SelectTrigger className="w-[220px] bg-gray-50">
+                <SelectValue placeholder={t('matching-opportunities.projects.filter.category')} />
+              </SelectTrigger>
+              <SelectContent>
+                {OPPORTUNITY_TYPE_OPTIONS.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.labelKey ? t(option.labelKey) : option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={filters.country}
+              onValueChange={(value: string) => setFilters(prev => ({ ...prev, country: value }))}
+              disabled={!isSubscribed}
+            >
+              <SelectTrigger className="w-[220px] bg-gray-50">
+                <SelectValue placeholder={t('matching-opportunities.projects.filter.location')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Countries</SelectItem>
+                {countries.map(country => (
+                  <SelectItem key={country} value={country}>{country}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={String(filters.minScore)}
+              onValueChange={(value: string) => setFilters(prev => ({ ...prev, minScore: Number(value) as 0 | 50 | 70 | 90 }))}
+              disabled={!isSubscribed}
+            >
+              <SelectTrigger className="w-[180px] bg-gray-50">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">{t('matching-opportunities.projects.filter.min-score-any')}</SelectItem>
+                <SelectItem value="50">{t('matching-opportunities.projects.filter.min-score-50')}</SelectItem>
+                <SelectItem value="70">{t('matching-opportunities.projects.filter.min-score-70')}</SelectItem>
+                <SelectItem value="90">{t('matching-opportunities.projects.filter.min-score-90')}</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {showCustomDate && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  className="h-10 rounded-md border border-gray-200 bg-white px-2 text-sm"
+                  value={filters.customDateFrom ?? ''}
+                  onChange={event => setFilters(prev => ({ ...prev, customDateFrom: event.target.value || undefined }))}
+                  disabled={!isSubscribed}
+                  aria-label={t('matching-opportunities.projects.filter.date-from')}
+                />
+                <input
+                  type="date"
+                  className="h-10 rounded-md border border-gray-200 bg-white px-2 text-sm"
+                  value={filters.customDateTo ?? ''}
+                  onChange={event => setFilters(prev => ({ ...prev, customDateTo: event.target.value || undefined }))}
+                  disabled={!isSubscribed}
+                  aria-label={t('matching-opportunities.projects.filter.date-to')}
+                />
+              </div>
+            )}
+
+            {isFiltered && (
               <Button
-                className="bg-white text-blue-700 hover:bg-blue-50 font-semibold"
-                onClick={() => navigate('/account/subscription')}
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setFilters(DEFAULT_FILTERS);
+                  setShowCustomDate(false);
+                }}
               >
-                {t('matching-opportunities.gate.cta-primary')}
+                <RotateCcw className="mr-2 h-4 w-4" />
+                {t('matching-opportunities.projects.filter.reset')}
+              </Button>
+            )}
+
+            <div className="ml-auto flex items-center gap-2 text-sm text-gray-600">
+              <Badge variant="outline" className="border-blue-200 text-blue-600">
+                {t(dateRangeLabelKey[filters.dateRange])}
+              </Badge>
+              <span>{visibleProjects.length} {t('matching-opportunities.projects.results')}</span>
+            </div>
+          </div>
+        </div>
+
+        {isVacancyView && (
+          <div className="mt-6 rounded-xl border bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Job Vacancies</h3>
+                <p className="text-sm text-muted-foreground">Search matching in-house and project vacancies.</p>
+              </div>
+              {vacancyFilterCount > 0 && <Badge>{vacancyFilterCount} active filters</Badge>}
+            </div>
+
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              {[
+                { type: OpportunityTypeEnum.IN_HOUSE_VACANCY, label: 'My In-house Vacancies', icon: Building2 },
+                { type: OpportunityTypeEnum.PROJECT_VACANCY, label: 'Project Vacancies', icon: Briefcase },
+              ].map((item) => {
+                const Icon = item.icon;
+                const active = activeVacancyType === item.type;
+                return (
+                  <button
+                    key={item.type}
+                    type="button"
+                    className={`flex min-h-11 items-center justify-center gap-2 rounded-md border px-3 text-sm font-semibold transition-colors ${
+                      active
+                        ? 'border-[#E63462] bg-[#E63462] text-white shadow-sm'
+                        : 'border-gray-200 bg-white text-primary hover:border-[#E63462] hover:text-[#E63462]'
+                    }`}
+                    onClick={() => selectVacancyType(item.type)}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-5 rounded-lg border border-gray-200">
+              <div className="border-b px-4 py-3">
+                <h4 className="text-sm font-bold uppercase tracking-wide text-[#E63462]">Search Criteria</h4>
+              </div>
+              <div className="grid gap-4 p-4 lg:grid-cols-[180px_180px_minmax(0,1fr)_240px]">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-600">Published from</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start min-h-10">
+                        <CalendarIcon className="h-4 w-4 mr-2" />
+                        {vacancyFilters.publishedFrom ? vacancyFilters.publishedFrom.toLocaleDateString() : 'Select date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={vacancyFilters.publishedFrom} onSelect={(date) => setActiveVacancyFilters(prev => ({ ...prev, publishedFrom: date }))} initialFocus />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-600">To</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start min-h-10">
+                        <CalendarIcon className="h-4 w-4 mr-2" />
+                        {vacancyFilters.publishedTo ? vacancyFilters.publishedTo.toLocaleDateString() : 'Select date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={vacancyFilters.publishedTo} onSelect={(date) => setActiveVacancyFilters(prev => ({ ...prev, publishedTo: date }))} initialFocus />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-600">Keywords</label>
+                  <Input
+                    value={vacancySearchInput}
+                    onChange={event => setVacancySearchInput(event.target.value)}
+                    placeholder="Enter keywords to search"
+                    className="min-h-10"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-600">Keyword match type</label>
+                  <Select
+                    value={vacancyFilters.searchMode}
+                    onValueChange={(value: 'allWords' | 'anyWords' | 'exactPhrase') =>
+                      setActiveVacancyFilters(prev => ({ ...prev, searchMode: value }))
+                    }
+                  >
+                    <SelectTrigger className="min-h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="allWords">Search all of the words</SelectItem>
+                      <SelectItem value="anyWords">Search any of the words</SelectItem>
+                      <SelectItem value="exactPhrase">Exact phrase</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-lg border border-gray-200">
+              <div className="border-b px-4 py-3">
+                <h4 className="text-sm font-bold uppercase tracking-wide text-[#E63462]">Selection</h4>
+              </div>
+              <div className="space-y-3 p-4">
+                {[
+                  { key: 'sectors' as const, label: 'Sectors', count: vacancyFilters.selectedSectors.length },
+                  { key: 'countries' as const, label: 'Countries', count: vacancyFilters.selectedCountries.length },
+                  { key: 'fundingAgencies' as const, label: 'Funding Agencies', count: vacancyFilters.selectedFundingAgencies.length },
+                ].map((section) => {
+                  const expanded = expandedVacancySections[section.key];
+                  return (
+                    <div key={section.key} className="rounded-md border border-gray-200">
+                      <button
+                        type="button"
+                        className="flex w-full items-center justify-between bg-[#E63462] px-4 py-2.5 text-left text-sm font-semibold text-white transition-colors hover:bg-[#cf2c55]"
+                        onClick={() => setExpandedVacancySections(prev => ({ ...prev, [section.key]: !expanded }))}
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          <Plus className={`h-4 w-4 transition-transform ${expanded ? 'rotate-45' : ''}`} />
+                          {section.label}
+                          {section.count > 0 && <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs">{section.count}</span>}
+                        </span>
+                        {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      </button>
+                      {expanded && (
+                        <div className="max-h-64 overflow-auto bg-white p-3">
+                          {section.key === 'sectors' && (
+                            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                              {Object.values(SectorEnum).map(item => (
+                                <label key={item} className="flex items-center gap-2 text-sm">
+                                  <Checkbox
+                                    checked={vacancyFilters.selectedSectors.includes(item)}
+                                    onCheckedChange={() => setActiveVacancyFilters(prev => ({ ...prev, selectedSectors: toggleInArray(prev.selectedSectors, item) }))}
+                                  />
+                                  <span>{item.replace(/_/g, ' ')}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                          {section.key === 'countries' && (
+                            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                              {Object.values(CountryEnum).map(item => (
+                                <label key={item} className="flex items-center gap-2 text-sm">
+                                  <Checkbox
+                                    checked={vacancyFilters.selectedCountries.includes(item)}
+                                    onCheckedChange={() => setActiveVacancyFilters(prev => ({ ...prev, selectedCountries: toggleInArray(prev.selectedCountries, item) }))}
+                                  />
+                                  <span>{item}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                          {section.key === 'fundingAgencies' && (
+                            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                              {Object.values(FundingAgencyEnum).map(item => (
+                                <label key={item} className="flex items-center gap-2 text-sm">
+                                  <Checkbox
+                                    checked={vacancyFilters.selectedFundingAgencies.includes(item)}
+                                    onCheckedChange={() => setActiveVacancyFilters(prev => ({ ...prev, selectedFundingAgencies: toggleInArray(prev.selectedFundingAgencies, item) }))}
+                                  />
+                                  <span>{item}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-[#E63462] hover:text-[#E63462]"
+                onClick={() => {
+                  setVacancySearchInput('');
+                  setVacancyFiltersByType(prev => ({
+                    ...prev,
+                    [activeVacancyType]: createDefaultVacancyFilters(activeVacancyType),
+                  }));
+                }}
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Clear selection
+              </Button>
+              <Button
+                type="button"
+                className="min-h-10"
+                onClick={() => setActiveVacancyFilters(prev => ({ ...prev, searchInput: vacancySearchInput.trim() }))}
+              >
+                <Search className="w-4 h-4 mr-2" />
+                Search
               </Button>
             </div>
           </div>
         )}
 
-        {/* Filter bar — advanced filters locked for non-subscribers */}
-        <div className="mt-6 bg-white border border-gray-200 rounded-lg p-4">
-          {!isSubscribed && (
-            <div className="flex items-center gap-2 mb-3 p-2 bg-amber-50 border border-amber-200 rounded-md">
-              <Lock className="w-4 h-4 text-amber-500 shrink-0" />
-              <span className="text-xs text-amber-700">{t('matching-opportunities.gate.filters-locked')}</span>
-              <Badge className="ml-auto text-xs bg-amber-100 text-amber-800 border-0">
-                {t('matching-opportunities.gate.limited-badge')}
-              </Badge>
+        {!isSubscribed && (
+          <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <div className="flex items-start gap-3">
+              <Lock className="mt-0.5 h-5 w-5" />
+              <div>
+                <p className="font-semibold">Subscription preview</p>
+                <p className="mt-1">You are seeing a limited preview. Subscribe to unlock all matching projects and advanced filters.</p>
+              </div>
             </div>
-          )}
-          <div className="flex flex-wrap gap-3 items-center">
-            <Filter className="w-4 h-4 text-gray-500 shrink-0" />
-
-            {/* Sort */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500 whitespace-nowrap">
-                {t('matching-opportunities.projects.sort.label')}:
-              </span>
-              <Select
-                value={filters.sort}
-                onValueChange={(v: 'relevance' | 'date') =>
-                  setFilters(f => ({ ...f, sort: v }))
-                }
-                disabled={!isSubscribed}
-              >
-                <SelectTrigger className="w-36 h-8 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="relevance">
-                    {t('matching-opportunities.projects.sort.relevance')}
-                  </SelectItem>
-                  <SelectItem value="date">
-                    {t('matching-opportunities.projects.sort.date')}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Date range */}
-            <div className="flex items-center gap-2">
-              <CalendarDays className="w-4 h-4 text-gray-400 shrink-0" />
-              <Select
-                value={filters.dateRange}
-                onValueChange={(v: MatchingProjectsFilterDTO['dateRange']) => {
-                  setFilters(f => ({ ...f, dateRange: v, customDateFrom: undefined, customDateTo: undefined }));
-                  setShowCustomDate(v === 'custom');
-                }}
-                disabled={!isSubscribed}
-              >
-                <SelectTrigger className="w-40 h-8 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5days">{t('matching-opportunities.projects.filter.date-5days')}</SelectItem>
-                  <SelectItem value="7days">{t('matching-opportunities.projects.filter.date-7days')}</SelectItem>
-                  <SelectItem value="30days">{t('matching-opportunities.projects.filter.date-30days')}</SelectItem>
-                  <SelectItem value="custom">{t('matching-opportunities.projects.filter.date-custom')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Custom date inputs */}
-            {showCustomDate && isSubscribed && (
-              <>
-                <div className="flex items-center gap-1">
-                  <span className="text-xs text-gray-500">{t('matching-opportunities.projects.filter.date-from')}</span>
-                  <input
-                    type="date"
-                    className="border border-gray-200 rounded h-8 px-2 text-sm"
-                    value={filters.customDateFrom ?? ''}
-                    onChange={e => setFilters(f => ({ ...f, customDateFrom: e.target.value || undefined }))}
-                  />
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-xs text-gray-500">{t('matching-opportunities.projects.filter.date-to')}</span>
-                  <input
-                    type="date"
-                    className="border border-gray-200 rounded h-8 px-2 text-sm"
-                    value={filters.customDateTo ?? ''}
-                    onChange={e => setFilters(f => ({ ...f, customDateTo: e.target.value || undefined }))}
-                  />
-                </div>
-              </>
-            )}
-
-            {/* Category — locked for non-subscribers */}
-            <Select
-              value={filters.category}
-              onValueChange={(v: OpportunityTypeEnum | 'ALL') =>
-                setFilters(f => ({ ...f, category: v }))
-              }
-              disabled={!isSubscribed}
-            >
-              <SelectTrigger className="w-44 h-8 text-sm">
-                <SelectValue placeholder={t('matching-opportunities.projects.filter.category')} />
-              </SelectTrigger>
-              <SelectContent>
-                {OPPORTUNITY_TYPE_OPTIONS.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {t(opt.labelKey)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* Location — locked for non-subscribers */}
-            <Select
-              value={filters.country}
-              onValueChange={(v: string) => setFilters(f => ({ ...f, country: v }))}
-              disabled={!isSubscribed}
-            >
-              <SelectTrigger className="w-40 h-8 text-sm">
-                <SelectValue
-                  placeholder={t('matching-opportunities.opportunities.allCountries')}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">
-                  {t('matching-opportunities.opportunities.allCountries')}
-                </SelectItem>
-                {countries.map(c => (
-                  <SelectItem key={c} value={c}>
-                    {c}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* Min score — locked for non-subscribers */}
-            <Select
-              value={String(filters.minScore)}
-              onValueChange={(v: string) =>
-                setFilters(f => ({ ...f, minScore: Number(v) as 0 | 50 | 70 | 90 }))
-              }
-              disabled={!isSubscribed}
-            >
-              <SelectTrigger className="w-40 h-8 text-sm">
-                <SelectValue
-                  placeholder={t('matching-opportunities.projects.filter.min-score')}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0">
-                  {t('matching-opportunities.projects.filter.min-score-any')}
-                </SelectItem>
-                <SelectItem value="50">
-                  {t('matching-opportunities.projects.filter.min-score-50')}
-                </SelectItem>
-                <SelectItem value="70">
-                  {t('matching-opportunities.projects.filter.min-score-70')}
-                </SelectItem>
-                <SelectItem value="90">
-                  {t('matching-opportunities.projects.filter.min-score-90')}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-
-            {isFiltered && isSubscribed && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => { setFilters(DEFAULT_FILTERS); setShowCustomDate(false); }}
-                className="flex items-center gap-1 text-gray-500 h-8"
-              >
-                <RotateCcw className="w-3 h-3" />
-                {t('matching-opportunities.projects.filter.reset')}
-              </Button>
-            )}
-
-            <span className="ml-auto text-sm text-gray-500 flex items-center gap-1">
-              {isSubscribed && filters.dateRange !== 'custom' && (
-                <Badge variant="outline" className="text-xs text-blue-600 border-blue-200 mr-1">
-                  {t(dateRangeLabelKey[filters.dateRange])}
-                </Badge>
-              )}
-              {allFilteredProjects.length} {t('matching-opportunities.projects.results')}
-            </span>
           </div>
-        </div>
+        )}
 
-        {/* Results */}
-        <div className="mt-6">
-          {allFilteredProjects.length === 0 ? (
-            <div className="py-16 text-center border border-dashed border-gray-200 rounded-lg bg-white">
-              <Layers className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">{t('matching-opportunities.projects.empty')}</p>
-              {isFiltered && isSubscribed && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => { setFilters(DEFAULT_FILTERS); setShowCustomDate(false); }}
-                  className="mt-3 text-blue-600"
-                >
-                  {t('matching-opportunities.projects.filter.reset')}
-                </Button>
-              )}
+        <div className="mt-6 space-y-5">
+          {visibleProjects.length === 0 ? (
+            <div className="rounded-xl border bg-white p-10 text-center text-gray-500">
+              {t('matching-opportunities.projects.empty')}
             </div>
           ) : (
-            <>
-              <div className="space-y-4">
-                {visibleProjects.map(opp => (
-                  <MatchingOpportunityCard
-                    key={opp.id}
-                    opportunity={opp}
-                    isSaved={isSaved(opp.id)}
-                    onSave={handleSave}
-                    onRemove={handleRemove}
-                    onApply={handleApply}
-                    onExpressInterest={handleExpressInterest}
-                    onNotInterested={isSubscribed ? handleDismiss : undefined}
-                  />
-                ))}
+            visibleProjects.map(opportunity => (
+              <div key={opportunity.id} onDoubleClick={() => openDetail(opportunity.id)}>
+                <MatchingOpportunityCard
+                  opportunity={opportunity}
+                  isSaved={isSaved(opportunity.id)}
+                  onSave={saveOpportunity}
+                  onRemove={removeOpportunity}
+                  onApply={openDetail}
+                  onExpressInterest={openDetail}
+                  onNotInterested={dismissOpportunity}
+                  onOrganizationClick={(organizationId) => navigate(`/organizations/${organizationId}`)}
+                />
               </div>
+            ))
+          )}
 
-              {/* Subscription gate — locked results */}
-              {!isSubscribed && lockedCount > 0 && (
-                <div className="relative mt-4">
-                  {/* Blurred preview cards */}
-                  <div className="space-y-4 pointer-events-none select-none blur-sm opacity-60">
-                    {allFilteredProjects.slice(FREE_PREVIEW_COUNT, FREE_PREVIEW_COUNT + 2).map(opp => (
-                      <MatchingOpportunityCard
-                        key={opp.id}
-                        opportunity={opp}
-                        isSaved={false}
-                      />
-                    ))}
-                  </div>
-
-                  {/* CTA overlay */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-transparent via-white/80 to-white rounded-lg">
-                    <div className="bg-white border border-gray-200 shadow-lg rounded-xl p-6 max-w-md text-center mx-4">
-                      <Lock className="w-10 h-10 text-blue-500 mx-auto mb-3" />
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        {t('matching-opportunities.gate.title')}
-                      </h3>
-                      <p className="text-sm text-gray-500 mb-4">
-                        {t('matching-opportunities.gate.preview-label').replace('{count}', String(lockedCount))}
-                      </p>
-                      <Button
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-                        onClick={() => navigate('/account/subscription')}
-                      >
-                        {t('matching-opportunities.gate.cta-primary')}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </>
+          {!isSubscribed && hiddenCount > 0 && (
+            <div className="rounded-xl border border-dashed bg-white p-8 text-center">
+              <Sparkles className="mx-auto mb-3 h-6 w-6 text-primary" />
+              <p className="font-semibold text-primary">{hiddenCount} more matching projects available</p>
+              <p className="mt-1 text-sm text-gray-600">Upgrade your subscription to access the full list.</p>
+            </div>
           )}
         </div>
       </PageContainer>
