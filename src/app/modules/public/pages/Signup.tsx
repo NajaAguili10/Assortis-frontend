@@ -142,6 +142,7 @@ const EXPERTISE_AREAS = [
   'ENERGY',
 ];
 
+
 const SUBSECTORS_BY_SECTOR: Record<string, string[]> = {
   EDUCATION: ['PRIMARY_EDUCATION', 'SECONDARY_EDUCATION', 'HIGHER_EDUCATION', 'VOCATIONAL_TRAINING', 'TEACHER_TRAINING', 'ADULT_EDUCATION'],
   HEALTH: ['PRIMARY_HEALTHCARE', 'MATERNAL_HEALTH', 'CHILD_HEALTH', 'INFECTIOUS_DISEASES', 'NUTRITION', 'MENTAL_HEALTH'],
@@ -157,8 +158,8 @@ const SUBSECTORS_BY_SECTOR: Record<string, string[]> = {
   EMERGENCY_RESPONSE: ['DISASTER_RELIEF', 'HUMANITARIAN_AID', 'CONFLICT_RESPONSE', 'DISPLACEMENT'],
   OTHER: []
 };
-
-/*const COUNTRIES = [
+/*
+const COUNTRIES = [
   'United States', 'France', 'Spain', 'Germany', 'United Kingdom', 
   'Canada', 'Belgium', 'Switzerland', 'Netherlands', 'Kenya',
   'Senegal', 'Morocco', 'Côte d\'Ivoire', 'Mali', 'Burkina Faso'
@@ -211,7 +212,7 @@ const Signup = () => {
   const shouldResumePhase2 = resumePhase2State?.resumePhase2 === true;
 
   const [currentStep, setCurrentStep] = useState(shouldResumePhase2 ? 6 : 1);
-  const totalSteps = 7; // Keep original 7 steps for better UX flow
+  const totalSteps = 8; // Added Step 8 for "Finished/Confirmation"
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
@@ -751,9 +752,9 @@ const Signup = () => {
       // Show success toast
       toast.success(t('auth.signup.success') || 'Registration completed successfully!');
 
-      // Navigate to login with success state
-      console.log('🏃 Redirecting to login...');
-      navigate('/login', { state: { registeredSuccessfully: true } });
+      // Move to final confirmation step instead of immediate redirect
+      setIsPaymentCompleted(true);
+      setCurrentStep(8);
 
     } catch (err: any) {
       console.error('❌ Signup error:', err);
@@ -825,6 +826,7 @@ const Signup = () => {
     t('auth.signup.configurationPricing'),
     t('auth.signup.verifyEmail'),
     t('payment.title'),
+    t('auth.signup.confirmation') || 'Finished',
   ];
 
   return (
@@ -865,7 +867,7 @@ const Signup = () => {
           </div>
 
           <div className="flex items-center justify-between mb-4">
-            {[1, 2, 3, 4, 5, 6, 7].map((step) => (
+            {Array.from({ length: totalSteps }, (_, i) => i + 1).map((step) => (
               <div key={step} className="flex items-center flex-1">
                 <div
                   className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold transition-all duration-300 ${step < currentStep || completedSteps.includes(step)
@@ -884,7 +886,7 @@ const Signup = () => {
                     step
                   )}
                 </div>
-                {step < 7 && (
+                {step < totalSteps && (
                   <div className={`flex-1 h-1 mx-2 transition-all duration-300 ${step < currentStep || completedSteps.includes(step) ? 'bg-green-500' : 'bg-gray-200'
                     }`} />
                 )}
@@ -2238,6 +2240,68 @@ const Signup = () => {
                   </Elements>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Step 8: Success / Confirmation (Terminal Step) */}
+          {currentStep === 8 && (
+            <div className="bg-white rounded-xl border-2 border-gray-200 p-10 text-center space-y-8 animate-in fade-in zoom-in duration-700">
+              <div className="flex justify-center">
+                <div className="bg-green-100 rounded-full p-6 animate-bounce">
+                  <CheckCircle2 className="h-20 w-20 text-green-600" strokeWidth={2.5} />
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <h2 className="text-4xl font-black text-primary">
+                  {t('auth.success.registration') || 'Registration Completed!'}
+                </h2>
+                <p className="text-gray-600 text-xl max-w-lg mx-auto">
+                  {t('offers.confirmation.subtitle') || 'Your account has been successfully created. Welcome to the Assortis community!'}
+                </p>
+              </div>
+
+              <div className="bg-gray-50 rounded-2xl p-8 border border-gray-100 text-left max-w-lg mx-auto shadow-inner">
+                <h4 className="font-bold text-primary mb-4 flex items-center gap-2 text-lg">
+                  <Info className="h-5 w-5 text-accent" />
+                  {t('auth.signup.nextSteps') || 'What\'s next?'}
+                </h4>
+                <ul className="space-y-4 text-sm text-gray-700">
+                  <li className="flex items-start gap-3">
+                    <div className="bg-green-500/10 rounded-full p-1 mt-0.5">
+                      <Check className="h-4 w-4 text-green-600" />
+                    </div>
+                    <span>{t('auth.signup.stepEmailSent') || 'We have sent a confirmation email to your address.'}</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="bg-green-500/10 rounded-full p-1 mt-0.5">
+                      <Check className="h-4 w-4 text-green-600" />
+                    </div>
+                    <span>{t('auth.signup.stepProfileReady') || 'Your profile is now ready. You can add your expertise and CV.'}</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="bg-green-500/10 rounded-full p-1 mt-0.5">
+                      <Check className="h-4 w-4 text-green-600" />
+                    </div>
+                    <span>{t('auth.signup.stepAccessTenders') || 'Start exploring thousands of international tenders and projects.'}</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="pt-6">
+                <Button
+                  onClick={() => navigate('/login', { state: { registeredSuccessfully: true } })}
+                  className="w-full h-14 text-xl font-bold transition-all duration-300 hover:scale-[1.02] shadow-xl hover:shadow-2xl active:scale-95"
+                  style={{ backgroundColor: 'var(--color-primary)' }}
+                >
+                  {t('auth.signup.goToLogin') || 'Go to Login'}
+                  <ArrowRight className="ml-3 h-6 w-6" />
+                </Button>
+              </div>
+
+              <p className="text-gray-400 text-sm italic">
+                {t('auth.signup.redirectNote') || 'You will need to log in with your new credentials to access your dashboard.'}
+              </p>
             </div>
           )}
 

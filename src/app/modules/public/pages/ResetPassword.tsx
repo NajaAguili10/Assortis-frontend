@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router';
 import { useTranslation } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
@@ -12,6 +12,7 @@ import { KeyRound, CheckCircle2, AlertCircle } from 'lucide-react';
 const ResetPassword = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { resetPassword } = useAuth();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
 
@@ -73,11 +74,10 @@ const ResetPassword = () => {
     setLoading(true);
 
     try {
-      // TODO: Replace with actual API call
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      
-      setSuccess(true);
+      if (token) {
+        await resetPassword(token, newPassword);
+        setSuccess(true);
+      }
     } catch (err: any) {
       setError(err.message || t('auth.forgot.errorMessage'));
     } finally {

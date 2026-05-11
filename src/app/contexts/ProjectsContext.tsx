@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { projectService } from '@app/services/projectService';
 import {
   ProjectListDTO,
   ProjectStatusEnum,
@@ -35,6 +36,8 @@ interface ProjectsContextType {
 const ProjectsContext = createContext<ProjectsContextType | undefined>(undefined);
 
 // Mock Data Initial
+
+/*
 const initialMockProjects: ProjectListDTOInternal[] = [
   {
     id: '1',
@@ -480,7 +483,11 @@ const initialMockProjects: ProjectListDTOInternal[] = [
   },
 ];
 
+*/
+
+
 // Mock Tasks Initial
+
 const initialMockTasks: TaskDTO[] = [
   {
     id: 't1',
@@ -772,13 +779,30 @@ const initialMockTemplates: ProjectTemplateDTO[] = [
     createdBy: 'UNICEF',
     createdDate: '2022-06-30',
   },
-];
+]; 
 
 export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [projects, setProjects] = useState<ProjectListDTOInternal[]>(initialMockProjects);
+const [projects, setProjects] = useState<ProjectListDTO[]>([]); 
+
   const [tasks, setTasks] = useState<TaskDTO[]>(initialMockTasks);
   const [collaborations, setCollaborations] = useState<CollaborationDTO[]>(initialMockCollaborations);
   const [templates, setTemplates] = useState<ProjectTemplateDTO[]>(initialMockTemplates);
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const response = await projectService.getAllProjects();
+        if (Array.isArray(response) && response.length > 0) {
+          // Map to internal type if necessary, here we assume they match or are compatible
+          setProjects(response as ProjectListDTO[]);
+        }
+      } catch (error) {
+        console.error("Error fetching projects in context, keeping mock data:", error);
+      }
+    };
+
+    fetchProjects();
+  }, []);
 
   const addProject = (project: ProjectListDTOInternal) => {
     setProjects((prev) => [project, ...prev]);

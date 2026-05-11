@@ -1,10 +1,13 @@
 import { apiClient } from '../api/apiClient';
-import { ProjectFiltersDTO } from '../types/project.dto';
+import { ProjectFiltersDTO, ProjectListDTO } from '../types/project.dto';
 
 export const projectService = {
-  getAllProjects: async () => {
-    return apiClient.get('/projects');
+
+
+  getAllProjects: async (): Promise<ProjectListDTO[]> => {
+    return await apiClient.get<ProjectListDTO[]>('/projects');
   },
+
 
   getPaginatedProjects: async (page: number = 0, size: number = 10) => {
     return apiClient.get('/projects', { page, size });
@@ -36,5 +39,14 @@ export const projectService = {
 
   getKPIs: async () => {
     return apiClient.get('/projects/kpis');
+  },
+  getSavedSearches: async (userId: number) => {
+    return apiClient.get(`/projects/saved-searches/${userId}`);
+  },
+  saveSearch: async (userId: number, name: string, payload: any) => {
+    return apiClient.post(`/projects/saved-searches/${userId}?name=${encodeURIComponent(name)}`, payload);
+  },
+  deleteSavedSearch: async (id: number) => {
+    return apiClient.delete(`/projects/saved-searches/${id}`);
   }
 };

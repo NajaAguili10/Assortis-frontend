@@ -12,6 +12,9 @@ import { Button } from '@app/components/ui/button';
 import { Badge } from '@app/components/ui/badge';
 import { Input } from '@app/components/ui/input';
 import { Label } from '@app/components/ui/label';
+import { expertService } from '@app/services/expertService';
+import { sectorService } from '@app/services/sectorService';
+import { SectorDTO, CountryDTO, SubsectorDTO } from '@app/types/organization.dto';
 import { RadioGroup, RadioGroupItem } from '@app/components/ui/radio-group';
 import { Textarea } from '@app/components/ui/textarea';
 import { useEffect } from 'react';
@@ -50,10 +53,9 @@ type ExpertSourceFilter = 'all' | 'assortis-database' | 'my-uploaded-cvs';
 
 interface ExpertsSavedPayload {
   searchQuery: string;
-  selectedSectors: SectorEnum[];
-  selectedSubSectors: SubSectorEnum[];
-  selectedRegions: RegionEnum[];
-  selectedCountries: CountryEnum[];
+  selectedSectors: SectorDTO[];
+  selectedSubSectors: SubsectorDTO[];
+  selectedCountries: CountryDTO[];
   selectedExperience: string[];
   sourceFilter: ExpertSourceFilter;
   selectedWritingMethodologies?: WritingMethodology[];
@@ -105,20 +107,72 @@ const isBidWriter = (expert: any) => {
     } = useCVCredits();
     const { experts, allExperts, refreshExperts } = useExperts();
     const { user } = useAuth();
-    const [subscriptionSectors, setSubscriptionSectors] = useState<string[]>([]);
+    const [subscriptionSectors, setSubscriptionSectors] = useState<SectorDTO[]>([]);
+    const [subscriptionCountries, setSubscriptionCountries] = useState<CountryDTO[]>([]);
 
     useEffect(() => {
-      if (user?.organizationId) {
-        organizationService.getSubscriptionSectors(user.organizationId).then(setSubscriptionSectors);
-      }
+      const fetchSectors = async () => {
+        if (!user) return;
+        try {
+          const sectors = await organizationService.getMySubscriptionSectors();
+          if (sectors && sectors.length > 0) {
+            setSubscriptionSectors(sectors);
+          } else {
+            const allSectors = await sectorService.getAllSectors();
+            setSubscriptionSectors(allSectors || []);
+          }
+        } catch (error) {
+          console.error('Error fetching subscription sectors:', error);
+          try {
+            const allSectors = await sectorService.getAllSectors();
+            setSubscriptionSectors(allSectors || []);
+          } catch (e) { }
+        }
+      };
+      fetchSectors();
+    }, [user]);
+
+    useEffect(() => {
+      const fetchCountries = async () => {
+        if (!user) return;
+        try {
+          const countries = await organizationService.getMySubscriptionCountries();
+          setSubscriptionCountries(countries || []);
+        } catch (error) {
+          console.error('Error fetching subscription countries:', error);
+        }
+      };
+      fetchCountries();
     }, [user]);
 
     const [searchQuery, setSearchQuery] = useState('');
     const [searchParams] = useSearchParams();
-    const [selectedSectors, setSelectedSectors] = useState<SectorEnum[]>([]);
-    const [selectedSubSectors, setSelectedSubSectors] = useState<SubSectorEnum[]>([]);
+    const [selectedSectors, setSelectedSectors] = useState<SectorDTO[]>([]);
+    const [selectedSubSectors, setSelectedSubSectors] = useState<SubsectorDTO[]>([]);
+    const [selectedCountries, setSelectedCountries] = useState<CountryDTO[]>([]);
+    const [dynamicSubsectorsMap, setDynamicSubsectorsMap] = useState<Record<number, SubsectorDTO[]>>({});
+
+    // Fetch subsectors for selected sectors
+    useEffect(() => {
+      const fetchSelectedSubsectors = async () => {
+        const newMap = { ...dynamicSubsectorsMap };
+        let changed = false;
+
+        for (const sector of selectedSectors) {
+          if (!newMap[sector.id]) {
+            try {
+              const subs = await sectorService.getSubsectorsBySectorId(sector.id);
+              newMap[sector.id] = subs;
+              changed = true;
+            } catch (e) { }
+          }
+        }
+        if (changed) setDynamicSubsectorsMap(newMap);
+      };
+      fetchSelectedSubsectors();
+    }, [selectedSectors]);
+
     const [selectedRegions, setSelectedRegions] = useState<RegionEnum[]>([]);
-    const [selectedCountries, setSelectedCountries] = useState<CountryEnum[]>([]);
     const [hoveredSector, setHoveredSector] = useState<SectorEnum | null>(null);
     const [selectedExperience, setSelectedExperience] = useState<string[]>([]);
     const [sourceFilter, setSourceFilter] = useState<ExpertSourceFilter>('all');
@@ -199,7 +253,7 @@ const isBidWriter = (expert: any) => {
         filtered = filtered.filter((expert) =>
           expert.sectors?.some((sector) => {
             const sectorCode = typeof sector === 'object' ? (sector as any).sectorCode : sector;
-            return selectedSectors.map(String).includes(String(sectorCode));
+            return selectedSectors.some(s => s.code === String(sectorCode));
           })
         );
       }
@@ -208,7 +262,7 @@ const isBidWriter = (expert: any) => {
         filtered = filtered.filter((expert) =>
           expert.sectors?.some((sector) => {
             const sectorCode = typeof sector === 'object' ? (sector as any).sectorCode : sector;
-            return selectedSubSectors.map(String).includes(String(sectorCode));
+            return selectedSubSectors.some(s => s.code === String(sectorCode));
           })
         );
       }
@@ -224,7 +278,7 @@ const isBidWriter = (expert: any) => {
       if (selectedCountries.length > 0) {
         filtered = filtered.filter((expert) => {
           const countryCode = typeof expert.country === 'object' ? expert.country?.code : expert.country;
-          return selectedCountries.map(String).includes(String(countryCode));
+          return selectedCountries.some(c => c.code === String(countryCode));
         });
       }
 
@@ -446,41 +500,73 @@ const isBidWriter = (expert: any) => {
       setHasSearched(true);
     };
 
-    const saveSearch = () => {
+    useEffect(() => {
+      const fetchSavedSearches = async () => {
+        if (!user?.id) return;
+        try {
+          const data = await expertService.getSavedSearches(user.id);
+          if (Array.isArray(data)) {
+            // Map backend DTO to frontend SavedSearchEntry
+            const mapped = data.map((item: any) => ({
+              id: String(item.id),
+              label: item.label,
+              createdAt: item.createdAt,
+              payload: typeof item.criteria === 'string' ? JSON.parse(item.criteria) : item.criteria
+            }));
+            setSavedSearches(mapped);
+          }
+        } catch (error) {
+          console.error("Error fetching expert saved searches:", error);
+        }
+      };
+      fetchSavedSearches();
+    }, []);
+
+    const saveSearch = async () => {
       const label = saveSearchName.trim();
       if (!label) {
         toast.error('Enter a search name');
         return;
       }
 
-      const existing = readSavedSearches();
-      const now = new Date();
-      const entry: SavedSearchEntry<ExpertsSavedPayload> = {
-        id: `saved-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
-        label,
-        createdAt: now.toISOString(),
-        payload: {
-          searchQuery,
-          selectedSectors,
-          selectedSubSectors,
-          selectedRegions,
-          selectedCountries,
-          selectedExperience,
-          sourceFilter,
-          selectedWritingMethodologies,
-          selectedWritingContributions,
-          selectedWritingLanguages,
-          comfortableToWriteOnQuery,
-          donorProcurementQuery,
-          writingCommentsQuery,
-        },
+      const payload: ExpertsSavedPayload = {
+        searchQuery,
+        selectedSectors,
+        selectedSubSectors,
+        selectedRegions,
+        selectedCountries,
+        selectedExperience,
+        sourceFilter,
+        selectedWritingMethodologies,
+        selectedWritingContributions,
+        selectedWritingLanguages,
+        comfortableToWriteOnQuery,
+        donorProcurementQuery,
+        writingCommentsQuery,
       };
 
-      const next = [entry, ...existing];
-      localStorage.setItem(storageKey, JSON.stringify(next));
-      setSavedSearches(next);
-      setSaveSearchName('');
-      toast.success('Search saved');
+      try {
+        const response = await expertService.saveSearch(
+          user?.id || 1,
+          label,
+          payload
+        );
+        
+        if (response) {
+          const newEntry: SavedSearchEntry<ExpertsSavedPayload> = {
+            id: String(response.id),
+            label: response.label,
+            createdAt: response.createdAt,
+            payload
+          };
+          setSavedSearches([newEntry, ...savedSearches]);
+          setSaveSearchName('');
+          toast.success('Search saved to profile');
+        }
+      } catch (error) {
+        console.error("Error saving search:", error);
+        toast.error('Failed to save search to backend');
+      }
     };
 
     const handleRunSearch = () => {
@@ -509,10 +595,15 @@ const isBidWriter = (expert: any) => {
       toast.success('Saved search updated');
     };
 
-    const deleteSavedSearch = (id: string) => {
-      const next = readSavedSearches().filter((entry) => entry.id !== id);
-      localStorage.setItem(storageKey, JSON.stringify(next));
-      setSavedSearches(next);
+    const deleteSavedSearch = async (id: string) => {
+      try {
+        await expertService.deleteSavedSearch(Number(id));
+        setSavedSearches(savedSearches.filter((entry) => entry.id !== id));
+        toast.success('Search deleted');
+      } catch (error) {
+        console.error("Error deleting saved search:", error);
+        toast.error('Failed to delete search');
+      }
     };
 
     const isExpertInLibrary = (expert: (typeof allExperts)[number]) =>
@@ -723,45 +814,48 @@ const isBidWriter = (expert: any) => {
                 <SectorSubsectorFilter
                   selectedSectors={selectedSectors}
                   selectedSubSectors={selectedSubSectors}
-                  hoveredSector={hoveredSector}
-                  onHoverSector={setHoveredSector}
                   onSelectSector={(sector) => {
-                    const next = selectedSectors.includes(sector)
-                      ? selectedSectors.filter((item) => item !== sector)
+                    const isSelected = selectedSectors.some(s => s.id === sector.id);
+                    const next = isSelected
+                      ? selectedSectors.filter(s => s.id !== sector.id)
                       : [...selectedSectors, sector];
                     setSelectedSectors(next);
                     if (next.length === 0) {
                       setSelectedSubSectors([]);
                       return;
                     }
-                    const validSubSectors = selectedSubSectors.filter((sub) => next.some((sec) => SECTOR_SUBSECTOR_MAP[sec]?.includes(sub)));
+                    // Filter out subsectors that don't belong to any selected sector
+                    const validSubSectors = selectedSubSectors.filter(sub =>
+                      next.some(sec => dynamicSubsectorsMap[sec.id]?.some(s => s.id === sub.id))
+                    );
                     setSelectedSubSectors(validSubSectors);
                   }}
                   onSelectSubSector={(subSector) => {
-                    const next = selectedSubSectors.includes(subSector)
-                      ? selectedSubSectors.filter((item) => item !== subSector)
+                    const isSelected = selectedSubSectors.some(s => s.id === subSector.id);
+                    const next = isSelected
+                      ? selectedSubSectors.filter(s => s.id !== subSector.id)
                       : [...selectedSubSectors, subSector];
                     setSelectedSubSectors(next);
                   }}
                   onSelectAllSectors={() => {
-                    const all = Object.values(SectorEnum);
-                    if (selectedSectors.length === all.length) {
+                    if (selectedSectors.length === subscriptionSectors.length) {
                       setSelectedSectors([]);
                       setSelectedSubSectors([]);
                     } else {
-                      setSelectedSectors(all);
+                      setSelectedSectors(subscriptionSectors);
                     }
                   }}
                   onSelectAllSubSectors={(sector) => {
-                    const sectorSubs = SECTOR_SUBSECTOR_MAP[sector] || [];
-                    const allSelected = sectorSubs.every((sub) => selectedSubSectors.includes(sub));
+                    const sectorSubs = dynamicSubsectorsMap[sector.id] || [];
+                    const allSelected = sectorSubs.every(sub => selectedSubSectors.some(s => s.id === sub.id));
                     if (allSelected) {
-                      setSelectedSubSectors((prev) => prev.filter((sub) => !sectorSubs.includes(sub)));
+                      setSelectedSubSectors(prev => prev.filter(sub => !sectorSubs.some(s => s.id === sub.id)));
                     } else {
-                      setSelectedSubSectors((prev) => [...new Set([...prev, ...sectorSubs])]);
+                      setSelectedSubSectors(prev => [...new Set([...prev, ...sectorSubs])]);
                     }
                   }}
-                  allowedSectors={subscriptionSectors.length > 0 ? subscriptionSectors as SectorEnum[] : undefined}
+                  allowedSectors={subscriptionSectors}
+                  dynamicSubsectorsMap={dynamicSubsectorsMap}
                   t={t}
                 />
               </div>
@@ -780,35 +874,15 @@ const isBidWriter = (expert: any) => {
 
               <div className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-out ${showRegionFilters ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
                 <RegionCountryFilter
-                  selectedRegions={selectedRegions}
                   selectedCountries={selectedCountries}
-                  onSelectRegion={(region) => {
-                    const next = selectedRegions.includes(region)
-                      ? selectedRegions.filter((item) => item !== region)
-                      : [...selectedRegions, region];
-                    setSelectedRegions(next);
-                    if (next.length === 0) {
-                      setSelectedCountries([]);
-                      return;
-                    }
-                    const validCountries = selectedCountries.filter((country) => next.some((reg) => REGION_COUNTRY_MAP[reg]?.includes(country)));
-                    setSelectedCountries(validCountries);
-                  }}
                   onSelectCountry={(country) => {
-                    const next = selectedCountries.includes(country)
-                      ? selectedCountries.filter((item) => item !== country)
+                    const isSelected = selectedCountries.some(c => c.id === country.id);
+                    const next = isSelected
+                      ? selectedCountries.filter(c => c.id !== country.id)
                       : [...selectedCountries, country];
                     setSelectedCountries(next);
                   }}
-                  onSelectAllRegions={() => {
-                    const all = Object.values(RegionEnum);
-                    if (selectedRegions.length === all.length) {
-                      setSelectedRegions([]);
-                      setSelectedCountries([]);
-                    } else {
-                      setSelectedRegions(all);
-                    }
-                  }}
+                  allowedCountries={subscriptionCountries}
                   t={t}
                 />
               </div>

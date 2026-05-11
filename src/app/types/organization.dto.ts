@@ -12,7 +12,6 @@ export enum OrganizationTypeEnum {
   FOUNDATION = 'FOUNDATION',
   CONSORTIUM = 'CONSORTIUM',
   IT_SERVICES = 'IT_SERVICES',
-  International = 'International Organization',
 }
 
 // Backend API Organization format
@@ -186,8 +185,11 @@ export interface Organization {
     name: string;
   };
 
+
+
   activeProjects: number;
   teamMembers: number;
+
   completedProjects: number;
   partnerships: number;
   certifications: OrganizationCertificationDTO[];

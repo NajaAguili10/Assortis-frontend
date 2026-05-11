@@ -127,24 +127,20 @@ export function useOrganizations() {
 
     if (filters.sectors && filters.sectors.length > 0) {
       filtered = filtered.filter((org) => {
-        const orgSectorCode = org.mainSector?.code;
-        return orgSectorCode && filters.sectors!.some(s => s.code === orgSectorCode);
+        const orgSectors = org.sectors || [];
+        return orgSectors.some(orgSector => 
+          filters.sectors!.some(s => s.code === orgSector.code)
+        );
       });
     }
 
     // SubSectors filter
     if (filters.subSectors && filters.subSectors.length > 0) {
       filtered = filtered.filter((org) => {
-        const parentSectors = new Set<string>();
-        filters.subSectors?.forEach((subDTO) => {
-          Object.entries(ORGANIZATION_SECTOR_SUBSECTOR_MAP).forEach(([sector, subsectors]) => {
-            if (subsectors.includes(subDTO.code as any)) {
-              parentSectors.add(sector);
-            }
-          });
-        });
-        const orgSectors = org.mainSector?.name ? [org.mainSector.name.toUpperCase()] : [];
-        return orgSectors.some((sector) => parentSectors.has(sector as any));
+        const orgSubSectors = org.subSectors || [];
+        return orgSubSectors.some(orgSub => 
+          filters.subSectors!.some(s => s.code === orgSub.code)
+        );
       });
     }
 
@@ -169,7 +165,7 @@ export function useOrganizations() {
           case 'oldest':
             return new Date(a.createdAt ?? '').getTime() - new Date(b.createdAt ?? '').getTime();
           case 'name':
-            return a.name.localeCompare(b.name);
+            return (a.name || '').localeCompare(b.name || '');
           default:
             return 0;
         }

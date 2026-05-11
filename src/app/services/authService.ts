@@ -25,6 +25,14 @@ export const authService = {
   verifyEmail: async (email: string, code: string): Promise<any> => {
     return apiClient.post('/auth/verify-email', { email, code });
   },
+  
+  forgotPassword: async (email: string): Promise<any> => {
+    return apiClient.post('/auth/forgot-password', { email });
+  },
+
+  resetPassword: async (token: string, newPassword: string): Promise<any> => {
+    return apiClient.post('/auth/reset-password', { token, newPassword });
+  },
 
   logout: () => {
     localStorage.removeItem('assortis_token');

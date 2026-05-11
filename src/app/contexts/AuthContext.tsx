@@ -129,33 +129,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const forgotPassword = async (email: string): Promise<void> => {
-    // TODO: Replace with actual API call
-    // Mock forgot password for demo
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        // Simple mock validation
-        if (email) {
-          resolve();
-        } else {
-          reject(new Error('Invalid email'));
-        }
-      }, 500);
-    });
+    try {
+      await authService.forgotPassword(email);
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to send reset email');
+    }
   };
 
   const resetPassword = async (token: string, newPassword: string): Promise<void> => {
-    // TODO: Replace with actual API call
-    // Mock reset password for demo
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        // Simple mock validation
-        if (token && newPassword.length >= 6) {
-          resolve();
-        } else {
-          reject(new Error('Invalid token or password'));
-        }
-      }, 500);
-    });
+    try {
+      await authService.resetPassword(token, newPassword);
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to reset password');
+    }
   };
 
   const quickLogin = async (accountType: QuickLoginAccountType): Promise<void> => {

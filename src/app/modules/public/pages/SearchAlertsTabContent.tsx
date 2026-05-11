@@ -50,6 +50,10 @@ import {
 } from '@app/types/tender.dto';
 import { getLocalizedCountryName } from '@app/utils/country-translator';
 import { toast } from 'sonner';
+import { organizationService } from '@app/services/organizationService';
+import { projectService } from '@app/services/projectService';
+import { SectorDTO, SubsectorDTO, CountryDTO } from '@app/types/organization.dto';
+import { useAuth } from '@app/contexts/AuthContext';
 
 type AlertsTab = 'projects' | 'awards' | 'shortlists';
 type SearchMode = 'allWords' | 'anyWords' | 'exactPhrase' | 'boolean';
@@ -106,6 +110,7 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { allTenders } = useTenders();
+  const { user } = useAuth();
   const storageKey = `search.tab.saved.${tab}`;
   const alertsStorageKey = `search.tab.alerts.${tab}`;
 
@@ -123,13 +128,13 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
   const [budgetMode, setBudgetMode] = useState<BudgetMode>('any');
   const [budgetValue, setBudgetValue] = useState<string>('');
   const [hideMultiCountry, setHideMultiCountry] = useState(false);
-  const [selectedSectors, setSelectedSectors] = useState<SectorEnum[]>([]);
-  const [selectedSubSectors, setSelectedSubSectors] = useState<SubSectorEnum[]>([]);
+  const [selectedSectors, setSelectedSectors] = useState<SectorDTO[]>([]);
+  const [selectedSubSectors, setSelectedSubSectors] = useState<SubsectorDTO[]>([]);
   const [selectedRegions, setSelectedRegions] = useState<RegionEnum[]>([]);
-  const [selectedCountries, setSelectedCountries] = useState<CountryEnum[]>([]);
+  const [selectedCountries, setSelectedCountries] = useState<CountryDTO[]>([]);
   const [selectedFundingAgencies, setSelectedFundingAgencies] = useState<FundingAgencyEnum[]>([]);
   const [fundingAgencySearch, setFundingAgencySearch] = useState('');
-  const [hoveredSector, setHoveredSector] = useState<SectorEnum | null>(null);
+  const [hoveredSector, setHoveredSector] = useState<SectorDTO | null>(null);
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('none');
   const [locationFilters, setLocationFilters] = useState<string[]>([]);
@@ -139,6 +144,12 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
   const [hasSearched, setHasSearched] = useState(tab !== 'projects');
   const [alertPreferences, setAlertPreferences] = useState<SavedAlertPreference[]>([]);
   const [expandedAlertId, setExpandedAlertId] = useState<string | null>(null);
+
+  const [allowedSectors, setAllowedSectors] = useState<SectorDTO[]>([]);
+  const [allowedCountries, setAllowedCountries] = useState<CountryDTO[]>([]);
+  const [allSubsectors, setAllSubsectors] = useState<SubsectorDTO[]>([]);
+  const [dynamicSubsectorsMap, setDynamicSubsectorsMap] = useState<Record<number, SubsectorDTO[]>>({});
+  const [isLoadingSubscriptions, setIsLoadingSubscriptions] = useState(false);
 
   const dateLocale = language === 'fr' ? fr : language === 'es' ? es : enUS;
   const today = startOfToday();
@@ -152,7 +163,29 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
   }, [searchParams]);
 
   useEffect(() => {
-    setSavedSearches(readSavedSearches());
+    const fetchSavedSearches = async () => {
+      if (user?.id) {
+        try {
+          const backendSearches = await projectService.getSavedSearches(Number(user.id));
+          // Map backend DTO to local SavedSearchEntry structure
+          const mapped = backendSearches.map((s: any) => ({
+            id: s.id.toString(),
+            label: s.name,
+            createdAt: s.createdAt,
+            payload: s.payload
+          }));
+          setSavedSearches(mapped);
+        } catch (error) {
+          console.error('Error fetching saved searches:', error);
+          setSavedSearches(readSavedSearches());
+        }
+      } else {
+        setSavedSearches(readSavedSearches());
+      }
+    };
+
+    fetchSavedSearches();
+
     if (tab !== 'projects') return;
 
     try {
@@ -162,6 +195,37 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
       setAlertPreferences([]);
     }
   }, [alertsStorageKey, tab]);
+
+  // Fetch Subscriptions (Sectors and Countries)
+  useEffect(() => {
+    const fetchSubscriptions = async () => {
+      setIsLoadingSubscriptions(true);
+      try {
+        const [sectors, countries, allSubsectors] = await Promise.all([
+          organizationService.getMySubscriptionSectors(),
+          organizationService.getMySubscriptionCountries(),
+          organizationService.getSubSectors()
+        ]);
+
+        setAllowedSectors(sectors);
+        setAllowedCountries(countries);
+        setAllSubsectors(allSubsectors);
+
+        // Build dynamic subsectors map
+        const subMap: Record<number, SubsectorDTO[]> = {};
+        sectors.forEach(sector => {
+          subMap[sector.id] = allSubsectors.filter((sub: SubsectorDTO) => sub.sectorId === sector.id);
+        });
+        setDynamicSubsectorsMap(subMap);
+      } catch (error) {
+        console.error('Error fetching subscriptions:', error);
+      } finally {
+        setIsLoadingSubscriptions(false);
+      }
+    };
+
+    fetchSubscriptions();
+  }, []);
 
   const handlePublishedFromSelect = (date: Date | undefined) => {
     if (!date) {
@@ -215,9 +279,9 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
     );
   }, [fundingAgencySearch, t]);
 
-  const toggleSector = (sector: SectorEnum) => {
-    const next = selectedSectors.includes(sector)
-      ? selectedSectors.filter(item => item !== sector)
+  const toggleSector = (sector: SectorDTO) => {
+    const next = selectedSectors.some(s => s.id === sector.id)
+      ? selectedSectors.filter(item => item.id !== sector.id)
       : [...selectedSectors, sector];
     setSelectedSectors(next);
 
@@ -227,14 +291,14 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
     }
 
     const validSubSectors = selectedSubSectors.filter(sub =>
-      next.some(selected => (SECTOR_SUBSECTOR_MAP[selected] || []).includes(sub))
+      next.some(selected => selected.id === sub.sectorId)
     );
     setSelectedSubSectors(validSubSectors);
   };
 
-  const toggleSubSector = (subSector: SubSectorEnum) => {
+  const toggleSubSector = (subSector: SubsectorDTO) => {
     setSelectedSubSectors(prev => (
-      prev.includes(subSector) ? prev.filter(item => item !== subSector) : [...prev, subSector]
+      prev.some(s => s.id === subSector.id) ? prev.filter(item => item.id !== subSector.id) : [...prev, subSector]
     ));
   };
 
@@ -250,14 +314,14 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
     }
 
     const validCountries = selectedCountries.filter(country =>
-      next.some(selected => (REGION_COUNTRY_MAP[selected] || []).includes(country))
+      next.some(selected => (REGION_COUNTRY_MAP[selected] || []).includes(country.code as CountryEnum))
     );
     setSelectedCountries(validCountries);
   };
 
-  const toggleCountry = (country: CountryEnum) => {
+  const toggleCountry = (country: CountryDTO) => {
     setSelectedCountries(prev => (
-      prev.includes(country) ? prev.filter(item => item !== country) : [...prev, country]
+      prev.some(s => s.id === country.id) ? prev.filter(item => item.id !== country.id) : [...prev, country]
     ));
   };
 
@@ -318,10 +382,31 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
     setBudgetMode(payload.budgetMode || 'any');
     setBudgetValue(payload.budgetValue || '');
     setHideMultiCountry(Boolean(payload.hideMultiCountry));
-    setSelectedSectors(payload.selectedSectors || []);
-    setSelectedSubSectors(payload.selectedSubSectors || []);
+    
+    // Map codes back to DTOs for state
+    if (payload.selectedSectors) {
+      const sectors = (payload.selectedSectors as any[]).map(s => 
+        typeof s === 'string' ? allowedSectors.find(dto => dto.code === s) : s
+      ).filter(Boolean) as SectorDTO[];
+      setSelectedSectors(sectors);
+    }
+    
+    if (payload.selectedSubSectors) {
+      const subs = (payload.selectedSubSectors as any[]).map(s => 
+        typeof s === 'string' ? allSubsectors.find(dto => dto.code === s) : s
+      ).filter(Boolean) as SubsectorDTO[];
+      setSelectedSubSectors(subs);
+    }
+
     setSelectedRegions(payload.selectedRegions || []);
-    setSelectedCountries(payload.selectedCountries || []);
+    
+    if (payload.selectedCountries) {
+      const countries = (payload.selectedCountries as any[]).map(c => 
+        typeof c === 'string' ? allowedCountries.find(dto => dto.code === c) : c
+      ).filter(Boolean) as CountryDTO[];
+      setSelectedCountries(countries);
+    }
+
     setSelectedFundingAgencies(payload.selectedFundingAgencies || []);
     setFundingAgencySearch(payload.fundingAgencySearch || '');
     setSortField(payload.sortField || null);
@@ -345,10 +430,11 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
       budgetMode,
       budgetValue,
       hideMultiCountry,
-      selectedSectors,
-      selectedSubSectors,
+      // Store as codes for better persistence
+      selectedSectors: selectedSectors.map(s => s.code) as any,
+      selectedSubSectors: selectedSubSectors.map(s => s.code) as any,
       selectedRegions,
-      selectedCountries,
+      selectedCountries: selectedCountries.map(c => c.code) as any,
       selectedFundingAgencies,
       fundingAgencySearch,
       sortField,
@@ -357,41 +443,75 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
       donorFilters,
   });
 
-  const saveSearch = () => {
-    const existing = readSavedSearches();
+  const saveSearch = async () => {
     const now = new Date();
     const labelBase = (searchInput || searchQuery).trim();
     const label = labelBase || `Saved ${tab} ${format(now, 'yyyy-MM-dd HH:mm')}`;
-    const nextEntry: SavedSearchEntry<AlertsSavedPayload> = {
-      id: `saved-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
-      label,
-      createdAt: now.toISOString(),
-      payload: buildPayload(),
-    };
+    const payload = buildPayload();
 
-    const next = [nextEntry, ...existing];
-    localStorage.setItem(storageKey, JSON.stringify(next));
-    setSavedSearches(next);
-    toast.success('Search saved');
+    if (user?.id) {
+      try {
+        const saved = await projectService.saveSearch(Number(user.id), label, payload);
+        const nextEntry: SavedSearchEntry<AlertsSavedPayload> = {
+          id: saved.id.toString(),
+          label: saved.name,
+          createdAt: saved.createdAt,
+          payload: saved.payload
+        };
+        setSavedSearches(prev => [nextEntry, ...prev]);
+        toast.success('Search saved to account');
+      } catch (error) {
+        console.error('Error saving search:', error);
+        toast.error('Failed to save search to account');
+      }
+    } else {
+      const existing = readSavedSearches();
+      const nextEntry: SavedSearchEntry<AlertsSavedPayload> = {
+        id: `saved-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
+        label,
+        createdAt: now.toISOString(),
+        payload,
+      };
+
+      const next = [nextEntry, ...existing];
+      localStorage.setItem(storageKey, JSON.stringify(next));
+      setSavedSearches(next);
+      toast.success('Search saved locally');
+    }
   };
 
   const openLoadSearchDialog = () => {
-    setSavedSearches(readSavedSearches());
+    // Searches are already synced in useEffect, but we can refresh here if needed
     setIsLoadDialogOpen(true);
   };
 
   const updateSavedSearch = (entry: SavedSearchEntry<AlertsSavedPayload>) => {
-    const next = readSavedSearches().map((item) =>
+    // For now, local update or re-save
+    const next = savedSearches.map((item) =>
       item.id === entry.id ? { ...item, label: entry.label, payload: buildPayload() } : item
     );
-    localStorage.setItem(storageKey, JSON.stringify(next));
+    if (!user?.id) {
+      localStorage.setItem(storageKey, JSON.stringify(next));
+    }
     setSavedSearches(next);
     toast.success('Saved search updated');
   };
 
-  const deleteSavedSearch = (id: string) => {
-    const next = readSavedSearches().filter((entry) => entry.id !== id);
-    localStorage.setItem(storageKey, JSON.stringify(next));
+  const deleteSavedSearch = async (id: string) => {
+    if (user?.id && !id.startsWith('saved-') && !id.startsWith('legacy-')) {
+      try {
+        await projectService.deleteSavedSearch(Number(id));
+        toast.success('Search deleted from account');
+      } catch (error) {
+        console.error('Error deleting search:', error);
+        toast.error('Failed to delete search from account');
+      }
+    }
+
+    const next = savedSearches.filter((entry) => entry.id !== id);
+    if (!user?.id) {
+      localStorage.setItem(storageKey, JSON.stringify(next));
+    }
     setSavedSearches(next);
     const nextAlerts = alertPreferences.filter((preference) => preference.searchId !== id);
     localStorage.setItem(alertsStorageKey, JSON.stringify(nextAlerts));
@@ -486,10 +606,10 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
         if (budgetMode === 'below' && row.budget.amount > budgetNumber) return false;
       }
       if (hideMultiCountry && row.isMultiCountry) return false;
-      if (selectedSectors.length > 0 && !row.sectors.some(sector => selectedSectors.includes(sector))) return false;
-      if (selectedSubSectors.length > 0 && !row.subsectors?.some(sub => selectedSubSectors.includes(sub))) return false;
+      if (selectedSectors.length > 0 && !row.sectors.some(sector => selectedSectors.some(s => s.code === sector))) return false;
+      if (selectedSubSectors.length > 0 && !row.subsectors?.some(sub => selectedSubSectors.some(s => s.code === sub))) return false;
       if (selectedRegions.length > 0 && (!row.region || !selectedRegions.includes(row.region))) return false;
-      if (selectedCountries.length > 0 && !selectedCountries.includes(row.country)) return false;
+      if (selectedCountries.length > 0 && !selectedCountries.some(c => c.code === row.country)) return false;
       if (selectedFundingAgencies.length > 0 && (!row.fundingAgency || !selectedFundingAgencies.includes(row.fundingAgency))) return false;
 
       const locationLabel = row.isMultiCountry
@@ -871,22 +991,25 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
                 onSelectSector={toggleSector}
                 onSelectSubSector={toggleSubSector}
                 onSelectAllSectors={() => {
-                  if (selectedSectors.length === Object.values(SectorEnum).length) {
+                  if (selectedSectors.length === allowedSectors.length) {
                     setSelectedSectors([]);
                     setSelectedSubSectors([]);
                   } else {
-                    setSelectedSectors(Object.values(SectorEnum));
+                    setSelectedSectors(allowedSectors);
                   }
                 }}
                 onSelectAllSubSectors={(sector) => {
-                  const subs = SECTOR_SUBSECTOR_MAP[sector] || [];
-                  const allSelected = subs.every(item => selectedSubSectors.includes(item));
+                  const subs = dynamicSubsectorsMap[sector.id] || [];
+                  const allSelected = subs.every(item => selectedSubSectors.some(s => s.id === item.id));
                   if (allSelected) {
-                    setSelectedSubSectors(prev => prev.filter(item => !subs.includes(item)));
+                    setSelectedSubSectors(prev => prev.filter(item => !subs.some(s => s.id === item.id)));
                   } else {
-                    setSelectedSubSectors(prev => [...new Set([...prev, ...subs])]);
+                    const toAdd = subs.filter(item => !selectedSubSectors.some(s => s.id === item.id));
+                    setSelectedSubSectors(prev => [...prev, ...toAdd]);
                   }
                 }}
+                allowedSectors={allowedSectors}
+                dynamicSubsectorsMap={dynamicSubsectorsMap}
                 t={t}
               />
             </div>
@@ -917,6 +1040,7 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
                     setSelectedRegions(Object.values(RegionEnum));
                   }
                 }}
+                allowedCountries={allowedCountries}
                 t={t}
               />
             </div>
@@ -989,7 +1113,7 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
                         <div className="flex flex-wrap gap-2">
                           <Button size="sm" variant="outline" onClick={() => applySavedSearch(entry.payload)}>Load</Button>
                           <Button size="sm" variant="outline" onClick={() => updateSavedSearch(entry)}>Edit</Button>
-                          <Button size="sm" variant="ghost" onClick={() => deleteSavedSearch(entry.id)}>Delete</Button>
+                          <Button size="sm" variant="ghost" onClick={() => { if (window.confirm('Are you sure you want to delete this saved search?')) deleteSavedSearch(entry.id); }}>Delete</Button>
                         </div>
                       </div>
 

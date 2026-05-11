@@ -60,6 +60,14 @@ const normalizeOrganizationType = (type?: string) => {
     return 'INTERNATIONAL_ORG';
   }
 
+  if (normalized === 'ACADEMIC_INSTITUTION') {
+    return 'ACADEMIC';
+  }
+
+  if (normalized === 'NON_GOVERNMENTAL_ORGANIZATION') {
+    return 'NGO';
+  }
+
   return normalized;
 };
 
@@ -72,7 +80,7 @@ const normalizeSector = (sector?: string | null): OrganizationSectorEnum[] => {
     : [];
 };
 
-const normalizeRegion = (backendOrg: OrganizationBackend): RegionEnum | undefined => {
+const normalizeRegion = (backendOrg: Organization): RegionEnum | undefined => {
   const backendRegion = backendOrg.region?.toUpperCase().replace(/[\s-]+/g, '_');
 
   if (backendRegion && Object.values(RegionEnum).includes(backendRegion as RegionEnum)) {
@@ -83,13 +91,14 @@ const normalizeRegion = (backendOrg: OrganizationBackend): RegionEnum | undefine
   return countryCode ? COUNTRY_REGION_MAP[countryCode] : undefined;
 };
 
-const normalizeOrganization = (org: OrganizationBackend): Organization => {
+const normalizeOrganization = (org: Organization): Organization => {
   const budgetAmount = typeof org.annualTurnover === 'number' ? org.annualTurnover : undefined;
   const sectors = normalizeSector(org.mainSector);
 
   return {
     id: org.id.toString(),
     name: org.name,
+    cleanName: org.cleanName,
     acronym: org.acronym,
     type: normalizeOrganizationType(org.type),
     description: org.description || '',
@@ -103,19 +112,23 @@ const normalizeOrganization = (org: OrganizationBackend): Organization => {
     updatedAt: org.updatedAt,
     legalName: org.legalName,
     logoUrl: org.logoUrl,
-    city: org.city?.name || '',
-    country: org.country?.name || '',
+    city: org.city ? { id: org.city.id, name: org.city.name } : { id: 0, name: '' },
+    country: org.country ? { id: org.country.id, name: org.country.name, code: org.country.code } : { id: 0, name: '', code: '' },
     region: normalizeRegion(org),
-    sectors,
-    subSectors: [],
-    activeProjects: 0,
+    mainSector: org.mainSector,
+    sectors: Array.isArray(org.sectors) 
+      ? org.sectors.map((s: any) => typeof s === 'string' ? { id: 0, name: s, code: s } : s)
+      : (org.mainSector ? [org.mainSector] : []),
+    subSectors: org.subsectors || [],
+    activeProjects: org.activeProjects || 0,
     completedProjects: 0,
     partnerships: 0,
     employeeCount: org.employeesCount ?? undefined,
     yearEstablished: org.yearFounded ?? undefined,
     teamMembers: org.employeesCount ?? undefined,
     budget: budgetAmount,
-    certifications: [],
+    certifications: Array.isArray(org.certifications) ? org.certifications : [],
+    equipmentInfrastructure: org.equipmentInfrastructure,
   };
 };
 
@@ -129,9 +142,9 @@ const applyFiltersAndSort = (
   if (filters?.searchQuery) {
     const query = filters.searchQuery.toLowerCase();
     filtered = filtered.filter((org) =>
-      org.name.toLowerCase().includes(query) ||
-      org.acronym?.toLowerCase().includes(query) ||
-      org.description?.toLowerCase().includes(query),
+      (org.name?.toLowerCase().includes(query) ?? false) ||
+      (org.acronym?.toLowerCase().includes(query) ?? false) ||
+      (org.description?.toLowerCase().includes(query) ?? false),
     );
   }
 
@@ -145,7 +158,17 @@ const applyFiltersAndSort = (
 
   if (filters?.sectors?.length) {
     filtered = filtered.filter((org) =>
-      (org.sectors || []).some((sector) => filters.sectors!.includes(sector as OrganizationSectorEnum)),
+      (org.sectors || []).some((orgSector) => 
+        filters.sectors!.some(s => s.code === (orgSector.code || orgSector))
+      ),
+    );
+  }
+
+  if (filters?.subSectors?.length) {
+    filtered = filtered.filter((org) =>
+      (org.subSectors || []).some((orgSub) => 
+        filters.subSectors!.some(s => s.code === orgSub.code)
+      ),
     );
   }
 
@@ -154,11 +177,11 @@ const applyFiltersAndSort = (
     filtered = filtered.filter((org) => org.region && regionFilters.includes(org.region as RegionEnum));
   }
 
-  const countryFilters = filters?.countries || filters?.country;
+  const countryFilters = filters?.countries;
   if (countryFilters?.length) {
     filtered = filtered.filter((org) => {
-      const country = typeof org.country === 'string' ? org.country : org.country?.name;
-      return country ? countryFilters.includes(country) : false;
+      const orgCountryCode = org.country?.code;
+      return orgCountryCode ? countryFilters.some(c => c.code === orgCountryCode) : false;
     });
   }
 

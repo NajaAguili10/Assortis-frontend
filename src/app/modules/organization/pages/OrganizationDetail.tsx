@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useAuth } from '@app/contexts/AuthContext';
 import { useLanguage } from '@app/contexts/LanguageContext';
@@ -143,7 +143,7 @@ export default function OrganizationDetail() {
                 <p className="mb-1 text-sm text-muted-foreground">
                   {t('organizations.myOrganization.information.name')}
                 </p>
-                <p className="font-semibold text-primary">{organization.cleanName}</p>
+                <p className="font-semibold text-primary">{organization.name}</p>
               </div>
               {organization.acronym && (
                 <div className="rounded-lg bg-gray-50 p-4">
@@ -291,26 +291,30 @@ export default function OrganizationDetail() {
                 </div>
               </div>
             )}
-           {organization.certifications && organization.certifications.length > 0 && (
-              <div className="rounded-lg bg-gray-50 p-4">
-                <div className="mb-2 flex items-center gap-2">
-                  <Award className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    {t('organizations.myOrganization.operations.certifications')}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {organization.certifications.map((certification) => (
+            <div className="rounded-lg bg-gray-50 p-4">
+              <div className="mb-2 flex items-center gap-2">
+                <Award className="h-4 w-4 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  {t('organizations.myOrganization.operations.certifications')}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {organization.certifications && organization.certifications.length > 0 ? (
+                  organization.certifications.map((certification) => (
                     <Badge
-                      key={certification}
+                      key={certification.id || certification.certificationName}
                       className="border-yellow-200 bg-yellow-50 text-yellow-700"
                     >
                       {certification.certificationName}
                     </Badge>
-                  ))}
-                </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">
+                    {t('organizations.details.notFound.message')}
+                  </p>
+                )}
               </div>
-            )}
+            </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {organization.budget && (
                 <div className="rounded-lg bg-gray-50 p-4">
@@ -384,8 +388,8 @@ export default function OrganizationDetail() {
                 {t('organizations.myOrganization.resources.equipment')}
               </p>
               <p className="text-primary">
-                {organization.website
-                  ? organization.website
+                {organization.equipmentInfrastructure
+                  ? organization.equipmentInfrastructure
                   : t('organizations.details.notFound.message')}
               </p>
             </div>
@@ -650,21 +654,25 @@ export default function OrganizationDetail() {
                 </div>
 
                 {/* Certifications */}
-                {organization.certifications && organization.certifications.length > 0 && (
-                  <div className="bg-white rounded-lg border p-6">
-                    <h3 className="text-lg font-bold text-primary mb-4 flex items-center gap-2">
-                      <Award className="w-5 h-5" />
-                      {t('organizations.details.certifications')}
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {organization.certifications.map((cert) => (
-                        <Badge key={cert} variant="outline">
+                <div className="bg-white rounded-lg border p-6">
+                  <h3 className="text-lg font-bold text-primary mb-4 flex items-center gap-2">
+                    <Award className="w-5 h-5" />
+                    {t('organizations.details.certifications')}
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {organization.certifications && organization.certifications.length > 0 ? (
+                      organization.certifications.map((cert) => (
+                        <Badge key={cert.id || cert.certificationName} variant="outline">
                           {cert.certificationName}
                         </Badge>
-                      ))}
-                    </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">
+                        {t('organizations.details.notFound.message')}
+                      </p>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
 
               <Separator className="my-6" />

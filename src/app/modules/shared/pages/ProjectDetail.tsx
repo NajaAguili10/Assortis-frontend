@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useLocation, useNavigate } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
@@ -61,6 +61,7 @@ import {
 import { ProjectStatusEnum, ProjectPriorityEnum } from '@app/types/project.dto';
 import { aiDiscountSamples, expertPricingBySeniority } from '@app/modules/shared/data/statistics.mock';
 import { canAssignProjectTasks } from '@app/services/permissions.service';
+import { projectService } from '@app/services/projectService';
 
 type LifecycleGroupKey = 'early-intelligence' | 'open-procurement' | 'contract-shortlist';
 
@@ -427,13 +428,8 @@ export default function ProjectDetail() {
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [availableCredits, setAvailableCredits] = useState(120);
   const [purchasedCvExpertIds, setPurchasedCvExpertIds] = useState<Set<string>>(new Set());
-  const [isProjectSaved, setIsProjectSaved] = useState<boolean>(() => {
-    if (!id) return stateFavorited;
-    const savedIds = readSavedProjectIds();
-    return savedIds.includes(id) || stateFavorited;
-  });
-  const [partnerVisibility, setPartnerVisibility] = useState<Record<string, boolean>>(() => readPartnerVisibility());
-  const [pricingPolicy, setPricingPolicy] = useState<'aggressive' | 'competitive' | 'premium'>('competitive');
+  const [project, setProject] = useState<any>(null);
+  const [isLoadingProject, setIsLoadingProject] = useState(true);
   const showAlertsHeader = projectAccessSource === 'my-alerts';
 
   const priceEstimate = useMemo(() => {
@@ -447,6 +443,79 @@ export default function ProjectDetail() {
     const discountPct = Math.round((1 - factor) * 100);
     return { central, low, high, avgExpertMedian: Math.round(avgExpertMedian), discountPct, sampleCount: aiDiscountSamples.length };
   }, [pricingPolicy]);
+
+  useEffect(() => {
+    const fetchProject = async () => {
+      if (!id) return;
+      setIsLoadingProject(true);
+      try {
+        const data = await projectService.getProjectById(id);
+        if (data) {
+          // Merge API data with mock extensions for full UI compatibility
+          setProject({
+            ...data,
+            // Mock extensions not yet in backend
+            scope: 'REGIONAL',
+            relatedTender: 'Rural Infrastructure Development - East Africa Region',
+            projectSource: 'TENDER',
+            mostRelevantIcaPartners: [
+              'Education Development Trust',
+              'African School Builders Initiative',
+              'Global Infrastructure Partners',
+            ],
+            otherPossiblePartners: [
+              'Rural Teachers Network',
+              'Learning Spaces Alliance',
+              'Community Builders East Africa',
+            ],
+            shortlistedCompanies: [
+              { name: 'EduBuild Consortium', date: '2024-01-15' },
+              { name: 'SchoolWorks International', date: '2024-01-15' },
+              { name: 'Kijani Infra Ltd', date: '2024-01-15' },
+            ],
+            contractAwardedCompanies: [
+              { name: 'EduBuild Consortium', date: '2024-02-20', budget: '$1,200,000' },
+              { name: 'Kijani Infra Ltd', date: '2024-02-20', budget: '$980,000' },
+            ],
+            teamMembers: [
+              { id: '1', name: 'Sarah Johnson', role: 'Project Manager', allocation: '100%' },
+              { id: '2', name: 'Michael Chen', role: 'Technical Lead', allocation: '100%' },
+              { id: '3', name: 'Aisha Ndlovu', role: 'Infrastructure Specialist', allocation: '80%' },
+              { id: '4', name: 'Carlos Rodriguez', role: 'M&E Officer', allocation: '60%' },
+              { id: '5', name: 'Dr. Fatima Hassan', role: 'Education Consultant', allocation: '40%' },
+            ],
+            tasks: [
+              { id: '1', title: 'Complete site assessments', status: 'COMPLETED', priority: 'HIGH', dueDate: '2023-07-15' },
+              { id: '2', title: 'Finalize architectural designs', status: 'COMPLETED', priority: 'HIGH', dueDate: '2023-08-30' },
+              { id: '3', title: 'Procurement of construction materials', status: 'IN_PROGRESS', priority: 'URGENT', dueDate: '2024-03-15' },
+              { id: '4', title: 'Community stakeholder engagement', status: 'IN_PROGRESS', priority: 'MEDIUM', dueDate: '2024-04-10' },
+              { id: '5', title: 'Quarterly progress reporting', status: 'TODO', priority: 'MEDIUM', dueDate: '2024-05-01' },
+            ],
+            milestones: [
+              { id: '1', title: 'Project Initiation', date: '2023-06-01', status: 'COMPLETED' },
+              { id: '2', title: 'Site Surveys Completed', date: '2023-08-15', status: 'COMPLETED' },
+              { id: '3', title: 'Construction Phase 1', date: '2023-12-01', status: 'COMPLETED' },
+              { id: '4', title: 'Construction Phase 2', date: '2024-06-01', status: 'IN_PROGRESS' },
+              { id: '5', title: 'Facility Handover', date: '2025-05-31', status: 'PENDING' },
+            ],
+          });
+        }
+      } catch (err) {
+        console.error("Error fetching project details:", err);
+      } finally {
+        setIsLoadingProject(false);
+      }
+    };
+    fetchProject();
+  }, [id]);
+
+  const [isProjectSaved, setIsProjectSaved] = useState<boolean>(() => {
+    if (!id) return stateFavorited;
+    const savedIds = readSavedProjectIds();
+    return savedIds.includes(id) || stateFavorited;
+  });
+  const [partnerVisibility, setPartnerVisibility] = useState<Record<string, boolean>>(() => readPartnerVisibility());
+  const [pricingPolicy, setPricingPolicy] = useState<'aggressive' | 'competitive' | 'premium'>('competitive');
 
   useEffect(() => {
     if (!id) {
@@ -552,129 +621,27 @@ export default function ProjectDetail() {
     );
   };
 
-  // Mock project data - will be replaced with actual data from API
-  const project = {
-    id: id,
-    code: 'PROJ-2024-001',
-    title: 'Rural Education Infrastructure Development',
-    description: 'Construction and renovation of primary schools in rural communities to improve access to quality education. The project aims to build 15 new schools and renovate 25 existing facilities across rural regions, providing quality education infrastructure for over 10,000 students.',
-    status: ProjectStatusEnum.ACTIVE,
-    priority: ProjectPriorityEnum.HIGH,
-    type: 'INFRASTRUCTURE',
-    scope: 'REGIONAL',
-    sector: 'EDUCATION',
-    sectors: ['EDUCATION', 'INFRASTRUCTURE'],
-    subsectors: ['PRIMARY_EDUCATION', 'INFRASTRUCTURE'],
-    objectives: 'Improve access to quality education in rural communities by constructing modern school facilities equipped with necessary amenities including classrooms, libraries, laboratories, and sanitation facilities. Ensure sustainable and inclusive education infrastructure that meets international standards.',
-    
-    // Related Tender
-    relatedTender: 'Rural Infrastructure Development - East Africa Region',
-    projectSource: 'TENDER',
-    
-    // Location
-    country: 'Kenya',
-    countries: [
-      'Afghanistan',
-      'Armenia',
-      'Azerbaijan',
-      'Bangladesh',
-      'Bhutan',
-      'Cambodia',
-      'China',
-      'India',
-      'Indonesia',
-      'Kazakhstan',
-      'Malaysia',
-      'Nepal',
-      'Pakistan',
-      'Philippines',
-      'Sri Lanka',
-      'Thailand',
-      'Uzbekistan',
-      'Vietnam',
-    ],
-    region: 'Eastern Province',
-    city: 'Kitui County',
-    
-    // Timeline
-    timeline: {
-      startDate: '2023-06-01',
-      endDate: '2025-05-31',
-      duration: 24,
-      completionPercentage: 74,
-    },
-    
-    // Budget
-    budget: {
-      total: 2500000,
-      spent: 1850000,
-      remaining: 650000,
-      currency: 'USD',
-    },
-    
-    // Organizations
-    leadOrganization: 'World Bank',
-    donor: 'USAID',
-    partners: [
-      'Ministry of Education Kenya',
-      'Local NGO Consortium',
-      'Community Development Foundation',
-    ],
-    mostRelevantIcaPartners: [
-      'Education Development Trust',
-      'African School Builders Initiative',
-      'Global Infrastructure Partners',
-    ],
-    otherPossiblePartners: [
-      'Rural Teachers Network',
-      'Learning Spaces Alliance',
-      'Community Builders East Africa',
-    ],
-    shortlistedCompanies: [
-      { name: 'EduBuild Consortium', date: '2024-01-15' },
-      { name: 'SchoolWorks International', date: '2024-01-15' },
-      { name: 'Kijani Infra Ltd', date: '2024-01-15' },
-    ],
-    contractAwardedCompanies: [
-      { name: 'EduBuild Consortium', date: '2024-02-20', budget: '$1,200,000' },
-      { name: 'Kijani Infra Ltd', date: '2024-02-20', budget: '$980,000' },
-    ],
-    
-    // Team
-    projectManager: 'Sarah Johnson',
-    technicalLead: 'Michael Chen',
-    teamSize: 45,
-    teamMembers: [
-      { id: '1', name: 'Sarah Johnson', role: 'Project Manager', allocation: '100%' },
-      { id: '2', name: 'Michael Chen', role: 'Technical Lead', allocation: '100%' },
-      { id: '3', name: 'Aisha Ndlovu', role: 'Infrastructure Specialist', allocation: '80%' },
-      { id: '4', name: 'Carlos Rodriguez', role: 'M&E Officer', allocation: '60%' },
-      { id: '5', name: 'Dr. Fatima Hassan', role: 'Education Consultant', allocation: '40%' },
-    ],
-    
-    // Tasks
-    totalTasks: 172,
-    tasksCompleted: 128,
-    tasks: [
-      { id: '1', title: 'Complete site assessments', status: 'COMPLETED', priority: 'HIGH', dueDate: '2023-07-15' },
-      { id: '2', title: 'Finalize architectural designs', status: 'COMPLETED', priority: 'HIGH', dueDate: '2023-08-30' },
-      { id: '3', title: 'Procurement of construction materials', status: 'IN_PROGRESS', priority: 'URGENT', dueDate: '2024-03-15' },
-      { id: '4', title: 'Community stakeholder engagement', status: 'IN_PROGRESS', priority: 'MEDIUM', dueDate: '2024-04-10' },
-      { id: '5', title: 'Quarterly progress reporting', status: 'TODO', priority: 'MEDIUM', dueDate: '2024-05-01' },
-    ],
-    
-    // Milestones
-    milestones: [
-      { id: '1', title: 'Project Initiation', date: '2023-06-01', status: 'COMPLETED' },
-      { id: '2', title: 'Site Surveys Completed', date: '2023-08-15', status: 'COMPLETED' },
-      { id: '3', title: 'Construction Phase 1', date: '2023-12-01', status: 'COMPLETED' },
-      { id: '4', title: 'Construction Phase 2', date: '2024-06-01', status: 'IN_PROGRESS' },
-      { id: '5', title: 'Facility Handover', date: '2025-05-31', status: 'PENDING' },
-    ],
-    
-    createdDate: '2023-05-15',
-    updatedDate: '2024-02-20',
-  };
+  if (isLoadingProject) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
+        <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
+        <p className="text-gray-500 font-medium">Loading project details...</p>
+      </div>
+    );
+  }
+
+  if (!project) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-6 text-center">
+        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
+          <X className="h-8 w-8 text-red-500" />
+        </div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Project Not Found</h2>
+        <p className="text-gray-500 max-w-md mb-6">We couldn't find the project you're looking for. It may have been removed or you may not have permission to view it.</p>
+        <Button onClick={() => navigate('/search/projects')}>Back to Search</Button>
+      </div>
+    );
+  }
 
   const [projectTasks, setProjectTasks] = useState(() =>
     project.tasks.map((task) => ({ ...task, assignedTo: [] as { id: string; name: string; role?: string }[] }))

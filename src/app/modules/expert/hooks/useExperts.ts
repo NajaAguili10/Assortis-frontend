@@ -54,6 +54,7 @@ export interface ExpertEducationDTO {
   city: string;
 }
 
+
 export interface ExpertExperienceDTO {
   id: number;
   title: string;
@@ -843,7 +844,7 @@ export const useExperts = () => {
   }, [experts, filters, sortBy]);
 
   // Pagination
-  const paginatedExperts: PaginatedResponseDTO<ExpertListDTO> = useMemo(() => {
+  const paginatedExperts: PaginatedResponseDTO<ExpertDTO> = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     const end = start + pageSize;
     const data = filteredExperts.slice(start, end);

@@ -11,6 +11,10 @@ import {
   ResourceTypeEnum,
 } from '../types/assistance.dto';
 import { ProjectSectorEnum } from '../types/project.dto';
+import Experts from '../modules/expert/pages/Experts';
+import { expertService } from '../services/expertService';
+import React from 'react';
+import { ExpertDTO } from '../modules/expert/hooks/useExperts';
 
 // Mock Data
 const mockRequests: AssistanceRequestDTO[] = [
@@ -85,7 +89,7 @@ const mockRequests: AssistanceRequestDTO[] = [
   },
 ];
 
-const mockExperts: AssistanceExpertDTO[] = [
+/*const mockExperts: AssistanceExpertDTO[] = [
   {
     id: 'EXP-001',
     name: 'Dr. John Smith',
@@ -166,7 +170,7 @@ const mockExperts: AssistanceExpertDTO[] = [
     bio: 'International law expert with focus on governance and human rights. Former UN legal advisor.',
     skills: ['Legal Compliance', 'Policy Review', 'Regulatory Frameworks', 'International Law'],
   },
-];
+]; */
 
 const mockCollaborations: AssistanceCollaborationDTO[] = [
   {
@@ -211,6 +215,7 @@ const mockCollaborations: AssistanceCollaborationDTO[] = [
     },
   },
 ];
+
 
 const mockResources: AssistanceResourceDTO[] = [
   {
@@ -305,7 +310,7 @@ interface AssistanceFilters {
   subsector?: string[];
   status?: AssistanceStatusEnum[];
   priority?: AssistancePriorityEnum[];
-  availability?: ('AVAILABLE' | 'BUSY' | 'UNAVAILABLE')[];
+  availability?:string[];
   language?: string[];
   resourceType?: ResourceTypeEnum[];
   searchQuery?: string;
@@ -313,7 +318,19 @@ interface AssistanceFilters {
 
 export function useAssistance() {
   const [filters, setFilters] = useState<AssistanceFilters>({});
+    const [experts, setExperts] = useState<ExpertDTO[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+      React.useEffect(() => {
+    const fetchExperts = async () => {
+      try {
+        const result = await expertService.getAllExperts();
+        setExperts(result);
+      } catch (error) {
+        console.error("Error fetching experts:", error);
+      }
+    };
+    fetchExperts();
+  }, []);
   const pageSize = 12;
 
   const filteredRequests = useMemo(() => {
@@ -336,18 +353,18 @@ export function useAssistance() {
   }, [filters]);
 
   const filteredExperts = useMemo(() => {
-    return mockExperts.filter((expert) => {
+    return experts.filter((expert) => {
       if (filters.type && filters.type.length > 0 && !expert.expertise.some(e => filters.type!.includes(e))) return false;
       if (filters.sector && filters.sector.length > 0 && !expert.sectors.some(s => filters.sector!.includes(s))) return false;
       if (filters.subsector && filters.subsector.length > 0 && !expert.subsectors.some(s => filters.subsector!.includes(s))) return false;
-      if (filters.availability && filters.availability.length > 0 && !filters.availability.includes(expert.availability)) return false;
+      if (filters.availability && filters.availability.length > 0 && !filters.availability.includes(expert.availabilityStatus)) return false;
       if (filters.language && filters.language.length > 0 && !expert.languages.some(l => filters.language!.includes(l))) return false;
       if (filters.searchQuery) {
         const query = filters.searchQuery.toLowerCase();
         return (
-          expert.name.toLowerCase().includes(query) ||
+          expert.fullName.toLowerCase().includes(query) ||
           expert.title.toLowerCase().includes(query) ||
-          expert.organization.toLowerCase().includes(query) ||
+          expert.primaryOrganizationName.toLowerCase().includes(query) ||
           expert.skills.some(s => s.toLowerCase().includes(query))
         );
       }
@@ -421,7 +438,7 @@ export function useAssistance() {
     totalResources: filteredResources.length,
     // All unfiltered data for global search
     allRequests: mockRequests,
-    allExperts: mockExperts,
+    allExperts: experts,
     allResources: mockResources,
     allAssistance: [...mockRequests.map(r => ({ 
       id: r.id, 

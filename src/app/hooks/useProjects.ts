@@ -15,6 +15,7 @@ import {
   ProjectSectorEnum,
   RegionEnum,
 } from '../types/project.dto';
+import React from 'react';
 
 // Extended type pour l'usage interne avec champs additionnels
 interface ProjectListDTOInternal extends ProjectListDTO {
@@ -49,6 +50,23 @@ export const useProjects = () => {
   const [sortBy, setSortBy] = useState<'newest' | 'priority' | 'budget' | 'completion' | 'name'>('newest');
   const [isLoading, setIsLoading] = useState(false);
   const pageSize = 10;
+const [myprojects, setMyprojects] =useState<ProjectListDTO[]>([]);
+
+
+
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const response = await projectService.getAllProjects();
+      setMyprojects(response);
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+    }
+  };
+
+  fetchData();
+}, []);
+  
   
   // CURRENT_USER_ID is the mock logged-in user
   const CURRENT_USER_ID = 'user-1';
@@ -67,7 +85,7 @@ export const useProjects = () => {
       console.error("Failed to fetch projects from backend, falling back to mock data", error);
       
       // Fallback logic for mock data (client-side filtering)
-      let filtered = [...mockProjects];
+      let filtered = [...myprojects];
 
       if (viewMode === 'mine') {
         filtered = filtered.filter((project) => (project as any).createdBy === CURRENT_USER_ID);
@@ -114,21 +132,21 @@ export const useProjects = () => {
 
   // KPIs
   const kpis: ProjectKPIsDTO = useMemo(() => {
-    const totalBudget = mockProjects.reduce((sum, p) => sum + p.budget.total, 0);
-    const budgetSpent = mockProjects.reduce((sum, p) => sum + p.budget.spent, 0);
-    const avgCompletion = mockProjects.length > 0 
-      ? mockProjects.reduce((sum, p) => sum + p.timeline.completionPercentage, 0) / mockProjects.length
+    const totalBudget = myprojects.reduce((sum, p) => sum + (p.budget?.total || 0), 0);
+    const budgetSpent = myprojects.reduce((sum, p) => sum + (p.budget?.spent || 0), 0);
+    const avgCompletion = myprojects.length > 0 
+      ? myprojects.reduce((sum, p) => sum + (p.timeline?.completionPercentage || 0), 0) / myprojects.length
       : 0;
     
     return {
-      totalProjects: mockProjects.length,
-      activeProjects: mockProjects.filter(p => p.status === ProjectStatusEnum.ACTIVE).length,
-      completedProjects: mockProjects.filter(p => p.status === ProjectStatusEnum.COMPLETED).length,
-      onHoldProjects: mockProjects.filter(p => p.status === ProjectStatusEnum.ON_HOLD).length,
+      totalProjects: myprojects.length,
+      activeProjects: myprojects.filter(p => p.status === ProjectStatusEnum.ACTIVE).length,
+      completedProjects: myprojects.filter(p => p.status === ProjectStatusEnum.COMPLETED).length,
+      onHoldProjects: myprojects.filter(p => p.status === ProjectStatusEnum.ON_HOLD).length,
       totalBudget,
       budgetSpent,
       averageCompletion: Math.round(avgCompletion),
-      urgentProjects: mockProjects.filter(p => p.priority === ProjectPriorityEnum.URGENT).length,
+      urgentProjects: myprojects.filter(p => p.priority === ProjectPriorityEnum.URGENT).length,
     };
   }, [mockProjects]);
 
@@ -173,7 +191,7 @@ export const useProjects = () => {
     tasks,
     collaborations,
     templates,
-    allProjects: mockProjects,
+    allProjects: myprojects,
     getProjectById: getProjectByIdFromContext,
     getCollaborationById: (id: string) => collaborations.find(c => c.id === id),
   };

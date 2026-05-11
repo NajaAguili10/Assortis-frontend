@@ -445,7 +445,7 @@ export const organizationsTranslations = {
     'organizations.details.partnerships': 'Partnerships',
     'organizations.details.certifications': 'Certifications',
     'organizations.details.notFound': 'Organization Not Found',
-    'organizations.details.notFound.message': 'The organization you are looking for does not exist or has been removed.',
+    'organizations.details.notFound.message': 'no found.',
     'organizations.details.website': 'Visit Website',
     'organizations.details.established': 'Established',
     'organizations.details.employees': 'employees',

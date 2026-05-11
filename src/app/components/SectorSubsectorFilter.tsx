@@ -17,7 +17,7 @@ interface SectorSubsectorFilterProps {
   onSelectAllSectors: () => void;
   onSelectAllSubSectors: (sector: SectorDTO) => void;
   allowedSectors?: SectorDTO[];
-  dynamicSubsectorsMap: SubsectorDTO[];
+  dynamicSubsectorsMap: Record<number, SubsectorDTO[]>;
   t: (key: string) => string;
 }
 

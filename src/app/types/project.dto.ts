@@ -1,5 +1,7 @@
 // Project Types and DTOs - Multilingue compatible
 
+import { SectorDTO, SubsectorDTO } from "./organization.dto";
+
 export enum ProjectStatusEnum {
   DRAFT = 'DRAFT',
   PLANNING = 'PLANNING',
@@ -8,6 +10,8 @@ export enum ProjectStatusEnum {
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
   ARCHIVED = 'ARCHIVED',
+   
+  
 }
 
 export enum ReferenceTypeEnum {
@@ -204,7 +208,11 @@ export interface ProjectMilestoneDTO {
   completedDate?: string;
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'DELAYED';
 }
-
+export interface RegionDTO {
+  id: number;
+  name: string;
+  code: string;
+}
 export interface ProjectListDTO {
   id: string;
   organizationId?: string;
@@ -217,14 +225,14 @@ export interface ProjectListDTO {
   
   // Location
   country: string;
-  region: RegionEnum;
+  region: RegionDTO;
   
   // Sector
-  sector: ProjectSectorEnum;
-  subsectors: string[];
+  sector: SectorDTO;
+  subsectors: SubsectorDTO[];
   
   // Financial
-  budget: ProjectBudgetDTO;
+  budget: number;
   
   // Timeline
   timeline: ProjectTimelineDTO;

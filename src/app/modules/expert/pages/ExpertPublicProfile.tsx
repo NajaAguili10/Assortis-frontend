@@ -58,9 +58,10 @@ export default function ExpertPublicProfile() {
   const location = useLocation();
   const { id } = useParams<{ id: string }>();
   const { experts } = useExperts();
+    const { allExperts: assistanceExperts } = useAssistance();
   const { addNotification } = useNotifications();
   const { addHistoryEntry } = useAssistanceHistory();
-  const { allExperts: assistanceExperts } = useAssistance();
+
 
   // Detect search context from navigation state first, then fallback to pathname.
   const searchSection: SearchSectionTab | null = useMemo(() => {
@@ -124,6 +125,7 @@ export default function ExpertPublicProfile() {
         profileCompleteness: 85,
         verified: true,
         lastActive: new Date().toISOString(),
+        certifications: [],
       };
       isAssistanceExpert = true;
     }
@@ -137,7 +139,7 @@ export default function ExpertPublicProfile() {
         experiences: [
           {
             id: '1',
-            title: 'Senior Project Manager',
+            title: 'Senior Project Manager test',
             company: 'World Bank',
             location: 'Various locations (Africa, Asia)',
             startDate: '2018-01',
@@ -262,7 +264,6 @@ export default function ExpertPublicProfile() {
   };
 
   const demo = getDemoData();
-  const writingExperience = expert.writingExperience;
 
   // Dialog states
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
@@ -300,6 +301,8 @@ export default function ExpertPublicProfile() {
       </div>
     );
   }
+
+  const writingExperience = expert.writingExperience;
 
   const openContactDialog = () => {
     setContactSubject('');
@@ -470,7 +473,7 @@ export default function ExpertPublicProfile() {
                   {t('experts.publicProfile.about')}
                 </h2>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  {demo.bio}
+                  {expert.bio}
                 </p>
               </div>
 
@@ -481,32 +484,39 @@ export default function ExpertPublicProfile() {
                   {t('experts.publicProfile.experience')}
                 </h2>
                 <div className="space-y-4">
-                  {demo.experiences.map((exp: any) => (
-                    <div key={exp.id} className="border-l-2 border-purple-200 pl-4 pb-4 last:pb-0">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <h3 className="font-semibold text-primary">{exp.title}</h3>
-                          <p className="text-sm text-muted-foreground">{exp.company}</p>
+                  {expert.experiences && expert.experiences.length > 0 ? (
+                    expert.experiences.map((exp: any) => (
+                      <div key={exp.id} className="border-l-2 border-purple-200 pl-4 pb-4 last:pb-0">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <h3 className="font-semibold text-primary">{exp.title}</h3>
+                            <p className="text-sm text-muted-foreground">{exp.organization}</p>
+                          </div>
+                          {exp.isCurrent && (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                              {t('experts.publicProfile.current')}
+                            </Badge>
+                          )}
                         </div>
-                        {exp.current && (
-                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                            {t('experts.publicProfile.current')}
-                          </Badge>
-                        )}
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground mb-2">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {exp.startDate ? new Date(exp.startDate).toLocaleDateString() : ''} - {exp.isCurrent ? t('experts.publicProfile.present') : (exp.endDate ? new Date(exp.endDate).toLocaleDateString() : '')}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            {exp.city}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{exp.description}</p>
                       </div>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground mb-2">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {new Date(exp.startDate).toLocaleDateString()} - {exp.current ? t('experts.publicProfile.present') : new Date(exp.endDate).toLocaleDateString()}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          {exp.location}
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{exp.description}</p>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 border-2 border-dashed rounded-lg bg-slate-50/50">
+                      <Briefcase className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground italic">No professional experience listed</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
 
@@ -603,15 +613,15 @@ export default function ExpertPublicProfile() {
                   {t('experts.publicProfile.education')}
                 </h2>
                 <div className="space-y-4">
-                  {demo.education.map((edu: any) => (
+                  {expert.educations.map((edu: any) => (
                     <div key={edu.id} className="border-l-2 border-purple-200 pl-4 pb-4 last:pb-0">
                       <h3 className="font-semibold text-primary">{edu.degree}</h3>
                       <p className="text-sm text-muted-foreground">{edu.institution}</p>
                       <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
-                        <span>{edu.field}</span>
+                        <span>{edu.fieldOfStudy}</span>
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
-                          {edu.year}
+                          {edu.graduationYear}
                         </span>
                       </div>
                     </div>
@@ -626,34 +636,31 @@ export default function ExpertPublicProfile() {
                   {t('experts.publicProfile.certifications')}
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="border rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Award className="w-5 h-5 text-purple-500" />
+                  {expert.certifications && expert.certifications.length > 0 ? (
+                    expert.certifications.map((cert: any, index: number) => (
+                      <div key={cert.id || index} className="border rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <Award className="w-5 h-5 text-purple-500" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-primary text-sm mb-1">
+                              {cert.name}
+                            </h4>
+                            <p className="text-xs text-muted-foreground mb-1">{cert.issuingOrganization || cert.issuerName}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {cert.issueDate && new Date(cert.issueDate).getFullYear()}
+                              {cert.expiryDate && ` - ${new Date(cert.expiryDate).getFullYear()}`}
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-primary text-sm mb-1">
-                          PMP - Project Management Professional
-                        </h4>
-                        <p className="text-xs text-muted-foreground mb-1">Project Management Institute</p>
-                        <p className="text-xs text-muted-foreground">2015 - 2027</p>
-                      </div>
+                    ))
+                  ) : (
+                    <div className="col-span-full py-4 text-center border rounded-lg bg-gray-50/50">
+                      <p className="text-sm text-muted-foreground">No certifications listed</p>
                     </div>
-                  </div>
-                  <div className="border rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Award className="w-5 h-5 text-purple-500" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-primary text-sm mb-1">
-                          PRINCE2 Practitioner
-                        </h4>
-                        <p className="text-xs text-muted-foreground mb-1">AXELOS</p>
-                        <p className="text-xs text-muted-foreground">2013</p>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>

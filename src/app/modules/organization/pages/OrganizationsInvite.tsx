@@ -67,13 +67,15 @@ const mockExperts = [
 ];
 
 // Mock data for projects
+/*
 const mockProjects = [
   { id: '1', code: 'PROJ-2024-001', title: 'Rural Education Infrastructure Development', status: 'ACTIVE', sector: 'Education' },
   { id: '2', code: 'PROJ-2024-002', title: 'Community Health Centers Network', status: 'ACTIVE', sector: 'Health' },
   { id: '3', code: 'PROJ-2024-003', title: 'Sustainable Agriculture Transformation', status: 'PLANNING', sector: 'Agriculture' },
   { id: '4', code: 'PROJ-2024-004', title: 'Clean Water Access Program', status: 'ACTIVE', sector: 'Infrastructure' },
   { id: '5', code: 'PROJ-2024-005', title: 'Youth Skills Development Initiative', status: 'EXECUTION', sector: 'Education' },
-];
+]; 
+*/
 
 // Maximum number of invitations allowed
 const MAX_INVITATIONS = 2;

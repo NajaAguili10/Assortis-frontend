@@ -130,4 +130,4 @@ export interface AssistanceKPIsDTO {
 }
 
 // Alias for convenience
-export type ExpertDTO = AssistanceExpertDTO;
+export type ExpertDTO = AssistanceExpertDTO; 

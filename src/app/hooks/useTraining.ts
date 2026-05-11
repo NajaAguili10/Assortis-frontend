@@ -272,6 +272,7 @@ const mockTrainers: TrainingTrainerDTO[] = [
   },
 ];
 
+/*
 const mockCertifications: TrainingCertificationDTO[] = [
   {
     id: 'CERT-001',
@@ -325,6 +326,8 @@ const mockCertifications: TrainingCertificationDTO[] = [
     attempts: 3,
   },
 ];
+
+*/
 
 const mockKPIs: TrainingKPIsDTO = {
   enrolledPrograms: 2,

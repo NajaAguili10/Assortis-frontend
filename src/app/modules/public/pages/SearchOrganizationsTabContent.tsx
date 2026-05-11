@@ -69,7 +69,7 @@ export default function SearchOrganizationsTabContent() {
   const [selectedSectors, setSelectedSectors] = useState<SectorDTO[]>([]);
   const [selectedSubSectors, setSelectedSubSectors] = useState<SubsectorDTO[]>([]);
   const [selectedCountries, setSelectedCountries] = useState<CountryDTO[]>([]);
-  const [dynamicSubsectorsMap, setDynamicSubsectorsMap] = useState<SubsectorDTO[]>([]);
+  const [dynamicSubsectorsMap, setDynamicSubsectorsMap] = useState<Record<number, SubsectorDTO[]>>({});
   const [hoveredSector, setHoveredSector] = useState<SectorDTO | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [showSectorFilters, setShowSectorFilters] = useState(false);
@@ -105,9 +105,20 @@ export default function SearchOrganizationsTabContent() {
       if (!user) return;
       try {
         const sectors = await organizationService.getMySubscriptionSectors();
-        setSubscriptionSectors(sectors || []);
+        if (sectors && sectors.length > 0) {
+          setSubscriptionSectors(sectors);
+        } else {
+          // Fallback to all sectors if no subscriptions found
+          const allSectors = await sectorService.getAllSectors();
+          setSubscriptionSectors(allSectors || []);
+        }
       } catch (error) {
         console.error('Error fetching subscription sectors:', error);
+        // Fallback on error
+        try {
+          const allSectors = await sectorService.getAllSectors();
+          setSubscriptionSectors(allSectors || []);
+        } catch (e) { }
       }
     };
     fetchSectors();
@@ -245,29 +256,14 @@ export default function SearchOrganizationsTabContent() {
     updatePartnerState(organizationId, { engagements: [] });
   };
 
-  const readSavedSearches = (): SavedSearchEntry<OrganizationSavedPayload>[] => {
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) return [];
-
+  const fetchSavedSearches = async () => {
+    if (!user) return;
     try {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        return parsed.filter(item => item && item.payload);
-      }
-
-      if (parsed && typeof parsed === 'object') {
-        return [{
-          id: 'legacy-organisations',
-          label: 'Saved organisations',
-          createdAt: new Date().toISOString(),
-          payload: parsed,
-        }];
-      }
-    } catch {
-      return [];
+      const searches = await organizationService.getSavedSearches(user.id);
+      setSavedSearches(searches || []);
+    } catch (error) {
+      console.error('Error fetching saved searches:', error);
     }
-
-    return [];
   };
 
   const applySavedSearch = (payload: OrganizationSavedPayload) => {
@@ -284,28 +280,44 @@ export default function SearchOrganizationsTabContent() {
     });
   };
 
-  const saveSearch = () => {
-    const existing = readSavedSearches();
-    const now = new Date();
-    const entry: SavedSearchEntry<OrganizationSavedPayload> = {
-      id: `saved-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
-      label: searchQuery.trim() || `Saved organisations ${format(now, 'yyyy-MM-dd HH:mm')}`,
-      createdAt: now.toISOString(),
-      payload: {
-        searchQuery,
-        selectedSectors,
-        selectedSubSectors,
-        selectedCountries,
-        type: filters.type || [],
-      },
+  const handleSaveSearch = async () => {
+    if (!user) {
+      toast.error('You must be logged in to save searches');
+      return;
+    }
+
+    const label = searchQuery.trim() || `Saved organisations ${format(new Date(), 'yyyy-MM-dd HH:mm')}`;
+    const payload: OrganizationSavedPayload = {
+      searchQuery,
+      selectedSectors,
+      selectedSubSectors,
+      selectedCountries,
+      type: filters.type || [],
     };
 
-    localStorage.setItem(storageKey, JSON.stringify([entry, ...existing]));
-    toast.success('Search saved');
+    try {
+      await organizationService.saveSearch(user.id, label, payload);
+      toast.success('Search saved');
+      fetchSavedSearches();
+    } catch (error) {
+      console.error('Error saving search:', error);
+      toast.error('Failed to save search');
+    }
+  };
+
+  const handleDeleteSavedSearch = async (id: string | number) => {
+    try {
+      await organizationService.deleteSavedSearch(Number(id));
+      toast.success('Search deleted');
+      fetchSavedSearches();
+    } catch (error) {
+      console.error('Error deleting search:', error);
+      toast.error('Failed to delete search');
+    }
   };
 
   const openLoadSearchDialog = () => {
-    setSavedSearches(readSavedSearches());
+    fetchSavedSearches();
     setIsLoadDialogOpen(true);
   };
 
@@ -335,7 +347,7 @@ export default function SearchOrganizationsTabContent() {
             {showFilters ? 'Hide filters' : 'Show filters'}
           </Button>
           <Button variant="default" size="sm" onClick={() => updateFilters({ searchQuery })}>Search</Button>
-          <Button variant="outline" size="sm" onClick={saveSearch}>Save Search</Button>
+          <Button variant="outline" size="sm" onClick={handleSaveSearch}>Save Search</Button>
           <Button variant="outline" size="sm" onClick={openLoadSearchDialog}>Load Search</Button>
         </div>
 
@@ -507,9 +519,9 @@ export default function SearchOrganizationsTabContent() {
           </button>
         </div>
 
-        {allOrganizations.length > 0 ? (
+        {organizations.data.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 mb-6">
-            {allOrganizations.map((org) => (
+            {organizations.data.map((org) => (
               <div key={org.id} className="bg-white rounded-lg border p-5 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-start gap-3">
@@ -651,20 +663,33 @@ export default function SearchOrganizationsTabContent() {
           ) : (
             <div className="max-h-80 overflow-auto space-y-2">
               {savedSearches.map(entry => (
-                <Button
-                  key={entry.id}
-                  type="button"
-                  variant="outline"
-                  className="w-full justify-between h-auto py-2"
-                  onClick={() => {
-                    applySavedSearch(entry.payload);
-                    setIsLoadDialogOpen(false);
-                    toast.success('Search loaded');
-                  }}
-                >
-                  <span className="truncate text-left max-w-[70%]">{entry.label}</span>
-                  <span className="text-xs text-muted-foreground">{format(new Date(entry.createdAt), 'yyyy-MM-dd HH:mm')}</span>
-                </Button>
+                <div key={entry.id} className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 justify-between h-auto py-2"
+                    onClick={() => {
+                      applySavedSearch(entry.payload);
+                      setIsLoadDialogOpen(false);
+                      toast.success('Search loaded');
+                    }}
+                  >
+                    <span className="truncate text-left max-w-[70%]">{entry.label}</span>
+                    <span className="text-xs text-muted-foreground">{format(new Date(entry.createdAt), 'yyyy-MM-dd HH:mm')}</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-auto text-red-500 hover:text-red-700 hover:bg-red-50"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteSavedSearch(entry.id);
+                    }}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
               ))}
             </div>
           )}
