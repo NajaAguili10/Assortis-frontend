@@ -71,21 +71,29 @@ export default function TrainingPortfolio() {
           getTrainingPortfolioCertifications(),
         ]);
 
+        const safeCompletedTrainings =
+            completedTrainingsData || [];
+
+        const safeCertifications =
+            certificationsData || [];
+
         setStats({
           completedTrainings:
-              statsData.completedTrainings || 0,
+              statsData.completedTrainings ??
+              safeCompletedTrainings.length,
           certifications:
-              statsData.certifications || 0,
+              statsData.certifications ??
+              safeCertifications.length,
           achievements:
-              statsData.achievements || 0,
+              statsData.achievements ?? 0,
         });
 
         setCompletedTrainings(
-            completedTrainingsData || []
+            safeCompletedTrainings
         );
 
         setCertifications(
-            certificationsData || []
+            safeCertifications
         );
       } catch (err: any) {
         setError(

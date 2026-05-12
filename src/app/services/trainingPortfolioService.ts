@@ -52,6 +52,43 @@ export interface CompletedTraining {
     certificateUrl?: string | null;
 }
 
+export interface OngoingTraining {
+    enrollmentId: number;
+    userId: number;
+    userEmail: string;
+    userFirstName: string;
+    userLastName: string;
+    enrolledAt: string;
+    progressPercent: number;
+    lastAccessedAt: string | null;
+    deadline: string | null;
+    enrollmentStatus: string;
+    completedAt: string | null;
+    courseId: number;
+    title: string;
+    description: string;
+    expertId: number | null;
+    expertFullName: string | null;
+    durationHours: number | null;
+    level: string | null;
+    price: number | null;
+    currency: string | null;
+    isFree: boolean;
+    courseStatus: string | null;
+    thumbnailUrl: string | null;
+    createdAt: string | null;
+    certificationAvailable: boolean;
+    certificationPrice: number | null;
+    certificationTitle: string | null;
+    certificationIssuer: string | null;
+    certificationValidityMonths: number | null;
+    deliveryMode: string | null;
+    modulesCount: number | null;
+    startDate: string | null;
+    courseLanguage: string | null;
+    tags: string | null;
+}
+
 export interface PortfolioCertification {
     certificationId: number;
     courseId: number;
@@ -109,6 +146,28 @@ export const getTrainingPortfolioCompletedTrainings =
         if (!response.ok) {
             throw new Error(
                 'Unable to load completed trainings'
+            );
+        }
+
+        return response.json();
+    };
+
+export const getTrainingPortfolioOngoingTrainings =
+    async (): Promise<OngoingTraining[]> => {
+        const organizationId =
+            await resolveCurrentOrganizationId();
+
+        const response = await fetch(
+            `${API_BASE_URL}/training/portfolio/ongoing-trainings?organizationId=${organizationId}`,
+            {
+                method: 'GET',
+                headers: getAuthHeaders(),
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(
+                'Unable to load ongoing trainings'
             );
         }
 

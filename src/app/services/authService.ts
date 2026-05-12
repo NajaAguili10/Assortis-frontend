@@ -44,12 +44,6 @@ export interface ConnectedOrganizationResponse {
     joinedAt: string;
 }
 
-/*
-========================================
-LOGIN API
-========================================
-*/
-
 export const loginApi = async (
     data: LoginRequest
 ): Promise<LoginResponse> => {
@@ -57,12 +51,9 @@ export const loginApi = async (
         `${API_BASE_URL}/auth/login`,
         {
             method: 'POST',
-
             headers: {
-                'Content-Type':
-                    'application/json',
+                'Content-Type': 'application/json',
             },
-
             body: JSON.stringify(data),
         }
     );
@@ -72,19 +63,12 @@ export const loginApi = async (
             await response.text().catch(() => '');
 
         throw new Error(
-            errorText ||
-            'Invalid email or password'
+            errorText || 'Invalid email or password'
         );
     }
 
     return response.json();
 };
-
-/*
-========================================
-SAVE AUTH DATA
-========================================
-*/
 
 export const saveAuthData = (
     authData: LoginResponse
@@ -111,24 +95,22 @@ export const saveAuthData = (
 
     localStorage.setItem(
         'assortis_roles',
-        JSON.stringify(
-            authData.roles || []
-        )
+        JSON.stringify(authData.roles || [])
     );
 
     localStorage.setItem(
         'assortis_permissions',
-        JSON.stringify(
-            authData.permissions || []
-        )
+        JSON.stringify(authData.permissions || [])
+    );
+
+    localStorage.removeItem(
+        'assortis_connected_organization'
+    );
+
+    localStorage.removeItem(
+        'assortis_current_organization_id'
     );
 };
-
-/*
-========================================
-CLEAR AUTH DATA
-========================================
-*/
 
 export const clearAuthData = () => {
     localStorage.removeItem(
@@ -172,31 +154,17 @@ export const clearAuthData = () => {
     );
 };
 
-/*
-========================================
-TOKEN
-========================================
-*/
-
 export const getAuthToken = () => {
     return localStorage.getItem(
         'assortis_token'
     );
 };
 
-/*
-========================================
-AUTH HEADERS
-========================================
-*/
-
 export const getAuthHeaders = (): HeadersInit => {
     const token = getAuthToken();
 
     return {
-        'Content-Type':
-            'application/json',
-
+        'Content-Type': 'application/json',
         ...(token
             ? {
                 Authorization: `Bearer ${token}`,
@@ -205,21 +173,13 @@ export const getAuthHeaders = (): HeadersInit => {
     };
 };
 
-/*
-========================================
-CONNECTED ORGANIZATION ENDPOINT
-========================================
-*/
-
 export const getConnectedOrganizationApi =
     async (): Promise<ConnectedOrganizationResponse> => {
         const response = await fetch(
             `${API_BASE_URL}/profile/organization`,
             {
                 method: 'GET',
-
-                headers:
-                    getAuthHeaders(),
+                headers: getAuthHeaders(),
             }
         );
 
@@ -236,36 +196,20 @@ export const getConnectedOrganizationApi =
         return response.json();
     };
 
-/*
-========================================
-SAVE CONNECTED ORGANIZATION
-========================================
-*/
-
 export const saveConnectedOrganization =
     (
         organization: ConnectedOrganizationResponse
     ) => {
         localStorage.setItem(
             'assortis_connected_organization',
-            JSON.stringify(
-                organization
-            )
+            JSON.stringify(organization)
         );
 
         localStorage.setItem(
             'assortis_current_organization_id',
-            String(
-                organization.organizationId
-            )
+            String(organization.organizationId)
         );
     };
-
-/*
-========================================
-GET STORED ORGANIZATION
-========================================
-*/
 
 export const getStoredConnectedOrganization =
     (): ConnectedOrganizationResponse | null => {
@@ -285,44 +229,34 @@ export const getStoredConnectedOrganization =
         }
     };
 
-/*
-========================================
-RESOLVE CURRENT ORGANIZATION ID
-========================================
-*/
-
 export const resolveCurrentOrganizationId =
     async (): Promise<number> => {
-        const storedOrganizationId =
-            localStorage.getItem(
-                'assortis_current_organization_id'
-            );
+        try {
+            const connectedOrganization =
+                await getConnectedOrganizationApi();
 
-        if (storedOrganizationId) {
-            return Number(
-                storedOrganizationId
-            );
-        }
-
-        const storedOrganization =
-            getStoredConnectedOrganization();
-
-        if (
-            storedOrganization?.organizationId
-        ) {
             saveConnectedOrganization(
-                storedOrganization
+                connectedOrganization
             );
 
-            return storedOrganization.organizationId;
+            return connectedOrganization.organizationId;
+        } catch (error) {
+            const storedOrganization =
+                getStoredConnectedOrganization();
+
+            if (storedOrganization?.organizationId) {
+                return storedOrganization.organizationId;
+            }
+
+            const storedOrganizationId =
+                localStorage.getItem(
+                    'assortis_current_organization_id'
+                );
+
+            if (storedOrganizationId) {
+                return Number(storedOrganizationId);
+            }
+
+            throw error;
         }
-
-        const connectedOrganization =
-            await getConnectedOrganizationApi();
-
-        saveConnectedOrganization(
-            connectedOrganization
-        );
-
-        return connectedOrganization.organizationId;
     };
