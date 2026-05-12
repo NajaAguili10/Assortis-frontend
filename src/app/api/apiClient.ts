@@ -1,12 +1,19 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('assortis_token');
+
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
+
 export const apiClient = {
   get: async <T>(endpoint: string): Promise<T> => {
     const response = await fetch(`${BASE_URL}${endpoint}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
     });
 
     if (!response.ok) {
@@ -19,9 +26,7 @@ export const apiClient = {
   post: async <T>(endpoint: string, data: any): Promise<T> => {
     const response = await fetch(`${BASE_URL}${endpoint}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(data),
     });
 

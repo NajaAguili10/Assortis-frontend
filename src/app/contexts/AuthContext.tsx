@@ -1,5 +1,20 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { clearAuthData, loginApi, saveAuthData, type LoginResponse } from '@app/services/authService';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useEffect,
+} from 'react';
+
+import {
+  loginApi,
+  saveAuthData,
+  clearAuthData,
+  getConnectedOrganizationApi,
+  saveConnectedOrganization,
+  type LoginResponse,
+  type ConnectedOrganizationResponse,
+} from '@app/services/authService';
 
 interface User {
   id: string;
@@ -11,51 +26,68 @@ interface User {
   token?: string;
   roles?: string[];
   permissions?: string[];
-  isSubscribed?: boolean;
+  connectedOrganization?: ConnectedOrganizationResponse | null;
 }
 
-type QuickLoginAccountType = 'expert' | 'organization' | 'organization-user' | 'admin' | 'public';
+type QuickLoginAccountType =
+    | 'expert'
+    | 'organization'
+    | 'organization-user'
+    | 'admin'
+    | 'public';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  signup: (userData: Partial<User> & { email: string; password: string }) => Promise<void>;
-  forgotPassword: (email: string) => Promise<void>;
-  resetPassword: (token: string, newPassword: string) => Promise<void>;
   quickLogin: (accountType: QuickLoginAccountType) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const resolveAccountType = (
+    roles: string[] = []
+): 'expert' | 'organization' | 'admin' | 'public' => {
+  const normalizedRoles = roles.map((role) => role.toLowerCase());
+
+  if (normalizedRoles.some((role) => role.includes('admin'))) {
+    return 'admin';
+  }
+
+  if (normalizedRoles.some((role) => role.includes('expert'))) {
+    return 'expert';
+  }
+
+  if (normalizedRoles.some((role) => role.includes('organization'))) {
+    return 'organization';
+  }
+
+  return 'public';
+};
+
 const mapLoginResponseToUser = (authData: LoginResponse): User => {
-  const primaryRole = authData.roles?.[0]?.toLowerCase();
+  const primaryRole = authData.roles?.[0] || 'USER';
 
   return {
     id: String(authData.id),
     email: authData.email,
     firstName: authData.email.split('@')[0],
     lastName: '',
-    role: primaryRole || 'member',
-    accountType:
-        primaryRole === 'admin'
-            ? 'admin'
-            : primaryRole === 'expert'
-                ? 'expert'
-                : primaryRole?.includes('organization')
-                    ? 'organization'
-                    : 'public',
+    role: primaryRole,
+    accountType: resolveAccountType(authData.roles),
     token: authData.token,
     roles: authData.roles || [],
     permissions: authData.permissions || [],
-    isSubscribed: primaryRole !== 'public',
+    connectedOrganization: null,
   };
 };
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{
+  children: ReactNode;
+}> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('assortis_user');
@@ -63,59 +95,107 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (storedUser) {
       try {
         const parsedUser = JSON.parse(storedUser);
+
         setUser(parsedUser);
-        setIsAuthenticated(Boolean(parsedUser?.token || localStorage.getItem('assortis_token')));
+
+        setIsAuthenticated(
+            Boolean(
+                parsedUser?.token ||
+                localStorage.getItem('assortis_token')
+            )
+        );
       } catch (error) {
-        console.error('Error parsing stored user:', error);
+        console.error(error);
         clearAuthData();
       }
     }
   }, []);
 
-  const login = async (email: string, password: string): Promise<void> => {
-    const authData = await loginApi({ email, password });
-    const authenticatedUser = mapLoginResponseToUser(authData);
+  const login = async (
+      email: string,
+      password: string
+  ): Promise<void> => {
+    const authData = await loginApi({
+      email,
+      password,
+    });
 
     saveAuthData(authData);
-    localStorage.setItem('assortis_user', JSON.stringify(authenticatedUser));
+
+    let connectedOrganization: ConnectedOrganizationResponse | null =
+        null;
+
+    try {
+      connectedOrganization = await getConnectedOrganizationApi();
+
+      saveConnectedOrganization(connectedOrganization);
+
+      console.log(
+          'CONNECTED ORGANIZATION:',
+          connectedOrganization
+      );
+    } catch (organizationError) {
+      console.warn(
+          'NO ORGANIZATION FOUND:',
+          organizationError
+      );
+    }
+
+    const authenticatedUser: User = {
+      ...mapLoginResponseToUser(authData),
+      connectedOrganization,
+    };
+
+    localStorage.setItem(
+        'assortis_user',
+        JSON.stringify(authenticatedUser)
+    );
 
     setUser(authenticatedUser);
     setIsAuthenticated(true);
   };
 
   const logout = () => {
+    clearAuthData();
     setUser(null);
     setIsAuthenticated(false);
-    clearAuthData();
   };
 
-  const signup = async (userData: Partial<User> & { email: string; password: string }): Promise<void> => {
-    await login(userData.email, userData.password);
-  };
-
-  const forgotPassword = async (email: string): Promise<void> => {
-    if (!email) {
-      throw new Error('Invalid email');
-    }
-  };
-
-  const resetPassword = async (token: string, newPassword: string): Promise<void> => {
-    if (!token || newPassword.length < 6) {
-      throw new Error('Invalid token or password');
-    }
-  };
-
-  const quickLogin = async (accountType: QuickLoginAccountType): Promise<void> => {
-    const accounts: Record<QuickLoginAccountType, { email: string; password: string }> = {
-      expert: { email: 'expert@example.com', password: 'expert123' },
-      organization: { email: 'organization@example.com', password: 'organization123' },
-      'organization-user': { email: 'organization-user@example.com', password: 'organization123' },
-      admin: { email: 'admin@example.com', password: 'admin123' },
-      public: { email: 'public@example.com', password: 'public123' },
+  const quickLogin = async (
+      accountType: QuickLoginAccountType
+  ): Promise<void> => {
+    const accounts: Record<
+        QuickLoginAccountType,
+        { email: string; password: string }
+    > = {
+      expert: {
+        email: 'expert@example.com',
+        password: 'expert123',
+      },
+      organization: {
+        email: 'organization@example.com',
+        password: 'organization123',
+      },
+      'organization-user': {
+        email: 'org.user03@assortis.test',
+        password: 'password123',
+      },
+      admin: {
+        email: 'admin@example.com',
+        password: 'admin123',
+      },
+      public: {
+        email: 'public@example.com',
+        password: 'public123',
+      },
     };
 
     const selectedAccount = accounts[accountType];
-    await login(selectedAccount.email, selectedAccount.password);
+
+    await login(
+        selectedAccount.email,
+        selectedAccount.password
+    );
   };
 
   return (
@@ -125,9 +205,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             isAuthenticated,
             login,
             logout,
-            signup,
-            forgotPassword,
-            resetPassword,
             quickLogin,
           }}
       >
@@ -139,8 +216,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 export const useAuth = () => {
   const context = useContext(AuthContext);
 
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+  if (!context) {
+    throw new Error(
+        'useAuth must be used inside AuthProvider'
+    );
   }
 
   return context;
