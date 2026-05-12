@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { MapPin, BarChart3, Award, ListChecks, Building2, Users, UserCheck, PenSquare, Send, UserPlus } from 'lucide-react';
+import { MapPin, BarChart3, Award, ListChecks, Building2, Users, PenSquare, Send, UserPlus } from 'lucide-react';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
 import { SubMenu } from '@app/components/SubMenu';
@@ -17,7 +17,6 @@ export type SearchSectionTab =
   | 'shortlists'
   | 'organisations'
   | 'experts'
-  | 'my-experts'
   | 'bid-writers';
 
 interface SearchSectionTabsProps {
@@ -137,12 +136,6 @@ export function SearchSectionTabs({ activeTab }: SearchSectionTabsProps) {
         icon: Users,
         active: activeTab === 'experts',
         onClick: () => navigate('/search/experts'),
-      },
-      {
-        label: t('search.tabs.myExperts'),
-        icon: UserCheck,
-        active: activeTab === 'my-experts',
-        onClick: () => navigate('/search/my-experts'),
       },
       {
         label: t('search.tabs.bidWriters'),

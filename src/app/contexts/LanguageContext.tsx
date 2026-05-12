@@ -103,6 +103,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Navigation
     'nav.calls': 'Matching Projects',
     'nav.projects': 'My Projects',
+    'nav.myAccount': 'My Account',
     'nav.experts': 'Experts',
     'nav.organizations': 'Organizations',
     'nav.myOrganization': 'My Organization',
@@ -251,6 +252,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Navigation
     'nav.calls': 'Matching Projects',
     'nav.projects': 'Mes Projets',
+    'nav.myAccount': 'Mon Compte',
     'nav.experts': 'Experts',
     'nav.organizations': 'Organisations',
     'nav.myOrganization': 'Mon Organisation',
@@ -399,6 +401,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Navigation
     'nav.calls': 'Matching Projects',
     'nav.projects': 'Mis Proyectos',
+    'nav.myAccount': 'Mi Cuenta',
     'nav.experts': 'Expertos',
     'nav.organizations': 'Organizaciones',
     'nav.myOrganization': 'Mi Organización',

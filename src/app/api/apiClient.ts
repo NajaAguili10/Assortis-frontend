@@ -1,4 +1,4 @@
-const BASE_URL = "http://localhost:8082/api"
+import { API_BASE_URL } from '@app/config/api.config';
 
 const getHeaders = () => {
   const token = localStorage.getItem('assortis_token');
@@ -10,7 +10,7 @@ const getHeaders = () => {
 
 export const apiClient = {
   get: async <T>(endpoint: string, params?: Record<string, any>): Promise<T> => {
-    let url = `${BASE_URL}${endpoint}`;
+    let url = `${API_BASE_URL}${endpoint}`;
     if (params) {
       const searchParams = new URLSearchParams();
       Object.entries(params).forEach(([key, value]) => {
@@ -50,7 +50,7 @@ export const apiClient = {
   },
 
   post: async <T>(endpoint: string, data: any): Promise<T> => {
-    const response = await fetch(`${BASE_URL}${endpoint}`, {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(data),
@@ -76,7 +76,7 @@ export const apiClient = {
   },
 
   put: async <T>(endpoint: string, data: any): Promise<T> => {
-    const response = await fetch(`${BASE_URL}${endpoint}`, {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'PUT',
       headers: getHeaders(),
       body: JSON.stringify(data),
@@ -101,7 +101,7 @@ export const apiClient = {
   },
 
   delete: async (endpoint: string): Promise<void> => {
-    const response = await fetch(`${BASE_URL}${endpoint}`, {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'DELETE',
       headers: getHeaders(),
     });

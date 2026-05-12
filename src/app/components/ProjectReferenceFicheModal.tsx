@@ -245,7 +245,7 @@ export function ProjectReferenceFicheModal({
                   <Select value={formValues.referenceState} onValueChange={(value: ProjectReferenceValidationState) => setField('referenceState', value)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="draft">{t('projects.references.state.draft')}</SelectItem>
+                      <SelectItem value="notVerified">{t('projects.references.state.notVerified')}</SelectItem>
                       <SelectItem value="valid">{t('projects.references.state.valid')}</SelectItem>
                     </SelectContent>
                   </Select>

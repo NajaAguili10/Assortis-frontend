@@ -7,6 +7,7 @@ export const expertMyCVTranslations = {
 
     'mycv.submenu.dashboard': 'Dashboard',
     'mycv.submenu.info': 'My CV Info',
+    'mycv.submenu.organizationScoring': 'Organisation Scoring',
 
     'mycv.kpi.views': 'CV views',
     'mycv.kpi.downloads': 'Downloads',
@@ -125,6 +126,7 @@ export const expertMyCVTranslations = {
 
     'mycv.submenu.dashboard': 'Tableau de bord',
     'mycv.submenu.info': 'Infos Mon CV',
+    'mycv.submenu.organizationScoring': 'Évaluation des organisations',
 
     'mycv.kpi.views': 'Vues du CV',
     'mycv.kpi.downloads': 'Telechargements',
@@ -249,6 +251,7 @@ export const expertMyCVTranslations = {
 
     'mycv.submenu.dashboard': 'Panel',
     'mycv.submenu.info': 'Informacion de Mi CV',
+    'mycv.submenu.organizationScoring': 'Puntuacion de organizaciones',
 
     'mycv.kpi.views': 'Visualizaciones del CV',
     'mycv.kpi.downloads': 'Descargas',

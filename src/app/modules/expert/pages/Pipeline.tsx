@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@app/components/ui/select';
+import { useAuth } from '@app/contexts/AuthContext';
 import { usePipeline, PIPELINE_STAGES, RESULT_STAGES } from '@app/modules/expert/hooks/usePipeline';
 import { useTenders } from '@app/hooks/useTenders';
 import { useToRs } from '@app/hooks/useToRs';
@@ -56,9 +57,10 @@ import {
   Award,
   TrendingDown,
   Briefcase,
+  ChevronDown,
 } from 'lucide-react';
 
-type SortOption = 'newest' | 'oldest' | 'value' | 'deadline' | 'probability';
+type SortOption = 'newest' | 'oldest' | 'donor' | 'deadline' | 'budget' | 'probability';
 type ViewMode = 'active' | 'shortlisted' | 'awarded' | 'discarded' | 'all';
 
 // Utility function to get currency symbol
@@ -106,6 +108,13 @@ const calculateMultiCurrencyTotal = (
   const currencyTotals = new Map<CurrencyEnum, number>();
 
   opportunities.forEach((item) => {
+    if (typeof item.expectedValue === 'number') {
+      const currency = (item.currency || 'USD') as CurrencyEnum;
+      const weightedValue = (item.expectedValue * (item.probability || 50)) / 100;
+      currencyTotals.set(currency, (currencyTotals.get(currency) || 0) + weightedValue);
+      return;
+    }
+
     // Try to find in tenders first
     let tender = allTenders.find((t) => t.id === item.tenderId);
     
@@ -152,6 +161,11 @@ export default function Pipeline() {
   const navigate = useNavigate();
 
   const openPipelineDetail = (tender: { isProject: boolean; isToR: boolean; tenderId: string }) => {
+    if (tender.tenderId.startsWith('opp-')) {
+      navigate(`/matching-opportunities/opportunities/project/${tender.tenderId}`);
+      return;
+    }
+
     if (tender.isToR) {
       navigate(`/calls/tors/${tender.tenderId}`, {
         state: {
@@ -198,16 +212,19 @@ export default function Pipeline() {
   const { allToRs } = useToRs();
 
   // Use projects hook to get project details
-  const { projects: allProjects } = useProjects();
+  const { allProjects } = useProjects();
 
   // State for filters and dialogs
+  const { user } = useAuth();
+  const [ownerFilter, setOwnerFilter] = useState<'all' | 'mine' | 'team'>('all');
   const [selectedStage, setSelectedStage] = useState<string | 'all'>('all');
+  const [selectedMemberUser, setSelectedMemberUser] = useState<string | 'all'>('all');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [viewMode, setViewMode] = useState<ViewMode>('active');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showPipelineStages, setShowPipelineStages] = useState(false);
   
   // Dialog states
-  const [moveStageDialogOpen, setMoveStageDialogOpen] = useState(false);
   const [probabilityDialogOpen, setProbabilityDialogOpen] = useState(false);
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [resultDialogOpen, setResultDialogOpen] = useState(false);
@@ -234,6 +251,41 @@ export default function Pipeline() {
 
     return itemsToShow
       .map(item => {
+        if (item.tenderTitle) {
+          return {
+            id: item.tenderId,
+            tenderId: item.tenderId,
+            tenderTitle: item.tenderTitle,
+            tenderReference: item.tenderReference || item.tenderId,
+            organizationName: item.organizationName || item.memberOrganizationName || 'N/A',
+            memberOrganizationName: item.memberOrganizationName,
+            memberOrganizationId: item.memberOrganizationId,
+            memberUserNames: item.memberUserNames || [],
+            stage: item.stage,
+            probability: item.probability || 50,
+            expectedValue: {
+              amount: item.expectedValue || 0,
+              currency: (item.currency || 'USD') as any,
+              formatted: item.expectedValue ? `${item.currency || 'USD'} ${Number(item.expectedValue).toLocaleString()}` : `${item.currency || 'USD'} 0`,
+            },
+            deadline: item.deadline ? new Date(item.deadline) : new Date(),
+            lastActivity: new Date(item.lastModified || item.addedAt),
+            addedAt: new Date(item.addedAt),
+            status: item.status,
+            sectors: item.sectors || [],
+            notes: item.notes,
+            resultStage: item.resultStage,
+            resultDate: item.resultDate ? new Date(item.resultDate) : undefined,
+            awardValue: item.awardValue,
+            matchScore: item.matchScore,
+            role: item.role,
+            roleSought: item.roleSought,
+            progressPercent: item.progressPercent,
+            isToR: false,
+            isProject: false,
+          };
+        }
+
         // Try to find in tenders first (My Alerts items)
         let tender = allTenders.find(t => t.id === item.tenderId);
         let isToR = false;
@@ -293,10 +345,32 @@ export default function Pipeline() {
       .filter((t): t is NonNullable<typeof t> => t !== null);
   }, [pipelineItems, allTenders, allToRs, allProjects, viewMode, getActiveOpportunities, getWonOpportunities]);
 
+  const memberUserOptions = useMemo(() => {
+    const names = new Set<string>();
+    pipelineTenders.forEach((tender) => {
+      if (Array.isArray(tender.memberUserNames) && tender.memberUserNames.length > 0) {
+        tender.memberUserNames.forEach((name: string) => {
+          if (name.trim()) names.add(name.trim());
+        });
+      } else if (tender.memberOrganizationName) {
+        names.add(tender.memberOrganizationName);
+      }
+    });
+    return Array.from(names).sort((left, right) => left.localeCompare(right));
+  }, [pipelineTenders]);
+
   // Calculate stages with real data (only for active opportunities)
   const stages = useMemo(() => {
     const activeItems = getActiveOpportunities();
     const activeTenders = activeItems.map(item => {
+      if (typeof item.expectedValue === 'number') {
+        return {
+          stage: item.stage,
+          value: item.expectedValue,
+          probability: item.probability || 50,
+        };
+      }
+
       // Try to find in tenders first
       let tender = allTenders.find(t => t.id === item.tenderId);
       
@@ -333,11 +407,11 @@ export default function Pipeline() {
       return {
         id: stage.id,
         name: stage.name,
-        color: stage.color === 'blue' ? 'bg-blue-200' :
-               stage.color === 'purple' ? 'bg-purple-200' :
-               stage.color === 'orange' ? 'bg-orange-200' :
-               stage.color === 'green' ? 'bg-green-200' :
-               stage.color === 'teal' ? 'bg-teal-200' : 'bg-gray-200',
+        color: stage.color === 'blue' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+               stage.color === 'orange' ? 'bg-orange-100 text-orange-800 border-orange-200' :
+               stage.color === 'green' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+               stage.color === 'red' ? 'bg-red-100 text-red-800 border-red-200' :
+               'bg-gray-100 text-gray-700 border-gray-200',
         tenderCount: stageTenders.length,
         totalValue: {
           amount: totalValue,
@@ -353,13 +427,42 @@ export default function Pipeline() {
     return stageData;
   }, [pipelineItems, allTenders, allToRs, allProjects, getActiveOpportunities]);
 
+  const selectedStageSummary = useMemo(() => {
+    if (selectedStage === 'all') return null;
+    return stages.find((stage) => stage.id === selectedStage) || null;
+  }, [selectedStage, stages]);
+
   // Filter tenders by stage and search
   const filteredTenders = useMemo(() => {
     let filtered = pipelineTenders;
+
+    // Filter by owner
+    if (ownerFilter === 'mine') {
+      const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ');
+      const email = user?.email || '';
+      filtered = filtered.filter((t) =>
+        Array.isArray(t.memberUserNames) &&
+        t.memberUserNames.some(
+          (name: string) =>
+            (fullName && name.toLowerCase() === fullName.toLowerCase()) ||
+            (email && name.toLowerCase() === email.toLowerCase())
+        )
+      );
+    } else if (ownerFilter === 'team') {
+      filtered = filtered.filter(
+        (t) => Array.isArray(t.memberUserNames) && t.memberUserNames.length > 0
+      );
+    }
     
     // Filter by stage (only for active view)
     if (viewMode === 'active' && selectedStage !== 'all') {
       filtered = filtered.filter((t) => t.stage === selectedStage);
+    }
+
+    if (selectedMemberUser !== 'all') {
+      filtered = filtered.filter((t) => (
+        Array.isArray(t.memberUserNames) && t.memberUserNames.includes(selectedMemberUser)
+      ) || t.memberOrganizationName === selectedMemberUser);
     }
 
     // Filter by search query
@@ -368,7 +471,9 @@ export default function Pipeline() {
       filtered = filtered.filter((t) => 
         t.tenderTitle.toLowerCase().includes(query) ||
         t.tenderReference.toLowerCase().includes(query) ||
-        t.organizationName.toLowerCase().includes(query)
+        t.organizationName.toLowerCase().includes(query) ||
+        (t.memberOrganizationName || '').toLowerCase().includes(query) ||
+        (t.memberUserNames || []).some((name: string) => name.toLowerCase().includes(query))
       );
     }
 
@@ -377,8 +482,10 @@ export default function Pipeline() {
       filtered = [...filtered].sort((a, b) => b.lastActivity.getTime() - a.lastActivity.getTime());
     } else if (sortBy === 'oldest') {
       filtered = [...filtered].sort((a, b) => a.lastActivity.getTime() - b.lastActivity.getTime());
-    } else if (sortBy === 'value') {
+    } else if (sortBy === 'budget') {
       filtered = [...filtered].sort((a, b) => b.expectedValue.amount - a.expectedValue.amount);
+    } else if (sortBy === 'donor') {
+      filtered = [...filtered].sort((a, b) => a.organizationName.localeCompare(b.organizationName));
     } else if (sortBy === 'deadline') {
       filtered = [...filtered].sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
     } else if (sortBy === 'probability') {
@@ -386,7 +493,7 @@ export default function Pipeline() {
     }
 
     return filtered;
-  }, [selectedStage, pipelineTenders, searchQuery, sortBy, viewMode]);
+  }, [selectedStage, selectedMemberUser, pipelineTenders, searchQuery, sortBy, viewMode, ownerFilter, user]);
 
   // Calculate KPIs
   const activeOpportunities = getActiveOpportunities();
@@ -440,11 +547,6 @@ export default function Pipeline() {
   const getDaysRemaining = (deadline: Date) => {
     const days = Math.ceil((deadline.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
     return days;
-  };
-
-  const handleMoveStage = (tender: any) => {
-    setSelectedTender(tender);
-    setMoveStageDialogOpen(true);
   };
 
   const handleUpdateProbability = (tender: any) => {
@@ -569,6 +671,20 @@ export default function Pipeline() {
             />
           </div>
 
+          {/* Owner Filter Buttons */}
+          <div className="mb-4 flex flex-wrap gap-2">
+            {(['all', 'mine', 'team'] as const).map((f) => (
+              <Button
+                key={f}
+                variant={ownerFilter === f ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setOwnerFilter(f)}
+              >
+                {f === 'all' ? 'All Projects' : f === 'mine' ? 'My Projects' : 'Team Projects'}
+              </Button>
+            ))}
+          </div>
+
           {/* View Mode Tabs */}
           <div className="mb-6">
             <div className="flex items-center gap-2 overflow-x-auto pb-2">
@@ -625,28 +741,54 @@ export default function Pipeline() {
           {/* Pipeline Stages Overview - Only show for active view */}
           {viewMode === 'active' && (
             <>
-              <div className="mb-6">
-                <h2 className="text-xl font-bold text-primary mb-4">{t('pipeline.stages.title')}</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                  {stages.map((stage) => (
-                    <button
-                      key={stage.id}
-                      onClick={() => setSelectedStage(selectedStage === stage.id ? 'all' : stage.id)}
-                      className={`bg-white rounded-lg border-2 p-4 hover:shadow-md transition-all ${
-                        selectedStage === stage.id ? 'border-accent shadow-md' : 'border-gray-200'
-                      }`}
-                    >
-                      <div className={`w-12 h-12 ${stage.color} rounded-lg flex items-center justify-center mx-auto mb-3`}>
-                        <span className="text-2xl font-bold text-gray-700">{stage.tenderCount}</span>
-                      </div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-1">{stage.name}</h3>
-                      <p className="text-xs text-gray-600 mb-1">{stage.totalValue.formatted}</p>
-                      <p className="text-xs text-green-600 font-semibold">
-                        ⚖ {stage.weightedValue.formatted}
-                      </p>
-                    </button>
-                  ))}
+              <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold text-primary">{t('pipeline.stages.title')}</h2>
+                    <p className="mt-1 text-sm text-gray-600">
+                      {selectedStageSummary
+                        ? `${selectedStageSummary.name}: ${selectedStageSummary.tenderCount} opportunities, ${selectedStageSummary.totalValue.formatted} total value`
+                        : `All active stages: ${activeOpportunities.length} opportunities`}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">
+                      {selectedStageSummary ? selectedStageSummary.name : 'All stages'}
+                    </Badge>
+                    {selectedStage !== 'all' && (
+                      <Button variant="ghost" size="sm" onClick={() => setSelectedStage('all')}>
+                        {t('pipeline.viewAll')}
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={() => setShowPipelineStages((current) => !current)}>
+                      {showPipelineStages ? 'Hide stages' : 'Show stages'}
+                      <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${showPipelineStages ? 'rotate-180' : ''}`} />
+                    </Button>
+                  </div>
                 </div>
+
+                {showPipelineStages && (
+                  <div className="mt-4 grid grid-cols-2 gap-4 border-t border-gray-100 pt-4 md:grid-cols-3 lg:grid-cols-5">
+                    {stages.map((stage) => (
+                      <button
+                        key={stage.id}
+                        onClick={() => setSelectedStage(selectedStage === stage.id ? 'all' : stage.id)}
+                        className={`bg-white rounded-lg border-2 p-4 hover:shadow-md transition-all ${
+                          selectedStage === stage.id ? 'border-accent shadow-md' : 'border-gray-200'
+                        }`}
+                      >
+                        <div className={`w-12 h-12 ${stage.color} rounded-lg flex items-center justify-center mx-auto mb-3`}>
+                          <span className="text-2xl font-bold text-gray-700">{stage.tenderCount}</span>
+                        </div>
+                        <h3 className="text-sm font-semibold text-gray-900 mb-1">{stage.name}</h3>
+                        <p className="text-xs text-gray-600 mb-1">{stage.totalValue.formatted}</p>
+                        <p className="text-xs text-green-600 font-semibold">
+                          Weighted: {stage.weightedValue.formatted}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <Separator className="my-6" />
@@ -655,7 +797,7 @@ export default function Pipeline() {
 
           {/* Filters and Search */}
           <div className="mb-6">
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
               <div className="flex-1 w-full sm:w-auto">
                 <Input
                   type="search"
@@ -665,7 +807,19 @@ export default function Pipeline() {
                   className="w-full"
                 />
               </div>
-              <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="flex flex-col sm:flex-row items-center gap-2 w-full lg:w-auto">
+                <Select value={selectedMemberUser} onValueChange={setSelectedMemberUser}>
+                  <SelectTrigger className="w-full sm:w-[240px]">
+                    <Briefcase className="w-4 h-4 mr-2" />
+                    <SelectValue placeholder="Filter by user" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All users</SelectItem>
+                    {memberUserOptions.map((name) => (
+                      <SelectItem key={name} value={name}>{name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
                   <SelectTrigger className="w-full sm:w-[200px]">
                     <SortAsc className="w-4 h-4 mr-2" />
@@ -674,8 +828,9 @@ export default function Pipeline() {
                   <SelectContent>
                     <SelectItem value="newest">{t('pipeline.sort.newest')}</SelectItem>
                     <SelectItem value="oldest">{t('pipeline.sort.oldest')}</SelectItem>
-                    <SelectItem value="value">{t('pipeline.sort.value')}</SelectItem>
+                    <SelectItem value="donor">Donor</SelectItem>
                     <SelectItem value="deadline">{t('pipeline.sort.deadline')}</SelectItem>
+                    <SelectItem value="budget">Budget</SelectItem>
                     <SelectItem value="probability">{t('pipeline.sort.probability')}</SelectItem>
                   </SelectContent>
                 </Select>
@@ -748,7 +903,7 @@ export default function Pipeline() {
                             </h3>
                             {!isResult && (
                               <>
-                                <Badge className={getStageColor(tender.stage)}>
+                                <Badge className={`border ${getStageColor(tender.stage)}`}>
                                   {getStageName(tender.stage)}
                                 </Badge>
                                 <Badge className={`${getProbabilityColor(tender.probability)} border`}>
@@ -783,6 +938,15 @@ export default function Pipeline() {
                             </span>
                             <span>•</span>
                             <span>{tender.tenderReference}</span>
+                            {tender.memberOrganizationName && (
+                              <>
+                                <span>•</span>
+                                <span className="flex items-center gap-1 font-medium text-primary">
+                                  <Briefcase className="w-4 h-4" />
+                                  Member pipeline: {tender.memberOrganizationName}
+                                </span>
+                              </>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 flex-wrap">
                             {tender.sectors.map((sector) => (
@@ -866,13 +1030,25 @@ export default function Pipeline() {
                           <TrendingUp className="w-4 h-4" />
                           {t('pipeline.lastActivity')}: {tender.lastActivity.toLocaleDateString()}
                         </span>
-                        {tender.resultDate && (
-                          <span className="flex items-center gap-1">
-                            <CheckCircle2 className="w-4 h-4" />
-                            Result: {tender.resultDate.toLocaleDateString()}
-                          </span>
-                        )}
-                      </div>
+                          {tender.resultDate && (
+                            <span className="flex items-center gap-1">
+                              <CheckCircle2 className="w-4 h-4" />
+                              Result: {tender.resultDate.toLocaleDateString()}
+                            </span>
+                          )}
+                          {typeof tender.matchScore === 'number' && (
+                            <span className="flex items-center gap-1">
+                              <Award className="w-4 h-4" />
+                              Match score: {Math.round(tender.matchScore)}%
+                            </span>
+                          )}
+                          {tender.roleSought && (
+                            <span className="flex items-center gap-1">
+                              <Briefcase className="w-4 h-4" />
+                              Role: {tender.roleSought}
+                            </span>
+                          )}
+                        </div>
 
                       <div className="flex items-center gap-2 flex-wrap">
                         <Button
@@ -886,14 +1062,24 @@ export default function Pipeline() {
                         
                         {!isResult && (
                           <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleMoveStage(tender)}
+                            <Select
+                              value={tender.stage}
+                              onValueChange={(stage) => {
+                                updatePipelineStage(tender.tenderId, stage);
+                                toast.success(t('pipeline.moveStage.success'));
+                              }}
                             >
-                              <ChevronRight className="w-4 h-4 mr-1" />
-                              {t('pipeline.actions.moveStage')}
-                            </Button>
+                              <SelectTrigger className="h-9 w-full sm:w-[260px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {PIPELINE_STAGES.map((stage) => (
+                                  <SelectItem key={stage.id} value={stage.id}>
+                                    {stage.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <Button
                               variant="outline"
                               size="sm"
@@ -954,72 +1140,6 @@ export default function Pipeline() {
           </div>
         </div>
       </PageContainer>
-
-      {/* Move Stage Dialog */}
-      <Dialog open={moveStageDialogOpen} onOpenChange={setMoveStageDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>{t('pipeline.moveStage.title')}</DialogTitle>
-            <DialogDescription>
-              {selectedTender && (
-                <span className="text-sm">
-                  {t('pipeline.moveStage.description')} <strong>{selectedTender.tenderTitle}</strong>
-                </span>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-4">
-            <div className="space-y-2">
-              {PIPELINE_STAGES.map((stage) => (
-                <button
-                  key={stage.id}
-                  onClick={() => {
-                    if (selectedTender) {
-                      updatePipelineStage(selectedTender.tenderId, stage.id);
-                      setMoveStageDialogOpen(false);
-                      toast.success(t('pipeline.moveStage.success'));
-                    }
-                  }}
-                  disabled={selectedTender?.stage === stage.id}
-                  className={`w-full flex items-center gap-4 p-4 rounded-lg border-2 transition-all text-left ${
-                    selectedTender?.stage === stage.id
-                      ? 'border-accent bg-accent/10 cursor-not-allowed'
-                      : 'border-gray-200 hover:border-accent hover:shadow-md'
-                  }`}
-                >
-                  <div className={`w-12 h-12 ${
-                    stage.color === 'blue' ? 'bg-blue-200' :
-                    stage.color === 'purple' ? 'bg-purple-200' :
-                    stage.color === 'orange' ? 'bg-orange-200' :
-                    stage.color === 'green' ? 'bg-green-200' :
-                    stage.color === 'teal' ? 'bg-teal-200' : 'bg-gray-200'
-                  } rounded-lg flex items-center justify-center flex-shrink-0`}>
-                    {selectedTender?.stage === stage.id ? (
-                      <ArrowRight className="w-6 h-6 text-accent" />
-                    ) : (
-                      <span className="text-lg font-bold text-gray-700">
-                        {stages.find(s => s.id === stage.id)?.tenderCount || 0}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900">{stage.name}</h3>
-                    <p className="text-xs text-gray-600">
-                      {stages.find(s => s.id === stage.id)?.totalValue.formatted || '$0K'}
-                    </p>
-                  </div>
-                  {selectedTender?.stage === stage.id && (
-                    <Badge variant="secondary" className="text-xs">
-                      {t('pipeline.moveStage.current')}
-                    </Badge>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Update Probability Dialog */}
       <Dialog open={probabilityDialogOpen} onOpenChange={setProbabilityDialogOpen}>

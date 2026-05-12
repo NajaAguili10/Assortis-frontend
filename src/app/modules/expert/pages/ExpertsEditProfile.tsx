@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
-import { SubMenu } from '@app/components/SubMenu';
+import { AccountSubMenu } from '@app/components/AccountSubMenu';
 import { Button } from '@app/components/ui/button';
 import { Input } from '@app/components/ui/input';
 import { Label } from '@app/components/ui/label';
@@ -20,11 +20,6 @@ import { Checkbox } from '@app/components/ui/checkbox';
 import { Badge } from '@app/components/ui/badge';
 import {
   UserCheck,
-  LayoutDashboard,
-  Database,
-  FileUser,
-  UserCircle,
-  Zap,
   ArrowLeft,
   User,
   Upload,
@@ -531,30 +526,7 @@ export default function ExpertsEditProfile() {
         icon={UserCheck}
       />
 
-      <SubMenu
-        items={[
-          {
-            label: t('experts.submenu.database'),
-            icon: Database,
-            onClick: () => navigate('/experts/database'),
-          },
-          {
-            label: t('experts.submenu.profiles'),
-            icon: UserCircle,
-            onClick: () => navigate('/experts/profiles'),
-          },
-          {
-            label: t('experts.submenu.matching'),
-            icon: Zap,
-            onClick: () => navigate('/experts/matching'),
-          },
-          {
-            label: t('experts.submenu.cvTemplates'),
-            icon: FileText,
-            onClick: () => navigate('/experts/cv-templates'),
-          },
-        ]}
-      />
+      <AccountSubMenu activeTab="profile" onTabChange={() => undefined} mode="profile-settings" />
 
       <PageContainer className="my-6">
         <div className="px-4 sm:px-5 lg:px-6 py-6">

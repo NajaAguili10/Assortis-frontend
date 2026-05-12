@@ -34,7 +34,7 @@ import { getLocalizedCountryName } from '@app/utils/country-translator';
 import { Download, Eye, FileText, Search } from 'lucide-react';
 import { toast } from 'sonner';
 
-type StatusFilter = 'all' | 'ongoing' | 'completed';
+type StatusFilter = 'all' | 'notVerified' | 'verified';
 type SortField = 'title' | 'country' | 'sector' | 'client' | 'donor' | 'startDate' | 'endDate';
 type SortDirection = 'asc' | 'desc';
 
@@ -107,8 +107,8 @@ export default function OrganizationProjectReferences() {
       if (sortField === 'sector') return left.sector.localeCompare(right.sector) * directionFactor;
       if (sortField === 'client') return left.client.localeCompare(right.client) * directionFactor;
       if (sortField === 'donor') return left.donor.localeCompare(right.donor) * directionFactor;
-      if (sortField === 'startDate') return (new Date(left.startDate).getTime() - new Date(right.startDate).getTime()) * directionFactor;
-      if (sortField === 'endDate') return (new Date(left.endDate).getTime() - new Date(right.endDate).getTime()) * directionFactor;
+      if (sortField === 'startDate') return ((left.startDate ? new Date(left.startDate).getTime() : 0) - (right.startDate ? new Date(right.startDate).getTime() : 0)) * directionFactor;
+      if (sortField === 'endDate') return ((left.endDate ? new Date(left.endDate).getTime() : 0) - (right.endDate ? new Date(right.endDate).getTime() : 0)) * directionFactor;
       return 0;
     });
 
@@ -202,7 +202,7 @@ export default function OrganizationProjectReferences() {
         icon={FileText}
         stats={[
           { value: String(metrics.total), label: t('organizations.projectReferences.kpi.total') },
-          { value: String(metrics.ongoing), label: t('organizations.projectReferences.kpi.ongoing') },
+          { value: String(metrics.notVerified), label: t('organizations.projectReferences.kpi.notVerified') },
           { value: String(metrics.documents), label: t('organizations.projectReferences.kpi.documents') },
         ]}
       />
@@ -248,8 +248,8 @@ export default function OrganizationProjectReferences() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">{t('organizations.projectReferences.filters.statusAll')}</SelectItem>
-                  <SelectItem value="ongoing">{t('organizations.projectReferences.status.ongoing')}</SelectItem>
-                  <SelectItem value="completed">{t('organizations.projectReferences.status.completed')}</SelectItem>
+                  <SelectItem value="notVerified">{t('organizations.projectReferences.status.notVerified')}</SelectItem>
+                  <SelectItem value="verified">{t('organizations.projectReferences.status.verified')}</SelectItem>
                 </SelectContent>
               </Select>
               <Button type="button" variant="outline" className="min-h-11" onClick={() => setShowFilters(prev => !prev)}>
@@ -383,6 +383,7 @@ export default function OrganizationProjectReferences() {
                   }
                 }}
                 onSubmit={handleCreateReference}
+                quickMode
               />
             </div>
           )}
@@ -418,18 +419,18 @@ export default function OrganizationProjectReferences() {
                         <div className="grid grid-cols-[1.8fr_1.2fr_1.1fr_1.2fr_1.2fr_1fr_1fr_1fr_auto] gap-3 items-center text-sm">
                           <div>
                             <p className="font-semibold text-gray-900 leading-snug">{reference.title}</p>
-                            <p className="text-xs text-gray-500 mt-1 line-clamp-2">{reference.summary}</p>
+                            <p className="text-xs text-gray-500 mt-1 line-clamp-2">{reference.summary || 'Additional details can be completed later.'}</p>
                           </div>
                           <div className="text-gray-700 leading-snug">{getLocalizedCountryName(reference.country, language)}</div>
                           <div className="text-gray-700 leading-snug">{t(`sectors.${reference.sector}`)}</div>
                           <div className="text-gray-700 leading-snug">{reference.client}</div>
                           <div className="text-gray-700 leading-snug">{t(`fundingAgencies.${reference.donor}`)}</div>
-                          <div className="text-gray-700">{format(new Date(reference.startDate), 'dd MMM yyyy', { locale: dateLocale })}</div>
-                          <div className="text-gray-700">{format(new Date(reference.endDate), 'dd MMM yyyy', { locale: dateLocale })}</div>
+                          <div className="text-gray-700">{reference.startDate ? format(new Date(reference.startDate), 'dd MMM yyyy', { locale: dateLocale }) : 'Not set'}</div>
+                          <div className="text-gray-700">{reference.endDate ? format(new Date(reference.endDate), 'dd MMM yyyy', { locale: dateLocale }) : 'Not set'}</div>
                           <div>
                             <Badge
-                              variant={reference.status === 'ongoing' ? 'default' : 'secondary'}
-                              className={reference.status === 'ongoing' ? 'rounded-full' : 'rounded-full bg-blue-100 text-blue-800 border-blue-200'}
+                              variant={reference.status === 'notVerified' ? 'secondary' : 'default'}
+                              className={reference.status === 'notVerified' ? 'rounded-full bg-amber-100 text-amber-800 border-amber-200' : 'rounded-full bg-emerald-100 text-emerald-800 border-emerald-200'}
                             >
                               {t(`organizations.projectReferences.status.${reference.status}`)}
                             </Badge>

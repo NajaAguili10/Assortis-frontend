@@ -1,6 +1,6 @@
 import { CountryEnum, FundingAgencyEnum, SectorEnum, SubSectorEnum } from '@app/types/tender.dto';
 
-export type ProjectReferenceValidationState = 'draft' | 'valid';
+export type ProjectReferenceValidationState = 'notVerified' | 'valid' | 'draft';
 export type ProjectReferenceProjectStatus = 'ongoing' | 'past';
 export type ProjectReferenceFicheModalMode = 'view' | 'edit';
 

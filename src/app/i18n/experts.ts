@@ -3,6 +3,22 @@ export const expertsTranslations = {
     // Experts Hub
     'experts.hub.title': 'Experts Hub',
     'experts.hub.subtitle': 'Complete expert database with intelligent AI matching and CV management',
+
+    // Expert Dashboard
+    'expert.dashboard.banner.title': 'My Expert Dashboard',
+    'expert.dashboard.banner.subtitle': 'Your personal command centre — opportunities, projects, training and more',
+    'expert.dashboard.card.matching.title': 'Matching Opportunities',
+    'expert.dashboard.card.matching.description': 'Explore open projects, shortlists, contracts and job vacancies matched to your profile.',
+    'expert.dashboard.card.projects.title': 'My Projects',
+    'expert.dashboard.card.projects.description': 'Track your saved projects, active assignments and contractor collaborations.',
+    'expert.dashboard.card.search.title': 'Search',
+    'expert.dashboard.card.search.description': 'Search the expert database, organisations and global opportunities.',
+    'expert.dashboard.card.stats.title': 'Statistics',
+    'expert.dashboard.card.stats.description': 'Monitor your profile visibility, CV downloads and market performance analytics.',
+    'expert.dashboard.card.training.title': 'Training',
+    'expert.dashboard.card.training.description': 'Browse and enrol in training courses and professional development programmes.',
+    'expert.dashboard.card.myCV.title': 'My CV',
+    'expert.dashboard.card.myCV.description': 'Manage your expert profile, CV templates and organisation scoring.',
     
     // Stats
     'experts.stats.available': 'Available experts',
@@ -648,6 +664,22 @@ export const expertsTranslations = {
     // Experts Hub
     'experts.hub.title': 'Hub Experts',
     'experts.hub.subtitle': 'Base de données complète d\'experts avec matching IA intelligent et gestion de CV',
+
+    // Expert Dashboard
+    'expert.dashboard.banner.title': 'Mon Espace Expert',
+    'expert.dashboard.banner.subtitle': 'Votre centre de commande personnel — opportunités, projets, formations et plus encore',
+    'expert.dashboard.card.matching.title': 'Opportunités de Matching',
+    'expert.dashboard.card.matching.description': 'Explorez les projets ouverts, listes courtes, contrats et offres d\'emploi correspondant à votre profil.',
+    'expert.dashboard.card.projects.title': 'Mes Projets',
+    'expert.dashboard.card.projects.description': 'Suivez vos projets sauvegardés, missions actives et collaborations avec les contractants.',
+    'expert.dashboard.card.search.title': 'Recherche',
+    'expert.dashboard.card.search.description': 'Recherchez dans la base d\'experts, organisations et opportunités mondiales.',
+    'expert.dashboard.card.stats.title': 'Statistiques',
+    'expert.dashboard.card.stats.description': 'Suivez la visibilité de votre profil, les téléchargements de CV et vos performances.',
+    'expert.dashboard.card.training.title': 'Formations',
+    'expert.dashboard.card.training.description': 'Parcourez et inscrivez-vous aux formations et programmes de développement professionnel.',
+    'expert.dashboard.card.myCV.title': 'Mon CV',
+    'expert.dashboard.card.myCV.description': 'Gérez votre profil expert, vos modèles de CV et la notation des organisations.',
     
     // Stats
     'experts.stats.available': 'Experts disponibles',
@@ -1293,6 +1325,22 @@ export const expertsTranslations = {
     // Experts Hub
     'experts.hub.title': 'Hub de Expertos',
     'experts.hub.subtitle': 'Base de datos completa de expertos con matching IA inteligente y gestión de CV',
+
+    // Expert Dashboard
+    'expert.dashboard.banner.title': 'Mi Panel de Experto',
+    'expert.dashboard.banner.subtitle': 'Tu centro de mando personal — oportunidades, proyectos, formación y más',
+    'expert.dashboard.card.matching.title': 'Oportunidades de Matching',
+    'expert.dashboard.card.matching.description': 'Explora proyectos abiertos, listas cortas, contratos y vacantes que coinciden con tu perfil.',
+    'expert.dashboard.card.projects.title': 'Mis Proyectos',
+    'expert.dashboard.card.projects.description': 'Realiza un seguimiento de tus proyectos guardados, misiones activas y colaboraciones.',
+    'expert.dashboard.card.search.title': 'Búsqueda',
+    'expert.dashboard.card.search.description': 'Busca en la base de expertos, organizaciones y oportunidades globales.',
+    'expert.dashboard.card.stats.title': 'Estadísticas',
+    'expert.dashboard.card.stats.description': 'Supervisa la visibilidad de tu perfil, descargas de CV y rendimiento de mercado.',
+    'expert.dashboard.card.training.title': 'Formación',
+    'expert.dashboard.card.training.description': 'Explora e inscríbete en cursos de formación y programas de desarrollo profesional.',
+    'expert.dashboard.card.myCV.title': 'Mi CV',
+    'expert.dashboard.card.myCV.description': 'Gestiona tu perfil de experto, plantillas de CV y puntuación de organizaciones.',
     
     // Stats
     'experts.stats.available': 'Expertos disponibles',

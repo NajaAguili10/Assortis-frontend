@@ -1,4 +1,6 @@
-﻿import { useState, useCallback } from 'react';
+﻿import { useState, useCallback, useEffect } from 'react';
+import { useAuth } from '@app/contexts/AuthContext';
+import { API_BASE_URL } from '@app/config/api.config';
 import { SubmissionStatusEnum } from '@app/types/tender.dto';
 
 export interface PipelineStage {
@@ -8,12 +10,20 @@ export interface PipelineStage {
 }
 
 export const PIPELINE_STAGES: PipelineStage[] = [
-  { id: 'interested', name: 'Interested', color: 'blue' },
-  { id: 'analyzing', name: 'Analyzing', color: 'purple' },
-  { id: 'preparing', name: 'Preparing Proposal', color: 'orange' },
-  { id: 'ready', name: 'Ready to Submit', color: 'green' },
-  { id: 'submitted', name: 'Submitted', color: 'teal' },
+  { id: 'eoi_preparation', name: 'EOI Preparation', color: 'blue' },
+  { id: 'eoi_awaiting_results', name: 'EOI Awaiting Results', color: 'orange' },
+  { id: 'tender_preparation', name: 'Tender Preparation', color: 'blue' },
+  { id: 'tender_awaiting_results', name: 'Tender Awaiting Results', color: 'orange' },
+  { id: 'project_implementation', name: 'Project Implementation', color: 'green' },
+  { id: 'eoi_not_followed_cancelled', name: 'EOI Not Followed / Cancelled', color: 'red' },
+  { id: 'eoi_lost', name: 'EOI Lost', color: 'red' },
+  { id: 'tender_not_followed_cancelled', name: 'Tender Not Followed / Cancelled', color: 'red' },
+  { id: 'tender_lost', name: 'Tender Lost', color: 'red' },
+  { id: 'project_closed', name: 'Project Closed', color: 'green' },
+  { id: 'expired', name: 'Expired', color: 'gray' },
 ];
+
+export const DEFAULT_PIPELINE_STAGE = 'eoi_preparation';
 
 export const RESULT_STAGES = {
   WON: 'won',
@@ -22,10 +32,12 @@ export const RESULT_STAGES = {
   DISCARDED: 'discarded',
 } as const;
 
-interface PipelineItem {
+export interface PipelineItem {
   tenderId: string;
   stage: string;
   addedAt: string;
+  stageUpdatedAt?: string;
+  stageHistory?: PipelineStageHistoryItem[];
   notes?: string;
   probability?: number; // Win probability (0-100)
   submissionStatus?: SubmissionStatusEnum;
@@ -34,41 +46,277 @@ interface PipelineItem {
   resultStage?: typeof RESULT_STAGES[keyof typeof RESULT_STAGES]; // Final result (won/lost/withdrawn)
   resultDate?: string; // Date when final result was set
   awardValue?: number; // Actual contract value if won
+  tenderTitle?: string;
+  tenderReference?: string;
+  organizationName?: string;
+  memberOrganizationId?: number;
+  memberOrganizationName?: string;
+  memberUserNames?: string[];
+  country?: string;
+  donor?: string;
+  status?: string;
+  priority?: string;
+  role?: string;
+  roleSought?: string;
+  progressPercent?: number;
+  expectedValue?: number;
+  currency?: string;
+  matchScore?: number;
+  aiRecommendation?: boolean;
+  deadline?: string;
+  sectors?: string[];
+  source?: 'backend' | 'local';
 }
 
-export function usePipeline() {
-  const [pipelineItems, setPipelineItems] = useState<PipelineItem[]>(() => {
-    const stored = localStorage.getItem('pipeline_items');
-    return stored ? JSON.parse(stored) : [];
-  });
+export interface PipelineStageHistoryItem {
+  oldStage?: string;
+  newStage: string;
+  changedAt: string;
+  changedBy?: string;
+}
 
-  const addToPipeline = useCallback((tenderId: string, stage: string = 'interested', notes?: string, probability: number = 50) => {
+export type PipelineMetadata = Partial<
+  Pick<
+    PipelineItem,
+    | 'tenderTitle'
+    | 'tenderReference'
+    | 'organizationName'
+    | 'country'
+    | 'donor'
+    | 'status'
+    | 'expectedValue'
+    | 'currency'
+    | 'deadline'
+    | 'sectors'
+    | 'matchScore'
+  >
+>;
+
+interface BackendPipelineResponse {
+  data?: Array<{
+    tenderId: number;
+    memberOrganizationId?: number;
+    memberOrganizationName?: string;
+    memberUserNames?: string[];
+    tenderTitle?: string;
+    tenderReference?: string;
+    publishedByOrganizationName?: string;
+    country?: string;
+    donor?: string;
+    status?: string;
+    stage?: string;
+    priority?: string;
+    role?: string;
+    roleSought?: string;
+    notes?: string;
+    progressPercent?: number;
+    probability?: number;
+    expectedValue?: number;
+    currency?: string;
+    matchScore?: number;
+    aiRecommendation?: boolean;
+    deadline?: string;
+    addedAt?: string;
+    updatedAt?: string;
+    sectors?: string[];
+  }>;
+}
+
+const mapBackendStage = (stage?: string): string => {
+  const normalized = (stage || '').toLowerCase().replace(/[_\s-]+/g, '');
+  if (['eoiawaitingresults', 'submitted', 'submission', 'ready', 'readytosubmit'].includes(normalized)) return 'eoi_awaiting_results';
+  if (['tenderpreparation', 'proposal', 'preparing', 'preparingproposal'].includes(normalized)) return 'tender_preparation';
+  if (['tenderawaitingresults'].includes(normalized)) return 'tender_awaiting_results';
+  if (['projectimplementation', 'won', 'implementation'].includes(normalized)) return 'project_implementation';
+  if (['eoinotfollowedcancelled', 'withdrawn'].includes(normalized)) return 'eoi_not_followed_cancelled';
+  if (['eoilost', 'lost'].includes(normalized)) return 'eoi_lost';
+  if (['tendernotfollowedcancelled'].includes(normalized)) return 'tender_not_followed_cancelled';
+  if (['tenderlost'].includes(normalized)) return 'tender_lost';
+  if (['projectclosed', 'closed', 'completed'].includes(normalized)) return 'project_closed';
+  if (['expired'].includes(normalized)) return 'expired';
+  if (['interested', 'qualification', 'qualified', 'analysis', 'analyzing', 'eoipreparation'].includes(normalized)) return DEFAULT_PIPELINE_STAGE;
+  return PIPELINE_STAGES.some(item => item.id === stage) ? stage! : DEFAULT_PIPELINE_STAGE;
+};
+
+const readStoredPipelineItems = (): PipelineItem[] => {
+  try {
+    const stored = localStorage.getItem('pipeline_items');
+    const parsed = stored ? JSON.parse(stored) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((item: PipelineItem) => ({
+      ...item,
+      stage: mapBackendStage(item.stage),
+      stageUpdatedAt: item.stageUpdatedAt || item.lastModified || item.addedAt,
+      stageHistory: Array.isArray(item.stageHistory) ? item.stageHistory : [],
+    }));
+  } catch {
+    return [];
+  }
+};
+
+const mergePipelineItems = (backendItems: PipelineItem[], localItems: PipelineItem[]) => {
+  const itemsByTender = new Map<string, PipelineItem>();
+  backendItems.forEach(item => itemsByTender.set(item.tenderId, item));
+  localItems.forEach(item => itemsByTender.set(item.tenderId, { ...item, source: item.source || 'local' }));
+  return Array.from(itemsByTender.values());
+};
+
+export function usePipeline() {
+  const { user } = useAuth();
+  const [pipelineItems, setPipelineItems] = useState<PipelineItem[]>(() => readStoredPipelineItems());
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const fetchPipeline = async () => {
+      const params = new URLSearchParams({
+        page: '0',
+        size: '200',
+        sort: 'updatedAt,desc',
+      });
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/projects/pipeline?${params.toString()}`, {
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(user?.email ? { 'X-User-Email': user.email } : {}),
+            ...(user?.role ? { 'X-User-Role': user.role } : {}),
+          },
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = (await response.json()) as BackendPipelineResponse;
+        const backendItems: PipelineItem[] = (payload.data || []).map(item => ({
+          tenderId: String(item.tenderId),
+          stage: mapBackendStage(item.stage),
+          addedAt: item.addedAt || item.updatedAt || new Date().toISOString(),
+          lastModified: item.updatedAt,
+          notes: item.notes,
+          probability: item.probability ?? 50,
+          tenderTitle: item.tenderTitle,
+          tenderReference: item.tenderReference,
+          organizationName: item.publishedByOrganizationName,
+          memberOrganizationId: item.memberOrganizationId,
+          memberOrganizationName: item.memberOrganizationName,
+          memberUserNames: item.memberUserNames,
+          country: item.country,
+          donor: item.donor,
+          status: item.status,
+          priority: item.priority,
+          role: item.role,
+          roleSought: item.roleSought,
+          progressPercent: item.progressPercent,
+          expectedValue: item.expectedValue,
+          currency: item.currency,
+          matchScore: item.matchScore,
+          aiRecommendation: item.aiRecommendation,
+          deadline: item.deadline,
+          sectors: item.sectors,
+          source: 'backend',
+        }));
+
+        setPipelineItems(prev => mergePipelineItems(backendItems, prev.filter(item => item.source !== 'backend')));
+      } catch {
+        if (!controller.signal.aborted) {
+          setPipelineItems(readStoredPipelineItems());
+        }
+      }
+    };
+
+    fetchPipeline();
+
+    return () => controller.abort();
+  }, [user?.email, user?.role]);
+
+  const getRequestHeaders = useCallback(() => ({
+    'Content-Type': 'application/json',
+    ...(user?.email ? { 'X-User-Email': user.email } : {}),
+    ...(user?.role ? { 'X-User-Role': user.role } : {}),
+  }), [user?.email, user?.role]);
+
+  const syncPipelineUpsert = useCallback(async (tenderId: string, currentStage: string) => {
+    try {
+      await fetch(`${API_BASE_URL}/projects/pipeline`, {
+        method: 'POST',
+        headers: getRequestHeaders(),
+        body: JSON.stringify({ projectId: tenderId, currentStage }),
+      });
+    } catch {
+      // Local storage remains the source of truth when the backend is unavailable.
+    }
+  }, [getRequestHeaders]);
+
+  const syncPipelineStage = useCallback(async (tenderId: string, currentStage: string) => {
+    try {
+      await fetch(`${API_BASE_URL}/projects/pipeline/${tenderId}/stage`, {
+        method: 'PATCH',
+        headers: getRequestHeaders(),
+        body: JSON.stringify({ currentStage }),
+      });
+    } catch {
+      // Local storage remains the source of truth when the backend is unavailable.
+    }
+  }, [getRequestHeaders]);
+
+  const addToPipeline = useCallback((
+    tenderId: string,
+    stage: string = DEFAULT_PIPELINE_STAGE,
+    notes?: string,
+    probability: number = 50,
+    metadata: PipelineMetadata = {}
+  ) => {
+    const normalizedStage = mapBackendStage(stage);
+    void syncPipelineUpsert(tenderId, normalizedStage);
+
     setPipelineItems((prev) => {
       const exists = prev.find((item) => item.tenderId === tenderId);
+      const now = new Date().toISOString();
       if (exists) {
-        // Update existing item
+        const stageChanged = exists.stage !== normalizedStage;
         const updated = prev.map((item) =>
           item.tenderId === tenderId
-            ? { ...item, stage, notes: notes || item.notes, probability: probability || item.probability }
+            ? {
+                ...item,
+                ...metadata,
+                stage: normalizedStage,
+                notes: notes || item.notes,
+                probability: probability || item.probability,
+                stageUpdatedAt: stageChanged ? now : item.stageUpdatedAt,
+                lastModified: now,
+                resultStage: undefined,
+                resultDate: undefined,
+                stageHistory: stageChanged
+                  ? [
+                      ...(item.stageHistory || []),
+                      { oldStage: item.stage, newStage: normalizedStage, changedAt: now, changedBy: user?.email },
+                    ]
+                  : item.stageHistory || [],
+              }
             : item
         );
         localStorage.setItem('pipeline_items', JSON.stringify(updated));
         return updated;
       } else {
-        // Add new item
         const newItem: PipelineItem = {
           tenderId,
-          stage,
-          addedAt: new Date().toISOString(),
+          stage: normalizedStage,
+          addedAt: now,
+          stageUpdatedAt: now,
           notes,
           probability: probability || 50,
+          stageHistory: [{ newStage: normalizedStage, changedAt: now, changedBy: user?.email }],
+          ...metadata,
         };
         const updated = [...prev, newItem];
         localStorage.setItem('pipeline_items', JSON.stringify(updated));
         return updated;
       }
     });
-  }, []);
+  }, [syncPipelineUpsert, user?.email]);
 
   const removeFromPipeline = useCallback((tenderId: string) => {
     setPipelineItems((prev) => {
@@ -79,14 +327,31 @@ export function usePipeline() {
   }, []);
 
   const updatePipelineStage = useCallback((tenderId: string, stage: string) => {
+    const normalizedStage = mapBackendStage(stage);
+    void syncPipelineStage(tenderId, normalizedStage);
+
     setPipelineItems((prev) => {
+      const now = new Date().toISOString();
       const updated = prev.map((item) =>
-        item.tenderId === tenderId ? { ...item, stage } : item
+        item.tenderId === tenderId
+          ? {
+              ...item,
+              stage: normalizedStage,
+              stageUpdatedAt: now,
+              lastModified: now,
+              stageHistory: item.stage === normalizedStage
+                ? item.stageHistory || []
+                : [
+                    ...(item.stageHistory || []),
+                    { oldStage: item.stage, newStage: normalizedStage, changedAt: now, changedBy: user?.email },
+                  ],
+            }
+          : item
       );
       localStorage.setItem('pipeline_items', JSON.stringify(updated));
       return updated;
     });
-  }, []);
+  }, [syncPipelineStage, user?.email]);
 
   const updatePipelineNotes = useCallback((tenderId: string, notes: string) => {
     setPipelineItems((prev) => {
@@ -340,3 +605,4 @@ export function usePipeline() {
     getDiscardedOpportunities,
   };
 }
+

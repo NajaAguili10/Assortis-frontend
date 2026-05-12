@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, Search, Download, FileText, Eye, Penci
 import { useNavigate } from 'react-router';
 import { useTranslation } from '@app/contexts/LanguageContext';
 import { ProjectReferenceFicheModal } from '@app/components/ProjectReferenceFicheModal';
+import { GenerateProjectReferenceDialog } from '@app/components/GenerateProjectReferenceDialog';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
 import { ProjectsSubMenu } from '@app/components/ProjectsSubMenu';
@@ -29,7 +30,6 @@ import {
 } from '@app/types/tender.dto';
 import { ProjectReferenceFicheDTO, ProjectReferenceFicheModalMode, ProjectReferenceValidationState } from '@app/types/project-reference-fiche.dto';
 import { getLocalizedCountryName } from '@app/utils/country-translator';
-import { downloadProjectReferenceFichePdf } from '@app/utils/projectReferencePdf';
 
 type StatusFilter = 'ongoing' | 'past' | 'all';
 type SortField = 'organization' | 'location' | 'title' | 'period' | 'budget';
@@ -73,7 +73,7 @@ const mockProjectReferences: ProjectReferenceRow[] = [
     mostRelevantPartnersCount: 3,
     otherPossiblePartnersCount: 7,
     projectEndDate: new Date('2024-12-31'),
-    referenceState: 'draft',
+    referenceState: 'notVerified',
   },
   {
     id: 'ref-2',
@@ -119,7 +119,7 @@ const mockProjectReferences: ProjectReferenceRow[] = [
     mostRelevantPartnersCount: 4,
     otherPossiblePartnersCount: 8,
     projectEndDate: new Date('2025-08-31'),
-    referenceState: 'draft',
+    referenceState: 'notVerified',
   },
   {
     id: 'ref-4',
@@ -165,7 +165,7 @@ const mockProjectReferences: ProjectReferenceRow[] = [
     mostRelevantPartnersCount: 2,
     otherPossiblePartnersCount: 5,
     projectEndDate: new Date('2025-10-31'),
-    referenceState: 'draft',
+    referenceState: 'notVerified',
   },
 ];
 
@@ -175,8 +175,10 @@ export default function ProjectsReferences() {
 
   const [projectReferences, setProjectReferences] = useState<ProjectReferenceRow[]>(mockProjectReferences);
   const [isFicheModalOpen, setIsFicheModalOpen] = useState(false);
+  const [isGenerateReferenceOpen, setIsGenerateReferenceOpen] = useState(false);
   const [ficheMode, setFicheMode] = useState<ProjectReferenceFicheModalMode>('view');
   const [selectedReferenceId, setSelectedReferenceId] = useState<string | null>(null);
+  const [generationTarget, setGenerationTarget] = useState<ProjectReferenceRow | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -404,39 +406,9 @@ export default function ProjectsReferences() {
     }));
   };
 
-  const handleDownloadReference = (row: ProjectReferenceRow) => {
-    const fiche = buildFicheFromRow(row);
-    const localizedPdfFiche: ProjectReferenceFicheDTO = {
-      ...fiche,
-      sector: t(`sectors.${fiche.sector}`) as SectorEnum,
-      subSector: fiche.subSector ? (t(`subsectors.${fiche.subSector}`) as SubSectorEnum) : undefined,
-      country: getLocalizedCountryName(fiche.country, language) as CountryEnum,
-      donor: fiche.donor ? (t(`fundingAgencies.${fiche.donor}`) as FundingAgencyEnum) : undefined,
-      projectStatus: t(`projects.references.status.${fiche.projectStatus}`) as ProjectReferenceFicheDTO['projectStatus'],
-      referenceState: t(`projects.references.state.${fiche.referenceState}`) as ProjectReferenceFicheDTO['referenceState'],
-    };
-
-    downloadProjectReferenceFichePdf(localizedPdfFiche, {
-      title: fiche.title,
-      sectionDetails: t('projects.references.fiche.sections.details'),
-      sectionMetadata: t('projects.references.fiche.sections.metadata'),
-      sectionDates: t('projects.references.fiche.sections.dates'),
-      fieldReferenceNumber: t('projects.references.fiche.fields.referenceNumber'),
-      fieldProjectTitle: t('projects.references.fiche.fields.projectTitle'),
-      fieldDescription: t('projects.references.fiche.fields.description'),
-      fieldOrganization: t('projects.references.fiche.fields.organization'),
-      fieldSector: t('projects.references.fiche.fields.sector'),
-      fieldSubSector: t('projects.references.fiche.fields.subSector'),
-      fieldCountry: t('projects.references.fiche.fields.country'),
-      fieldDonor: t('projects.references.fiche.fields.donor'),
-      fieldBudget: t('projects.references.fiche.fields.budget'),
-      fieldProjectStatus: t('projects.references.fiche.fields.projectStatus'),
-      fieldState: t('projects.references.fiche.fields.state'),
-      fieldStartDate: t('projects.references.fiche.fields.startDate'),
-      fieldEndDate: t('projects.references.fiche.fields.endDate'),
-      fieldDeadline: t('projects.references.fiche.fields.deadline'),
-      notProvided: t('projects.references.fiche.notProvided'),
-    });
+  const handleOpenReferenceGeneration = (row: ProjectReferenceRow) => {
+    setGenerationTarget(row);
+    setIsGenerateReferenceOpen(true);
   };
 
   const activeFilterCount = [
@@ -657,7 +629,7 @@ export default function ProjectsReferences() {
                               <Badge variant="outline" className={getReferenceStateBadgeClassName(row.referenceState)}>
                                 {row.referenceState === 'valid'
                                   ? t('projects.references.state.valid')
-                                  : t('projects.references.state.draft')}
+                                  : t('projects.references.state.notVerified')}
                               </Badge>
                             </div>
                             <div className="flex items-center gap-2 min-h-10">
@@ -676,7 +648,7 @@ export default function ProjectsReferences() {
                                 <TooltipContent sideOffset={4}>{t('projects.references.actions.view')}</TooltipContent>
                               </Tooltip>
 
-                              {row.referenceState === 'draft' ? (
+                              {row.referenceState !== 'valid' ? (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
@@ -697,13 +669,13 @@ export default function ProjectsReferences() {
                                     <Button
                                       size="sm"
                                       className="min-h-10 w-10 border-gray-300 p-0"
-                                      aria-label={t('projects.references.actions.download')}
-                                      onClick={() => handleDownloadReference(row)}
+                                      aria-label="Generate Reference"
+                                      onClick={() => handleOpenReferenceGeneration(row)}
                                     >
                                       <Download className="h-4 w-4" />
                                     </Button>
                                   </TooltipTrigger>
-                                  <TooltipContent sideOffset={4}>{t('projects.references.actions.download')}</TooltipContent>
+                                  <TooltipContent sideOffset={4}>Generate Reference</TooltipContent>
                                 </Tooltip>
                               )}
                             </div>
@@ -723,6 +695,16 @@ export default function ProjectsReferences() {
             fiche={activeFiche}
             onOpenChange={setIsFicheModalOpen}
             onSave={handleSaveFiche}
+          />
+
+          <GenerateProjectReferenceDialog
+            open={isGenerateReferenceOpen}
+            projectId={generationTarget?.id || null}
+            projectTitle={generationTarget?.title || ''}
+            onOpenChange={(open) => {
+              setIsGenerateReferenceOpen(open);
+              if (!open) setGenerationTarget(null);
+            }}
           />
 
           <Separator className="my-6" />

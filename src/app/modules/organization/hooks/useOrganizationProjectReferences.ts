@@ -13,6 +13,15 @@ const sortReferences = (references: OrganizationProjectReferenceDTO[]) => {
   return [...references].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 };
 
+const normalizeReferenceStatus = (reference: OrganizationProjectReferenceDTO): OrganizationProjectReferenceDTO => {
+  const legacyStatus = String(reference.status).toLowerCase();
+  if (legacyStatus === 'verified' || legacyStatus === 'completed') {
+    return { ...reference, status: 'verified' };
+  }
+
+  return { ...reference, status: 'notVerified' };
+};
+
 const readStoredReferences = (): OrganizationProjectReferenceDTO[] => {
   if (typeof window === 'undefined') {
     return sortReferences(organizationProjectReferencesSeed);
@@ -25,7 +34,7 @@ const readStoredReferences = (): OrganizationProjectReferenceDTO[] => {
 
   try {
     const parsed = JSON.parse(raw) as OrganizationProjectReferenceDTO[];
-    return sortReferences(parsed);
+    return sortReferences(parsed.map(normalizeReferenceStatus));
   } catch {
     return sortReferences(organizationProjectReferencesSeed);
   }
@@ -165,14 +174,16 @@ export function useOrganizationProjectReferences() {
   }, [references, saveReferences]);
 
   const metrics = useMemo(() => {
-    const ongoing = references.filter(reference => reference.status === 'ongoing').length;
-    const completed = references.filter(reference => reference.status === 'completed').length;
+    const notVerified = references.filter(reference => reference.status === 'notVerified').length;
+    const verified = references.filter(reference => reference.status === 'verified').length;
     const documents = references.reduce((count, reference) => count + reference.documents.length, 0);
 
     return {
       total: references.length,
-      ongoing,
-      completed,
+      ongoing: notVerified,
+      completed: verified,
+      notVerified,
+      verified,
       documents,
     };
   }, [references]);

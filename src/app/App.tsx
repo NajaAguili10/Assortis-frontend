@@ -15,6 +15,8 @@ import TemplateCreate from './modules/expert/pages/TemplateCreate';
 import Pipeline from './modules/expert/pages/Pipeline';
 import ProjectsContractors from './modules/expert/pages/ProjectsContractors';
 import ProjectContractorDetails from './modules/expert/pages/ProjectContractorDetails';
+import ExpertOrganizationScoring from './modules/expert/pages/ExpertOrganizationScoring';
+import ExpertSavedProjects from './modules/expert/pages/ExpertSavedProjects';
 import ProjectsOrganizationsScoring from './modules/expert/pages/ProjectsOrganizationsScoring';
 import Projects from './modules/shared/pages/Projects';
 import ProjectsActive from './modules/shared/pages/ProjectsActive';
@@ -31,6 +33,9 @@ import EditProject from './modules/shared/pages/EditProject';
 import CollaborationDetail from './modules/shared/pages/CollaborationDetail';
 import Experts from './modules/expert/pages/Experts';
 import ExpertsDatabase from './modules/expert/pages/ExpertsDatabase';
+import ExpertSearchPage from './modules/expert/pages/ExpertSearchPage';
+import ExpertPreviewPage from './modules/expert/pages/ExpertPreviewPage';
+import MyExpertsPage from './modules/expert/pages/MyExpertsPage';
 import ExpertsCVProfiles from './modules/expert/pages/ExpertsCVProfiles';
 import ExpertsEditProfile from './modules/expert/pages/ExpertsEditProfile';
 import ExpertsCreateAccount from './modules/expert/pages/ExpertsCreateAccount';
@@ -45,8 +50,6 @@ import ExpertsMatchingOrganisationArchive from './modules/expert/pages/ExpertsMa
 import MatchingOpportunitiesHome from './modules/expert/pages/MatchingOpportunitiesHome';
 import MatchingOpportunitiesPage from './modules/expert/pages/MatchingOpportunitiesPage';
 import MatchingProjectsPage from './modules/expert/pages/MatchingProjectsPage';
-import MatchingOpportunitiesSaved from './modules/expert/pages/MatchingOpportunitiesSaved';
-import SavedProfilesPage from './modules/expert/pages/SavedProfilesPage';
 import AlertsFusionPage from './modules/expert/pages/AlertsFusionPage';
 import MatchingProjectDetailPage from './modules/expert/pages/MatchingProjectDetailPage';
 import MatchingAwardDetailPage from './modules/expert/pages/MatchingAwardDetailPage';
@@ -54,6 +57,7 @@ import MatchingShortlistDetailPage from './modules/expert/pages/MatchingShortlis
 import MatchingVacancyDetailPage from './modules/expert/pages/MatchingVacancyDetailPage';
 import ExpertMyCVDashboard from './modules/expert/pages/ExpertMyCVDashboard';
 import ExpertMyCVInfo from './modules/expert/pages/ExpertMyCVInfo';
+import ExpertDashboard from './modules/expert/pages/ExpertDashboard';
 import OrganizationsHub from './modules/organization/pages/OrganizationsHub';
 import OrganizationsDatabase from './modules/organization/pages/OrganizationsDatabase';
 import OrganizationDetail from './modules/organization/pages/OrganizationDetail';
@@ -66,6 +70,9 @@ import OrganizationsEditProfile from './modules/organization/pages/Organizations
 import OrganizationsInvite from './modules/organization/pages/OrganizationsInvite';
 import OrganizationsMatching from './modules/organization/pages/OrganizationsMatching';
 import OrganizationsMatchingArchive from './modules/organization/pages/OrganizationsMatchingArchive';
+import OrganizationsMyTenders from './modules/organization/pages/OrganizationsMyTenders';
+import OrganizationsTenderDetail from './modules/organization/pages/OrganizationsTenderDetail';
+import OrganizationsCreateTender from './modules/organization/pages/OrganizationsCreateTender';
 import Invitations from './modules/organization/pages/Invitations';
 import InvitationMessaging from './modules/organization/pages/InvitationMessaging';
 import MyOrganization from './modules/organization/pages/MyOrganization';
@@ -112,14 +119,12 @@ import ContactSales from './modules/shared/pages/ContactSales';
 import OffersFAQ from './modules/shared/pages/OffersFAQ';
 import PromotionRequest from './modules/shared/pages/PromotionRequest';
 import Contact from './modules/public/pages/Contact';
-import SearchDashboard from './modules/public/pages/SearchDashboard';
 import SearchMapPage from './modules/public/pages/SearchMapPage';
 import SearchProjectsPage from './modules/public/pages/SearchProjectsPage';
 import SearchAwardsPage from './modules/public/pages/SearchAwardsPage';
 import SearchShortlistsPage from './modules/public/pages/SearchShortlistsPage';
 import SearchOrganisationsPage from './modules/public/pages/SearchOrganisationsPage';
 import SearchExpertsPage from './modules/public/pages/SearchExpertsPage';
-import SearchMyExpertsPage from './modules/public/pages/SearchMyExpertsPage';
 import SearchBidWritersPage from './modules/public/pages/SearchBidWritersPage';
 import AskForQuotePage from './modules/public/pages/AskForQuotePage';
 import PublicProjectsServicePage from './modules/public/pages/services/PublicProjectsServicePage';
@@ -233,10 +238,13 @@ const router = createBrowserRouter([
       { path: 'projects/collaborations/:id', Component: CollaborationDetail },
       { path: 'projects/contractors', Component: ProjectsContractors },
       { path: 'projects/contractors/:contractorId', Component: ProjectContractorDetails },
-      { path: 'projects/organizations-scoring', Component: ProjectsOrganizationsScoring },
+      { path: 'projects/organizations-scoring', element: <Navigate to="/experts/my-cv/organization-scoring" replace /> },
+      { path: 'projects/saved', Component: ExpertSavedProjects },
       { path: 'projects/new', Component: NewProject },
       { path: 'expert', element: <Navigate to="/experts" replace /> },
       { path: 'experts', Component: Experts },
+      { path: 'experts/search', Component: ExpertSearchPage },
+      { path: 'experts/my-experts', Component: MyExpertsPage },
       { path: 'experts/database', Component: ExpertsDatabase },
       { path: 'experts/cv-profiles', Component: ExpertsCVProfiles },
       { path: 'experts/edit-profile', Component: ExpertsEditProfile },
@@ -247,7 +255,9 @@ const router = createBrowserRouter([
       { path: 'experts/matching-organisation-archive', Component: ExpertsMatchingOrganisationArchive },
       { path: 'experts/my-cv', element: <Navigate to="/experts/my-cv/dashboard" replace /> },
       { path: 'experts/my-cv/dashboard', Component: ExpertMyCVDashboard },
+      { path: 'experts/dashboard', Component: ExpertDashboard },
       { path: 'experts/my-cv/info', Component: ExpertMyCVInfo },
+      { path: 'experts/my-cv/organization-scoring', Component: ExpertOrganizationScoring },
       { path: 'experts/:id', Component: ExpertPublicProfile },
       { path: 'matching-opportunities', element: <Navigate to="/matching-opportunities/home" replace /> },
       { path: 'matching-opportunities/home', Component: MatchingOpportunitiesHome },
@@ -257,9 +267,14 @@ const router = createBrowserRouter([
       { path: 'matching-opportunities/opportunities/award/:id', Component: MatchingAwardDetailPage },
       { path: 'matching-opportunities/opportunities/shortlist/:id', Component: MatchingShortlistDetailPage },
       { path: 'matching-opportunities/opportunities/vacancy/:id', Component: MatchingVacancyDetailPage },
-      { path: 'matching-opportunities/saved', Component: MatchingOpportunitiesSaved },
-      { path: 'matching-opportunities/profiles', Component: SavedProfilesPage },
-      { path: 'matching-opportunities/alerts', Component: AlertsFusionPage },
+      // Old top-level type tabs → redirect to Matching Projects with filter pre-selected
+      { path: 'matching-opportunities/shortlists', element: <Navigate to="/matching-opportunities/projects?type=shortlists" replace /> },
+      { path: 'matching-opportunities/contracts', element: <Navigate to="/matching-opportunities/projects?type=contract-awards" replace /> },
+      { path: 'matching-opportunities/job-vacancies', element: <Navigate to="/matching-opportunities/projects?type=project-vacancies" replace /> },
+      { path: 'matching-opportunities/contractors', element: <Navigate to="/projects/contractors" replace /> },
+      { path: 'matching-opportunities/saved', element: <Navigate to="/projects/saved" replace /> },
+      { path: 'matching-opportunities/profiles', element: <Navigate to="/account/my-selection" replace /> },
+      { path: 'matching-opportunities/alerts', element: <Navigate to="/account/my-selection" replace /> },
       { path: 'organizations', Component: OrganizationsHub },
       { path: 'organizations/overview', Component: OrganizationsHub },
       { path: 'organizations/database', Component: OrganizationsDatabase },
@@ -268,6 +283,10 @@ const router = createBrowserRouter([
       { path: 'organizations/edit-profile', Component: OrganizationsEditProfile },
       { path: 'organizations/invite', Component: OrganizationsInvite },
       { path: 'organizations/my-organization', Component: MyOrganization },
+      { path: 'organizations/my-tenders', Component: OrganizationsMyTenders },
+      { path: 'organizations/my-tenders/:id', Component: OrganizationsTenderDetail },
+      { path: 'organizations/my-tenders/:id/edit', Component: OrganizationsCreateTender },
+      { path: 'organizations/create-tender', Component: OrganizationsCreateTender },
       { path: 'organizations/project-references', Component: OrganizationProjectReferences },
       { path: 'organizations/project-references/:id', Component: OrganizationProjectReferenceDetail },
       { path: 'organizations/teams', Component: OrganizationsTeams },
@@ -307,6 +326,7 @@ const router = createBrowserRouter([
       { path: 'statistics/projects-contracts', Component: StatisticsProjectsContracts },
       { path: 'statistics/market-trends', Component: StatisticsMarketTrends },
       { path: 'statistics/pricing-experts', Component: StatisticsPricingExperts },
+      { path: 'statistics/policy', element: <Navigate to="/statistics/pricing-experts" replace /> },
       { path: 'statistics/experts-fees', Component: StatisticsExpertsFees },
       { path: 'statistics/competitors', Component: StatisticsCompetitors },
       { path: 'statistics/usage-analytics', Component: StatisticsUsageAnalytics },
@@ -339,7 +359,7 @@ const router = createBrowserRouter([
       { path: 'services/experts/statistics', Component: PublicExpertsStatisticsPage },
       { path: 'services/posting-board', Component: PublicPostingBoardServicePage },
       { path: 'services/training', Component: PublicTrainingServicePage },
-      { path: 'search', Component: SearchDashboard },
+      { path: 'search', element: <Navigate to="/search/projects" replace /> },
       { path: 'search/map', Component: SearchMapPage },
       { path: 'search/projects', Component: SearchProjectsPage },
       { path: 'search/awards', Component: SearchAwardsPage },
@@ -347,7 +367,7 @@ const router = createBrowserRouter([
       { path: 'search/organisations', Component: SearchOrganisationsPage },
       { path: 'search/organizations', element: <Navigate to="/search/organisations" replace /> },
       { path: 'search/experts', Component: SearchExpertsPage },
-      { path: 'search/my-experts', Component: SearchMyExpertsPage },
+      { path: 'search/experts/:id/preview', Component: ExpertPreviewPage },
       { path: 'search/bid-writers', Component: SearchBidWritersPage },
       { path: 'search/calls/:id', Component: ProjectDetail },
       { path: 'search/projects/:id', Component: ProjectDetail },

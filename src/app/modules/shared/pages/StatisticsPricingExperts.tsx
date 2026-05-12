@@ -8,7 +8,6 @@ import { StatisticsFilterBar } from '@app/components/StatisticsFilterBar';
 import { Button } from '@app/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@app/components/ui/select';
 import {
-  expertPricingBySeniority,
   competitorPricing,
   discountRangeDistribution,
   aiDiscountSamples,
@@ -23,7 +22,6 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  Legend,
 } from 'recharts';
 
 export default function StatisticsPricingExperts() {
@@ -92,38 +90,6 @@ export default function StatisticsPricingExperts() {
           {t('statistics.filters.reset')}
         </Button>
       </StatisticsFilterBar>
-
-      <StatisticsChartCard
-        title={t('statistics.charts.pricingRange')}
-        description={t('statistics.charts.pricingRangeDesc')}
-        className="mb-6"
-      >
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={expertPricingBySeniority}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="seniority" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="min" fill="#93c5fd" radius={[6, 6, 0, 0]} />
-              <Bar dataKey="median" fill="#1f4b99" radius={[6, 6, 0, 0]} />
-              <Bar dataKey="max" fill="#0f766e" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </StatisticsChartCard>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {expertPricingBySeniority.map((row) => (
-          <div key={row.seniority} className="bg-white rounded-lg border border-gray-200 p-4">
-            <h3 className="font-semibold text-primary mb-2">{row.seniority}</h3>
-            <p className="text-sm text-gray-600 mb-1">Min: ${row.min}</p>
-            <p className="text-sm text-gray-600 mb-1">Median: ${row.median}</p>
-            <p className="text-sm text-gray-600">Max: ${row.max}</p>
-          </div>
-        ))}
-      </div>
 
       {/* Expert-only: Personal Benchmark Section */}
       {isExpert && (

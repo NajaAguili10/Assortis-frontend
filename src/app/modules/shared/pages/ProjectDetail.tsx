@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useLocation, useNavigate } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
+import { useCVCredits } from '@app/contexts/CVCreditsContext';
 import { useProjects } from '@app/hooks/useProjects';
 import { useExperts } from '@app/modules/expert/hooks/useExperts';
-import { usePipeline } from '@app/modules/expert/hooks/usePipeline';
+import { PIPELINE_STAGES, usePipeline } from '@app/modules/expert/hooks/usePipeline';
 import { useOrganizations } from '@app/modules/organization/hooks/useOrganizations';
 import { useOrganizationBookmarks } from '@app/modules/shared/hooks/useOrganizationBookmarks';
 import { PageBanner } from '@app/components/PageBanner';
@@ -62,6 +63,8 @@ import { ProjectStatusEnum, ProjectPriorityEnum } from '@app/types/project.dto';
 import { aiDiscountSamples, expertPricingBySeniority } from '@app/modules/shared/data/statistics.mock';
 import { canAssignProjectTasks } from '@app/services/permissions.service';
 import { projectService } from '@app/services/projectService';
+import { JobOfferListDTO } from '@app/modules/posting-board/types/JobOffer.dto';
+import { getJobOffersByProject } from '@app/modules/posting-board/services/jobOfferService';
 
 type LifecycleGroupKey = 'early-intelligence' | 'open-procurement' | 'contract-shortlist';
 
@@ -82,6 +85,22 @@ interface ProjectDetailLocationState {
   isFavorited?: boolean;
   accessSource?: ProjectAccessSource;
   fromPipeline?: boolean;
+  projectSnapshot?: {
+    title?: string;
+    referenceNumber?: string;
+    location?: string;
+    country?: string;
+    donor?: string;
+    budgetAmount?: number;
+    budgetCurrency?: string;
+    publishedDate?: string;
+    deadline?: string;
+    procurementType?: string;
+    noticeType?: string;
+    sectors?: string[];
+    fundingAgency?: string;
+    description?: string;
+  };
 }
 
 interface SuggestedExpert {
@@ -90,6 +109,17 @@ interface SuggestedExpert {
   role: string;
   matchScore: number;
   tags: string[];
+}
+
+interface VacancyExpertMatch {
+  id: string;
+  name: string;
+  role: string;
+  country: string;
+  expertise: string[];
+  matchScore: number;
+  sectorRelevance: string;
+  reasons: string[];
 }
 
 interface ProjectDocument {
@@ -384,13 +414,15 @@ export default function ProjectDetail() {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const { user } = useAuth();
+  const { libraryExpertIds } = useCVCredits();
   const { kpis, allProjects } = useProjects();
-  const { experts } = useExperts();
+  const { experts, allExperts } = useExperts();
   const { allOrganizations } = useOrganizations();
   const { isBookmarked, toggleBookmark } = useOrganizationBookmarks();
-  const { addToPipeline, removeFromPipeline } = usePipeline();
+  const { addToPipeline, removeFromPipeline, getPipelineItem, updatePipelineStage } = usePipeline();
   const location = useLocation();
   const locationState = ((location && location.state) || {}) as ProjectDetailLocationState;
+  const projectSnapshot = locationState.projectSnapshot;
   const fromMyProjects = locationState.fromMyProjects === true;
   const fromPipeline = locationState.fromPipeline === true;
   const stateFavorited = locationState.isFavorited === true;
@@ -428,8 +460,16 @@ export default function ProjectDetail() {
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
   const [availableCredits, setAvailableCredits] = useState(120);
   const [purchasedCvExpertIds, setPurchasedCvExpertIds] = useState<Set<string>>(new Set());
-  const [project, setProject] = useState<any>(null);
+  const [dynamicProject, setProject] = useState<any>(null);
   const [isLoadingProject, setIsLoadingProject] = useState(true);
+  const [pendingCvUnlockId, setPendingCvUnlockId] = useState<string | null>(null);
+  const [isProjectSaved, setIsProjectSaved] = useState<boolean>(() => {
+    if (!id) return stateFavorited;
+    const savedIds = readSavedProjectIds();
+    return savedIds.includes(id) || stateFavorited;
+  });
+  const [partnerVisibility, setPartnerVisibility] = useState<Record<string, boolean>>(() => readPartnerVisibility());
+  const [pricingPolicy, setPricingPolicy] = useState<'aggressive' | 'competitive' | 'premium'>('competitive');
   const showAlertsHeader = projectAccessSource === 'my-alerts';
 
   const priceEstimate = useMemo(() => {
@@ -509,13 +549,6 @@ export default function ProjectDetail() {
     fetchProject();
   }, [id]);
 
-  const [isProjectSaved, setIsProjectSaved] = useState<boolean>(() => {
-    if (!id) return stateFavorited;
-    const savedIds = readSavedProjectIds();
-    return savedIds.includes(id) || stateFavorited;
-  });
-  const [partnerVisibility, setPartnerVisibility] = useState<Record<string, boolean>>(() => readPartnerVisibility());
-  const [pricingPolicy, setPricingPolicy] = useState<'aggressive' | 'competitive' | 'premium'>('competitive');
 
   useEffect(() => {
     if (!id) {
@@ -621,27 +654,211 @@ export default function ProjectDetail() {
     );
   };
 
-  if (isLoadingProject) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
-        <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
-        <p className="text-gray-500 font-medium">Loading project details...</p>
-      </div>
-    );
-  }
+  // Mock project data - will be replaced with actual data from API
+  const PROJECT_MOCK = {
+    id: id,
+    code: projectSnapshot?.referenceNumber || 'PROJ-2024-001',
+    title: projectSnapshot?.title || 'Rural Education Infrastructure Development',
+    description: projectSnapshot?.description || 'Construction and renovation of primary schools in rural communities to improve access to quality education. The project aims to build 15 new schools and renovate 25 existing facilities across rural regions, providing quality education infrastructure for over 10,000 students.',
+    status: ProjectStatusEnum.ACTIVE,
+    priority: ProjectPriorityEnum.HIGH,
+    type: 'INFRASTRUCTURE',
+    procurementType: projectSnapshot?.procurementType,
+    noticeType: projectSnapshot?.noticeType,
+    fundingAgency: projectSnapshot?.fundingAgency,
+    scope: 'REGIONAL',
+    sector: 'EDUCATION',
+    sectors: projectSnapshot?.sectors?.length ? projectSnapshot.sectors : ['EDUCATION', 'INFRASTRUCTURE'],
+    subsectors: ['PRIMARY_EDUCATION', 'INFRASTRUCTURE'],
+    objectives: 'Improve access to quality education in rural communities by constructing modern school facilities equipped with necessary amenities including classrooms, libraries, laboratories, and sanitation facilities. Ensure sustainable and inclusive education infrastructure that meets international standards.',
+    
+    // Related Tender
+    relatedTender: 'Rural Infrastructure Development - East Africa Region',
+    projectSource: 'TENDER',
+    
+    // Location
+    country: projectSnapshot?.location || projectSnapshot?.country || 'Kenya',
+    countries: [
+      'Afghanistan',
+      'Armenia',
+      'Azerbaijan',
+      'Bangladesh',
+      'Bhutan',
+      'Cambodia',
+      'China',
+      'India',
+      'Indonesia',
+      'Kazakhstan',
+      'Malaysia',
+      'Nepal',
+      'Pakistan',
+      'Philippines',
+      'Sri Lanka',
+      'Thailand',
+      'Uzbekistan',
+      'Vietnam',
+    ],
+    region: 'Eastern Province',
+    city: 'Kitui County',
+    
+    // Timeline
+    timeline: {
+      startDate: projectSnapshot?.publishedDate || '2023-06-01',
+      endDate: projectSnapshot?.deadline || '2025-05-31',
+      duration: 24,
+      completionPercentage: 74,
+    },
+    
+    // Budget
+    budget: {
+      total: projectSnapshot?.budgetAmount || 2500000,
+      spent: projectSnapshot?.budgetAmount ? Math.round(projectSnapshot.budgetAmount * 0.74) : 1850000,
+      remaining: projectSnapshot?.budgetAmount ? Math.round(projectSnapshot.budgetAmount * 0.26) : 650000,
+      currency: projectSnapshot?.budgetCurrency || 'USD',
+    },
+    
+    // Organizations
+    leadOrganization: projectSnapshot?.donor || 'World Bank',
+    donor: projectSnapshot?.fundingAgency || projectSnapshot?.donor || 'USAID',
+    partners: [
+      'Ministry of Education Kenya',
+      'Local NGO Consortium',
+      'Community Development Foundation',
+    ],
+    mostRelevantIcaPartners: [
+      'Education Development Trust',
+      'African School Builders Initiative',
+      'Global Infrastructure Partners',
+    ],
+    otherPossiblePartners: [
+      'Rural Teachers Network',
+      'Learning Spaces Alliance',
+      'Community Builders East Africa',
+    ],
+    shortlistedCompanies: [
+      { name: 'EduBuild Consortium', date: '2024-01-15' },
+      { name: 'SchoolWorks International', date: '2024-01-15' },
+      { name: 'Kijani Infra Ltd', date: '2024-01-15' },
+    ],
+    contractAwardedCompanies: [
+      { name: 'EduBuild Consortium', date: '2024-02-20', budget: '$1,200,000' },
+      { name: 'Kijani Infra Ltd', date: '2024-02-20', budget: '$980,000' },
+    ],
+    
+    // Team
+    projectManager: 'Sarah Johnson',
+    technicalLead: 'Michael Chen',
+    teamSize: 45,
+    teamMembers: [
+      { id: '1', name: 'Sarah Johnson', role: 'Project Manager', allocation: '100%' },
+      { id: '2', name: 'Michael Chen', role: 'Technical Lead', allocation: '100%' },
+      { id: '3', name: 'Aisha Ndlovu', role: 'Infrastructure Specialist', allocation: '80%' },
+      { id: '4', name: 'Carlos Rodriguez', role: 'M&E Officer', allocation: '60%' },
+      { id: '5', name: 'Dr. Fatima Hassan', role: 'Education Consultant', allocation: '40%' },
+    ],
+    
+    // Tasks
+    totalTasks: 172,
+    tasksCompleted: 128,
+    tasks: [
+      { id: '1', title: 'Complete site assessments', status: 'COMPLETED', priority: 'HIGH', dueDate: '2023-07-15' },
+      { id: '2', title: 'Finalize architectural designs', status: 'COMPLETED', priority: 'HIGH', dueDate: '2023-08-30' },
+      { id: '3', title: 'Procurement of construction materials', status: 'IN_PROGRESS', priority: 'URGENT', dueDate: '2024-03-15' },
+      { id: '4', title: 'Community stakeholder engagement', status: 'IN_PROGRESS', priority: 'MEDIUM', dueDate: '2024-04-10' },
+      { id: '5', title: 'Quarterly progress reporting', status: 'TODO', priority: 'MEDIUM', dueDate: '2024-05-01' },
+    ],
+    
+    // Milestones
+    milestones: [
+      { id: '1', title: 'Project Initiation', date: '2023-06-01', status: 'COMPLETED' },
+      { id: '2', title: 'Site Surveys Completed', date: '2023-08-15', status: 'COMPLETED' },
+      { id: '3', title: 'Construction Phase 1', date: '2023-12-01', status: 'COMPLETED' },
+      { id: '4', title: 'Construction Phase 2', date: '2024-06-01', status: 'IN_PROGRESS' },
+      { id: '5', title: 'Facility Handover', date: '2025-05-31', status: 'PENDING' },
+    ],
+    
+    createdDate: '2023-05-15',
+    updatedDate: '2024-02-20',
+  };
 
-  if (!project) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-6 text-center">
-        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
-          <X className="h-8 w-8 text-red-500" />
-        </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Project Not Found</h2>
-        <p className="text-gray-500 max-w-md mb-6">We couldn't find the project you're looking for. It may have been removed or you may not have permission to view it.</p>
-        <Button onClick={() => navigate('/search/projects')}>Back to Search</Button>
-      </div>
-    );
-  }
+  const project = dynamicProject || PROJECT_MOCK;
+  const pipelineItem = getPipelineItem(project.id || '');
+  const currentPipelineStage = pipelineItem?.stage || 'eoi_preparation';
+  const currentPipelineStageDefinition = PIPELINE_STAGES.find((stage) => stage.id === currentPipelineStage);
+  const currentPipelineStageClass =
+    currentPipelineStageDefinition?.color === 'orange'
+      ? 'border-orange-200 bg-orange-50 text-orange-700'
+      : currentPipelineStageDefinition?.color === 'green'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      : currentPipelineStageDefinition?.color === 'red'
+      ? 'border-red-200 bg-red-50 text-red-700'
+      : currentPipelineStageDefinition?.color === 'gray'
+      ? 'border-gray-200 bg-gray-50 text-gray-700'
+      : 'border-blue-200 bg-blue-50 text-blue-700';
+  const showProjectStageSelect = Boolean(project.id) && user?.accountType !== 'expert' && (
+    isProjectSaved ||
+    projectAccessSource === 'my-projects' ||
+    projectAccessSource === 'my-alerts'
+  );
+  const showAddVacanciesTab = showProjectStageSelect && currentPipelineStage === 'tender_preparation';
+  const showVacanciesTab = currentPipelineStage === 'tender_preparation';
+  const [projectVacancies, setProjectVacancies] = useState<JobOfferListDTO[]>([]);
+  const [isLoadingProjectVacancies, setIsLoadingProjectVacancies] = useState(false);
+  const [selectedVacancyForExperts, setSelectedVacancyForExperts] = useState<JobOfferListDTO | null>(null);
+  const [vacancyExpertMatches, setVacancyExpertMatches] = useState<VacancyExpertMatch[]>([]);
+
+  useEffect(() => {
+    if (!showVacanciesTab && activeDetailTab === 'vacancies') {
+      setActiveDetailTab('notice');
+    }
+    if (activeDetailTab === 'add-vacancies') {
+      setActiveDetailTab('vacancies');
+    }
+  }, [activeDetailTab, showVacanciesTab]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadProjectVacancies = async () => {
+      if (!project.id) return;
+      setIsLoadingProjectVacancies(true);
+      try {
+        const vacancies = await getJobOffersByProject(project.id);
+        if (!cancelled) setProjectVacancies(vacancies);
+      } catch (error) {
+        if (!cancelled) setProjectVacancies([]);
+      } finally {
+        if (!cancelled) setIsLoadingProjectVacancies(false);
+      }
+    };
+
+    loadProjectVacancies();
+    return () => {
+      cancelled = true;
+    };
+  }, [project.id]);
+
+  const handleCreateProjectVacancy = () => {
+    const params = new URLSearchParams({
+      tab: 'publish',
+      source: 'project-detail',
+      projectId: project.id || '',
+      projectTitle: project.title,
+      location: project.country || '',
+      description: project.description || `Project vacancy for ${project.title}`,
+    });
+
+    navigate(`/posting-board/publish?${params.toString()}`, {
+      state: {
+        projectVacancyContext: {
+          projectId: project.id,
+          projectTitle: project.title,
+          projectReference: project.code,
+          location: project.country,
+          source: 'project-detail',
+        },
+      },
+    });
+  };
 
   const [projectTasks, setProjectTasks] = useState(() =>
     project.tasks.map((task) => ({ ...task, assignedTo: [] as { id: string; name: string; role?: string }[] }))
@@ -998,8 +1215,74 @@ export default function ProjectDetail() {
     if (hasCvAccess(expertId)) return expertName;
     return `Expert ${getExpertPublicId(expertId)}`;
   };
+  const hasUnlockedExpertAccess = (expertId: string) => hasCvAccess(expertId) || libraryExpertIds.includes(expertId);
+
+  const getVacancySummary = (vacancy: JobOfferListDTO) =>
+    (vacancy.projectSummary || vacancy.descriptionPlainText || vacancy.description || '').replace(/<[^>]+>/g, ' ').slice(0, 220);
+
+  const calculateVacancyExpertMatches = (vacancy: JobOfferListDTO): VacancyExpertMatch[] => {
+    const keywords = (vacancy.descriptionPlainText || vacancy.description || '')
+      .replace(/<[^>]+>/g, ' ')
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((word) => word.length > 4);
+
+    const uniqueKeywords = Array.from(new Set(keywords)).slice(0, 20);
+    const vacancySectors = [...(vacancy.sectors || []), ...(vacancy.subSectors || [])].map((item) => item.toLowerCase());
+    const vacancyCountries = (vacancy.countries || []).map((item) => item.toLowerCase());
+    const vacancySeniority = (vacancy.seniority || '').toLowerCase();
+
+    return allExperts
+      .filter((expert) => hasUnlockedExpertAccess(expert.id))
+      .map((expert) => {
+        const expertText = [
+          expert.title,
+          expert.bio,
+          expert.country,
+          ...expert.skills,
+          ...expert.sectors,
+        ].join(' ').toLowerCase();
+        const sectorHits = vacancySectors.filter((sector) => expertText.includes(sector) || sector.includes(expert.title.toLowerCase())).length;
+        const countryHit = vacancyCountries.some((country) => expert.country.toLowerCase().includes(country));
+        const seniorityHit = vacancySeniority && expert.level.toLowerCase().includes(vacancySeniority.split(' ')[0]);
+        const keywordHits = uniqueKeywords.filter((keyword) => expertText.includes(keyword)).length;
+        const score = Math.min(99, 35 + sectorHits * 14 + keywordHits * 4 + (countryHit ? 12 : 0) + (seniorityHit ? 10 : 0));
+        const reasons = [
+          sectorHits > 0 ? `${sectorHits} sector signal${sectorHits > 1 ? 's' : ''}` : '',
+          keywordHits > 0 ? `${keywordHits} keyword match${keywordHits > 1 ? 'es' : ''}` : '',
+          countryHit ? 'country experience' : '',
+          seniorityHit ? 'seniority alignment' : '',
+        ].filter(Boolean);
+
+        return {
+          id: expert.id,
+          name: `${expert.firstName} ${expert.lastName}`,
+          role: expert.title,
+          country: expert.country,
+          expertise: [...expert.sectors, ...expert.skills].slice(0, 5),
+          matchScore: score,
+          sectorRelevance: sectorHits > 0 ? 'Strong' : keywordHits > 0 ? 'Moderate' : 'General',
+          reasons: reasons.length ? reasons : ['unlocked profile'],
+        };
+      })
+      .sort((a, b) => b.matchScore - a.matchScore)
+      .slice(0, 5);
+  };
+
+  const handleShowVacancyExperts = (vacancy: JobOfferListDTO) => {
+    setSelectedVacancyForExperts(vacancy);
+    setVacancyExpertMatches(calculateVacancyExpertMatches(vacancy));
+  };
+
   const unlockExpertCv = (expertId: string) => {
     if (hasCvAccess(expertId)) return;
+    setPendingCvUnlockId(expertId);
+  };
+
+  const confirmUnlockExpertCv = () => {
+    const expertId = pendingCvUnlockId;
+    if (!expertId) return;
+    setPendingCvUnlockId(null);
 
     if (availableCredits < CV_UNLOCK_COST) {
       toast.error('Not enough credits to unlock this CV.');
@@ -1682,6 +1965,155 @@ export default function ProjectDetail() {
             organization={contactOrganization}
           />
 
+          <section aria-label={t('projects.details.projectLifecycle')} className="mb-6">
+            <Accordion type="single" collapsible defaultValue="project-lifecycle" className="w-full">
+              <AccordionItem value="project-lifecycle" className="overflow-hidden rounded-lg border border-[#4A5568]/15 bg-white shadow-sm">
+                <AccordionTrigger className="px-4 py-4 hover:no-underline sm:px-5">
+                  <span className="flex min-w-0 flex-1 items-start gap-3 text-left">
+                    <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#E63462]/20 bg-[#FFF1F4] text-[#E63462]">
+                      <Route className="h-5 w-5" aria-hidden />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-base font-semibold text-[#4A5568]">{t('projects.details.projectLifecycle')}</span>
+                      <span className="mt-1 block text-sm font-normal leading-relaxed text-[#4A5568]/80">
+                        Track stage, workflow state, documents, partners, and delivery progress in one place.
+                      </span>
+                    </span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-4 sm:px-5 sm:pb-5">
+                  <div className="rounded-lg border border-[#4A5568]/10 bg-gradient-to-br from-[#F8FAFC] via-white to-[#FFF1F4] p-4 sm:p-5">
+                    <div className="mb-4 grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
+                      <div className="rounded-lg border border-[#4A5568]/15 bg-white p-3">
+                        <p className="text-[#4A5568]/70">Timeline</p>
+                        <p className="mt-1 font-semibold text-[#4A5568]">{project.timeline.completionPercentage}%</p>
+                      </div>
+                      <div className="rounded-lg border border-[#4A5568]/15 bg-white p-3">
+                        <p className="text-[#4A5568]/70">Tasks</p>
+                        <p className="mt-1 font-semibold text-[#4A5568]">{taskCompletionPercentage}%</p>
+                      </div>
+                      <div className="rounded-lg border border-[#4A5568]/15 bg-white p-3">
+                        <p className="text-[#4A5568]/70">Budget</p>
+                        <p className="mt-1 font-semibold text-[#4A5568]">{budgetUtilization}%</p>
+                      </div>
+                    </div>
+
+                    <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+                      {project.milestones.map((milestone) => (
+                        <div key={milestone.id} className="rounded-lg border border-[#4A5568]/15 bg-white p-3">
+                          <Badge variant="outline" className={milestone.status === 'COMPLETED' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : milestone.status === 'IN_PROGRESS' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-200 bg-slate-50 text-slate-700'}>
+                            {formatLabel(milestone.status)}
+                          </Badge>
+                          <p className="mt-2 text-sm font-semibold text-[#4A5568]">{milestone.title}</p>
+                          <p className="mt-1 text-xs text-[#4A5568]/75">{formatDate(milestone.date)}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[280px_1fr]">
+                      <nav aria-label="Project lifecycle navigation" className="space-y-4 rounded-lg border border-[#4A5568]/15 bg-slate-50 p-3">
+                        {[
+                          { key: 'early-intelligence' as const, title: 'Early Intelligence', items: lifecycleDocuments.filter((doc) => doc.group === 'early-intelligence') },
+                          { key: 'open-procurement' as const, title: 'Open Procurement', items: lifecycleDocuments.filter((doc) => doc.group === 'open-procurement') },
+                          { key: 'contract-shortlist' as const, title: 'Contract / Shortlist', items: lifecycleDocuments.filter((doc) => doc.group === 'contract-shortlist') },
+                        ].map((section) => (
+                          <div key={section.key}>
+                            <p className="mb-2 text-xs font-semibold capitalize tracking-[0.08em] text-muted-foreground">{section.title}</p>
+                            <div className="space-y-1">
+                              {section.items.map((item) => (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  aria-pressed={activeLifecycleDocId === item.id}
+                                  onClick={() => setActiveLifecycleDocId(item.id)}
+                                  className={`w-full rounded-md border px-3 py-2 text-left text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 ${
+                                    activeLifecycleDocId === item.id
+                                      ? 'border-accent/20 bg-secondary text-accent'
+                                      : 'bg-white hover:bg-gray-50'
+                                  }`}
+                                >
+                                  {item.itemLabel}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </nav>
+
+                      <div className="rounded-lg border border-[#4A5568]/15 bg-white p-4">
+                        <p className="text-xs capitalize tracking-[0.08em] text-muted-foreground">{activeLifecycleDoc.sectionLabel}</p>
+                        <h3 className="mt-1 text-base font-semibold text-primary">{activeLifecycleDoc.itemLabel}</h3>
+                        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{activeLifecycleDoc.description}</p>
+
+                        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                          <div className="rounded-lg border bg-[#F8FAFC] p-3">
+                            <p className="text-xs text-muted-foreground">Workflow state</p>
+                            <p className="mt-1 text-sm font-semibold text-primary">{projectOpenClosedLabel}</p>
+                          </div>
+                          <div className="rounded-lg border bg-[#F8FAFC] p-3">
+                            <p className="text-xs text-muted-foreground">Remaining tasks</p>
+                            <p className="mt-1 text-sm font-semibold text-primary">{remainingTasks}</p>
+                          </div>
+                          <div className="rounded-lg border bg-[#F8FAFC] p-3">
+                            <p className="text-xs text-muted-foreground">Active document</p>
+                            <p className="mt-1 text-sm font-semibold text-primary">{activeLifecycleDoc.itemLabel}</p>
+                          </div>
+                        </div>
+
+                        {activeLifecycleDoc.hasShortlist && (
+                          <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50/60 p-3">
+                            <p className="mb-2 text-sm font-semibold text-primary">Shortlisted Companies / Organizations</p>
+                            <div className="space-y-2">
+                              {project.shortlistedCompanies.map((item, index) => (
+                                <div key={index} className="rounded-md border bg-white p-3 text-sm">
+                                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                    <Link to={buildOrganizationDetailPath(item.name)} className="font-semibold text-primary underline-offset-2 hover:text-accent hover:underline">
+                                      {item.name}
+                                    </Link>
+                                    <div className="flex flex-wrap gap-2">
+                                      {renderOrganizationBookmarkButton(item.name)}
+                                      {renderOrganizationContactButton(item.name)}
+                                    </div>
+                                  </div>
+                                  <p className="mt-1 text-xs text-muted-foreground">Shortlisted on: {formatDate(item.date)}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {activeLifecycleDoc.hasContract && (
+                          <div className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50/60 p-3">
+                            <p className="mb-2 text-sm font-semibold text-primary">Contract Awarded Companies</p>
+                            <div className="space-y-2">
+                              {project.contractAwardedCompanies.map((item, index) => (
+                                <div key={index} className="rounded-md border bg-white p-3 text-sm">
+                                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                    <Link to={buildOrganizationDetailPath(item.name)} className="font-semibold text-primary underline-offset-2 hover:text-accent hover:underline">
+                                      {item.name}
+                                    </Link>
+                                    <div className="flex flex-wrap gap-2">
+                                      {renderOrganizationBookmarkButton(item.name)}
+                                      {renderOrganizationContactButton(item.name)}
+                                    </div>
+                                  </div>
+                                  <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                                    <span>Date: {formatDate(item.date)}</span>
+                                    <span>Budget: {item.budget}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </section>
+
           <section
             className={`mb-6 overflow-hidden rounded-2xl border p-6 shadow-sm ${
               isProjectSaved
@@ -1709,6 +2141,51 @@ export default function ProjectDetail() {
                       ? 'This project is in My Projects. Use the AI workspace to continue working on matching, planning, and proposal execution.'
                       : 'Add this project to My Projects to open the AI workspace and work directly on matching, planning, and proposal execution.'}
                   </p>
+                  {showProjectStageSelect && (
+                    <div className="mt-4 max-w-xs">
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-[#4A5568]">
+                        Current Stage
+                      </label>
+                      <Select
+                        value={currentPipelineStage}
+                        onValueChange={(stage) => {
+                          if (pipelineItem) {
+                            updatePipelineStage(project.id || '', stage);
+                          } else {
+                            addToPipeline(project.id || '', stage, undefined, 50, {
+                              tenderTitle: project.title,
+                              tenderReference: project.code,
+                              organizationName: project.leadOrganization,
+                              country: project.country,
+                              donor: project.donor,
+                              status: project.status,
+                              expectedValue: project.budget.total,
+                              currency: project.budget.currency,
+                              deadline: project.timeline.endDate,
+                              sectors: project.sectors,
+                              matchScore: 50,
+                            });
+                            setIsProjectSaved(true);
+                          }
+                          toast.success('Project stage updated');
+                        }}
+                      >
+                        <SelectTrigger className="min-h-10 border-[#4A5568]/20 bg-white">
+                          <SelectValue placeholder="Select project stage" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PIPELINE_STAGES.map((stage) => (
+                            <SelectItem key={stage.id} value={stage.id}>
+                              {stage.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Badge variant="outline" className={`mt-2 ${currentPipelineStageClass}`}>
+                        {currentPipelineStageDefinition?.name || 'EOI Preparation'}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
                 <Button
                   className={`min-h-11 gap-2 self-start lg:self-center ${
@@ -1758,9 +2235,6 @@ export default function ProjectDetail() {
                     <TabsTrigger value="tasks" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
                       <span className="inline-flex items-center gap-2"><CheckCircle className="h-4 w-4" aria-hidden />{t('projects.details.tasks')}</span>
                     </TabsTrigger>
-                    <TabsTrigger value="project-lifecycle" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
-                      <span className="inline-flex items-center gap-2"><Route className="h-4 w-4" aria-hidden />{t('projects.details.projectLifecycle')}</span>
-                    </TabsTrigger>
                     <TabsTrigger value="market-analysis" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
                       <span className="inline-flex items-center gap-2">
                         <TrendingUp className="h-4 w-4" aria-hidden />
@@ -1782,6 +2256,11 @@ export default function ProjectDetail() {
                     <TabsTrigger value="team-members" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
                       <span className="inline-flex items-center gap-2"><Users className="h-4 w-4" aria-hidden />{t('projects.details.teamMembers')}</span>
                     </TabsTrigger>
+                    {showVacanciesTab && (
+                      <TabsTrigger value="vacancies" className="h-auto flex-none rounded-lg border-0 bg-transparent px-6 py-2.5 text-sm font-bold text-slate-700 shadow-none transition-all hover:bg-accent hover:text-white data-[state=active]:bg-white data-[state=active]:text-accent data-[state=active]:shadow-sm">
+                        <span className="inline-flex items-center gap-2"><UserPlus className="h-4 w-4" aria-hidden />Vacancies</span>
+                      </TabsTrigger>
+                    )}
                   </TabsList>
 
                   <TabsContent value="notice" className="mt-0">
@@ -1816,19 +2295,19 @@ export default function ProjectDetail() {
                           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div>
                               <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Briefcase className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Procurement Type</p>
-                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{t(`projects.type.${project.type}`)}</p>
+                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.procurementType || t(`projects.type.${project.type}`)}</p>
                             </div>
                             <div>
-                              <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.projectSource')}</p>
-                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{t(`projects.create.source.${project.projectSource}`)}</p>
+                              <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Notice Type</p>
+                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.noticeType || t(`projects.create.source.${project.projectSource}`)}</p>
                             </div>
                             <div>
                               <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Reference</p>
                               <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.code}</p>
                             </div>
                             <div>
-                              <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Target className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.relatedTender')}</p>
-                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.relatedTender}</p>
+                              <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Target className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Funding Agency</p>
+                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.fundingAgency || project.relatedTender}</p>
                             </div>
                           </div>
 
@@ -1902,145 +2381,6 @@ export default function ProjectDetail() {
                               )}
                             </div>
                           </div>
-                        </div>
-                      </div>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="project-lifecycle" className="mt-0">
-                    <div className="rounded-2xl border border-[#4A5568]/15 bg-gradient-to-br from-[#F5F7FA] via-white to-[#FFF1F4] p-4 sm:p-5">
-                      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <Route className="h-5 w-5 text-[#E63462]" />
-                            <h3 className="text-base font-semibold text-[#4A5568]">{t('projects.details.projectLifecycle')}</h3>
-                          </div>
-                          <p className="mt-1 text-sm text-[#4A5568]/80">Track stage, workflow state, documents, partners, and delivery progress in one place.</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
-                          <div className="rounded-xl border border-[#4A5568]/15 bg-white p-3">
-                            <p className="text-[#4A5568]/70">Timeline</p>
-                            <p className="mt-1 font-semibold text-[#4A5568]">{project.timeline.completionPercentage}%</p>
-                          </div>
-                          <div className="rounded-xl border border-[#4A5568]/15 bg-white p-3">
-                            <p className="text-[#4A5568]/70">Tasks</p>
-                            <p className="mt-1 font-semibold text-[#4A5568]">{taskCompletionPercentage}%</p>
-                          </div>
-                          <div className="rounded-xl border border-[#4A5568]/15 bg-white p-3">
-                            <p className="text-[#4A5568]/70">Budget</p>
-                            <p className="mt-1 font-semibold text-[#4A5568]">{budgetUtilization}%</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-                        {project.milestones.map((milestone) => (
-                          <div key={milestone.id} className="rounded-xl border border-[#4A5568]/15 bg-white p-3">
-                            <Badge variant="outline" className={milestone.status === 'COMPLETED' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : milestone.status === 'IN_PROGRESS' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-200 bg-slate-50 text-slate-700'}>
-                              {formatLabel(milestone.status)}
-                            </Badge>
-                            <p className="mt-2 text-sm font-semibold text-[#4A5568]">{milestone.title}</p>
-                            <p className="mt-1 text-xs text-[#4A5568]/75">{formatDate(milestone.date)}</p>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[280px_1fr]">
-                        <nav aria-label="Project lifecycle navigation" className="space-y-4 rounded-lg border border-[#4A5568]/15 bg-slate-50 p-3">
-                          {[
-                            { key: 'early-intelligence' as const, title: 'Early Intelligence', items: lifecycleDocuments.filter((doc) => doc.group === 'early-intelligence') },
-                            { key: 'open-procurement' as const, title: 'Open Procurement', items: lifecycleDocuments.filter((doc) => doc.group === 'open-procurement') },
-                            { key: 'contract-shortlist' as const, title: 'Contract / Shortlist', items: lifecycleDocuments.filter((doc) => doc.group === 'contract-shortlist') },
-                          ].map((section) => (
-                            <div key={section.key}>
-                              <p className="mb-2 text-xs font-semibold capitalize tracking-[0.08em] text-muted-foreground">{section.title}</p>
-                              <div className="space-y-1">
-                                {section.items.map((item) => (
-                                  <button
-                                    key={item.id}
-                                    type="button"
-                                    aria-pressed={activeLifecycleDocId === item.id}
-                                    onClick={() => setActiveLifecycleDocId(item.id)}
-                                    className={`w-full rounded-md border px-3 py-2 text-left text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 ${
-                                      activeLifecycleDocId === item.id
-                                        ? 'border-accent/20 bg-secondary text-accent'
-                                        : 'bg-white hover:bg-gray-50'
-                                    }`}
-                                  >
-                                    {item.itemLabel}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </nav>
-
-                        <div className="rounded-lg border border-[#4A5568]/15 bg-white p-4">
-                          <p className="text-xs capitalize tracking-[0.08em] text-muted-foreground">{activeLifecycleDoc.sectionLabel}</p>
-                          <h3 className="mt-1 text-base font-semibold text-primary">{activeLifecycleDoc.itemLabel}</h3>
-                          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{activeLifecycleDoc.description}</p>
-
-                          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                            <div className="rounded-xl border bg-[#F8FAFC] p-3">
-                              <p className="text-xs text-muted-foreground">Workflow state</p>
-                              <p className="mt-1 text-sm font-semibold text-primary">{projectOpenClosedLabel}</p>
-                            </div>
-                            <div className="rounded-xl border bg-[#F8FAFC] p-3">
-                              <p className="text-xs text-muted-foreground">Remaining tasks</p>
-                              <p className="mt-1 text-sm font-semibold text-primary">{remainingTasks}</p>
-                            </div>
-                            <div className="rounded-xl border bg-[#F8FAFC] p-3">
-                              <p className="text-xs text-muted-foreground">Active document</p>
-                              <p className="mt-1 text-sm font-semibold text-primary">{activeLifecycleDoc.itemLabel}</p>
-                            </div>
-                          </div>
-
-                          {activeLifecycleDoc.hasShortlist && (
-                            <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50/60 p-3">
-                              <p className="mb-2 text-sm font-semibold text-primary">Shortlisted Companies / Organizations</p>
-                              <div className="space-y-2">
-                                {project.shortlistedCompanies.map((item, index) => (
-                                  <div key={index} className="rounded-md border bg-white p-3 text-sm">
-                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                      <Link to={buildOrganizationDetailPath(item.name)} className="font-semibold text-primary underline-offset-2 hover:text-accent hover:underline">
-                                        {item.name}
-                                      </Link>
-                                      <div className="flex flex-wrap gap-2">
-                                        {renderOrganizationBookmarkButton(item.name)}
-                                        {renderOrganizationContactButton(item.name)}
-                                      </div>
-                                    </div>
-                                    <p className="mt-1 text-xs text-muted-foreground">Shortlisted on: {formatDate(item.date)}</p>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {activeLifecycleDoc.hasContract && (
-                            <div className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50/60 p-3">
-                              <p className="mb-2 text-sm font-semibold text-primary">Contract Awarded Companies</p>
-                              <div className="space-y-2">
-                                {project.contractAwardedCompanies.map((item, index) => (
-                                  <div key={index} className="rounded-md border bg-white p-3 text-sm">
-                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                      <Link to={buildOrganizationDetailPath(item.name)} className="font-semibold text-primary underline-offset-2 hover:text-accent hover:underline">
-                                        {item.name}
-                                      </Link>
-                                      <div className="flex flex-wrap gap-2">
-                                        {renderOrganizationBookmarkButton(item.name)}
-                                        {renderOrganizationContactButton(item.name)}
-                                      </div>
-                                    </div>
-                                    <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                                      <span>Date: {formatDate(item.date)}</span>
-                                      <span>Budget: {item.budget}</span>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -2429,6 +2769,81 @@ export default function ProjectDetail() {
                         </div>
                       </div>
                     </TabsContent>
+
+                  <TabsContent value="vacancies" className="mt-0">
+                    {showAddVacanciesTab && (
+                      <div className="mb-4 rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-5 shadow-sm">
+                        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                          <div className="min-w-0">
+                            <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                              <UserPlus className="h-3.5 w-3.5" aria-hidden />
+                              Tender Preparation
+                            </div>
+                            <h3 className="mt-3 text-lg font-bold text-primary">Add project vacancies</h3>
+                            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+                              Create a project vacancy on the Posting Board for this tender preparation project.
+                            </p>
+                            <div className="mt-3 grid gap-2 text-sm text-[#1E293B] sm:grid-cols-2">
+                              <p><span className="font-semibold text-[#4A5568]">Project:</span> {project.title}</p>
+                              <p><span className="font-semibold text-[#4A5568]">Reference:</span> {project.code}</p>
+                              <p><span className="font-semibold text-[#4A5568]">Location:</span> {project.country}</p>
+                              <p><span className="font-semibold text-[#4A5568]">Current stage:</span> Tender Preparation</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div className="rounded-2xl border border-[#4A5568]/15 bg-white p-4 sm:p-5">
+                      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <h3 className="text-base font-semibold text-[#4A5568]">Vacancies</h3>
+                          <p className="mt-1 text-sm text-[#4A5568]/75">Project-linked job postings created for this project.</p>
+                        </div>
+                        <Button type="button" variant="outline" onClick={handleCreateProjectVacancy}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add Vacancy
+                        </Button>
+                      </div>
+
+                      {isLoadingProjectVacancies ? (
+                        <div className="rounded-xl border border-dashed border-[#4A5568]/20 bg-[#F8FAFC] p-5 text-sm text-[#4A5568]/80">
+                          Loading vacancies...
+                        </div>
+                      ) : projectVacancies.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-[#4A5568]/20 bg-[#F8FAFC] p-5 text-sm text-[#4A5568]/80">
+                          No vacancies are linked to this project yet.
+                        </div>
+                      ) : (
+                        <div className="grid gap-4 xl:grid-cols-2">
+                          {projectVacancies.map((vacancy) => (
+                            <article key={vacancy.id} className="rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-4">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <h4 className="text-base font-semibold text-primary">{vacancy.jobTitle}</h4>
+                                  <p className="mt-1 text-sm text-[#4A5568]/80">{getVacancySummary(vacancy) || 'No summary provided.'}</p>
+                                </div>
+                                <Badge variant="outline" className="shrink-0 border-emerald-200 bg-emerald-50 text-emerald-700">
+                                  {vacancy.status}
+                                </Badge>
+                              </div>
+                              <div className="mt-4 grid gap-2 text-sm text-[#4A5568] sm:grid-cols-2">
+                                <p><span className="font-semibold">Seniority:</span> {vacancy.seniority || 'Not specified'}</p>
+                                <p><span className="font-semibold">Location:</span> {vacancy.location || 'Not specified'}</p>
+                                <p><span className="font-semibold">Deadline:</span> {formatDate(vacancy.deadline)}</p>
+                                <p><span className="font-semibold">Duration:</span> {vacancy.duration || 'Not specified'}</p>
+                              </div>
+                              <div className="mt-4 flex justify-end">
+                                <Button type="button" size="sm" onClick={() => handleShowVacancyExperts(vacancy)}>
+                                  <Search className="mr-2 h-4 w-4" />
+                                  Show Experts
+                                </Button>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
 
                   {showSensitiveSections && (
                     <TabsContent value="tasks" className="mt-0">
@@ -2896,6 +3311,7 @@ export default function ProjectDetail() {
                 </Tabs>
               </section>
 
+              {false && (
               <section id="project-tor-ai-card" className="rounded-lg border bg-white p-6">
                 <div className="rounded-2xl border border-[#4A5568]/15 bg-gradient-to-br from-[#F5F7FA] via-white to-[#FFF1F4] p-4 sm:p-5">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -3120,11 +3536,57 @@ export default function ProjectDetail() {
                   )}
                 </div>
               </section>
+              )}
 
             </div>
           </div>
         </main>
       </PageContainer>
+
+      <Dialog open={Boolean(selectedVacancyForExperts)} onOpenChange={(open) => !open && setSelectedVacancyForExperts(null)}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Top matching experts</DialogTitle>
+            <DialogDescription>
+              {selectedVacancyForExperts?.jobTitle} - showing only experts already unlocked by your organisation.
+            </DialogDescription>
+          </DialogHeader>
+          {vacancyExpertMatches.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-[#4A5568]/20 bg-[#F8FAFC] p-5 text-sm text-[#4A5568]/80">
+              No unlocked experts are available for this vacancy yet. Unlock expert profiles from Expert Search to make them eligible for project vacancy matching.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {vacancyExpertMatches.map((match, index) => (
+                <article key={match.id} className="rounded-xl border border-[#4A5568]/15 bg-white p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="secondary">#{index + 1}</Badge>
+                        <h4 className="text-sm font-semibold text-primary">{match.name}</h4>
+                        <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">{match.matchScore}% match</Badge>
+                      </div>
+                      <p className="mt-1 text-sm text-[#4A5568]/80">{match.role}</p>
+                      <p className="mt-1 text-xs text-[#4A5568]/70">{match.country}</p>
+                    </div>
+                    <Badge variant="outline" className="w-fit border-[#E63462]/25 bg-[#FFF1F4] text-[#E63462]">
+                      {match.sectorRelevance} sector relevance
+                    </Badge>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {match.expertise.map((item) => (
+                      <Badge key={item} variant="secondary">{item}</Badge>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-xs font-medium text-[#4A5568]">
+                    Match signals: {match.reasons.join(', ')}
+                  </p>
+                </article>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={Boolean(taskToAssign)} onOpenChange={(open) => !open && setTaskToAssign(null)}>
         <DialogContent className="sm:max-w-md">
@@ -3162,6 +3624,46 @@ export default function ProjectDetail() {
               {taskToAssign && hasAssignedMember(taskToAssign)
                 ? t('projects.actions.manageMember')
                 : t('projects.actions.assignToMember')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unlock CV Confirmation Dialog */}
+      <Dialog open={!!pendingCvUnlockId} onOpenChange={(open) => !open && setPendingCvUnlockId(null)}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>Unlock CV</DialogTitle>
+            <DialogDescription>
+              Unlock this expert's full CV to view their complete profile.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-lg border bg-muted/40 px-4 py-3 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Credits required</span>
+              <span className="font-semibold text-foreground">1 credit</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Your available credits</span>
+              <span className={`font-semibold ${availableCredits < CV_UNLOCK_COST ? 'text-red-600' : 'text-green-600'}`}>
+                {availableCredits} credit{availableCredits !== 1 ? 's' : ''}
+              </span>
+            </div>
+          </div>
+
+          {availableCredits < CV_UNLOCK_COST && (
+            <p className="text-sm text-red-600 font-medium">
+              You do not have enough credits to unlock this CV.
+            </p>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingCvUnlockId(null)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmUnlockExpertCv} disabled={availableCredits < CV_UNLOCK_COST}>
+              Unlock CV
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -86,8 +86,12 @@ export default function PostesVacantsPage() {
   const loadProjectJobs = async () => {
     setIsLoadingProjects(true);
     try {
-      const data = await getJobOffersByType(JobOfferTypeEnum.PROJECT);
-      setProjectJobs(data);
+      const [linked, legacy] = await Promise.all([
+        getJobOffersByType(JobOfferTypeEnum.PROJECT_LINKED),
+        getJobOffersByType(JobOfferTypeEnum.PROJECT_NEW),
+        getJobOffersByType(JobOfferTypeEnum.PROJECT),
+      ]);
+      setProjectJobs([...linked, ...legacy].filter((job) => job.publishOnBoard !== false && job.status === JobOfferStatusEnum.PUBLISHED));
     } catch (error) {
       console.error('Error loading project offers:', error);
     } finally {

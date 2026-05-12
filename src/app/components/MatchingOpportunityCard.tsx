@@ -2,7 +2,7 @@ import { MatchingOpportunityDTO, OpportunityTypeEnum } from '@app/types/matching
 import { Card, CardContent } from '@app/components/ui/card';
 import { Badge } from '@app/components/ui/badge';
 import { Button } from '@app/components/ui/button';
-import { Bookmark, AlertCircle, X, UserCircle2, Bell } from 'lucide-react';
+import { Bookmark, AlertCircle, X, UserCircle2, Bell, Building2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useState } from 'react';
 
@@ -14,6 +14,7 @@ interface MatchingOpportunityCardProps {
   onApply?: (opportunityId: string) => void;
   onExpressInterest?: (opportunityId: string) => void;
   onNotInterested?: (opportunityId: string) => void;
+  onOrganizationClick?: (organizationId: string) => void;
 }
 
 const OPPORTUNITY_TYPE_LABELS: Record<OpportunityTypeEnum, string> = {
@@ -40,6 +41,7 @@ export function MatchingOpportunityCard({
   onApply,
   onExpressInterest,
   onNotInterested,
+  onOrganizationClick,
 }: MatchingOpportunityCardProps) {
   const [localSaved, setLocalSaved] = useState(isSaved);
   const isDeadlineSoon =
@@ -149,6 +151,62 @@ export function MatchingOpportunityCard({
                 </span>
               </>
             )}
+          </div>
+        )}
+
+        {(opportunity.type === OpportunityTypeEnum.CONTRACT_AWARD && (opportunity.awardCompanies || []).length > 0) && (
+          <div className="mb-4 rounded-md border border-gray-200 bg-gray-50 p-3">
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase text-gray-500">
+              <Building2 className="h-3.5 w-3.5" />
+              Awarded organisation
+            </p>
+            <div className="space-y-1.5">
+              {(opportunity.awardCompanies || []).map(company => (
+                <div key={`${opportunity.id}-${company.name}`} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                  {company.organizationId && onOrganizationClick ? (
+                    <button
+                      type="button"
+                      onClick={() => onOrganizationClick(company.organizationId!)}
+                      className="font-semibold text-accent hover:underline"
+                    >
+                      {company.name}
+                    </button>
+                  ) : (
+                    <span className="font-semibold text-gray-800">{company.name}</span>
+                  )}
+                  <span className="text-xs text-gray-500">
+                    {(company.amount ?? 0).toLocaleString()} {opportunity.currency ?? ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {(opportunity.type === OpportunityTypeEnum.SHORTLIST && (opportunity.shortlistCompanies || []).length > 0) && (
+          <div className="mb-4 rounded-md border border-gray-200 bg-gray-50 p-3">
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase text-gray-500">
+              <Building2 className="h-3.5 w-3.5" />
+              Shortlisted organisations
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {(opportunity.shortlistCompanies || []).map(company => (
+                company.organizationId && onOrganizationClick ? (
+                  <button
+                    key={`${opportunity.id}-${company.name}`}
+                    type="button"
+                    onClick={() => onOrganizationClick(company.organizationId!)}
+                    className="rounded-full border border-accent/30 bg-white px-2.5 py-1 text-xs font-semibold text-accent hover:bg-accent/5"
+                  >
+                    {company.name}
+                  </button>
+                ) : (
+                  <span key={`${opportunity.id}-${company.name}`} className="rounded-full border bg-white px-2.5 py-1 text-xs font-semibold text-gray-700">
+                    {company.name}
+                  </span>
+                )
+              ))}
+            </div>
           </div>
         )}
         <div className="flex gap-2 flex-wrap items-center">

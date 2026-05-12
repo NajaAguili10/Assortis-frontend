@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
 import { CircleMarker, MapContainer, TileLayer, Tooltip as LeafletTooltip } from 'react-leaflet';
 import type { LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -15,11 +15,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@app/
 import { Badge } from '@app/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@app/components/ui/dialog';
 import { Button } from '@app/components/ui/button';
+import { SaveSearchDialog } from '@app/components/SaveSearchDialog';
 import { Label } from '@app/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@app/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@app/components/ui/popover';
 import { Coins, Globe, MapPin, UserRound, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
+import { savedSearchService } from '@app/services/savedSearchService';
 
 type MarkerType = 'all' | 'projects' | 'experts' | 'locked-experts';
 type MarkerTypeExtended = MarkerType | 'unlocked-experts';
@@ -52,6 +54,13 @@ interface PendingInvitationExpert {
   name: string;
   country: string;
   sectors: string[];
+}
+
+interface MapSavedPayload {
+  selectedType: MarkerTypeExtended;
+  selectedCountries: CountryEnum[];
+  selectedSectors: SectorEnum[];
+  selectedSubSectors: SubSectorEnum[];
 }
 
 const COUNTRY_COORDINATES: Record<string, LatLngTuple> = {
@@ -162,6 +171,7 @@ function getMarkerPosition(countryCode: string | null, region: string, seed: str
 
 export default function SearchMapTabContent() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const { allProjects } = useProjects();
@@ -176,6 +186,7 @@ export default function SearchMapTabContent() {
   const [pendingUnlockExpert, setPendingUnlockExpert] = useState<PendingUnlockExpert | null>(null);
   const [pendingInvitationExpert, setPendingInvitationExpert] = useState<PendingInvitationExpert | null>(null);
   const [sentInvitationIds, setSentInvitationIds] = useState<string[]>([]);
+  const [isSaveSearchDialogOpen, setIsSaveSearchDialogOpen] = useState(false);
 
   const projectMarkers = useMemo<MapMarker[]>(() => {
     return allProjects.map((project) => {
@@ -317,6 +328,52 @@ export default function SearchMapTabContent() {
     setSelectedCountries([]);
     setSelectedSectors([]);
     setSelectedSubSectors([]);
+  };
+
+  const applySavedSearch = (payload: MapSavedPayload) => {
+    setSelectedType(payload.selectedType || 'all');
+    setSelectedCountries(payload.selectedCountries || []);
+    setSelectedSectors(payload.selectedSectors || []);
+    setSelectedSubSectors(payload.selectedSubSectors || []);
+  };
+
+  useEffect(() => {
+    const savedSearchId = searchParams.get('savedSearchId');
+    if (!savedSearchId) return;
+    const saved = savedSearchService.get(savedSearchId);
+    if (saved?.context.type === 'map') {
+      applySavedSearch(saved.filters as MapSavedPayload);
+    }
+  }, [searchParams]);
+
+  const buildSummary = () => [
+    selectedType !== 'all' ? `Type: ${selectedType.replace(/-/g, ' ')}` : '',
+    selectedCountries.length ? `Countries: ${selectedCountries.length}` : '',
+    selectedSectors.length ? `Sectors: ${selectedSectors.length}` : '',
+    selectedSubSectors.length ? `Subsectors: ${selectedSubSectors.length}` : '',
+  ].filter(Boolean);
+
+  const saveSearch = (name: string) => {
+    savedSearchService.save({
+      userId: user?.id,
+      name,
+      filters: {
+        selectedType,
+        selectedCountries,
+        selectedSectors,
+        selectedSubSectors,
+      } satisfies MapSavedPayload,
+      context: {
+        type: 'map',
+        route: '/search/map',
+        label: 'Map',
+        summary: buildSummary(),
+        language,
+        accountType: user?.accountType,
+      },
+    });
+    setIsSaveSearchDialogOpen(false);
+    toast.success('Search saved');
   };
 
   const countrySelectionLabel = selectedCountries.length === 0
@@ -553,9 +610,12 @@ export default function SearchMapTabContent() {
             </Popover>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button variant="ghost" onClick={clearAllFilters}>
               {t('activeTenders.filters.resetAll')}
+            </Button>
+            <Button variant="outline" onClick={() => setIsSaveSearchDialogOpen(true)}>
+              Save Search
             </Button>
           </div>
 
@@ -726,6 +786,12 @@ export default function SearchMapTabContent() {
           </DialogContent>
         </Dialog>
       )}
+      <SaveSearchDialog
+        open={isSaveSearchDialogOpen}
+        defaultName="Saved map search"
+        onOpenChange={setIsSaveSearchDialogOpen}
+        onSave={saveSearch}
+      />
     </div>
   );
 }

@@ -17,8 +17,11 @@ import {
 } from '../../../components/ui/select';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useAuth } from '../../../contexts/AuthContext';
-import { JobOfferCreateDTO, JobOfferListDTO, JobOfferStatusEnum } from '../types/JobOffer.dto';
+import { useProjectsContext } from '../../../contexts/ProjectsContext';
+import { JobOfferCreateDTO, JobOfferListDTO, JobOfferStatusEnum, JobOfferTypeEnum } from '../types/JobOffer.dto';
 import { createJobOffer, getJobOffersByRecruiter, deleteJobOffer } from '../services/jobOfferService';
+import { ProjectPriorityEnum, ProjectSectorEnum, ProjectStatusEnum, ProjectTypeEnum, RegionEnum } from '../../../types/project.dto';
+import { calculateProjectCompletion } from '../../../utils/project-completion';
 import {
   PlusCircle, AlertCircle, Briefcase, MapPin, Calendar, Users,
   Clock, Eye, Trash2, Edit2, Copy, Search, X,
@@ -41,6 +44,7 @@ type MainTab = 'publish' | 'jobs';
 export default function PublierOffrePage() {
   const { t } = useLanguage();
   const { user, isAuthenticated } = useAuth();
+  const { addProject } = useProjectsContext();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -65,18 +69,38 @@ export default function PublierOffrePage() {
 
   // ── Duplicate state ────────────────────────────────────────────────────────
   const [duplicateData, setDuplicateData] = useState<Partial<JobOfferCreateDTO> | null>(null);
+  const [projectPrefillData, setProjectPrefillData] = useState<Partial<JobOfferCreateDTO> | null>(null);
   const [formKey, setFormKey] = useState(0);
 
   // ── Search / filter state (Job Offers tab) ─────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('newest');
+  type VacancyOwnerFilter = 'all' | 'in-house' | 'my-own' | 'my-org';
+  const [vacancyOwnerFilter, setVacancyOwnerFilter] = useState<VacancyOwnerFilter>('all');
 
   useEffect(() => {
     if (user?.id && isAuthenticated) {
       loadPublishedOffers();
     }
   }, [user?.id, isAuthenticated]);
+
+  useEffect(() => {
+    if (searchParams.get('source') !== 'project-detail') return;
+
+    const projectTitle = searchParams.get('projectTitle') || '';
+    if (!projectTitle) return;
+
+    setDuplicateData(null);
+    setProjectPrefillData({
+      type: JobOfferTypeEnum.PROJECT_LINKED,
+      linkedProjectId: searchParams.get('projectId') || undefined,
+      projectTitle,
+      location: searchParams.get('location') || '',
+      projectSummary: searchParams.get('description') || '',
+    });
+    setFormKey(k => k + 1);
+  }, [searchParams]);
 
   const handleTabChange = (value: string) => {
     const tab = value as MainTab;
@@ -102,13 +126,72 @@ export default function PublierOffrePage() {
     }
   };
 
+  const createProjectFromVacancy = (data: JobOfferCreateDTO) => {
+    const now = new Date().toISOString().split('T')[0];
+    const projectId = `proj-${Date.now()}`;
+    const primarySector = (data.projectSectors?.[0] as ProjectSectorEnum) || ProjectSectorEnum.OTHER;
+    const primaryCategory = (data.projectCategories?.[0] as ProjectTypeEnum) || ProjectTypeEnum.DEVELOPMENT;
+    const primaryCountry = data.projectCountries?.[0] || data.countries?.[0] || 'Global';
+    const deadline = data.estimatedStartDate || data.deadline || now;
+    const durationMonths = Math.max(1, Math.ceil((new Date(deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30)));
+    const plainDescription = (data.projectDescriptionPlainText || data.projectSummary || data.descriptionPlainText || data.description || '').replace(/<[^>]+>/g, ' ');
+    const project = {
+      id: projectId,
+      organizationId: user?.id || 'org-1',
+      code: `PRJ-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      title: data.projectTitle || data.jobTitle,
+      name: data.projectTitle || data.jobTitle,
+      description: plainDescription,
+      status: ProjectStatusEnum.ACTIVE,
+      priority: ProjectPriorityEnum.MEDIUM,
+      type: primaryCategory,
+      country: primaryCountry,
+      region: RegionEnum.EUROPE,
+      sector: primarySector,
+      subsectors: data.subSectors || [],
+      budget: { total: 0, spent: 0, remaining: 0, currency: 'USD' },
+      timeline: {
+        startDate: now,
+        endDate: deadline,
+        duration: durationMonths,
+        completionPercentage: 0,
+      },
+      leadOrganization: data.organisationName || 'Assortis',
+      partners: [],
+      teamSize: 0,
+      tasksCompleted: 0,
+      totalTasks: 0,
+      createdDate: now,
+      updatedDate: now,
+      createdBy: user?.id || 'user-1',
+      ownedBy: user?.id || 'user-1',
+      tags: [...(data.projectSectors || []), ...(data.countries || [])].map((item) => item.toLowerCase()),
+    };
+
+    addProject({
+      ...project,
+      timeline: {
+        ...project.timeline,
+        completionPercentage: calculateProjectCompletion(project),
+      },
+    });
+
+    return projectId;
+  };
+
   const handleSubmit = async (data: JobOfferCreateDTO) => {
     if (!user) {
       toast.error(t('monEspace.message.unauthorized'));
       return;
     }
     try {
-      await createJobOffer(data, user.id);
+      const vacancyData = { ...data };
+      if (data.type === JobOfferTypeEnum.PROJECT_NEW) {
+        const projectId = createProjectFromVacancy(data);
+        vacancyData.linkedProjectId = projectId;
+        vacancyData.type = JobOfferTypeEnum.PROJECT_NEW;
+      }
+      await createJobOffer(vacancyData, user.id);
       toast.success(t('monEspace.message.publishSuccess'));
       setDuplicateData(null);
       await loadPublishedOffers();
@@ -120,6 +203,7 @@ export default function PublierOffrePage() {
 
   const handleCancel = () => {
     setDuplicateData(null);
+    setProjectPrefillData(null);
     setFormKey(k => k + 1);
   };
 
@@ -143,15 +227,29 @@ export default function PublierOffrePage() {
   const handleDuplicate = (offer: JobOfferListDTO) => {
     const prefilled: Partial<JobOfferCreateDTO> = {
       jobTitle: offer.jobTitle,
+      publishOnBoard: offer.publishOnBoard,
+      linkedProjectId: offer.linkedProjectId,
       location: offer.location,
       projectTitle: offer.projectTitle,
+      projectSummary: offer.projectSummary,
       department: offer.department,
       type: offer.type,
       duration: offer.duration,
+      contractDurationDays: offer.contractDurationDays,
+      overDurationDays: offer.overDurationDays,
+      sectors: offer.sectors,
+      subSectors: offer.subSectors,
+      regions: offer.regions,
+      countries: offer.countries,
+      homeBased: offer.homeBased,
+      seniority: offer.seniority,
+      restrictions: offer.restrictions,
       description: offer.description,
+      descriptionPlainText: offer.descriptionPlainText,
       // deadline intentionally cleared – user must pick a new one
     };
     setDuplicateData(prefilled);
+    setProjectPrefillData(null);
     setFormKey(k => k + 1);
     setActiveTab('publish');
     setSearchParams({ tab: 'publish' });
@@ -161,6 +259,19 @@ export default function PublierOffrePage() {
   // ── Filtered offers for Job Offers tab ─────────────────────────────────────
   const filteredOffers = useMemo(() => {
     let result = [...publishedOffers];
+
+    // Vacancy type/owner filter
+    if (vacancyOwnerFilter === 'in-house') {
+      result = result.filter((o) => o.type === JobOfferTypeEnum.INTERNAL);
+    } else if (vacancyOwnerFilter === 'my-own') {
+      result = result.filter((o) => o.recruiterId === user?.id);
+    } else if (vacancyOwnerFilter === 'my-org') {
+      const orgName = user ? `${user.firstName} ${user.lastName}`.trim() : '';
+      result = result.filter(
+        (o) => !orgName || o.organizationName === orgName || o.recruiterId === user?.id
+      );
+    }
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(o =>
@@ -184,14 +295,15 @@ export default function PublierOffrePage() {
       }
     });
     return result;
-  }, [publishedOffers, searchQuery, statusFilter, sortBy]);
+  }, [publishedOffers, searchQuery, statusFilter, sortBy, vacancyOwnerFilter, user]);
 
-  const hasActiveFilters = searchQuery.trim() !== '' || statusFilter !== 'all';
+  const hasActiveFilters = searchQuery.trim() !== '' || statusFilter !== 'all' || vacancyOwnerFilter !== 'all';
 
   const clearFilters = () => {
     setSearchQuery('');
     setStatusFilter('all');
     setSortBy('newest');
+    setVacancyOwnerFilter('all');
   };
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -344,6 +456,14 @@ export default function PublierOffrePage() {
                   </AlertDescription>
                 </Alert>
               )}
+              {projectPrefillData && !duplicateData && (
+                <Alert className="border-blue-200 bg-blue-50">
+                  <Briefcase className="h-4 w-4 text-blue-600" />
+                  <AlertDescription className="text-blue-700">
+                    Creating a project vacancy for {projectPrefillData.projectTitle}.
+                  </AlertDescription>
+                </Alert>
+              )}
 
               {/* Create form */}
               <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8">
@@ -351,59 +471,66 @@ export default function PublierOffrePage() {
                   key={formKey}
                   onSubmit={handleSubmit}
                   onCancel={handleCancel}
-                  initialData={duplicateData || undefined}
-                  submitLabel={t('monEspace.action.publish')}
+                  initialData={duplicateData || projectPrefillData || undefined}
+                  organisationName={user?.firstName ? `${user.firstName} ${user.lastName}`.trim() : 'Assortis'}
                 />
               </div>
 
-              {/* Manage offers list */}
-              <div className="max-w-4xl mx-auto">
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <div className="flex items-center justify-between mb-5">
-                    <h2 className="text-xl font-bold text-primary flex items-center gap-2">
-                      <Briefcase className="w-5 h-5 text-[#B82547]" />
-                      {t('monEspace.tab.manageOffers')}
-                    </h2>
-                    {publishedOffers.length > 0 && (
-                      <span className="text-sm text-muted-foreground">
-                        {t('monEspace.filter.results', { count: publishedOffers.length.toString() })}
-                      </span>
-                    )}
-                  </div>
-
-                  {isLoadingOffers && (
-                    <div className="text-center py-10">
-                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-accent" />
-                      <p className="mt-3 text-gray-500">{t('monEspace.message.loading')}</p>
-                    </div>
-                  )}
-                  {!isLoadingOffers && offersError && (
-                    <Alert variant="destructive" className="mb-4">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{offersError}</AlertDescription>
-                    </Alert>
-                  )}
-                  {!isLoadingOffers && publishedOffers.length === 0 && (
-                    <div className="text-center py-10">
-                      <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Briefcase className="w-7 h-7 text-gray-400" />
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {t('monEspace.publishedOffers.empty.description')}
-                      </p>
-                    </div>
-                  )}
-                  {!isLoadingOffers && publishedOffers.length > 0 && (
-                    <div className="space-y-4">
-                      {publishedOffers.map(offer => renderOfferRow(offer, true))}
-                    </div>
-                  )}
-                </div>
-              </div>
             </TabsContent>
 
             {/* ── Tab 2: Job Offers ─────────────────────────────────────────── */}
             <TabsContent value="jobs" className="space-y-6 mt-6">
+              {/* Vacancy type filters */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Main filter buttons */}
+                  {(['all', 'in-house'] as const).map((f) => (
+                    <Button
+                      key={f}
+                      size="sm"
+                      variant={vacancyOwnerFilter === f ? 'default' : 'outline'}
+                      onClick={() => setVacancyOwnerFilter(f)}
+                    >
+                      {f === 'all' ? 'All Vacancies' : 'In-house Vacancies'}
+                    </Button>
+                  ))}
+
+                  {/* My Vacancies group */}
+                  <div className="flex items-center gap-1">
+                    <span
+                      className={`inline-flex h-9 items-center rounded-l-md border px-3 text-sm font-medium transition-colors cursor-pointer select-none ${
+                        vacancyOwnerFilter === 'my-own' || vacancyOwnerFilter === 'my-org'
+                          ? 'bg-primary text-white border-primary'
+                          : 'bg-white text-foreground border-input hover:bg-accent hover:text-white'
+                      }`}
+                      onClick={() => setVacancyOwnerFilter(vacancyOwnerFilter === 'my-own' || vacancyOwnerFilter === 'my-org' ? 'all' : 'my-own')}
+                    >
+                      My Vacancies
+                    </span>
+                    {(vacancyOwnerFilter === 'my-own' || vacancyOwnerFilter === 'my-org') && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant={vacancyOwnerFilter === 'my-own' ? 'default' : 'outline'}
+                          className="rounded-none border-l-0 h-9"
+                          onClick={() => setVacancyOwnerFilter('my-own')}
+                        >
+                          Vacancies Created by Me
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={vacancyOwnerFilter === 'my-org' ? 'default' : 'outline'}
+                          className="rounded-l-none border-l-0 h-9"
+                          onClick={() => setVacancyOwnerFilter('my-org')}
+                        >
+                          Organisation Vacancies
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Search + filters bar */}
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
                 <div className="flex flex-col sm:flex-row gap-3 mb-3">

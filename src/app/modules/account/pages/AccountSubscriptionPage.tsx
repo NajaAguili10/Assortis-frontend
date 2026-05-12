@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { CreditCard, Coins, ShieldAlert, Info, CheckCircle2, ArrowUpRight } from 'lucide-react';
+import { CreditCard, Coins, ShieldAlert, Info, CheckCircle2, ArrowUpRight, RefreshCw, LayoutList } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation, useLanguage } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
 import { useCVCredits } from '@app/contexts/CVCreditsContext';
-import { canManageOrganizationAdminActions, hasCreditsAccess } from '@app/services/permissions.service';
+import { canManageOrganizationAdminActions, hasCreditsAccess, isExpertAccountType } from '@app/services/permissions.service';
 import { AccountSubMenu } from '@app/components/AccountSubMenu';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
@@ -51,6 +51,9 @@ export default function AccountSubscriptionPage() {
   const { availableCredits, creditsUsed, buyCredits } = useCVCredits();
 
   const isAdmin = canManageOrganizationAdminActions(user?.accountType, user?.role);
+  const isExpert = isExpertAccountType(user?.accountType);
+  // Experts manage their own subscription; org admins manage for the organisation
+  const canManageSubscription = isExpert || isAdmin;
   const canViewCredits = hasCreditsAccess(user?.accountType);
 
   const [currentSubscription, setCurrentSubscription] = useState<SubscriptionData | null>(null);
@@ -72,7 +75,7 @@ export default function AccountSubscriptionPage() {
   }, [user?.accountType]);
 
   const handleBuyCredits = (creditAmount: number) => {
-    if (!isAdmin) return;
+    if (!canManageSubscription) return;
     buyCredits(creditAmount);
     toast.success(t('account.credits.purchase.success').replace('{count}', String(creditAmount)));
   };
@@ -151,14 +154,18 @@ export default function AccountSubscriptionPage() {
                 </div>
               )}
 
-              {isAdmin ? (
+              {canManageSubscription ? (
                 <div className="flex gap-2 flex-wrap pt-1">
                   <Button size="sm" onClick={() => navigate('/offers/change-plan')}>
                     <ArrowUpRight className="h-4 w-4 mr-1.5" />{t('account.subscription.plan.upgrade')}
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => navigate('/offers/change-plan')}>
-                    {t('account.subscription.plan.downgrade')}
+                    <LayoutList className="h-4 w-4 mr-1.5" />{t('account.subscription.plan.downgrade')}
                   </Button>
+                  {isExpert && (
+                    <Button size="sm" variant="outline" onClick={() => toast.info('Billing management coming soon.')}>                      <RefreshCw className="h-4 w-4 mr-1.5" />Manage Billing
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <Alert className="border-blue-100 bg-blue-50">
@@ -215,8 +222,8 @@ export default function AccountSubscriptionPage() {
                   </div>
                 </div>
 
-                {/* Buy packs — admin only */}
-                {isAdmin ? (
+                {/* Buy packs — available to experts and org admins */}
+                {canManageSubscription ? (
                   <div>
                     <p className="text-sm font-medium mb-3">{t('account.credits.buySection.title')}</p>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
