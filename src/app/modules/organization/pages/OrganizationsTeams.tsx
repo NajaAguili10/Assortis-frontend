@@ -276,11 +276,11 @@ export default function OrganizationsTeams() {
   
   // Handle expert selection
   const handleExpertSelection = (expertId: string) => {
-    const expert = experts.find(e => e.id === expertId);
+    const expert = experts.find(e => String(e.id) === expertId);
     if (expert) {
       setSelectedExpert(expert);
       setNewMemberName(expert.fullName || [expert.firstName, expert.lastName].filter(Boolean).join(' '));
-      setNewMemberEmail(expert.email || '');
+      setNewMemberEmail((expert.email || '').trim());
     }
   };
 
@@ -322,8 +322,15 @@ export default function OrganizationsTeams() {
 
     setIsSubmitting(true);
 
-    // Simulate sending email and notification
-    setTimeout(() => {
+    try {
+      await apiClient.post<{ id: number }>('/team-members/invitations', {
+        expertId: Number(selectedExpert?.id),
+        email: normalizedEmail,
+        role: newMemberRole,
+        department: newMemberDepartment || null,
+        message: newMemberMessage || null,
+      });
+
       // Success toast
       toast.success(t('organizations.teams.invite.success'), {
         description: t('organizations.teams.invite.success.description', { email: newMemberEmail }),
@@ -374,10 +381,15 @@ export default function OrganizationsTeams() {
 
       setShowInviteDialog(false);
       resetInviteForm();
+      setInvitationsSent((current) => current + 1);
+      setInvitedEmails((current) => new Set([...current, normalizedEmail]));
+    } catch (error: any) {
+      toast.error(t('organizations.teams.invite.error'), {
+        description: error?.response?.data?.message || error?.message || t('organizations.teams.invite.error.required'),
+      });
+    } finally {
       setIsSubmitting(false);
-      setInvitationsSent(invitationsSent + 1);
-      setInvitedEmails(new Set([...invitedEmails, normalizedEmail]));
-    }, 1500);
+    }
   };
 
   const handleEditMember = (member: TeamMember) => {
@@ -795,13 +807,13 @@ export default function OrganizationsTeams() {
                     <label className="text-sm font-medium text-foreground mb-2 block">
                       {t('organizations.teams.invite.selectExpert')} <span className="text-destructive">*</span>
                     </label>
-                    <Select value={selectedExpert?.id || ''} onValueChange={handleExpertSelection}>
+                    <Select value={selectedExpert?.id ? String(selectedExpert.id) : ''} onValueChange={handleExpertSelection}>
                       <SelectTrigger>
                         <SelectValue placeholder={t('organizations.teams.invite.selectExpert.placeholder')} />
                       </SelectTrigger>
                       <SelectContent>
                         {experts.map((expert) => (
-                          <SelectItem key={expert.id} value={expert.id}>
+                          <SelectItem key={expert.id} value={String(expert.id)}>
                             <div className="flex items-center gap-2">
                               {expert.verified && <CheckCircle2 className="w-4 h-4 text-green-500" />}
                               <span>{expert.fullName || [expert.firstName, expert.lastName].filter(Boolean).join(' ')}</span>
