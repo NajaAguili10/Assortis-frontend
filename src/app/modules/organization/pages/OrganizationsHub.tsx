@@ -16,6 +16,10 @@ import { useOrganizations } from '@app/modules/organization/hooks/useOrganizatio
 import { hasOrganizationsAccess } from '@app/services/permissions.service';
 import { apiClient } from '@app/api/apiClient';
 import { organizationService } from '@app/services/organizationService';
+import {
+  organizationMatchingDossierService,
+  OrganizationMatchingStatsDTO,
+} from '@app/services/organizationMatchingDossierService';
 
 import {
   Building2,
@@ -77,6 +81,15 @@ export default function OrganizationsHub() {
     activeProjects: 0,
   });
   const [loadingMyOrganizationKpis, setLoadingMyOrganizationKpis] = useState(true);
+  const [matchingKpis, setMatchingKpis] = useState<OrganizationMatchingStatsDTO>({
+    available: 0,
+    highMatches: 0,
+    avgScore: 0,
+    totalSaved: 0,
+    thisMonth: 0,
+    dossierHighMatches: 0,
+  });
+  const [loadingMatchingKpis, setLoadingMatchingKpis] = useState(true);
 
   useEffect(() => {
     const fetchTeamKpis = async () => {
@@ -193,6 +206,50 @@ export default function OrganizationsHub() {
       activeProjects: 0,
     });
   }, [calculateCompletionRate, isOrgOrAdmin]);
+
+  useEffect(() => {
+    const fetchMatchingKpis = async () => {
+      setLoadingMatchingKpis(true);
+
+      try {
+        const stats = await organizationMatchingDossierService.getStats();
+        setMatchingKpis(stats);
+      } catch (error) {
+        console.error('Error fetching matching KPIs:', error);
+        setMatchingKpis({
+          available: 0,
+          highMatches: 0,
+          avgScore: 0,
+          totalSaved: 0,
+          thisMonth: 0,
+          dossierHighMatches: 0,
+        });
+      } finally {
+        setLoadingMatchingKpis(false);
+      }
+    };
+
+    if (canAccessMatching) {
+      fetchMatchingKpis();
+
+      const handleFocus = () => {
+        fetchMatchingKpis();
+      };
+
+      window.addEventListener('focus', handleFocus);
+      return () => window.removeEventListener('focus', handleFocus);
+    }
+
+    setLoadingMatchingKpis(false);
+    setMatchingKpis({
+      available: 0,
+      highMatches: 0,
+      avgScore: 0,
+      totalSaved: 0,
+      thisMonth: 0,
+      dossierHighMatches: 0,
+    });
+  }, [canAccessMatching]);
 
   // D�finir les sous-menus et leurs descriptions pour la page d'acc�s refus�
   const subMenuItems = [
@@ -420,18 +477,19 @@ export default function OrganizationsHub() {
                   icon={Sparkles}
                   iconBgColor="bg-amber-50"
                   iconColor="text-amber-500"
+                  isLoading={loadingMatchingKpis}
                   metrics={[
                     { labelKey: 'organizations.matching.stats.available',
-                      value: 4,
+                      value: matchingKpis.available,
                       highlight: true
                     },
                     {
                       labelKey: 'organizations.matching.stats.highMatches',
-                      value: 2
+                      value: matchingKpis.highMatches
                     },
                     {
                       labelKey: 'organizations.matching.stats.avgScore',
-                      value: 86
+                      value: matchingKpis.avgScore
                     },
                   ]}
                   link="/organizations/matching"
@@ -446,17 +504,18 @@ export default function OrganizationsHub() {
                   icon={Archive}
                   iconBgColor="bg-rose-50"
                   iconColor="text-rose-500"
+                  isLoading={loadingMatchingKpis}
                   metrics={[
                     { labelKey: 'organizations.matchingDossier.stats.totalSaved',
-                      value: 0,
+                      value: matchingKpis.totalSaved,
                       highlight: true
                     },
                     {
                       labelKey: 'organizations.matchingDossier.stats.thisMonth',
-                      value: 0 },
+                      value: matchingKpis.thisMonth },
                     {
                       labelKey: 'organizations.matchingDossier.stats.highMatches',
-                      value: 0
+                      value: matchingKpis.dossierHighMatches
                     },
                   ]}
                   link="/organizations/matching-dossier"

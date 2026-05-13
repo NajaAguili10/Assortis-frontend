@@ -92,17 +92,34 @@ const mapFormOrganizationTypeToBackend = (type?: string) => {
   }
 };
 
-const normalizeSector = (sector?: string | null): OrganizationSectorEnum[] => {
-  if (!sector) return [];
+const getDisplayValue = (value: any): string => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  if (Array.isArray(value)) return value.map(getDisplayValue).filter(Boolean).join(' ');
+  if (typeof value === 'object') return value.code || value.name || value.label || value.value || '';
+  return '';
+};
 
-  const normalized = sector.toUpperCase().replace(/[\s&/-]+/g, '_');
+const getBudgetAmount = (budget: any): number => {
+  if (typeof budget === 'number') return budget;
+  if (budget && typeof budget.amount === 'number') return budget.amount;
+  return 0;
+};
+
+const normalizeSector = (sector?: string | { code?: string; name?: string } | null): OrganizationSectorEnum[] => {
+  const sectorValue = getDisplayValue(sector);
+  if (!sectorValue) return [];
+
+  const normalized = sectorValue.toUpperCase().replace(/[\s&/-]+/g, '_');
   return Object.values(OrganizationSectorEnum).includes(normalized as OrganizationSectorEnum)
     ? [normalized as OrganizationSectorEnum]
     : [];
 };
 
 const normalizeRegion = (backendOrg: Organization): RegionEnum | undefined => {
-  const backendRegion = backendOrg.region?.toUpperCase().replace(/[\s-]+/g, '_');
+  const backendRegion = getDisplayValue(backendOrg.region).toUpperCase().replace(/[\s-]+/g, '_');
 
   if (backendRegion && Object.values(RegionEnum).includes(backendRegion as RegionEnum)) {
     return backendRegion as RegionEnum;
@@ -114,7 +131,6 @@ const normalizeRegion = (backendOrg: Organization): RegionEnum | undefined => {
 
 const normalizeOrganization = (org: Organization): Organization => {
   const budgetAmount = typeof org.annualTurnover === 'number' ? org.annualTurnover : undefined;
-  const sectors = normalizeSector(org.mainSector);
 
   return {
     id: org.id.toString(),
@@ -175,7 +191,7 @@ const applyFiltersAndSort = (
       org.name.toLowerCase().includes(query) ||
       org.acronym?.toLowerCase().includes(query) ||
       org.description?.toLowerCase().includes(query) ||
-      (org.sectors || []).some((sector) => sector.toLowerCase().includes(query)),
+      (org.sectors || []).some((sector) => getDisplayValue(sector).toLowerCase().includes(query)),
     );
   }
 
@@ -199,7 +215,7 @@ const applyFiltersAndSort = (
   if (filters?.projectBudget) {
     const budget = Number(filters.projectBudget);
     if (!Number.isNaN(budget)) {
-      filtered = filtered.filter((org) => (org.budget?.amount || 0) >= budget);
+      filtered = filtered.filter((org) => getBudgetAmount(org.budget) >= budget);
     }
   }
 
@@ -226,7 +242,7 @@ const applyFiltersAndSort = (
     filtered = filtered.filter((org) =>
       org.type?.toLowerCase().includes(query) ||
       org.description?.toLowerCase().includes(query) ||
-      (org.sectors || []).some((sector) => sector.toLowerCase().includes(query)),
+      (org.sectors || []).some((sector) => getDisplayValue(sector).toLowerCase().includes(query)),
     );
   }
 
