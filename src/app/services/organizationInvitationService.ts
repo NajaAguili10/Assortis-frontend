@@ -26,12 +26,27 @@ export interface OrganizationInvitationStatsApiDTO {
   total: number;
 }
 
+export interface OrganizationInvitationCreatePayload {
+  recipientType: 'organization' | 'expert';
+  organizationId?: number;
+  expertId?: number;
+  invitationType: 'partnership' | 'consortium' | 'collaboration' | 'team' | 'consultant' | 'advisor';
+  email?: string;
+  subject?: string;
+  message?: string;
+  tenderId?: number;
+  projectId?: number;
+}
+
 export const organizationInvitationService = {
   getCurrentOrganizationInvitations: () =>
     apiClient.get<OrganizationInvitationApiDTO[]>('/organization-invitations'),
 
   getCurrentOrganizationStats: () =>
     apiClient.get<OrganizationInvitationStatsApiDTO>('/organization-invitations/stats'),
+
+  createInvitation: (payload: OrganizationInvitationCreatePayload) =>
+    apiClient.post<OrganizationInvitationApiDTO>('/organization-invitations', payload),
 
   acceptInvitation: (invitationId: string | number) =>
     apiClient.post<OrganizationInvitationApiDTO>(`/organization-invitations/${invitationId}/accept`, {}),

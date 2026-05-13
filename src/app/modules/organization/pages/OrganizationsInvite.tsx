@@ -1,5 +1,6 @@
 ﻿import { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router';
+import { useEffect } from 'react';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useAssistanceHistory } from '@app/contexts/AssistanceHistoryContext';
 import { usePipeline } from '@app/modules/expert/hooks/usePipeline';
@@ -40,6 +41,9 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PROFESSIONAL_TITLES } from '@app/config/professional.config';
+import { expertService } from '@app/services/expertService';
+import { organizationService } from '@app/services/organizationService';
+import { organizationInvitationService } from '@app/services/organizationInvitationService';
 
 type RecipientType = 'organization' | 'expert' | null;
 type InvitationType = 'partnership' | 'consortium' | 'collaboration' | 'team' | 'consultant' | 'advisor' | null;
@@ -49,22 +53,21 @@ interface InviteStep {
   name: string;
 }
 
-// Mock data for selection
-const mockOrganizations = [
-  { id: '1', name: 'UNICEF', type: 'International Organization', verified: true, email: 'contact@unicef.org' },
-  { id: '2', name: 'World Bank', type: 'International Organization', verified: true, email: 'info@worldbank.org' },
-  { id: '3', name: 'Red Cross', type: 'NGO', verified: true, email: 'contact@redcross.org' },
-  { id: '4', name: 'Doctors Without Borders', type: 'NGO', verified: true, email: 'info@msf.org' },
-  { id: '5', name: 'UNESCO', type: 'International Organization', verified: false, email: 'contact@unesco.org' },
-];
+interface SelectableOrganization {
+  id: number;
+  name: string;
+  type: string;
+  verified: boolean;
+  email: string;
+}
 
-const mockExperts = [
-  { id: '1', name: 'Dr. Sarah Johnson', expertise: 'Health & Development', verified: true, email: 'sarah.johnson@expert.com' },
-  { id: '2', name: 'John Smith', expertise: 'Project Management', verified: true, email: 'john.smith@expert.com' },
-  { id: '3', name: 'Marie Dupont', expertise: 'Education', verified: true, email: 'marie.dupont@expert.com' },
-  { id: '4', name: 'Ahmed Hassan', expertise: 'Infrastructure', verified: true, email: 'ahmed.hassan@expert.com' },
-  { id: '5', name: 'Elena Rodriguez', expertise: 'Environment', verified: true, email: 'elena.rodriguez@expert.com' },
-];
+interface SelectableExpert {
+  id: number;
+  name: string;
+  expertise: string;
+  verified: boolean;
+  email: string;
+}
 
 // Mock data for projects
 /*
@@ -162,6 +165,74 @@ export default function OrganizationsInvite() {
   // Validation errors
   const [expertErrors, setExpertErrors] = useState<Record<string, string>>({});
   const [orgErrors, setOrgErrors] = useState<Record<string, string>>({});
+  const [availableOrganizations, setAvailableOrganizations] = useState<SelectableOrganization[]>([]);
+  const [availableExperts, setAvailableExperts] = useState<SelectableExpert[]>([]);
+  const [isLoadingEntities, setIsLoadingEntities] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadInviteOptions = async () => {
+      setIsLoadingEntities(true);
+
+      try {
+        const [currentOrganization, organizations, experts] = await Promise.all([
+          organizationService.getCurrentOrganizationProfile(),
+          organizationService.getOrganizationsList(),
+          expertService.getAllExperts(),
+        ]);
+
+        if (!isMounted) return;
+
+        const currentOrgId = Number(currentOrganization.id);
+        setAvailableOrganizations(
+          organizations
+            .filter((organization: any) => Number(organization.id) !== currentOrgId)
+            .map((organization: any) => ({
+              id: Number(organization.id),
+              name: organization.name || '',
+              type: String(organization.type || ''),
+              verified: String(organization.verificationStatus || organization.status || '').toUpperCase() === 'VERIFIED',
+              email: String(organization.contactEmail || organization.email || ''),
+            }))
+            .filter((organization) => organization.id && organization.name),
+        );
+
+        setAvailableExperts(
+          experts
+            .map((expert: any) => ({
+              id: Number(expert.id),
+              name: expert.fullName || [expert.firstName, expert.lastName].filter(Boolean).join(' ').trim(),
+              expertise:
+                expert.currentPosition ||
+                expert.title ||
+                expert.sectors?.[0]?.sectorName ||
+                expert.sectors?.[0]?.sectorCode ||
+                '',
+              verified: Boolean(expert.verified) || String(expert.verificationStatus || '').toUpperCase() === 'VERIFIED',
+              email: expert.email || '',
+            }))
+            .filter((expert) => expert.id && expert.name),
+        );
+      } catch (error) {
+        console.error('Error loading invitation data:', error);
+        if (isMounted) {
+          setAvailableOrganizations([]);
+          setAvailableExperts([]);
+          toast.error(t('common.error'));
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingEntities(false);
+        }
+      }
+    };
+
+    loadInviteOptions();
+    return () => {
+      isMounted = false;
+    };
+  }, [t]);
 
   const steps = [
     { number: 1, name: t('organizations.invite.step.recipient') },
@@ -181,9 +252,9 @@ export default function OrganizationsInvite() {
     const normalizedEmail = email.trim().toLowerCase();
     
     if (type === 'expert') {
-      return mockExperts.some(expert => expert.email.toLowerCase() === normalizedEmail);
+      return availableExperts.some(expert => expert.email.toLowerCase() === normalizedEmail);
     } else {
-      return mockOrganizations.some(org => org.email.toLowerCase() === normalizedEmail);
+      return availableOrganizations.some(org => org.email.toLowerCase() === normalizedEmail);
     }
   };
   
@@ -275,16 +346,21 @@ export default function OrganizationsInvite() {
     setIsSending(true);
     
     try {
-      // Simulate API call for sending email
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Simulate sending email notification
-      console.log('Sending email to:', selectedEntity?.name);
-      console.log('Email subject:', subject || 'Invitation from Assortis Platform');
-      console.log('Email message:', message);
-      
-      // Simulate API call for system notification
-      await new Promise(resolve => setTimeout(resolve, 700));
+      if (!selectedEntity?.id || Number.isNaN(Number(selectedEntity.id))) {
+        throw new Error('Please select an existing organization or expert');
+      }
+
+      await organizationInvitationService.createInvitation({
+        recipientType: recipientType as 'organization' | 'expert',
+        organizationId: recipientType === 'organization' ? Number(selectedEntity.id) : undefined,
+        expertId: recipientType === 'expert' ? Number(selectedEntity.id) : undefined,
+        invitationType: invitationType as NonNullable<InvitationType>,
+        email: recipientType === 'expert' ? selectedEntity.email : undefined,
+        subject: subject || undefined,
+        message: message || undefined,
+        tenderId: selectedTender ? Number(selectedTender) : undefined,
+        projectId: selectedProject ? Number(selectedProject) : undefined,
+      });
       
       // Increment invitation counter
       const newInvitationCount = invitationsSent + 1;
@@ -358,8 +434,8 @@ export default function OrganizationsInvite() {
       }
       
     } catch (error) {
-      toast.error('Error sending invitation', {
-        description: 'Please try again later',
+      toast.error(t('common.error'), {
+        description: error instanceof Error ? error.message : 'Please try again later',
       });
     } finally {
       setIsSending(false);
@@ -374,10 +450,10 @@ export default function OrganizationsInvite() {
   const remainingInvitations = MAX_INVITATIONS - invitationsSent;
 
   const filteredEntities = recipientType === 'organization'
-    ? mockOrganizations.filter(org => 
+    ? availableOrganizations.filter(org => 
         org.name.toLowerCase().includes(searchQuery.toLowerCase())
       )
-    : mockExperts.filter(expert => 
+    : availableExperts.filter(expert => 
         expert.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         expert.expertise.toLowerCase().includes(searchQuery.toLowerCase())
       );
@@ -1202,7 +1278,12 @@ export default function OrganizationsInvite() {
 
                       {/* Results */}
                       <div className="border rounded-lg divide-y max-h-96 overflow-y-auto">
-                        {filteredEntities.length > 0 ? (
+                        {isLoadingEntities ? (
+                          <div className="p-12 text-center text-gray-500">
+                            <Search className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                            <p className="text-lg">{t('common.loading')}</p>
+                          </div>
+                        ) : filteredEntities.length > 0 ? (
                           filteredEntities.map((entity) => (
                             <button
                               key={entity.id}
