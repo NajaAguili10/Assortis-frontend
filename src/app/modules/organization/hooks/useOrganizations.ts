@@ -34,6 +34,41 @@ const DEFAULT_PAGINATED: PaginatedOrganizations = {
   },
 };
 
+const matchesTeamSize = (count: number | undefined, selectedSizes: string[]) => {
+  if (count == null) return false;
+
+  return selectedSizes.some((size) => {
+    switch (size) {
+      case 'MICRO':
+        return count < 10;
+      case 'SMALL':
+        return count >= 10 && count <= 50;
+      case 'MEDIUM':
+        return count > 50 && count <= 200;
+      case 'LARGE':
+        return count > 200;
+      default:
+        return false;
+    }
+  });
+};
+
+const getCode = (value: unknown): string | undefined => {
+  if (!value) return undefined;
+  if (typeof value === 'string') return value.toUpperCase();
+  if (typeof value === 'object') {
+    const code = (value as { code?: string; name?: string }).code || (value as { code?: string; name?: string }).name;
+    return code?.toUpperCase().replace(/[\s-]+/g, '_');
+  }
+  return undefined;
+};
+
+const getStatusValue = (org: Organization): string | undefined => {
+  if (org.status) return org.status.toUpperCase();
+  if (org.verificationStatus) return org.verificationStatus.toUpperCase();
+  return undefined;
+};
+
 export function useOrganizations() {
 
   const [kpis, setKpis] = useState<OrganizationKPIs>({
@@ -105,7 +140,7 @@ export function useOrganizations() {
     if (!isLoading) {
       loadOrganizations();
     }
-  }, [filters, sortBy, currentPage, isLoading]);
+  }, [allOrganizations, filters, sortBy, currentPage, isLoading]);
 
   const loadOrganizations = () => {
     let filtered = [...allOrganizations];
@@ -126,26 +161,56 @@ export function useOrganizations() {
     }
 
     if (filters.sectors && filters.sectors.length > 0) {
-      filtered = filtered.filter((org) => {
-        const orgSectors = org.sectors || [];
-        return orgSectors.some(orgSector => 
-          filters.sectors!.some(s => s.code === orgSector.code)
-        );
-      });
+      filtered = filtered.filter((org) =>
+        (org.sectors || []).some((sector) =>
+          filters.sectors!.some((filterSector) => getCode(filterSector) === getCode(sector))
+        )
+      );
     }
 
-    // SubSectors filter
     if (filters.subSectors && filters.subSectors.length > 0) {
       filtered = filtered.filter((org) => {
-        const orgSubSectors = org.subSectors || [];
-        return orgSubSectors.some(orgSub => 
-          filters.subSectors!.some(s => s.code === orgSub.code)
-        );
+        if (org.subSectors && org.subSectors.length > 0) {
+          return org.subSectors.some((subsector) =>
+            filters.subSectors!.some((filterSubsector) => getCode(filterSubsector) === getCode(subsector))
+          );
+        }
+
+        const parentSectors = new Set<string>();
+        filters.subSectors.forEach((subDTO) => {
+          Object.entries(ORGANIZATION_SECTOR_SUBSECTOR_MAP).forEach(([sector, subsectors]) => {
+            if (subsectors.includes(subDTO.code as any)) {
+              parentSectors.add(sector);
+            }
+          });
+        });
+
+        return (org.sectors || []).some((sector) => parentSectors.has(sector.code));
       });
     }
 
     if (filters.status && filters.status.length > 0) {
-      filtered = filtered.filter((org) => org.verificationStatus && filters.status!.includes(org.verificationStatus));
+      filtered = filtered.filter((org) => {
+        const verificationStatus = org.verificationStatus?.toUpperCase();
+        const status = getStatusValue(org);
+
+        return filters.status!.some((filterStatus) => {
+          const normalizedFilter = filterStatus.toUpperCase();
+
+          if (normalizedFilter === 'ACTIVE') {
+            return status === 'ACTIVE';
+          }
+
+          return normalizedFilter === status || normalizedFilter === verificationStatus;
+        });
+      });
+    }
+
+    if (filters.teamSize && filters.teamSize.length > 0) {
+      filtered = filtered.filter((org) => {
+        const size = org.employeeCount ?? org.teamMembers;
+        return matchesTeamSize(size, filters.teamSize!);
+      });
     }
 
     if (filters.regions && filters.regions.length > 0) {
@@ -153,7 +218,10 @@ export function useOrganizations() {
     }
 
     if (filters.countries && filters.countries.length > 0) {
-      filtered = filtered.filter((org) => org.country?.code && filters.countries!.some(c => c.code === org.country?.code));
+      filtered = filtered.filter((org) => {
+        const countryCode = getCode(org.country);
+        return countryCode && filters.countries!.some((country) => country.code === countryCode);
+      });
     }
 
     try {

@@ -11,12 +11,15 @@ import { OrganizationProjectReferenceDocumentsSection } from '@app/components/Or
 import {
   CountryEnum,
   FundingAgencyEnum,
-  REGION_COUNTRY_MAP,
   RegionEnum,
   SectorEnum,
   SECTOR_SUBSECTOR_MAP,
   SubSectorEnum,
 } from '@app/types/tender.dto';
+import {
+  ORGANIZATION_REGION_COUNTRY_MAP,
+  ORGANIZATION_REGION_LABELS,
+} from '@app/config/organization-region-country.config';
 import {
   OrganizationProjectReferenceDTO,
   OrganizationProjectReferenceDocumentDTO,
@@ -42,7 +45,7 @@ const getInitialValues = (): OrganizationProjectReferenceFormValues => ({
   title: '',
   summary: '',
   description: '',
-  region: RegionEnum.AFRICA,
+  region: RegionEnum.WEST_AFRICA,
   country: CountryEnum.SENEGAL,
   sector: SectorEnum.EDUCATION,
   subSector: undefined,
@@ -101,7 +104,7 @@ export function OrganizationProjectReferenceFormDialog({
   }, [initialReference, open, inline]);
 
   const availableCountries = useMemo(() => {
-    return REGION_COUNTRY_MAP[formValues.region] || [];
+    return ORGANIZATION_REGION_COUNTRY_MAP[formValues.region] || [];
   }, [formValues.region]);
 
   const availableSubSectors = useMemo(() => {
@@ -113,7 +116,7 @@ export function OrganizationProjectReferenceFormDialog({
   };
 
   const handleRegionChange = (value: RegionEnum) => {
-    const nextCountries = REGION_COUNTRY_MAP[value] || [];
+    const nextCountries = ORGANIZATION_REGION_COUNTRY_MAP[value] || [];
     setFormValues(prev => ({
       ...prev,
       region: value,
@@ -288,7 +291,9 @@ export function OrganizationProjectReferenceFormDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {Object.values(RegionEnum).map(region => (
-                    <SelectItem key={region} value={region}>{t(`regions.${region}`)}</SelectItem>
+                    <SelectItem key={region} value={region}>
+                      {ORGANIZATION_REGION_LABELS[region] || t(`regions.${region}`)}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>

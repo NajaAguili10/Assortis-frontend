@@ -230,6 +230,11 @@ const mergeLegacyData = (organizationId?: string | number): LegacyOrganizationPr
   };
 };
 
+const getCertificationLabel = (certification: any) =>
+  typeof certification === 'string'
+    ? certification
+    : certification?.certificationName || certification?.credentialId || certification?.issuingOrganization || '';
+
 export default function OrganizationDetail() {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -552,8 +557,11 @@ export default function OrganizationDetail() {
                   {organization.partnerships} {t('organizations.kpis.partnerships')}
                 </Badge>
                 {organization.certifications?.map((certification) => (
-                  <Badge key={certification} variant="outline">
-                    {certification.certificationName}
+                  <Badge
+                    key={typeof certification === 'string' ? certification : certification.id || certification.credentialId}
+                    variant="outline"
+                  >
+                    {getCertificationLabel(certification)}
                   </Badge>
                 ))}
               </div>

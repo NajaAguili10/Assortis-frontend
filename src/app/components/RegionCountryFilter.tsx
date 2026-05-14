@@ -4,34 +4,65 @@ import React from 'react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Globe, Check, ArrowRight } from 'lucide-react';
-import { RegionEnum, CountryEnum, REGION_COUNTRY_MAP } from '../types/tender.dto';
+import { RegionEnum as TenderRegionEnum, CountryEnum, REGION_COUNTRY_MAP } from '../types/tender.dto';
 import { CountryDTO } from '../types/organization.dto';
 
 interface RegionCountryFilterProps {
+  selectedRegions?: string[];
   selectedCountries: CountryDTO[];
+  onSelectRegion?: (region: string) => void;
   onSelectCountry: (country: CountryDTO) => void;
+  onSelectAllRegions?: () => void;
   allowedCountries?: CountryDTO[];
+  regionCountryMap?: Record<string, string[]>;
+  getRegionLabel?: (region: string) => string;
   t: (key: string) => string;
 }
 
 export function RegionCountryFilter({
+  selectedRegions = [],
   selectedCountries,
+  onSelectRegion,
   onSelectCountry,
+  onSelectAllRegions,
   allowedCountries,
+  regionCountryMap,
+  getRegionLabel,
   t
 }: RegionCountryFilterProps) {
-  const [activeRegion, setActiveRegion] = React.useState<RegionEnum | null>(null);
+  const [activeRegion, setActiveRegion] = React.useState<string | null>(selectedRegions[0] || null);
   const [showAllRegions, setShowAllRegions] = React.useState(false);
   const totalSelected = selectedCountries.length;
+  const resolvedRegionCountryMap = regionCountryMap || (REGION_COUNTRY_MAP as unknown as Record<string, string[]>);
+  const allRegions = React.useMemo(() => {
+    const fallbackRegions = Object.values(TenderRegionEnum);
+    const configuredRegions = Object.keys(resolvedRegionCountryMap);
+    return configuredRegions.length > 0 ? configuredRegions : fallbackRegions;
+  }, [resolvedRegionCountryMap]);
+  const resolveRegionLabel = React.useCallback((region: string) => {
+    return getRegionLabel?.(region) || t(`regions.${region}`);
+  }, [getRegionLabel, t]);
 
-  const handleRegionClick = (region: RegionEnum) => {
-    setActiveRegion(prev => prev === region ? null : region);
+  React.useEffect(() => {
+    if (selectedRegions.length === 0) {
+      setActiveRegion(null);
+      return;
+    }
+
+    if (!activeRegion || !selectedRegions.includes(activeRegion)) {
+      setActiveRegion(selectedRegions[0]);
+    }
+  }, [activeRegion, selectedRegions]);
+
+  const handleRegionClick = (region: string) => {
+    setActiveRegion(region);
+    onSelectRegion?.(region);
   };
 
   const handleSelectAllCountriesForActiveRegion = () => {
     if (!activeRegion) return;
     
-    const regionCountryCodes = REGION_COUNTRY_MAP[activeRegion] || [];
+    const regionCountryCodes = resolvedRegionCountryMap[activeRegion] || [];
     const filterableCountries = allowedCountries 
       ? allowedCountries.filter(c => regionCountryCodes.includes(c.code as CountryEnum))
       : [];
@@ -47,23 +78,22 @@ export function RegionCountryFilter({
 
   const activeCountries = React.useMemo(() => {
     if (!activeRegion) return [];
-    const regionCountryCodes = REGION_COUNTRY_MAP[activeRegion] || [];
+    const regionCountryCodes = resolvedRegionCountryMap[activeRegion] || [];
     if (!allowedCountries) return [];
     return allowedCountries.filter(c => regionCountryCodes.includes(c.code as CountryEnum));
-  }, [activeRegion, allowedCountries]);
+  }, [activeRegion, allowedCountries, resolvedRegionCountryMap]);
 
   // Limit regions display to 4 by default
-  const allRegions = React.useMemo(() => {
-    const regions = Object.values(RegionEnum);
-    if (!allowedCountries) return regions;
-    return regions.filter(region => {
-      const regionCountryCodes = REGION_COUNTRY_MAP[region] || [];
+  const visibleRegions = React.useMemo(() => {
+    if (!allowedCountries) return allRegions;
+    return allRegions.filter(region => {
+      const regionCountryCodes = resolvedRegionCountryMap[region] || [];
       return allowedCountries.some(c => regionCountryCodes.includes(c.code as CountryEnum));
     });
-  }, [allowedCountries]);
+  }, [allRegions, allowedCountries, resolvedRegionCountryMap]);
 
-  const displayedRegions = showAllRegions ? allRegions : allRegions.slice(0, 4);
-  const hasMoreRegions = allRegions.length > 4;
+  const displayedRegions = showAllRegions ? visibleRegions : visibleRegions.slice(0, 4);
+  const hasMoreRegions = visibleRegions.length > 4;
 
   return (
     <div>
@@ -98,21 +128,40 @@ export function RegionCountryFilter({
         <div className="bg-white rounded-xl border-2 border-gray-200 shadow-sm overflow-hidden">
           {/* Regions Header */}
           <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200 px-4 py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
-                  <Globe className="w-4 h-4 text-white" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
+                    <Globe className="w-4 h-4 text-white" />
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-gray-900">
                     {t('tenders.filters.region')}
                   </h4>
                   <p className="text-xs text-gray-600">
-                    {allRegions.length} {t('filters.available') || 'available'}
+                    {visibleRegions.length} {t('filters.available') || 'available'}
                   </p>
                 </div>
               </div>
+              {onSelectAllRegions && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs h-8 px-3 hover:bg-accent/10 hover:text-accent font-semibold"
+                  onClick={onSelectAllRegions}
+                >
+                  {selectedRegions.length === visibleRegions.length
+                    ? t('filters.unselectAll')
+                    : t('filters.selectAll')}
+                </Button>
+              )}
             </div>
+            {selectedRegions.length > 0 && (
+              <div className="mt-2">
+                <Badge variant="default" className="bg-accent text-white text-xs h-6">
+                  {selectedRegions.length} {t('common.selected')}
+                </Badge>
+              </div>
+            )}
           </div>
 
           {/* Regions List */}
@@ -120,7 +169,8 @@ export function RegionCountryFilter({
             <div className="space-y-2">
               {displayedRegions.map((region) => {
                 const isActive = activeRegion === region;
-                const regionCountryCodes = REGION_COUNTRY_MAP[region] || [];
+                const isSelected = selectedRegions.includes(region);
+                const regionCountryCodes = resolvedRegionCountryMap[region] || [];
                 const countriesCount = allowedCountries 
                   ? allowedCountries.filter(c => regionCountryCodes.includes(c.code as CountryEnum)).length 
                   : 0;
@@ -133,28 +183,39 @@ export function RegionCountryFilter({
                     key={region}
                     className={`
                       group relative rounded-lg cursor-pointer transition-all duration-200
-                      ${isActive 
-                        ? 'bg-accent/10 border-2 border-accent shadow-lg ring-2 ring-accent/30' 
-                        : 'bg-white border-2 border-gray-200 hover:border-accent/30 hover:shadow-md hover:bg-gray-50'
+                      ${isActive
+                        ? 'bg-accent/10 border-2 border-accent shadow-lg ring-2 ring-accent/30'
+                        : isSelected
+                          ? 'bg-accent/10 border-2 border-accent shadow-md'
+                          : 'bg-white border-2 border-gray-200 hover:border-accent/30 hover:shadow-md hover:bg-gray-50'
                       }
                     `}
                     onClick={() => handleRegionClick(region)}
                   >
                     <div className="p-3">
                       <div className="flex items-center gap-3">
+                        <div className={`
+                          w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
+                          ${isSelected
+                            ? 'bg-accent border-accent'
+                            : 'border-gray-300 bg-white group-hover:border-accent/50'
+                          }
+                        `}>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                        </div>
+
                         {/* Content */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-1">
                             <span className={`
                               text-sm font-bold truncate
-                              ${isActive ? 'text-gray-900' : 'text-gray-700'}
+                              ${isActive || isSelected ? 'text-gray-900' : 'text-gray-700'}
                             `}>
-                              {t(`regions.${region}`)}
+                              {resolveRegionLabel(region)}
                             </span>
                             <Badge 
                               variant="outline" 
-                              className={`text-xs h-5 px-2 font-medium flex-shrink-0 ${
-                                isActive 
+                              className={`text-xs h-5 px-2 font-medium flex-shrink-0 ${isActive || isSelected
                                   ? 'border-accent text-accent' 
                                   : 'border-gray-300 text-gray-600'
                               }`}
@@ -251,7 +312,7 @@ export function RegionCountryFilter({
                 <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-accent/10 border-2 border-accent/30">
                   <Globe className="w-4 h-4 text-accent flex-shrink-0" />
                   <span className="text-sm font-bold text-gray-900 truncate">
-                    {t(`regions.${activeRegion}`)}
+                    {resolveRegionLabel(activeRegion)}
                   </span>
                 </div>
                 {selectedCountries.filter(country => activeCountries.some(s => s.id === country.id)).length > 0 && (

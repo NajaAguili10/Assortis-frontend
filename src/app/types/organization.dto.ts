@@ -72,7 +72,9 @@ export enum OrganizationSectorEnum {
   WATER_SANITATION = 'WATER_SANITATION',
   ENERGY = 'ENERGY',
   GENDER = 'GENDER',
+  HUMAN_RIGHTS = 'HUMAN_RIGHTS',
   YOUTH = 'YOUTH',
+  EMERGENCY_RESPONSE = 'EMERGENCY_RESPONSE',
   HUMANITARIAN = 'HUMANITARIAN',
   FINANCE = 'FINANCE',
   TECHNOLOGY = 'TECHNOLOGY',
@@ -88,14 +90,23 @@ export enum OrganizationStatusEnum {
 }
 
 export enum RegionEnum {
-  AFRICA = 'AFRICA',
-  ASIA = 'ASIA',
-  EUROPE = 'EUROPE',
+  CENTRAL_EASTERN_EUROPE = 'CENTRAL_EASTERN_EUROPE',
+  SOUTHEASTERN_EUROPE = 'SOUTHEASTERN_EUROPE',
+  WESTERN_EUROPE = 'WESTERN_EUROPE',
+  CENTRAL_AFRICA = 'CENTRAL_AFRICA',
+  EAST_AFRICA = 'EAST_AFRICA',
+  NORTH_AFRICA = 'NORTH_AFRICA',
+  SOUTHERN_AFRICA = 'SOUTHERN_AFRICA',
+  WEST_AFRICA = 'WEST_AFRICA',
+  CENTRAL_ASIA = 'CENTRAL_ASIA',
+  MIDDLE_EAST = 'MIDDLE_EAST',
+  NORTHEAST_ASIA = 'NORTHEAST_ASIA',
+  SOUTHEAST_ASIA = 'SOUTHEAST_ASIA',
+  SOUTH_ASIA = 'SOUTH_ASIA',
+  OCEANIA = 'OCEANIA',
+  CENTRAL_AMERICA = 'CENTRAL_AMERICA',
   NORTH_AMERICA = 'NORTH_AMERICA',
   SOUTH_AMERICA = 'SOUTH_AMERICA',
-  LATIN_AMERICA = 'LATIN_AMERICA',
-  OCEANIA = 'OCEANIA',
-  MIDDLE_EAST = 'MIDDLE_EAST',
 }
 
 export enum VerificationStatus {
@@ -296,13 +307,14 @@ export interface OrganizationFilters {
   officeLocation?: string;
   city?: string;
   type?: OrganizationTypeEnum[];
-  sectors?: OrganizationSectorEnum[];
-  subSectors?: SubSectorEnum[];
+  sectors?: SectorDTO[];
+  subSectors?: SubsectorDTO[];
   status?: OrganizationStatusEnum[];
+  teamSize?: string[];
   region?: RegionEnum[];
   country?: string[];
   regions?: RegionEnum[];
-  countries?: string[];
+  countries?: CountryDTO[];
 }
 
 export interface OrganizationFiltersData {

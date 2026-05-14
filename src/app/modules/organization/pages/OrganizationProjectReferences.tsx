@@ -21,6 +21,7 @@ import {
   OrganizationProjectReferenceDTO,
   OrganizationProjectReferenceFormValues,
 } from '@app/modules/organization/types/organizationProjectReference.dto';
+import { CountryDTO, SectorDTO, SubsectorDTO } from '@app/types/organization.dto';
 import { hasOrganizationsSubMenuAccess } from '@app/services/permissions.service';
 import {
   CountryEnum,
@@ -30,6 +31,10 @@ import {
   SECTOR_SUBSECTOR_MAP,
   SubSectorEnum,
 } from '@app/types/tender.dto';
+import {
+  ORGANIZATION_REGION_COUNTRY_MAP,
+  ORGANIZATION_REGION_LABELS,
+} from '@app/config/organization-region-country.config';
 import { getLocalizedCountryName } from '@app/utils/country-translator';
 import { Download, Eye, FileText, Search } from 'lucide-react';
 import { toast } from 'sonner';
@@ -49,13 +54,13 @@ export default function OrganizationProjectReferences() {
 
   const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [selectedSectors, setSelectedSectors] = useState<SectorEnum[]>([]);
-  const [selectedSubSectors, setSelectedSubSectors] = useState<SubSectorEnum[]>([]);
+  const [selectedSectors, setSelectedSectors] = useState<SectorDTO[]>([]);
+  const [selectedSubSectors, setSelectedSubSectors] = useState<SubsectorDTO[]>([]);
   const [selectedRegions, setSelectedRegions] = useState<RegionEnum[]>([]);
-  const [selectedCountries, setSelectedCountries] = useState<CountryEnum[]>([]);
+  const [selectedCountries, setSelectedCountries] = useState<CountryDTO[]>([]);
   const [selectedFundingAgencies, setSelectedFundingAgencies] = useState<FundingAgencyEnum[]>([]);
   const [fundingAgencySearch, setFundingAgencySearch] = useState('');
-  const [hoveredSector, setHoveredSector] = useState<SectorEnum | null>(null);
+  const [hoveredSector, setHoveredSector] = useState<SectorDTO | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [sortField, setSortField] = useState<SortField>('startDate');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -80,6 +85,51 @@ export default function OrganizationProjectReferences() {
     ));
   }, [fundingAgencySearch, t]);
 
+  const sectorOptions = useMemo<SectorDTO[]>(() => {
+    return Object.values(SectorEnum).map((code, index) => {
+      const translation = t(`sectors.${code}`);
+      return {
+        id: index + 1,
+        code,
+        name: translation === `sectors.${code}` ? code.replace(/_/g, ' ') : translation,
+      };
+    });
+  }, [t]);
+
+  const subsectorOptionsBySector = useMemo<Record<string, SubsectorDTO[]>>(() => {
+    return sectorOptions.reduce<Record<string, SubsectorDTO[]>>((accumulator, sector) => {
+      const subsectorCodes = SECTOR_SUBSECTOR_MAP[sector.code as SectorEnum] || [];
+      accumulator[String(sector.id)] = subsectorCodes.map((code, index) => {
+        const translation = t(`subsectors.${code}`);
+        return {
+          id: Number(`${sector.id}${index + 1}`),
+          code,
+          name: translation === `subsectors.${code}` ? code.replace(/_/g, ' ') : translation,
+          sectorId: sector.id,
+        };
+      });
+      return accumulator;
+    }, {});
+  }, [sectorOptions, t]);
+
+  const countryOptions = useMemo<CountryDTO[]>(() => {
+    const seen = new Set<string>();
+    return Object.values(RegionEnum).flatMap((region) => {
+      return (ORGANIZATION_REGION_COUNTRY_MAP[region] || [])
+        .filter((countryCode) => {
+          if (seen.has(countryCode)) return false;
+          seen.add(countryCode);
+          return true;
+        })
+        .map((countryCode, index) => ({
+          id: index + 1 + region.length * 100,
+          code: countryCode,
+          name: getLocalizedCountryName(countryCode, language),
+          regionWorld: region,
+        }));
+    });
+  }, [language]);
+
   const filteredReferences = useMemo(() => {
     return references.filter(reference => {
       const query = searchInput.trim().toLowerCase();
@@ -87,10 +137,10 @@ export default function OrganizationProjectReferences() {
 
       if (query && !haystack.includes(query)) return false;
       if (statusFilter !== 'all' && reference.status !== statusFilter) return false;
-      if (selectedSectors.length > 0 && !selectedSectors.includes(reference.sector)) return false;
-      if (selectedSubSectors.length > 0 && (!reference.subSector || !selectedSubSectors.includes(reference.subSector))) return false;
+      if (selectedSectors.length > 0 && !selectedSectors.some(sector => sector.code === reference.sector)) return false;
+      if (selectedSubSectors.length > 0 && (!reference.subSector || !selectedSubSectors.some(subSector => subSector.code === reference.subSector))) return false;
       if (selectedRegions.length > 0 && !selectedRegions.includes(reference.region)) return false;
-      if (selectedCountries.length > 0 && !selectedCountries.includes(reference.country)) return false;
+      if (selectedCountries.length > 0 && !selectedCountries.some(country => country.code === reference.country)) return false;
       if (selectedFundingAgencies.length > 0 && !selectedFundingAgencies.includes(reference.donor)) return false;
 
       return true;
@@ -270,35 +320,41 @@ export default function OrganizationProjectReferences() {
                   selectedSubSectors={selectedSubSectors}
                   hoveredSector={hoveredSector}
                   onHoverSector={setHoveredSector}
+                  allowedSectors={sectorOptions}
+                  dynamicSubsectorsMap={subsectorOptionsBySector}
                   onSelectSector={(sector) => {
-                    const nextSectors = selectedSectors.includes(sector)
-                      ? selectedSectors.filter(item => item !== sector)
+                    const nextSectors = selectedSectors.some(item => item.code === sector.code)
+                      ? selectedSectors.filter(item => item.code !== sector.code)
                       : [...selectedSectors, sector];
                     setSelectedSectors(nextSectors);
                     setSelectedSubSectors(prev => prev.filter(subSector => nextSectors.some(selectedSector => (
-                      SECTOR_SUBSECTOR_MAP[selectedSector]?.includes(subSector)
+                      selectedSector.id === subSector.sectorId
                     ))));
                   }}
                   onSelectSubSector={(subSector) => {
                     setSelectedSubSectors(prev => (
-                      prev.includes(subSector) ? prev.filter(item => item !== subSector) : [...prev, subSector]
+                      prev.some(item => item.code === subSector.code)
+                        ? prev.filter(item => item.code !== subSector.code)
+                        : [...prev, subSector]
                     ));
                   }}
                   onSelectAllSectors={() => {
-                    if (selectedSectors.length === Object.values(SectorEnum).length) {
+                    if (selectedSectors.length === sectorOptions.length) {
                       setSelectedSectors([]);
                       setSelectedSubSectors([]);
                     } else {
-                      setSelectedSectors(Object.values(SectorEnum));
+                      setSelectedSectors(sectorOptions);
                     }
                   }}
                   onSelectAllSubSectors={(sector) => {
-                    const subSectors = SECTOR_SUBSECTOR_MAP[sector] || [];
-                    const allSelected = subSectors.every(subSector => selectedSubSectors.includes(subSector));
+                    const subSectors = subsectorOptionsBySector[String(sector.id)] || [];
+                    const allSelected = subSectors.every(subSector =>
+                      selectedSubSectors.some(item => item.code === subSector.code)
+                    );
                     setSelectedSubSectors(prev => (
                       allSelected
-                        ? prev.filter(item => !subSectors.includes(item))
-                        : [...new Set([...prev, ...subSectors])]
+                        ? prev.filter(item => !subSectors.some(subSector => subSector.code === item.code))
+                        : [...prev, ...subSectors.filter(subSector => !prev.some(item => item.code === subSector.code))]
                     ));
                   }}
                   t={t}
@@ -307,6 +363,9 @@ export default function OrganizationProjectReferences() {
                 <RegionCountryFilter
                   selectedRegions={selectedRegions}
                   selectedCountries={selectedCountries}
+                  allowedCountries={countryOptions}
+                  regionCountryMap={ORGANIZATION_REGION_COUNTRY_MAP}
+                  getRegionLabel={(region) => ORGANIZATION_REGION_LABELS[region as RegionEnum] || region}
                   onSelectRegion={(region) => {
                     const nextRegions = selectedRegions.includes(region)
                       ? selectedRegions.filter(item => item !== region)
@@ -314,19 +373,29 @@ export default function OrganizationProjectReferences() {
                     setSelectedRegions(nextRegions);
                     if (nextRegions.length === 0) {
                       setSelectedCountries([]);
+                      return;
                     }
+                    const validCountries = selectedCountries.filter(country =>
+                      nextRegions.some(selectedRegion =>
+                        ORGANIZATION_REGION_COUNTRY_MAP[selectedRegion]?.includes(country.code as CountryEnum)
+                      )
+                    );
+                    setSelectedCountries(validCountries);
                   }}
                   onSelectCountry={(country) => {
                     setSelectedCountries(prev => (
-                      prev.includes(country) ? prev.filter(item => item !== country) : [...prev, country]
+                      prev.some(item => item.code === country.code)
+                        ? prev.filter(item => item.code !== country.code)
+                        : [...prev, country]
                     ));
                   }}
                   onSelectAllRegions={() => {
-                    if (selectedRegions.length === Object.values(RegionEnum).length) {
+                    const allRegions = Object.values(RegionEnum);
+                    if (selectedRegions.length === allRegions.length) {
                       setSelectedRegions([]);
                       setSelectedCountries([]);
                     } else {
-                      setSelectedRegions(Object.values(RegionEnum));
+                      setSelectedRegions(allRegions);
                     }
                   }}
                   t={t}
