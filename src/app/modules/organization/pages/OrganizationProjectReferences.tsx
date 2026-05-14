@@ -36,7 +36,7 @@ import {
   ORGANIZATION_REGION_LABELS,
 } from '@app/config/organization-region-country.config';
 import { getLocalizedCountryName } from '@app/utils/country-translator';
-import { Download, Eye, FileText, Search } from 'lucide-react';
+import { Download, Eye, FileText, Loader2, Search, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 type StatusFilter = 'all' | 'notVerified' | 'verified';
@@ -48,7 +48,7 @@ export default function OrganizationProjectReferences() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const { references, metrics, createReference, updateReference } = useOrganizationProjectReferences();
+  const { references, metrics, isLoading, createReference, updateReference, deleteReference } = useOrganizationProjectReferences();
   const canManage = hasOrganizationsSubMenuAccess('projectReferences', user?.accountType);
   const dateLocale = language === 'fr' ? fr : language === 'es' ? es : enUS;
 
@@ -84,6 +84,26 @@ export default function OrganizationProjectReferences() {
       t(`fundingAgencies.${agency}`).toLowerCase().includes(fundingAgencySearch.toLowerCase())
     ));
   }, [fundingAgencySearch, t]);
+
+  const getSectorLabel = (reference: OrganizationProjectReferenceDTO) => {
+    const translated = reference.sector ? t(`sectors.${reference.sector}`) : '';
+    if (translated && translated !== `sectors.${reference.sector}`) {
+      return translated;
+    }
+    return reference.sectorName || reference.sector?.replace(/_/g, ' ') || '-';
+  };
+
+  const getDonorLabel = (reference: OrganizationProjectReferenceDTO) => {
+    const translated = reference.donor ? t(`fundingAgencies.${reference.donor}`) : '';
+    if (translated && translated !== `fundingAgencies.${reference.donor}`) {
+      return translated;
+    }
+    return reference.donorName || reference.donor || '-';
+  };
+
+  const getCountryLabel = (reference: OrganizationProjectReferenceDTO) => {
+    return reference.countryName || getLocalizedCountryName(reference.country, language);
+  };
 
   const sectorOptions = useMemo<SectorDTO[]>(() => {
     return Object.values(SectorEnum).map((code, index) => {
@@ -199,10 +219,10 @@ export default function OrganizationProjectReferences() {
     const rows = sortedReferences.map(reference => [
       reference.title,
       reference.referenceNumber,
-      getLocalizedCountryName(reference.country, language),
-      t(`sectors.${reference.sector}`),
+      getCountryLabel(reference),
+      getSectorLabel(reference),
       reference.client,
-      t(`fundingAgencies.${reference.donor}`),
+      getDonorLabel(reference),
       reference.startDate,
       reference.endDate,
       t(`organizations.projectReferences.status.${reference.status}`),
@@ -224,24 +244,29 @@ export default function OrganizationProjectReferences() {
     URL.revokeObjectURL(url);
   };
 
-  const handleCreateReference = (values: OrganizationProjectReferenceFormValues) => {
-    const reference = createReference(values);
+  const handleCreateReference = async (values: OrganizationProjectReferenceFormValues) => {
+    const reference = await createReference(values);
     toast.success(t('organizations.projectReferences.createSuccess'));
     navigate(`/organizations/project-references/${reference.id}`);
   };
 
-  const handleUpdateReference = (values: OrganizationProjectReferenceFormValues) => {
+  const handleUpdateReference = async (values: OrganizationProjectReferenceFormValues) => {
     if (!editingReference) return;
-    updateReference(editingReference.id, values);
+    await updateReference(editingReference.id, values);
     toast.success(t('organizations.projectReferences.updateSuccess'));
     setEditingReference(null);
   };
 
-  const handleCloneReference = (values: OrganizationProjectReferenceFormValues) => {
-    const reference = createReference({ ...values, title: `${values.title} (Copy)` });
+  const handleCloneReference = async (values: OrganizationProjectReferenceFormValues) => {
+    const reference = await createReference({ ...values, title: `${values.title} (Copy)` });
     toast.success(t('projects.references.actions.clone'));
     navigate(`/organizations/project-references/${reference.id}`);
     setCloningReference(null);
+  };
+
+  const handleDeleteReference = async (reference: OrganizationProjectReferenceDTO) => {
+    await deleteReference(reference.id);
+    toast.success(t('common.delete'));
   };
 
   return (
@@ -472,7 +497,12 @@ export default function OrganizationProjectReferences() {
                   <span className="text-left">{t('organizations.projectReferences.table.actions')}</span>
                 </div>
 
-                {sortedReferences.length === 0 ? (
+                {isLoading ? (
+                  <div className="p-10 text-center text-gray-500">
+                    <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-primary" />
+                    <p className="text-sm">{t('common.loading')}</p>
+                  </div>
+                ) : sortedReferences.length === 0 ? (
                   <div className="p-10 text-center text-gray-500">
                     <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 mb-3">
                       <Search className="h-6 w-6 text-gray-400" />
@@ -485,17 +515,17 @@ export default function OrganizationProjectReferences() {
                   <div className="divide-y divide-primary/10">
                     {sortedReferences.map((reference, index) => (
                       <div key={reference.id} className={`px-5 py-4 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-primary/5'} hover:bg-primary/10`}>
-                        <div className="grid grid-cols-[1.8fr_1.2fr_1.1fr_1.2fr_1.2fr_1fr_1fr_1fr_auto] gap-3 items-center text-sm">
-                          <div>
-                            <p className="font-semibold text-gray-900 leading-snug">{reference.title}</p>
+                        <div className="grid grid-cols-[minmax(240px,1.9fr)_minmax(130px,1fr)_minmax(150px,1.1fr)_minmax(150px,1fr)_minmax(150px,1fr)_minmax(110px,.8fr)_minmax(110px,.8fr)_minmax(110px,.7fr)_minmax(220px,auto)] gap-3 items-center text-sm">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-gray-900 leading-snug truncate">{reference.title}</p>
                             <p className="text-xs text-gray-500 mt-1 line-clamp-2">{reference.summary || 'Additional details can be completed later.'}</p>
                           </div>
-                          <div className="text-gray-700 leading-snug">{getLocalizedCountryName(reference.country, language)}</div>
-                          <div className="text-gray-700 leading-snug">{t(`sectors.${reference.sector}`)}</div>
-                          <div className="text-gray-700 leading-snug">{reference.client}</div>
-                          <div className="text-gray-700 leading-snug">{t(`fundingAgencies.${reference.donor}`)}</div>
-                          <div className="text-gray-700">{reference.startDate ? format(new Date(reference.startDate), 'dd MMM yyyy', { locale: dateLocale }) : 'Not set'}</div>
-                          <div className="text-gray-700">{reference.endDate ? format(new Date(reference.endDate), 'dd MMM yyyy', { locale: dateLocale }) : 'Not set'}</div>
+                          <div className="min-w-0 text-gray-700 leading-snug truncate">{getCountryLabel(reference)}</div>
+                          <div className="min-w-0 text-gray-700 leading-snug truncate">{getSectorLabel(reference)}</div>
+                          <div className="min-w-0 text-gray-700 leading-snug truncate">{reference.client || '-'}</div>
+                          <div className="min-w-0 text-gray-700 leading-snug truncate">{getDonorLabel(reference)}</div>
+                          <div className="text-gray-700 whitespace-nowrap">{reference.startDate ? format(new Date(reference.startDate), 'dd MMM yyyy', { locale: dateLocale }) : 'Not set'}</div>
+                          <div className="text-gray-700 whitespace-nowrap">{reference.endDate ? format(new Date(reference.endDate), 'dd MMM yyyy', { locale: dateLocale }) : 'Not set'}</div>
                           <div>
                             <Badge
                               variant={reference.status === 'notVerified' ? 'secondary' : 'default'}
@@ -504,7 +534,7 @@ export default function OrganizationProjectReferences() {
                               {t(`organizations.projectReferences.status.${reference.status}`)}
                             </Badge>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2 justify-start">
                             <Button type="button" variant="outline" size="sm" onClick={() => navigate(`/organizations/project-references/${reference.id}`)}>
                               <Eye className="w-4 h-4 mr-2" />
                               {t('organizations.projectReferences.table.open')}
@@ -516,6 +546,10 @@ export default function OrganizationProjectReferences() {
                                 </Button>
                                 <Button type="button" variant="ghost" size="sm" onClick={() => setCloningReference(reference)}>
                                   {t('projects.references.actions.clone')}
+                                </Button>
+                                <Button type="button" variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={() => handleDeleteReference(reference)}>
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  {t('common.delete')}
                                 </Button>
                               </>
                             )}
