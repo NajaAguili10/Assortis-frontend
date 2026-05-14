@@ -269,6 +269,8 @@ export default function OrganizationProjectReferences() {
     toast.success(t('common.delete'));
   };
 
+  const tableMinWidthClass = 'min-w-[1540px]';
+
   return (
     <div className="min-h-screen bg-gray-100">
       <PageBanner
@@ -484,82 +486,153 @@ export default function OrganizationProjectReferences() {
 
           <div className="bg-white rounded-xl border border-primary/15 overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
-              <div className="min-w-[1280px]">
-                <div className="grid grid-cols-[1.8fr_1.2fr_1.1fr_1.2fr_1.2fr_1fr_1fr_1fr_auto] gap-3 px-5 py-3.5 border-b border-primary/15 bg-primary/5 text-xs font-semibold uppercase tracking-wide text-primary">
-                  <button className="text-left hover:text-primary/80" onClick={() => toggleSort('title')}>{t('organizations.projectReferences.table.projectTitle')}</button>
-                  <button className="text-left hover:text-primary/80" onClick={() => toggleSort('country')}>{t('organizations.projectReferences.table.country')}</button>
-                  <button className="text-left hover:text-primary/80" onClick={() => toggleSort('sector')}>{t('organizations.projectReferences.table.sector')}</button>
-                  <button className="text-left hover:text-primary/80" onClick={() => toggleSort('client')}>{t('organizations.projectReferences.table.client')}</button>
-                  <button className="text-left hover:text-primary/80" onClick={() => toggleSort('donor')}>{t('organizations.projectReferences.table.donor')}</button>
-                  <button className="text-left hover:text-primary/80" onClick={() => toggleSort('startDate')}>{t('organizations.projectReferences.table.startDate')}</button>
-                  <button className="text-left hover:text-primary/80" onClick={() => toggleSort('endDate')}>{t('organizations.projectReferences.table.endDate')}</button>
-                  <span className="text-left">{t('organizations.projectReferences.table.status')}</span>
-                  <span className="text-left">{t('organizations.projectReferences.table.actions')}</span>
+              {isLoading ? (
+                <div className="p-10 text-center text-gray-500">
+                  <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-primary" />
+                  <p className="text-sm">{t('common.loading')}</p>
                 </div>
-
-                {isLoading ? (
-                  <div className="p-10 text-center text-gray-500">
-                    <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-primary" />
-                    <p className="text-sm">{t('common.loading')}</p>
+              ) : sortedReferences.length === 0 ? (
+                <div className="p-10 text-center text-gray-500">
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 mb-3">
+                    <Search className="h-6 w-6 text-gray-400" />
                   </div>
-                ) : sortedReferences.length === 0 ? (
-                  <div className="p-10 text-center text-gray-500">
-                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 mb-3">
-                      <Search className="h-6 w-6 text-gray-400" />
-                    </div>
-                    <p className="font-medium text-gray-700 mb-1">{t('organizations.projectReferences.emptyTitle')}</p>
-                    <p className="text-sm">{t('organizations.projectReferences.emptySubtitle')}</p>
-                    <Button variant="outline" className="mt-4 min-h-11" onClick={clearFilters}>{t('organizations.filters.clear')}</Button>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-primary/10">
+                  <p className="font-medium text-gray-700 mb-1">{t('organizations.projectReferences.emptyTitle')}</p>
+                  <p className="text-sm">{t('organizations.projectReferences.emptySubtitle')}</p>
+                  <Button variant="outline" className="mt-4 min-h-11" onClick={clearFilters}>{t('organizations.filters.clear')}</Button>
+                </div>
+              ) : (
+                <table className={`${tableMinWidthClass} table-fixed border-separate border-spacing-0`}>
+                  <colgroup>
+                    <col className="w-[22%]" />
+                    <col className="w-[11%]" />
+                    <col className="w-[10%]" />
+                    <col className="w-[14%]" />
+                    <col className="w-[14%]" />
+                    <col className="w-[10%]" />
+                    <col className="w-[10%]" />
+                    <col className="w-[9%]" />
+                    <col className="w-[280px]" />
+                  </colgroup>
+                  <thead>
+                    <tr className="border-b border-primary/15 bg-primary/5 text-xs font-semibold uppercase tracking-wide text-primary">
+                      <th className="px-5 py-3.5 text-left">
+                        <button className="text-left hover:text-primary/80" onClick={() => toggleSort('title')}>
+                          {t('organizations.projectReferences.table.projectTitle')}
+                        </button>
+                      </th>
+                      <th className="px-4 py-3.5 text-left">
+                        <button className="text-left hover:text-primary/80" onClick={() => toggleSort('country')}>
+                          {t('organizations.projectReferences.table.country')}
+                        </button>
+                      </th>
+                      <th className="px-4 py-3.5 text-left">
+                        <button className="text-left hover:text-primary/80" onClick={() => toggleSort('sector')}>
+                          {t('organizations.projectReferences.table.sector')}
+                        </button>
+                      </th>
+                      <th className="px-4 py-3.5 text-left">
+                        <button className="text-left hover:text-primary/80" onClick={() => toggleSort('client')}>
+                          {t('organizations.projectReferences.table.client')}
+                        </button>
+                      </th>
+                      <th className="px-4 py-3.5 text-left">
+                        <button className="text-left hover:text-primary/80" onClick={() => toggleSort('donor')}>
+                          {t('organizations.projectReferences.table.donor')}
+                        </button>
+                      </th>
+                      <th className="px-4 py-3.5 text-left">
+                        <button className="text-left hover:text-primary/80" onClick={() => toggleSort('startDate')}>
+                          {t('organizations.projectReferences.table.startDate')}
+                        </button>
+                      </th>
+                      <th className="px-4 py-3.5 text-left">
+                        <button className="text-left hover:text-primary/80" onClick={() => toggleSort('endDate')}>
+                          {t('organizations.projectReferences.table.endDate')}
+                        </button>
+                      </th>
+                      <th className="px-4 py-3.5 text-left">{t('organizations.projectReferences.table.status')}</th>
+                      <th className="px-4 py-3.5 text-left">{t('organizations.projectReferences.table.actions')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {sortedReferences.map((reference, index) => (
-                      <div key={reference.id} className={`px-5 py-4 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-primary/5'} hover:bg-primary/10`}>
-                        <div className="grid grid-cols-[minmax(240px,1.9fr)_minmax(130px,1fr)_minmax(150px,1.1fr)_minmax(150px,1fr)_minmax(150px,1fr)_minmax(110px,.8fr)_minmax(110px,.8fr)_minmax(110px,.7fr)_minmax(220px,auto)] gap-3 items-center text-sm">
+                      <tr
+                        key={reference.id}
+                        className={`transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-primary/5'} hover:bg-primary/10`}
+                      >
+                        <td className="px-5 py-4 align-top">
                           <div className="min-w-0">
-                            <p className="font-semibold text-gray-900 leading-snug truncate">{reference.title}</p>
-                            <p className="text-xs text-gray-500 mt-1 line-clamp-2">{reference.summary || 'Additional details can be completed later.'}</p>
+                            <p className="font-semibold text-gray-900 leading-6 break-words line-clamp-2">{reference.title}</p>
+                            <p className="text-xs text-gray-500 mt-1 leading-5 break-words line-clamp-2">
+                              {reference.summary || 'Additional details can be completed later.'}
+                            </p>
                           </div>
-                          <div className="min-w-0 text-gray-700 leading-snug truncate">{getCountryLabel(reference)}</div>
-                          <div className="min-w-0 text-gray-700 leading-snug truncate">{getSectorLabel(reference)}</div>
-                          <div className="min-w-0 text-gray-700 leading-snug truncate">{reference.client || '-'}</div>
-                          <div className="min-w-0 text-gray-700 leading-snug truncate">{getDonorLabel(reference)}</div>
-                          <div className="text-gray-700 whitespace-nowrap">{reference.startDate ? format(new Date(reference.startDate), 'dd MMM yyyy', { locale: dateLocale }) : 'Not set'}</div>
-                          <div className="text-gray-700 whitespace-nowrap">{reference.endDate ? format(new Date(reference.endDate), 'dd MMM yyyy', { locale: dateLocale }) : 'Not set'}</div>
-                          <div>
-                            <Badge
-                              variant={reference.status === 'notVerified' ? 'secondary' : 'default'}
-                              className={reference.status === 'notVerified' ? 'rounded-full bg-amber-100 text-amber-800 border-amber-200' : 'rounded-full bg-emerald-100 text-emerald-800 border-emerald-200'}
+                        </td>
+                        <td className="px-4 py-4 align-middle">
+                          <div className="text-gray-700 leading-6 break-words">{getCountryLabel(reference)}</div>
+                        </td>
+                        <td className="px-4 py-4 align-middle">
+                          <div className="text-gray-700 leading-6 break-words">{getSectorLabel(reference)}</div>
+                        </td>
+                        <td className="px-4 py-4 align-middle">
+                          <div className="text-gray-700 leading-6 break-words line-clamp-2">{reference.client || '-'}</div>
+                        </td>
+                        <td className="px-4 py-4 align-middle">
+                          <div className="text-gray-700 leading-6 break-words line-clamp-2">{getDonorLabel(reference)}</div>
+                        </td>
+                        <td className="px-4 py-4 align-middle text-gray-700 whitespace-nowrap">
+                          {reference.startDate ? format(new Date(reference.startDate), 'dd MMM yyyy', { locale: dateLocale }) : 'Not set'}
+                        </td>
+                        <td className="px-4 py-4 align-middle text-gray-700 whitespace-nowrap">
+                          {reference.endDate ? format(new Date(reference.endDate), 'dd MMM yyyy', { locale: dateLocale }) : 'Not set'}
+                        </td>
+                        <td className="px-4 py-4 align-middle">
+                          <Badge
+                            variant={reference.status === 'notVerified' ? 'secondary' : 'default'}
+                            className={reference.status === 'notVerified' ? 'rounded-full bg-amber-100 text-amber-800 border-amber-200' : 'rounded-full bg-emerald-100 text-emerald-800 border-emerald-200'}
+                          >
+                            {t(`organizations.projectReferences.status.${reference.status}`)}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-4 align-middle">
+                          <div className="flex min-h-[44px] items-center gap-2 whitespace-nowrap">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0"
+                              onClick={() => navigate(`/organizations/project-references/${reference.id}`)}
                             >
-                              {t(`organizations.projectReferences.status.${reference.status}`)}
-                            </Badge>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 justify-start">
-                            <Button type="button" variant="outline" size="sm" onClick={() => navigate(`/organizations/project-references/${reference.id}`)}>
                               <Eye className="w-4 h-4 mr-2" />
                               {t('organizations.projectReferences.table.open')}
                             </Button>
                             {canManage && (
                               <>
-                                <Button type="button" variant="ghost" size="sm" onClick={() => setEditingReference(reference)}>
+                                <Button type="button" variant="ghost" size="sm" className="shrink-0 px-2.5" onClick={() => setEditingReference(reference)}>
                                   {t('common.edit')}
                                 </Button>
-                                <Button type="button" variant="ghost" size="sm" onClick={() => setCloningReference(reference)}>
+                                <Button type="button" variant="ghost" size="sm" className="shrink-0 px-2.5" onClick={() => setCloningReference(reference)}>
                                   {t('projects.references.actions.clone')}
                                 </Button>
-                                <Button type="button" variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={() => handleDeleteReference(reference)}>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="shrink-0 px-2.5 text-red-600 hover:text-red-700"
+                                  onClick={() => handleDeleteReference(reference)}
+                                >
                                   <Trash2 className="w-4 h-4 mr-2" />
                                   {t('common.delete')}
                                 </Button>
                               </>
                             )}
                           </div>
-                        </div>
-                      </div>
+                        </td>
+                      </tr>
                     ))}
-                  </div>
-                )}
-              </div>
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
 
