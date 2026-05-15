@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { useTranslation } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
 import { AccountSubMenu } from '@app/components/AccountSubMenu';
+import { SavedSearchProfileBadge } from '@app/components/SavedSearchProfileBadge';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
 import { Badge } from '@app/components/ui/badge';
@@ -44,6 +45,7 @@ import {
 } from '@app/types/organization.dto';
 import {
   getSavedSearchTypeRoute,
+  buildOrganizationProfileSearchFields,
   savedSearchService,
   type SavedSearch,
   type SavedSearchAlertFrequency,
@@ -679,7 +681,7 @@ function SearchEditorDialog({
 
 export default function MySelectionAlertsPage() {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, activeOrganizationProfile } = useAuth();
   const navigate = useNavigate();
   const { profiles, createProfile, updateProfile, deleteProfile } = useMatchingOpportunities();
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
@@ -689,11 +691,16 @@ export default function MySelectionAlertsPage() {
   const [showProfileCreate, setShowProfileCreate] = useState(false);
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
 
-  const refresh = () => setSavedSearches(savedSearchService.list(user?.id).filter((search) => MANAGED_TYPES.some((item) => item.type === search.context.type)));
+  const refresh = () => {
+    const rows = savedSearchService
+      .list(user?.id)
+      .filter((search) => MANAGED_TYPES.some((item) => item.type === search.context.type));
+    setSavedSearches(activeOrganizationProfile ? rows.filter((search) => search.organizationProfileId === activeOrganizationProfile.id) : rows);
+  };
 
   useEffect(() => {
     refresh();
-  }, [user?.id]);
+  }, [user?.id, activeOrganizationProfile?.id]);
 
   const stats = useMemo(() => {
     const active = savedSearches.filter((search) => search.status === 'active' && search.alertFrequency !== 'unsubscribe').length;
@@ -741,6 +748,7 @@ export default function MySelectionAlertsPage() {
       name: editor.name,
       filters: payload,
       context,
+      ...buildOrganizationProfileSearchFields(activeOrganizationProfile),
       alertsEnabled: editor.alertFrequency !== 'unsubscribe' && editor.status === 'active',
       alertFrequency: editor.alertFrequency,
       alertDays: editor.alertDays,
@@ -831,6 +839,11 @@ export default function MySelectionAlertsPage() {
             <div>
               <h2 className="text-xl font-semibold text-primary">Saved Searches & Alerts</h2>
               <p className="text-sm text-gray-600">Manage search profiles, notification frequency, and saved criteria in one place.</p>
+              {activeOrganizationProfile && (
+                <div className="mt-2">
+                  <SavedSearchProfileBadge profileName={activeOrganizationProfile.fullName} profileEmail={activeOrganizationProfile.email} />
+                </div>
+              )}
             </div>
             <Button onClick={openCreate} className="w-fit">
               <Plus className="mr-2 h-4 w-4" />
@@ -876,6 +889,7 @@ export default function MySelectionAlertsPage() {
                                 {active ? <Bell className="mr-1 h-3 w-3" /> : <BellOff className="mr-1 h-3 w-3" />}
                                 {active ? 'Active' : 'Paused'}
                               </Badge>
+                              <SavedSearchProfileBadge profileName={search.organizationProfileName} profileEmail={search.organizationProfileEmail} />
                             </div>
                             <div className="mt-3 grid gap-2 text-sm text-gray-600 md:grid-cols-5">
                               <span><strong>Frequency:</strong> {humanize(search.alertFrequency || 'daily')}</span>

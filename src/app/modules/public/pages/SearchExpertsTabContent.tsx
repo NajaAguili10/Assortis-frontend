@@ -7,6 +7,7 @@ import { organizationService } from '@app/services/organizationService';
 import { useCVCredits } from '@app/contexts/CVCreditsContext';
 import CVCreditsSummaryCard from '@app/components/CVCreditsSummaryCard';
 import { SaveSearchDialog } from '@app/components/SaveSearchDialog';
+import { SavedSearchProfileBadge } from '@app/components/SavedSearchProfileBadge';
 import { SectorSubsectorFilter } from '@app/components/SectorSubsectorFilter';
 import { RegionCountryFilter } from '@app/components/RegionCountryFilter';
 import { Button } from '@app/components/ui/button';
@@ -32,7 +33,7 @@ import { ExpertDTO } from '@app/modules/expert/hooks/useExperts';
 import { useExperts } from '@app/modules/expert/hooks/useExperts';
 import { ExpertsSearchFiltersWorkspace } from '@app/modules/expert/pages/ExpertsDatabase';
 import { generateCV } from '@app/modules/expert/services/cvGenerator.service';
-import { savedSearchService, type SavedSearchType } from '@app/services/savedSearchService';
+import { buildOrganizationProfileSearchFields, savedSearchService, type SavedSearchType } from '@app/services/savedSearchService';
 import type { ExpertProfile } from '@app/modules/expert/services/expertsData.service';
 import { ExpertStatusEnum, type WritingContribution, type WritingLanguage, type WritingMethodology } from '@app/modules/expert/types/expert.dto';
 import { SECTOR_SUBSECTOR_MAP } from '@app/config/subsectors.config';
@@ -74,6 +75,9 @@ interface SavedSearchEntry<TPayload> {
   label: string;
   createdAt: string;
   payload: TPayload;
+  organizationProfileId?: string;
+  organizationProfileName?: string;
+  organizationProfileEmail?: string;
 }
 
 interface AiExpertMatch {
@@ -109,7 +113,7 @@ function LegacySearchExpertsTabContent({ mode }: SearchExpertsTabContentProps) {
       unlockExpertCV,
     } = useCVCredits();
     const { experts, allExperts, refreshExperts } = useExperts();
-    const { user } = useAuth();
+    const { user, activeOrganizationProfile } = useAuth();
     const [subscriptionSectors, setSubscriptionSectors] = useState<SectorDTO[]>([]);
     const [subscriptionCountries, setSubscriptionCountries] = useState<CountryDTO[]>([]);
 
@@ -395,7 +399,7 @@ function LegacySearchExpertsTabContent({ mode }: SearchExpertsTabContentProps) {
       } catch {
         setAiMatches([]);
       }
-    }, [aiResultsStorageKey]);
+    }, [aiResultsStorageKey, user?.id, activeOrganizationProfile?.id]);
 
     const handleBuyPack = () => {
       navigate('/compte-utilisateur/credits');
@@ -469,7 +473,10 @@ function LegacySearchExpertsTabContent({ mode }: SearchExpertsTabContentProps) {
       label: item.name,
       createdAt: item.created_at,
       payload: item.filters as ExpertsSavedPayload,
-    }));
+      organizationProfileId: item.organizationProfileId,
+      organizationProfileName: item.organizationProfileName,
+      organizationProfileEmail: item.organizationProfileEmail,
+    })).filter((item) => !activeOrganizationProfile || item.organizationProfileId === activeOrganizationProfile.id);
     const raw = localStorage.getItem(storageKey);
     if (!raw) return unified;
 
@@ -571,6 +578,7 @@ function LegacySearchExpertsTabContent({ mode }: SearchExpertsTabContentProps) {
       userId: user?.id,
       name: label,
       filters: entry.payload,
+      ...buildOrganizationProfileSearchFields(activeOrganizationProfile),
       context: {
         type,
         route: type === 'bid-writers' ? '/search/bid-writers' : '/search/experts',
@@ -602,6 +610,7 @@ function LegacySearchExpertsTabContent({ mode }: SearchExpertsTabContentProps) {
       savedSearchService.update(entry.id, {
         name: nextLabel,
         filters: buildPayload(),
+        ...buildOrganizationProfileSearchFields(activeOrganizationProfile),
         context: {
           type,
           route: type === 'bid-writers' ? '/search/bid-writers' : '/search/experts',
@@ -1147,6 +1156,7 @@ function LegacySearchExpertsTabContent({ mode }: SearchExpertsTabContentProps) {
                         <div>
                           <p className="text-sm font-medium text-primary">{entry.label}</p>
                           <p className="text-xs text-muted-foreground">{format(new Date(entry.createdAt), 'yyyy-MM-dd HH:mm')}</p>
+                          <SavedSearchProfileBadge profileName={entry.organizationProfileName} profileEmail={entry.organizationProfileEmail} />
                         </div>
                         <div className="flex gap-2">
                           <Button size="sm" variant="outline" onClick={() => applySavedSearch(entry.payload)}>Load</Button>

@@ -31,6 +31,9 @@ export interface SavedSearchAlertSettings {
 export interface SavedSearch<TFilters = unknown> {
   id: string;
   user_id: string;
+  organizationProfileId?: string;
+  organizationProfileName?: string;
+  organizationProfileEmail?: string;
   name: string;
   filters: TFilters;
   context: SavedSearchContext;
@@ -79,6 +82,16 @@ export const normalizeSavedSearch = <TFilters = unknown>(item: SavedSearch<TFilt
 export const resolveSavedSearchUserId = (userId?: string | number | null) =>
   userId === undefined || userId === null || userId === '' ? ANONYMOUS_USER_ID : String(userId);
 
+export const buildOrganizationProfileSearchFields = (
+  profile?: { id: string; fullName: string; email: string } | null,
+) => profile
+  ? {
+      organizationProfileId: profile.id,
+      organizationProfileName: profile.fullName,
+      organizationProfileEmail: profile.email,
+    }
+  : {};
+
 export const savedSearchService = {
   list(userId?: string | number | null, type?: SavedSearchType): SavedSearch[] {
     const resolvedUserId = resolveSavedSearchUserId(userId);
@@ -95,6 +108,9 @@ export const savedSearchService = {
 
   save<TFilters>(input: {
     userId?: string | number | null;
+    organizationProfileId?: string;
+    organizationProfileName?: string;
+    organizationProfileEmail?: string;
     name: string;
     filters: TFilters;
     context: SavedSearchContext;
@@ -105,6 +121,9 @@ export const savedSearchService = {
     const entry: SavedSearch<TFilters> = {
       id: `saved-search-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       user_id: resolveSavedSearchUserId(input.userId),
+      organizationProfileId: input.organizationProfileId,
+      organizationProfileName: input.organizationProfileName,
+      organizationProfileEmail: input.organizationProfileEmail,
       name: input.name.trim(),
       filters: input.filters,
       context: input.context,
@@ -140,6 +159,10 @@ export const savedSearchService = {
     writeAll(readAll().filter((item) => item.id !== id));
   },
 
+  removeByOrganizationProfile(profileId: string) {
+    writeAll(readAll().filter((item) => item.organizationProfileId !== profileId));
+  },
+
   toggleAlerts(id: string) {
     const current = this.get(id);
     if (!current) return;
@@ -156,6 +179,9 @@ export const savedSearchService = {
     if (!current) return null;
     return this.save({
       userId: current.user_id,
+      organizationProfileId: current.organizationProfileId,
+      organizationProfileName: current.organizationProfileName,
+      organizationProfileEmail: current.organizationProfileEmail,
       name: `${current.name} copy`,
       filters: current.filters,
       context: current.context,

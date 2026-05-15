@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { authService, LoginResponse } from '@app/services/authService';
+import type { OrganizationProfile } from '@app/services/organizationProfileService';
 
 interface User {
   id: string;
@@ -23,6 +24,8 @@ interface AuthContextType {
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (token: string, newPassword: string) => Promise<void>;
   quickLogin: (accountType: QuickLoginAccountType) => Promise<void>;
+  activeOrganizationProfile: OrganizationProfile | null;
+  setActiveOrganizationProfile: (profile: OrganizationProfile | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,6 +33,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [activeOrganizationProfileState, setActiveOrganizationProfileState] = useState<OrganizationProfile | null>(null);
 
   // Check for existing session on mount
   useEffect(() => {
@@ -40,6 +44,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
         setIsAuthenticated(true);
+        const storedProfile = localStorage.getItem('assortis_active_organization_profile');
+        if (storedProfile) {
+          setActiveOrganizationProfileState(JSON.parse(storedProfile));
+        }
       } catch (error) {
         console.error('Error parsing stored user:', error);
         localStorage.removeItem('assortis_user');
@@ -97,9 +105,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const setActiveOrganizationProfile = (profile: OrganizationProfile | null) => {
+    setActiveOrganizationProfileState(profile);
+    if (profile) {
+      localStorage.setItem('assortis_active_organization_profile', JSON.stringify(profile));
+    } else {
+      localStorage.removeItem('assortis_active_organization_profile');
+    }
+  };
+
   const logout = () => {
     setUser(null);
     setIsAuthenticated(false);
+    setActiveOrganizationProfile(null);
     authService.logout();
   };
 
@@ -195,6 +213,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         forgotPassword,
         resetPassword,
         quickLogin,
+        activeOrganizationProfile: activeOrganizationProfileState,
+        setActiveOrganizationProfile,
       }}
     >
       {children}

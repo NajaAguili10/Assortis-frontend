@@ -100,6 +100,31 @@ export const apiClient = {
     return response.json();
   },
 
+  patch: async <T>(endpoint: string, data: any): Promise<T> => {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      let errorData: any = {};
+      try {
+        errorData = await response.json();
+      } catch (e) {}
+      if (response.status === 401) {
+        localStorage.removeItem('assortis_token');
+        localStorage.removeItem('assortis_user');
+        window.location.href = '/login';
+      }
+      const err: any = new Error(errorData.message || `API error: ${response.status} ${response.statusText}`);
+      err.response = { data: errorData };
+      throw err;
+    }
+
+    return response.json();
+  },
+
   delete: async (endpoint: string): Promise<void> => {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'DELETE',
