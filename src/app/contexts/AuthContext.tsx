@@ -163,7 +163,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const quickLogin = async (accountType: QuickLoginAccountType): Promise<void> => {
-    /* OLD STATIC AUTH (disabled for dynamic backend auth)
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         if (accountType) {
@@ -179,6 +178,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             role:
               accountType === 'admin'
                 ? 'admin'
+                : accountType === 'public'
+                ? 'public'
                 : isOrganizationUser
                 ? 'organization-user'
                 : accountType === 'organization'
@@ -186,9 +187,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 : 'member',
             accountType: resolvedAccountType,
             isSubscribed: resolvedAccountType !== 'public',
+            organizationId: resolvedAccountType === 'organization' ? 1 : undefined,
           };
           setUser(mockUser);
           setIsAuthenticated(true);
+          localStorage.setItem('assortis_token', `fake-${accountType}-token`);
           localStorage.setItem('assortis_user', JSON.stringify(mockUser));
           resolve();
         } else {
@@ -196,10 +199,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       }, 500);
     });
-    */
-    
-    // Quick login is disabled for production backend auth
-    throw new Error('Quick login is not available in production mode');
   };
 
   return (

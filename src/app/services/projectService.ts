@@ -5,7 +5,7 @@ export const projectService = {
 
 
   getAllProjects: async (): Promise<ProjectListDTO[]> => {
-    return await apiClient.get<ProjectListDTO[]>('/projects');
+    return await apiClient.get<ProjectListDTO[]>('/projects/all');
   },
 
 

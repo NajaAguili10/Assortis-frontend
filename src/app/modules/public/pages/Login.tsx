@@ -14,7 +14,7 @@ import { initializeTestAccounts, authenticateUser, getTestAccounts, type Incompl
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, quickLogin } = useAuth();
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -116,20 +116,17 @@ const Login = () => {
   };
 
   const handleQuickLogin = async (accountType: 'expert' | 'organization' | 'organization-user' | 'admin' | 'public') => {
-    /* OLD STATIC AUTH (disabled for dynamic backend auth)
     setError('');
     setLoading(true);
 
     try {
       await quickLogin(accountType);
-      navigate(accountType === 'expert' ? '/experts/dashboard' : '/calls/overview');
+      navigate(accountType === 'expert' ? '/experts/dashboard' : '/calls/active');
     } catch (err: any) {
       setError(err.message || t('auth.login.invalidCredentials'));
     } finally {
       setLoading(false);
     }
-    */
-    setError('Quick login is disabled for backend authentication.');
   };
 
   return (
@@ -142,7 +139,6 @@ const Login = () => {
       />
 
       <div className="max-w-3xl mx-auto px-4 py-8">
-        {/* OLD STATIC AUTH (disabled for dynamic backend auth)
         <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 p-6 mb-6">
           <div className="flex items-center gap-2 mb-3">
             <Sparkles className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
@@ -246,7 +242,6 @@ const Login = () => {
             </Button>
           </div>
         </div>
-        */}
 
         {/* Form Card */}
         <div className="bg-white rounded-xl border-2 border-gray-200 p-8">

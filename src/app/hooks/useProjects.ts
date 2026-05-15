@@ -27,10 +27,12 @@ const normalizeSearchValue = (value: unknown) => String(value ?? '').toLowerCase
 
 export const useProjects = () => {
   const {
-    projects: mockProjects,
+    projects: contextProjects,
     tasks,
     collaborations,
     templates,
+    isProjectsLoading,
+    projectsError: contextProjectsError,
     getProjectById: getProjectByIdFromContext
   } = useProjectsContext();
 
@@ -51,8 +53,9 @@ export const useProjects = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState<'newest' | 'priority' | 'budget' | 'completion' | 'name'>('newest');
   const [isLoading, setIsLoading] = useState(false);
+  const [projectsError, setProjectsError] = useState<string | null>(null);
   const pageSize = 10;
-const [myprojects, setMyprojects] =useState<ProjectListDTO[]>([]);
+const [allProjects, setAllProjects] = useState<ProjectListDTO[]>([]);
 
 
 
@@ -60,8 +63,9 @@ useEffect(() => {
   const fetchData = async () => {
     try {
       const response = await projectService.getAllProjects();
-      setMyprojects(response);
+      setAllProjects(response);
     } catch (error) {
+      setAllProjects([]);
       console.error("Error fetching projects:", error);
     }
   };
@@ -75,6 +79,7 @@ useEffect(() => {
 
   const fetchProjects = useCallback(async () => {
     setIsLoading(true);
+    setProjectsError(null);
     try {
       // Spring uses 0-based indexing for pages
       const response = await projectService.getProjects(filters, sortBy, currentPage - 1, pageSize);
@@ -84,49 +89,24 @@ useEffect(() => {
         throw new Error("Invalid response structure from backend");
       }
     } catch (error) {
-      console.error("Failed to fetch projects from backend, falling back to mock data", error);
-      
-      // Fallback logic for mock data (client-side filtering)
-      let filtered = [...myprojects];
-
-      if (viewMode === 'mine') {
-        filtered = filtered.filter((project) => (project as any).createdBy === CURRENT_USER_ID);
-      } else if (viewMode === 'team') {
-        filtered = filtered.filter((project) => (project as any).createdBy !== CURRENT_USER_ID);
-      }
-
-      if (filters.searchQuery) {
-        const query = filters.searchQuery.toLowerCase();
-        filtered = filtered.filter(
-          (project) =>
-            project.title.toLowerCase().includes(query) ||
-            project.code.toLowerCase().includes(query) ||
-            project.description.toLowerCase().includes(query)
-        );
-      }
-      
-      if (filters.sector && filters.sector.length > 0) {
-        filtered = filtered.filter((project) => filters.sector!.includes(project.sector));
-      }
-
-      const start = (currentPage - 1) * pageSize;
-      const end = start + pageSize;
-      
+      const message = error instanceof Error ? error.message : 'Failed to fetch projects from backend';
+      setProjectsError(message);
       setProjectsData({
-        data: filtered.slice(start, end),
+        data: [],
         meta: {
           page: currentPage,
           pageSize,
-          totalItems: filtered.length,
-          totalPages: Math.ceil(filtered.length / pageSize),
-          hasNextPage: currentPage < Math.ceil(filtered.length / pageSize),
-          hasPreviousPage: currentPage > 1,
+          totalItems: 0,
+          totalPages: 0,
+          hasNextPage: false,
+          hasPreviousPage: false,
         }
       });
+      console.error("Failed to fetch projects from backend:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [filters, sortBy, currentPage, mockProjects, viewMode]);
+  }, [filters, sortBy, currentPage]);
 
   useEffect(() => {
     fetchProjects();
@@ -134,27 +114,27 @@ useEffect(() => {
 
   // KPIs
   const kpis: ProjectKPIsDTO = useMemo(() => {
-    const totalBudget = myprojects.reduce((sum, p) => sum + (p.budget?.total || 0), 0);
-    const budgetSpent = myprojects.reduce((sum, p) => sum + (p.budget?.spent || 0), 0);
-    const avgCompletion = myprojects.length > 0 
-      ? myprojects.reduce((sum, p) => sum + (p.timeline?.completionPercentage || 0), 0) / myprojects.length
+    const totalBudget = allProjects.reduce((sum, p) => sum + (p.budget?.total || 0), 0);
+    const budgetSpent = allProjects.reduce((sum, p) => sum + (p.budget?.spent || 0), 0);
+    const avgCompletion = allProjects.length > 0
+      ? allProjects.reduce((sum, p) => sum + (p.timeline?.completionPercentage || 0), 0) / allProjects.length
       : 0;
     
     return {
-      totalProjects: myprojects.length,
-      activeProjects: myprojects.filter(p => p.status === ProjectStatusEnum.ACTIVE).length,
-      completedProjects: myprojects.filter(p => p.status === ProjectStatusEnum.COMPLETED).length,
-      onHoldProjects: myprojects.filter(p => p.status === ProjectStatusEnum.ON_HOLD).length,
+      totalProjects: allProjects.length,
+      activeProjects: allProjects.filter(p => p.status === ProjectStatusEnum.ACTIVE).length,
+      completedProjects: allProjects.filter(p => p.status === ProjectStatusEnum.COMPLETED).length,
+      onHoldProjects: allProjects.filter(p => p.status === ProjectStatusEnum.ON_HOLD).length,
       totalBudget,
       budgetSpent,
       averageCompletion: Math.round(avgCompletion),
-      urgentProjects: myprojects.filter(p => p.priority === ProjectPriorityEnum.URGENT).length,
+      urgentProjects: allProjects.filter(p => p.priority === ProjectPriorityEnum.URGENT).length,
     };
-  }, [mockProjects]);
+  }, [allProjects]);
 
   // Filter and sort projects
   const filteredProjects = useMemo(() => {
-    let filtered = [...mockProjects];
+    let filtered = [...contextProjects];
 
     // Apply filters
     // Team visibility filter
@@ -235,7 +215,7 @@ useEffect(() => {
     }
 
     return filtered;
-  }, [filters, sortBy, mockProjects]);
+  }, [filters, sortBy, contextProjects]);
 
   // Pagination
   const paginatedProjects: PaginatedResponseDTO<ProjectListDTO> = useMemo(() => {
@@ -292,12 +272,13 @@ useEffect(() => {
     setViewMode,
     currentPage,
     setCurrentPage,
-    isLoading,
+    isLoading: isLoading || isProjectsLoading,
+    projectsError: projectsError || contextProjectsError,
     refreshProjects: fetchProjects,
     tasks,
     collaborations,
     templates,
-    allProjects: myprojects,
+    allProjects,
     getProjectById: getProjectByIdFromContext,
     getCollaborationById: (id: string) => collaborations.find(c => c.id === id),
   };
