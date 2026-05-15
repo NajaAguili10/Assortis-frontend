@@ -163,42 +163,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const quickLogin = async (accountType: QuickLoginAccountType): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (accountType) {
-          const isOrganizationUser = accountType === 'organization-user';
-          const resolvedAccountType = isOrganizationUser ? 'organization' : accountType;
-          const mockUser: User = {
-            id: '2',
-            email: isOrganizationUser ? 'organization-user@example.com' : `${accountType}@example.com`,
-            firstName: isOrganizationUser
-              ? 'Organization'
-              : accountType.charAt(0).toUpperCase() + accountType.slice(1),
-            lastName: 'User',
-            role:
-              accountType === 'admin'
-                ? 'admin'
-                : accountType === 'public'
-                ? 'public'
-                : isOrganizationUser
-                ? 'organization-user'
-                : accountType === 'organization'
-                ? 'organization-admin'
-                : 'member',
-            accountType: resolvedAccountType,
-            isSubscribed: resolvedAccountType !== 'public',
-            organizationId: resolvedAccountType === 'organization' ? 1 : undefined,
-          };
-          setUser(mockUser);
-          setIsAuthenticated(true);
-          localStorage.setItem('assortis_token', `fake-${accountType}-token`);
-          localStorage.setItem('assortis_user', JSON.stringify(mockUser));
-          resolve();
-        } else {
-          reject(new Error('Invalid account type'));
-        }
-      }, 500);
-    });
+    throw new Error('Quick login is not available');
   };
 
   return (
