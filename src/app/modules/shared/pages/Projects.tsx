@@ -54,7 +54,7 @@ export default function Projects() {
 
   // Use filteredProjects (viewMode + search applied in hook)
   const CURRENT_USER_ID = 'user-1';
-  const userCreatedProjects = filteredProjects;
+  const userCreatedProjects = filteredProjects || [];
   const now = Date.now();
 
   const handleSearchChange = (value: string) => {

@@ -298,6 +298,7 @@ useEffect(() => {
     collaborations,
     templates,
     allProjects: myprojects,
+    filteredProjects: projectsData.data,
     getProjectById: getProjectByIdFromContext,
     getCollaborationById: (id: string) => collaborations.find(c => c.id === id),
   };
