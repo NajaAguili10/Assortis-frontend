@@ -89,9 +89,15 @@ export default function ProjectsOrganizationsScoring() {
                     score={row.score}
                     missingEvaluation={row.missingEvaluation}
                     recentlyScored={row.recentlyScored}
-                    onSave={(collaborationId, score) => {
-                      saveCollaborationScore(collaborationId, score);
-                      toast.success(t('projects.scoring.saved'));
+                    onSave={async (collaborationId, score) => {
+                      try {
+                        await saveCollaborationScore(collaborationId, score);
+                        toast.success(t('projects.scoring.saved'));
+                      } catch (error) {
+                        const message = error instanceof Error ? error.message : 'Failed to save score';
+                        toast.error(message);
+                        throw error;
+                      }
                     }}
                   />
                 ))}

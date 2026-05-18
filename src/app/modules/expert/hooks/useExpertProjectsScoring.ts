@@ -9,10 +9,9 @@ import {
   ContractorScoreInputDTO,
   ContractorSummaryDTO,
 } from '@app/modules/expert/types/expert-projects-scoring.dto';
+import { organizationScoringService } from '@app/modules/expert/services/organizationScoring.service';
 
 const RECENTLY_SCORED_DAYS = 14;
-const ORGANIZATIONS_STORAGE_KEY = 'expert-projects-contractors-organizations';
-const COLLABORATIONS_STORAGE_KEY = 'expert-projects-contractors-collaborations';
 
 const clampScore = (value: number) => Math.min(10, Math.max(1, value));
 
@@ -40,41 +39,46 @@ export interface CollaborationScoringRowDTO extends ContractorCollaborationDTO {
 }
 
 export const useExpertProjectsScoring = () => {
-  const [organizations, setOrganizations] = useState<ContractorOrganizationDTO[]>(() => {
-    if (typeof window === 'undefined') return expertContractorOrganizationsMock;
-
-    const cachedValue = window.localStorage.getItem(ORGANIZATIONS_STORAGE_KEY);
-    if (!cachedValue) return expertContractorOrganizationsMock;
-
-    try {
-      return JSON.parse(cachedValue) as ContractorOrganizationDTO[];
-    } catch {
-      return expertContractorOrganizationsMock;
-    }
-  });
-
-  const [collaborations, setCollaborations] = useState<ContractorCollaborationDTO[]>(() => {
-    if (typeof window === 'undefined') return expertContractorCollaborationsMock;
-
-    const cachedValue = window.localStorage.getItem(COLLABORATIONS_STORAGE_KEY);
-    if (!cachedValue) return expertContractorCollaborationsMock;
-
-    try {
-      return JSON.parse(cachedValue) as ContractorCollaborationDTO[];
-    } catch {
-      return expertContractorCollaborationsMock;
-    }
-  });
+  const [organizations, setOrganizations] = useState<ContractorOrganizationDTO[]>(expertContractorOrganizationsMock);
+  const [collaborations, setCollaborations] = useState<ContractorCollaborationDTO[]>(expertContractorCollaborationsMock);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(ORGANIZATIONS_STORAGE_KEY, JSON.stringify(organizations));
-  }, [organizations]);
+    let isMounted = true;
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(COLLABORATIONS_STORAGE_KEY, JSON.stringify(collaborations));
-  }, [collaborations]);
+    const hydrateScores = async () => {
+      try {
+        const savedScores = await organizationScoringService.getScores();
+        if (!isMounted) return;
+
+        const scoreByCollaborationId = new Map(savedScores.map((score) => [score.collaborationId, score]));
+        setCollaborations((current) => current.map((collaboration) => {
+          const persisted = scoreByCollaborationId.get(collaboration.id);
+          if (!persisted) return collaboration;
+
+          return {
+            ...collaboration,
+            score: {
+              financialPackageFairness: persisted.financialPackageFairness,
+              contractualTermsRespect: persisted.contractualTermsRespect,
+              communicationQuality: persisted.communicationQuality,
+              technicalBackstopping: persisted.technicalBackstopping,
+              financialBackstopping: persisted.financialBackstopping,
+              adminLogisticsBackstopping: persisted.adminLogisticsBackstopping,
+            },
+            updatedAt: persisted.updatedAt ? persisted.updatedAt.slice(0, 10) : collaboration.updatedAt,
+          };
+        }));
+      } catch {
+        // Keep seeded data when backend scores are unavailable.
+      }
+    };
+
+    hydrateScores();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const contractorSummaries = useMemo<ContractorSummaryDTO[]>(() => {
     return organizations.map((organization) => {
@@ -148,7 +152,7 @@ export const useExpertProjectsScoring = () => {
     );
   };
 
-  const saveCollaborationScore = (collaborationId: string, score: ContractorScoreInputDTO) => {
+  const saveCollaborationScore = async (collaborationId: string, score: ContractorScoreInputDTO) => {
     const safeScore: ContractorScoreInputDTO = {
       financialPackageFairness: clampScore(score.financialPackageFairness),
       contractualTermsRespect: clampScore(score.contractualTermsRespect),
@@ -158,13 +162,22 @@ export const useExpertProjectsScoring = () => {
       adminLogisticsBackstopping: clampScore(score.adminLogisticsBackstopping),
     };
 
+    const persisted = await organizationScoringService.upsertScore(collaborationId, safeScore);
+
     setCollaborations((previous) =>
       previous.map((collaboration) =>
         collaboration.id === collaborationId
           ? {
               ...collaboration,
-              score: safeScore,
-              updatedAt: new Date().toISOString().slice(0, 10),
+              score: {
+                financialPackageFairness: persisted.financialPackageFairness,
+                contractualTermsRespect: persisted.contractualTermsRespect,
+                communicationQuality: persisted.communicationQuality,
+                technicalBackstopping: persisted.technicalBackstopping,
+                financialBackstopping: persisted.financialBackstopping,
+                adminLogisticsBackstopping: persisted.adminLogisticsBackstopping,
+              },
+              updatedAt: persisted.updatedAt ? persisted.updatedAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
             }
           : collaboration,
       ),
