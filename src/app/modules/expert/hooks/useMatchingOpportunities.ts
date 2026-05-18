@@ -369,6 +369,13 @@ function writeRemovedIds(ids: string[]) {
 
 const normalizeFilterText = (value: unknown) => String(value ?? '').toLowerCase().replace(/[_-]+/g, ' ').trim();
 
+const getDateTime = (value: Date | string | number | null | undefined) => {
+  if (!value) return 0;
+  const date = value instanceof Date ? value : new Date(value);
+  const time = date.getTime();
+  return Number.isFinite(time) ? time : 0;
+};
+
 const getCountryLabels = (country: CountryEnum) => {
   const enumLabel = Object.entries(CountryEnum).find(([, value]) => value === country)?.[0] || country;
   return [country, enumLabel.replace(/_/g, ' ')].map(normalizeFilterText);
@@ -467,7 +474,7 @@ export function useMatchingOpportunities() {
       // Deadline filter
       if (filters.deadline !== 'all') {
         const daysUntilDeadline = Math.floor(
-          (opp.deadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+          (getDateTime(opp.deadline) - Date.now()) / (1000 * 60 * 60 * 24)
         );
         switch (filters.deadline) {
           case '7days':
@@ -637,7 +644,7 @@ export function useMatchingOpportunities() {
         if ((opp.sector ?? '').toLowerCase() !== filters.department.toLowerCase()) return false;
       }
 
-      const daysUntilDeadline = Math.floor((opp.deadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      const daysUntilDeadline = Math.floor((getDateTime(opp.deadline) - Date.now()) / (1000 * 60 * 60 * 24));
       if (filters.deadline === 'urgent' && (daysUntilDeadline < 0 || daysUntilDeadline > 7)) return false;
       if (filters.deadline === 'month' && (daysUntilDeadline < 0 || daysUntilDeadline > 30)) return false;
       if (filters.deadline === 'expired' && daysUntilDeadline >= 0) return false;
@@ -646,9 +653,9 @@ export function useMatchingOpportunities() {
     });
 
     return [...rows].sort((a, b) => {
-      if (filters.sort === 'newest') return b.postedDate.getTime() - a.postedDate.getTime();
-      if (filters.sort === 'oldest') return a.postedDate.getTime() - b.postedDate.getTime();
-      if (filters.sort === 'deadline') return a.deadline.getTime() - b.deadline.getTime();
+      if (filters.sort === 'newest') return getDateTime(b.postedDate) - getDateTime(a.postedDate);
+      if (filters.sort === 'oldest') return getDateTime(a.postedDate) - getDateTime(b.postedDate);
+      if (filters.sort === 'deadline') return getDateTime(a.deadline) - getDateTime(b.deadline);
       return a.title.localeCompare(b.title);
     });
   };
@@ -671,21 +678,21 @@ export function useMatchingOpportunities() {
       if (filters.dateRange === 'custom') {
         if (filters.customDateFrom) {
           const from = new Date(filters.customDateFrom).getTime();
-          if (opp.postedDate.getTime() < from) return false;
+          if (getDateTime(opp.postedDate) < from) return false;
         }
         if (filters.customDateTo) {
           const to = new Date(filters.customDateTo).getTime() + 24 * 60 * 60 * 1000;
-          if (opp.postedDate.getTime() > to) return false;
+          if (getDateTime(opp.postedDate) > to) return false;
         }
       } else {
         const cutoff = now - (dateRangeMs[filters.dateRange] ?? dateRangeMs['5days']);
-        if (opp.postedDate.getTime() < cutoff) return false;
+        if (getDateTime(opp.postedDate) < cutoff) return false;
       }
 
       return true;
     });
     if (filters.sort === 'date') {
-      result = [...result].sort((a, b) => b.postedDate.getTime() - a.postedDate.getTime());
+      result = [...result].sort((a, b) => getDateTime(b.postedDate) - getDateTime(a.postedDate));
     } else {
       result = [...result].sort((a, b) => b.relevanceScore - a.relevanceScore);
     }

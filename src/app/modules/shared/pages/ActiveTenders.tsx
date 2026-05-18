@@ -82,6 +82,12 @@ function writeSavedProjectIds(projectIds: string[]) {
   }
 }
 
+function toIsoString(value: Date | string | number | null | undefined) {
+  if (!value) return undefined;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : undefined;
+}
+
 function readDiscardedProjectIds(): string[] {
   try {
     const stored = localStorage.getItem(DISCARDED_PROJECTS_STORAGE_KEY);
@@ -644,7 +650,7 @@ export default function ActiveTenders() {
       status: row.status,
       expectedValue: row.budget.amount,
       currency: row.budget.currency,
-      deadline: row.deadline.toISOString(),
+      deadline: toIsoString(row.deadline),
       sectors: row.sectors.map(sector => t(`sectors.${sector}`)),
       matchScore: row.matchScore,
     });
@@ -668,8 +674,8 @@ export default function ActiveTenders() {
           donor: row.organizationName,
           budgetAmount: row.budget.amount,
           budgetCurrency: row.budget.currency,
-          publishedDate: row.publishedDate?.toISOString(),
-          deadline: row.deadline.toISOString(),
+          publishedDate: toIsoString(row.publishedDate),
+          deadline: toIsoString(row.deadline),
           procurementType: row.procurementType ? formatPillLabel(row.procurementType) : undefined,
           noticeType: row.noticeType ? formatPillLabel(row.noticeType) : undefined,
           sectors: row.sectors.map(sector => t(`sectors.${sector}`)),

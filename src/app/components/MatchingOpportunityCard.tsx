@@ -36,6 +36,12 @@ const OPPORTUNITY_TYPE_COLORS: Record<OpportunityTypeEnum, string> = {
   [OpportunityTypeEnum.IN_HOUSE_VACANCY]: 'bg-pink-100 text-pink-800',
 };
 
+const toValidDate = (value: Date | string | number | null | undefined) => {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isFinite(date.getTime()) ? date : null;
+};
+
 export function MatchingOpportunityCard({
   opportunity,
   isSaved = false,
@@ -50,8 +56,10 @@ export function MatchingOpportunityCard({
   onPreviewRestrictedAction,
 }: MatchingOpportunityCardProps) {
   const [localSaved, setLocalSaved] = useState(isSaved);
+  const deadlineDate = toValidDate(opportunity.deadline);
   const isDeadlineSoon =
-    Math.floor((opportunity.deadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) <= 7;
+    deadlineDate !== null &&
+    Math.floor((deadlineDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) <= 7;
 
   const handleSaveClick = () => {
     if (previewMode) {
@@ -135,7 +143,7 @@ export function MatchingOpportunityCard({
             <p
               className={`font-medium ${isDeadlineSoon ? 'text-red-600' : 'text-gray-800'}`}
             >
-              {format(opportunity.deadline, 'MMM dd, yyyy')}
+              {deadlineDate ? format(deadlineDate, 'MMM dd, yyyy') : 'No deadline'}
             </p>
           </div>
         </div>

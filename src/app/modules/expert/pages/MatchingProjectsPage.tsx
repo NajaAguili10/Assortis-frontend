@@ -106,6 +106,12 @@ function writeSavedProjectIds(projectIds: string[]) {
   }
 }
 
+function toIsoString(value: Date | string | number | null | undefined) {
+  if (!value) return undefined;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : undefined;
+}
+
 function toggleInArray<T>(items: T[], value: T): T[] {
   return items.includes(value) ? items.filter(item => item !== value) : [...items, value];
 }
@@ -293,7 +299,7 @@ export default function MatchingProjectsPage() {
       status: opportunity.status,
       expectedValue: opportunity.budget || opportunity.contractValue || 0,
       currency: opportunity.currency || 'USD',
-      deadline: opportunity.deadline.toISOString(),
+      deadline: toIsoString(opportunity.deadline),
       sectors: [opportunity.sector],
       matchScore: opportunity.relevanceScore,
     });

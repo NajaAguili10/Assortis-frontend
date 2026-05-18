@@ -782,7 +782,7 @@ export default function ProjectDetail() {
     updatedDate: '2024-02-20',
   };
 
-  const project = dynamicProject ;
+  const project = dynamicProject ?? PROJECT_MOCK;
   const pipelineItem = getPipelineItem(project.id || '');
   const currentPipelineStage = pipelineItem?.stage || 'eoi_preparation';
   const currentPipelineStageDefinition = PIPELINE_STAGES.find((stage) => stage.id === currentPipelineStage);
