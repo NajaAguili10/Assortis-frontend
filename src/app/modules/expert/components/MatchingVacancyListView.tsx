@@ -13,6 +13,12 @@ interface MatchingVacancyListViewProps {
   isSaved: (opportunityId: string) => boolean;
 }
 
+const toValidDate = (value: Date | string | number | null | undefined) => {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isFinite(date.getTime()) ? date : null;
+};
+
 export function MatchingVacancyListView({
   opportunities,
   type,
@@ -33,7 +39,10 @@ export function MatchingVacancyListView({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {opportunities.map((job) => {
-            const daysRemaining = Math.floor((job.deadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+            const deadlineDate = toValidDate(job.deadline);
+            const daysRemaining = deadlineDate
+              ? Math.floor((deadlineDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+              : Number.POSITIVE_INFINITY;
             const isUrgent = daysRemaining <= 7 && daysRemaining >= 0;
 
             return (
@@ -85,7 +94,7 @@ export function MatchingVacancyListView({
                     </div>
                     <div className="flex items-center gap-1.5 text-sm text-muted-foreground col-span-2">
                       <Calendar className="w-4 h-4 flex-shrink-0" />
-                      <span className="truncate">{new Date(job.deadline).toLocaleDateString()}</span>
+                      <span className="truncate">{deadlineDate ? deadlineDate.toLocaleDateString() : '-'}</span>
                     </div>
                   </div>
                 </div>

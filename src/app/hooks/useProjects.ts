@@ -194,7 +194,7 @@ useEffect(() => {
       averageCompletion: Math.round(avgCompletion),
       urgentProjects: allProjects.filter(p => p.priority === ProjectPriorityEnum.URGENT).length,
     };
-  }, [myprojects]);
+  }, [allProjects]);
 
   // Filter and sort projects
   const filteredProjects = useMemo(() => {

@@ -119,7 +119,7 @@ export default function ExpertDashboard() {
               icon={GraduationCap}
               iconBgColor="bg-amber-50"
               iconColor="text-amber-500"
-              link="/training/overview"
+              link="/training/catalog"
               useDirect
             />
 

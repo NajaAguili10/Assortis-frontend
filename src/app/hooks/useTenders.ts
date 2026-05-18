@@ -381,15 +381,15 @@ export function useTenders() {
     return savedTenderIds.has(tenderId);
   };
 
-  const updateFilters = (newFilters: Partial<TenderFilters>) => {
+  const updateFilters = useCallback((newFilters: Partial<TenderFilters>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
     setCurrentPage(1); // Reset to first page when filters change
-  };
+  }, []);
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setFilters({});
     setCurrentPage(1);
-  };
+  }, []);
 
   const activeFiltersCount = useMemo(() => {
     let count = 0;
