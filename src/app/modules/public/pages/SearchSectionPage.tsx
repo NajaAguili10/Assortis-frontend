@@ -18,7 +18,7 @@ export default function SearchSectionPage({ section }: SearchSectionPageProps) {
   const { t } = useLanguage();
 
   return (
-    <div className="min-h-screen">
+    <div key={section} className="min-h-screen">
       <PageBanner
         title={t(`search.section.${section}.title`)}
         description={t(`search.section.${section}.description`)}

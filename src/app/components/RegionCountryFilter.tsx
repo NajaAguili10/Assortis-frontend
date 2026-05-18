@@ -6,28 +6,27 @@ import { Badge } from './ui/badge';
 import { Globe, Check, ArrowRight } from 'lucide-react';
 import { RegionEnum as TenderRegionEnum, CountryEnum, REGION_COUNTRY_MAP } from '../types/tender.dto';
 import { CountryDTO } from '../types/organization.dto';
+import { RegionDTO } from '../types/project.dto';
 
 interface RegionCountryFilterProps {
-  selectedRegions?: string[];
+  selectedRegions: RegionDTO[];
   selectedCountries: CountryDTO[];
-  onSelectRegion?: (region: string) => void;
+  onSelectRegion: (region: RegionDTO) => void;
   onSelectCountry: (country: CountryDTO) => void;
   onSelectAllRegions?: () => void;
   allowedCountries?: CountryDTO[];
-  regionCountryMap?: Record<string, string[]>;
-  getRegionLabel?: (region: string) => string;
+  dynamicRegionCountryMap?: Record<string, string[]>;
   t: (key: string) => string;
 }
 
 export function RegionCountryFilter({
-  selectedRegions = [],
+  selectedRegions,
   selectedCountries,
   onSelectRegion,
   onSelectCountry,
   onSelectAllRegions,
   allowedCountries,
-  regionCountryMap,
-  getRegionLabel,
+  dynamicRegionCountryMap,
   t
 }: RegionCountryFilterProps) {
   const [activeRegion, setActiveRegion] = React.useState<string | null>(selectedRegions[0] || null);
@@ -43,28 +42,18 @@ export function RegionCountryFilter({
     return getRegionLabel?.(region) || t(`regions.${region}`);
   }, [getRegionLabel, t]);
 
-  React.useEffect(() => {
-    if (selectedRegions.length === 0) {
-      setActiveRegion(null);
-      return;
-    }
-
-    if (!activeRegion || !selectedRegions.includes(activeRegion)) {
-      setActiveRegion(selectedRegions[0]);
-    }
-  }, [activeRegion, selectedRegions]);
-
-  const handleRegionClick = (region: string) => {
-    setActiveRegion(region);
-    onSelectRegion?.(region);
+  const handleRegionClick = (region: RegionEnum) => {
+    setActiveRegion(prev => prev === region ? null : region);
+    onSelectRegion({ name: region } as RegionDTO);
   };
 
   const handleSelectAllCountriesForActiveRegion = () => {
     if (!activeRegion) return;
     
-    const regionCountryCodes = resolvedRegionCountryMap[activeRegion] || [];
+    const currentMap = dynamicRegionCountryMap || REGION_COUNTRY_MAP;
+    const regionCountryCodes = currentMap[activeRegion as any] || [];
     const filterableCountries = allowedCountries 
-      ? allowedCountries.filter(c => regionCountryCodes.includes(c.code as CountryEnum))
+      ? allowedCountries.filter(c => regionCountryCodes.includes(c.code as any))
       : [];
 
     const allSelected = filterableCountries.every(country => selectedCountries.some(s => s.id === country.id));
@@ -78,19 +67,24 @@ export function RegionCountryFilter({
 
   const activeCountries = React.useMemo(() => {
     if (!activeRegion) return [];
-    const regionCountryCodes = resolvedRegionCountryMap[activeRegion] || [];
+    const currentMap = dynamicRegionCountryMap || REGION_COUNTRY_MAP;
+    const regionCountryCodes = currentMap[activeRegion as any] || [];
     if (!allowedCountries) return [];
-    return allowedCountries.filter(c => regionCountryCodes.includes(c.code as CountryEnum));
-  }, [activeRegion, allowedCountries, resolvedRegionCountryMap]);
+    return allowedCountries.filter(c => regionCountryCodes.includes(c.code as any));
+  }, [activeRegion, allowedCountries, dynamicRegionCountryMap]);
 
   // Limit regions display to 4 by default
-  const visibleRegions = React.useMemo(() => {
-    if (!allowedCountries) return allRegions;
-    return allRegions.filter(region => {
-      const regionCountryCodes = resolvedRegionCountryMap[region] || [];
-      return allowedCountries.some(c => regionCountryCodes.includes(c.code as CountryEnum));
-    });
-  }, [allRegions, allowedCountries, resolvedRegionCountryMap]);
+  const allRegions = React.useMemo(() => {
+    const currentMap = dynamicRegionCountryMap || REGION_COUNTRY_MAP;
+    const regions = dynamicRegionCountryMap ? Object.keys(dynamicRegionCountryMap) : Object.values(RegionEnum);
+    
+    if (!allowedCountries) return regions as RegionEnum[];
+    
+    return (regions as string[]).filter(region => {
+      const regionCountryCodes = currentMap[region as any] || [];
+      return allowedCountries.some(c => regionCountryCodes.includes(c.code as any));
+    }) as RegionEnum[];
+  }, [allowedCountries, dynamicRegionCountryMap]);
 
   const displayedRegions = showAllRegions ? visibleRegions : visibleRegions.slice(0, 4);
   const hasMoreRegions = visibleRegions.length > 4;
@@ -169,22 +163,24 @@ export function RegionCountryFilter({
             <div className="space-y-2">
               {displayedRegions.map((region) => {
                 const isActive = activeRegion === region;
-                const isSelected = selectedRegions.includes(region);
-                const regionCountryCodes = resolvedRegionCountryMap[region] || [];
+                const currentMap = dynamicRegionCountryMap || REGION_COUNTRY_MAP;
+                const regionCountryCodes = currentMap[region as any] || [];
                 const countriesCount = allowedCountries 
-                  ? allowedCountries.filter(c => regionCountryCodes.includes(c.code as CountryEnum)).length 
+                  ? allowedCountries.filter(c => regionCountryCodes.includes(c.code as any)).length 
                   : 0;
                 const selectedCountriesCount = selectedCountries.filter(country => 
-                  regionCountryCodes.includes(country.code as CountryEnum)
+                  regionCountryCodes.includes(country.code as any)
                 ).length;
+                
+                const isSelected = selectedRegions.some(r => r.name === region);
                 
                 return (
                   <div
                     key={region}
                     className={`
                       group relative rounded-lg cursor-pointer transition-all duration-200
-                      ${isActive
-                        ? 'bg-accent/10 border-2 border-accent shadow-lg ring-2 ring-accent/30'
+                      ${isActive 
+                        ? 'bg-accent/10 border-2 border-accent shadow-lg ring-2 ring-accent/30' 
                         : isSelected
                           ? 'bg-accent/10 border-2 border-accent shadow-md'
                           : 'bg-white border-2 border-gray-200 hover:border-accent/30 hover:shadow-md hover:bg-gray-50'

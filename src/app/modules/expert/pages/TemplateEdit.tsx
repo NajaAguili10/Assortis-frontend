@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { PageBanner } from '@app/components/PageBanner';
@@ -22,7 +22,20 @@ import {
 
 export default function TemplateEdit() {
   const { t } = useLanguage();
-  const { kpis } = useTenders();
+  const { kpis: rawKpis } = useTenders();
+  const kpis = rawKpis || {
+    totalTenders: 0,
+    activeTenders: 0,
+    closedTenders: 0,
+    awardedTenders: 0,
+    averageBudget: { amount: 0, currency: 'EUR', formatted: '€0' },
+    averageProposalsPerTender: 0,
+    successRate: 0,
+    mySubmissions: 0,
+    myPendingSubmissions: 0,
+    myInvitations: 0,
+    pipelineValue: { amount: 0, currency: 'EUR', formatted: '€0' }
+  };
   const navigate = useNavigate();
   const { id } = useParams();
   const fileInputRef = useRef<HTMLInputElement>(null);

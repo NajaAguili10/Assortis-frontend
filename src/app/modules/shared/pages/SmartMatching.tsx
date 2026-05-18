@@ -1,4 +1,4 @@
-﻿import { useLanguage } from '@app/contexts/LanguageContext';
+import { useLanguage } from '@app/contexts/LanguageContext';
 import { useNavigate } from 'react-router';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
@@ -41,7 +41,21 @@ export default function SmartMatching() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const { kpis: insightsKpis } = useInsights();
-  const { kpis: tendersKpis, allTenders } = useTenders();
+  const { kpis: rawTendersKpis, tenders } = useTenders();
+  const allTenders = tenders?.data || [];
+  const tendersKpis = rawTendersKpis || {
+    totalTenders: 0,
+    activeTenders: 0,
+    closedTenders: 0,
+    awardedTenders: 0,
+    averageBudget: { amount: 0, currency: 'EUR', formatted: '€0' },
+    averageProposalsPerTender: 0,
+    successRate: 0,
+    mySubmissions: 0,
+    myPendingSubmissions: 0,
+    myInvitations: 0,
+    pipelineValue: { amount: 0, currency: 'EUR', formatted: '€0' }
+  };
   const { kpis: orgsKpis } = useOrganizations();
   const { kpis: expertsKpis } = useExperts();
   const { kpis: projectsKpis } = useProjects();

@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { PageBanner } from '@app/components/PageBanner';
@@ -206,7 +206,8 @@ export default function Pipeline() {
   } = usePipeline();
   
   // Use tenders hook to get tender details
-  const { allTenders } = useTenders();
+  const { tenders } = useTenders();
+  const allTenders = tenders?.data || [];
 
   // Use ToRs hook to get ToRs details
   const { allToRs } = useToRs();

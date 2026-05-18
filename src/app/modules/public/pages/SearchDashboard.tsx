@@ -44,7 +44,8 @@ export default function SearchDashboard() {
   const [activeCategory, setActiveCategory] = useState<DashboardCategory>('all');
 
   const { allProjects } = useProjects();
-  const { allTenders } = useTenders();
+  const { tenders } = useTenders();
+  const allTenders = tenders?.data || [];
   const { allOrganizations } = useOrganizations();
   const { allExperts } = useExperts();
 

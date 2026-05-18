@@ -6,7 +6,7 @@ import 'leaflet/dist/leaflet.css';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useCVCredits } from '@app/contexts/CVCreditsContext';
 import { useAuth } from '@app/contexts/AuthContext';
-import { useProjects } from '@app/hooks/useProjects';
+import { useTenders } from '@app/hooks/useTenders';
 import { useExperts } from '@app/modules/expert/hooks/useExperts';
 import { COUNTRIES } from '@app/config/countries.config';
 import { CountryEnum, REGION_COUNTRY_MAP, SectorEnum, SECTOR_SUBSECTOR_MAP, SubSectorEnum } from '@app/types/tender.dto';
@@ -119,8 +119,10 @@ const COUNTRY_ALIASES: Record<string, string> = {
   "cote d'ivoire": 'CI',
 };
 
-function normalizeCountryName(value: string): string {
-  return value
+function normalizeCountryName(value: any): string {
+  if (value == null) return '';
+  const strValue = typeof value === 'string' ? value : String(value);
+  return strValue
     .trim()
     .toLowerCase()
     .normalize('NFD')
@@ -129,16 +131,25 @@ function normalizeCountryName(value: string): string {
     .replace(/\s+/g, ' ');
 }
 
-function resolveCountryCode(country: string): string | null {
+function resolveCountryCode(country: any): string | null {
   if (!country) return null;
 
-  const normalized = normalizeCountryName(country);
+  let name = '';
+  if (typeof country === 'object') {
+    name = country.code || country.name || '';
+  } else {
+    name = String(country);
+  }
+
+  if (!name) return null;
+
+  const normalized = normalizeCountryName(name);
   if (COUNTRY_ALIASES[normalized]) {
     return COUNTRY_ALIASES[normalized];
   }
 
-  if (country.length === 2 && /^[A-Z]{2}$/.test(country)) {
-    return country;
+  if (name.length === 2 && /^[A-Z]{2}$/.test(name)) {
+    return name;
   }
 
   return COUNTRY_NAME_TO_CODE[normalized] || null;
@@ -173,8 +184,8 @@ export default function SearchMapTabContent() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { t, language } = useLanguage();
-  const { user, activeOrganizationProfile } = useAuth();
-  const { allProjects } = useProjects();
+  const { user } = useAuth();
+  const { tenders } = useTenders();
   const { allExperts } = useExperts();
   const { availableCredits, libraryExpertIds, unlockExpertCV } = useCVCredits();
   const isExpertView = user?.accountType === 'expert';
@@ -189,7 +200,7 @@ export default function SearchMapTabContent() {
   const [isSaveSearchDialogOpen, setIsSaveSearchDialogOpen] = useState(false);
 
   const projectMarkers = useMemo<MapMarker[]>(() => {
-    return allProjects.map((project) => {
+    return (tenders?.data || []).map((project) => {
       const countryCode = resolveCountryCode(project.country);
       return {
         id: project.id,
@@ -197,16 +208,16 @@ export default function SearchMapTabContent() {
         name: project.title,
         country: project.country,
         countryCode,
-        region: String(project.region),
-        position: getMarkerPosition(countryCode, String(project.region), `project-${project.id}`),
+        region: String(project.region || ''),
+        position: getMarkerPosition(countryCode, String(project.region || ''), `project-${project.id}`),
         isLocked: false,
         tooltipLabel: project.title,
         route: `/search/projects/${encodeURIComponent(project.id)}`,
-        sectorKeys: [String(project.sector)],
+        sectorKeys: (project.sectors || []).map(String),
         subSectorKeys: (project.subsectors || []).map(String),
       };
     });
-  }, [allProjects]);
+  }, [tenders?.data]);
 
   const expertMarkers = useMemo<MapMarker[]>(() => {
     return allExperts.map((expert) => {

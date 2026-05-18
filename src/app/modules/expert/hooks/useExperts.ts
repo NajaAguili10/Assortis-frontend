@@ -612,8 +612,10 @@ export const useExperts = () => {
   React.useEffect(() => {
     const fetchExperts = async () => {
       try {
+        console.log("Fetching all experts...");
         const result = await expertService.getAllExperts();
-        setExperts(result);
+        console.log("Experts fetched successfully:", result?.length, "found");
+        setExperts(result || []);
       } catch (error) {
         console.error("Error fetching experts:", error);
       }
