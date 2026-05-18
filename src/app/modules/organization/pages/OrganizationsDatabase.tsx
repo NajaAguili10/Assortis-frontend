@@ -133,7 +133,7 @@ export default function OrganizationsDatabase() {
     saveOrganization,
     unsaveOrganization,
     isOrganizationSaved,
-  } = useOrganizations();
+  } = useOrganizations({ scope: 'database' });
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSectors, setSelectedSectors] = useState<SectorDTO[]>([]);

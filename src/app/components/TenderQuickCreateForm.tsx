@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@app/components/ui/textarea';
 import { CountryEnum, SectorEnum, SECTOR_SUBSECTOR_MAP, SubSectorEnum } from '@app/types/tender.dto';
 import { type TenderQuickCreatePayload } from '@app/modules/shared/hooks/useTenderQuickCreate';
+import { getSubsectorDisplayLabel } from '@app/utils/subsector-display';
 
 interface TenderQuickCreateFormProps {
   isSubmitting: boolean;
@@ -64,10 +65,16 @@ export function TenderQuickCreateForm({
   });
   const [errors, setErrors] = useState<FormErrors>({});
 
+  const sectorOptions = useMemo(() => Array.from(new Set(Object.values(SectorEnum))), []);
+  const countryOptions = useMemo(() => Array.from(new Set(Object.values(CountryEnum))), []);
+
   const availableSubSectors = useMemo(() => {
-    if (!values.sector) return [];
-    return SECTOR_SUBSECTOR_MAP[values.sector as SectorEnum] || [];
-  }, [values.sector]);
+    const configured = values.sector ? SECTOR_SUBSECTOR_MAP[values.sector as SectorEnum] || [] : [];
+    const merged = values.subSector && !configured.includes(values.subSector as SubSectorEnum)
+      ? [...configured, values.subSector as SubSectorEnum]
+      : configured;
+    return Array.from(new Set(merged));
+  }, [values.sector, values.subSector]);
 
   const translateSector = (sector: SectorEnum) => {
     const translated = t(`sectors.${sector}`);
@@ -75,8 +82,7 @@ export function TenderQuickCreateForm({
   };
 
   const translateSubSector = (subSector: SubSectorEnum) => {
-    const translated = t(`subsectors.${subSector}`);
-    return translated === `subsectors.${subSector}` ? subSector : translated;
+    return getSubsectorDisplayLabel(t, subSector);
   };
 
   const translateCountry = (country: CountryEnum) => {
@@ -204,8 +210,8 @@ export function TenderQuickCreateForm({
                   <SelectValue placeholder={t('organizations.createTender.placeholders.sector')} />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.values(SectorEnum).map((sector) => (
-                    <SelectItem key={sector} value={sector}>
+                  {sectorOptions.map((sector) => (
+                    <SelectItem key={`sector-${sector}`} value={sector}>
                       {translateSector(sector)}
                     </SelectItem>
                   ))}
@@ -226,7 +232,7 @@ export function TenderQuickCreateForm({
                 </SelectTrigger>
                 <SelectContent>
                   {availableSubSectors.map((subSector) => (
-                    <SelectItem key={subSector} value={subSector}>
+                    <SelectItem key={`subsector-${values.sector || 'none'}-${subSector}`} value={subSector}>
                       {translateSubSector(subSector)}
                     </SelectItem>
                   ))}
@@ -242,8 +248,8 @@ export function TenderQuickCreateForm({
                   <SelectValue placeholder={t('organizations.createTender.placeholders.country')} />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.values(CountryEnum).map((country) => (
-                    <SelectItem key={country} value={country}>
+                  {countryOptions.map((country) => (
+                    <SelectItem key={`country-${country}`} value={country}>
                       {translateCountry(country)}
                     </SelectItem>
                   ))}

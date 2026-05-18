@@ -17,7 +17,7 @@ export default function OrganizationsCreateTender() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { createTender, isSubmitting } = useTenderQuickCreate();
-  const { getTenderById, updateTender } = useOrganizationTenders();
+  const { getTenderById, updateTender, isLoading } = useOrganizationTenders();
   const isEditMode = Boolean(id);
   const currentTender = isEditMode ? getTenderById(id) : null;
 
@@ -31,34 +31,47 @@ export default function OrganizationsCreateTender() {
   };
 
   const handleSubmit = async (payload: Parameters<typeof createTender>[0]) => {
-    if (isEditMode && id) {
-      const updated = await updateTender(id, payload);
-      if (!updated) {
-        toast.error(t('organizations.myTenders.detailNotFound.title'));
-        navigate('/organizations/my-tenders');
+    try {
+      if (isEditMode && id) {
+        const updated = await updateTender(id, payload);
+        if (!updated) {
+          toast.error(t('organizations.myTenders.detailNotFound.title'));
+          navigate('/organizations/my-tenders');
+          return;
+        }
+
+        toast.success(t('organizations.myTenders.update.success.title'), {
+          description: t('organizations.myTenders.update.success.description', {
+            title: payload.title,
+          }),
+        });
+
+        navigate(`/organizations/my-tenders/${id}`);
         return;
       }
 
-      toast.success(t('organizations.myTenders.update.success.title'), {
-        description: t('organizations.myTenders.update.success.description', {
+      const createdTender = await createTender(payload);
+
+      toast.success(t('organizations.createTender.success.title'), {
+        description: t('organizations.createTender.success.description', {
           title: payload.title,
         }),
       });
 
-      navigate(`/organizations/my-tenders/${id}`);
-      return;
+      navigate(`/organizations/my-tenders/${createdTender.id}`);
+    } catch (error) {
+      console.error('Error saving tender:', error);
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : t('common.error');
+      toast.error(message);
     }
-
-    await createTender(payload);
-
-    toast.success(t('organizations.createTender.success.title'), {
-      description: t('organizations.createTender.success.description', {
-        title: payload.title,
-      }),
-    });
-
-    navigate('/organizations');
   };
+
+  if (isEditMode && isLoading) {
+    return null;
+  }
 
   if (isEditMode && !currentTender) {
     return (
