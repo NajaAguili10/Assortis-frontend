@@ -133,6 +133,7 @@ export const tendersTranslations = {
     
     // Module Title
     'tenders.module.title': 'Matching Projects',
+    'tenders.module.dashboard': 'Dashboard',
     'tenders.module.subtitle': 'Manage matching opportunities, alerts, and actions',
     'tenders.title': 'Matching Projects',
     'tenders.subtitle': 'Manage matching opportunities, alerts, and actions',
@@ -972,6 +973,7 @@ export const tendersTranslations = {
     
     // Module Title
     'tenders.module.title': 'Matching Projects',
+    'tenders.module.dashboard': 'Tableau de bord',
     'tenders.module.subtitle': 'Gérer les opportunités de matching, alertes et actions',
     'tenders.title': 'Matching Projects',
     'tenders.subtitle': 'Gérer les opportunités de matching, alertes et actions',
@@ -1806,6 +1808,7 @@ export const tendersTranslations = {
     
     // Module Title
     'tenders.module.title': 'Matching Projects',
+    'tenders.module.dashboard': 'Panel',
     'tenders.module.subtitle': 'Gestiona oportunidades de matching, alertas y acciones',
     'tenders.title': 'Matching Projects',
     'tenders.subtitle': 'Gestiona oportunidades de matching, alertas y acciones',

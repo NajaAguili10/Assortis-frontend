@@ -31,6 +31,30 @@ import { ContactFormData } from '@app/types/contact.types';
 import { getIconByName } from '@app/utils/iconMapper';
 import { phoneCountryCodes } from '@app/utils/phoneCountryCodes';
 
+const fallbackPhoneCountry =
+  phoneCountryCodes.find((country) => country.isoCode === 'US') ?? phoneCountryCodes[0];
+
+const getBrowserPhoneCountry = () => {
+  const localeCandidates = [navigator.language, ...(navigator.languages ?? [])].filter(Boolean);
+
+  for (const locale of localeCandidates) {
+    const region = locale
+      .replace('_', '-')
+      .split('-')
+      .find((part) => /^[A-Za-z]{2}$/.test(part) && part.length === 2);
+
+    const matchedCountry = phoneCountryCodes.find(
+      (country) => country.isoCode === region?.toUpperCase(),
+    );
+
+    if (matchedCountry) {
+      return matchedCountry;
+    }
+  }
+
+  return fallbackPhoneCountry;
+};
+
 export default function Contact() {
   const { t, language } = useLanguage();
   const { addHistoryEntry } = useAssistanceHistory();
@@ -38,9 +62,7 @@ export default function Contact() {
   
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [selectedCountryCode, setSelectedCountryCode] = useState(
-    phoneCountryCodes.find((country) => country.isoCode === 'TN') ?? phoneCountryCodes[0],
-  );
+  const [selectedCountryCode, setSelectedCountryCode] = useState(getBrowserPhoneCountry);
   const [phoneNumber, setPhoneNumber] = useState('');
 
   const [formData, setFormData] = useState<ContactFormData>({
@@ -62,7 +84,7 @@ export default function Contact() {
     if (!content) return;
 
     // Validation
-    if (!formData.fullName || !formData.email || !formData.subject || !formData.message) {
+    if (!formData.fullName.trim() || !formData.email.trim() || !formData.subject.trim() || !formData.message.trim()) {
       toast.error(content.form.errorMessage[language]);
       return;
     }
@@ -99,20 +121,22 @@ export default function Contact() {
         setFormData({
           fullName: '',
           email: '',
-          countryCallingCode: phoneCountryCodes.find((country) => country.isoCode === 'TN')?.dialCode ?? '+216',
+          countryCallingCode: getBrowserPhoneCountry().dialCode,
           phone: '',
           subject: '',
           message: '',
         });
-        setSelectedCountryCode(
-          phoneCountryCodes.find((country) => country.isoCode === 'TN') ?? phoneCountryCodes[0],
-        );
+        setSelectedCountryCode(getBrowserPhoneCountry());
         setPhoneNumber('');
         setSubmitted(false);
       }, 3000);
-    } catch (err) {
+    } catch (err: any) {
       setSubmitting(false);
-      toast.error(content.form.errorMessage[language]);
+      toast.error(err?.message || (language === 'fr'
+        ? 'Une erreur est survenue lors de l’envoi du message'
+        : language === 'es'
+          ? 'Se produjo un error al enviar el mensaje'
+          : 'An error occurred while sending your message'));
     }
   };
 

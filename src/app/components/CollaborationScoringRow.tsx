@@ -8,7 +8,7 @@ import {
   ContractorScoreInputDTO,
 } from '@app/modules/expert/types/expert-projects-scoring.dto';
 import { CalendarDays, Save, SquarePen } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 interface CollaborationScoringRowProps {
   collaborationId: string;
@@ -19,7 +19,7 @@ interface CollaborationScoringRowProps {
   score?: ContractorScoreInputDTO;
   missingEvaluation: boolean;
   recentlyScored: boolean;
-  onSave: (collaborationId: string, score: ContractorScoreInputDTO) => void;
+  onSave: (collaborationId: string, score: ContractorScoreInputDTO) => Promise<void>;
 }
 
 const getInitialScores = (score?: ContractorScoreInputDTO): ContractorScoreInputDTO => ({
@@ -45,6 +45,13 @@ export function CollaborationScoringRow({
   const { t } = useLanguage();
   const [isEditing, setIsEditing] = useState(missingEvaluation);
   const [form, setForm] = useState<ContractorScoreInputDTO>(getInitialScores(score));
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setForm(getInitialScores(score));
+    }
+  }, [isEditing, score]);
 
   const categoryConfig: Array<{ key: keyof ContractorScoreInputDTO; labelKey: string }> = [
     { key: 'financialPackageFairness', labelKey: 'projects.scoring.categories.financialPackageFairness' },
@@ -66,12 +73,18 @@ export function CollaborationScoringRow({
     setForm((prev) => ({ ...prev, [key]: safeValue }));
   };
 
-  const handleSave = () => {
-    onSave(collaborationId, form);
-    setIsEditing(false);
+  const handleSave = async () => {
+    setIsSubmitting(true);
+    try {
+      await onSave(collaborationId, form);
+      setIsEditing(false);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCancel = () => {
+    if (isSubmitting) return;
     setForm(getInitialScores(score));
     setIsEditing(false);
   };
@@ -121,14 +134,14 @@ export function CollaborationScoringRow({
                 max={10}
                 step={1}
                 onValueChange={(value) => setCategoryValue(category.key, value[0] ?? 1)}
-                disabled={!isEditing}
+                disabled={!isEditing || isSubmitting}
               />
               <Input
                 type="number"
                 min={1}
                 max={10}
                 value={form[category.key]}
-                disabled={!isEditing}
+                disabled={!isEditing || isSubmitting}
                 onChange={(event) => setCategoryValue(category.key, Number(event.target.value))}
               />
             </div>
@@ -138,16 +151,16 @@ export function CollaborationScoringRow({
         <div className="flex items-center justify-end gap-2 pt-2">
           {isEditing ? (
             <>
-              <Button variant="outline" onClick={handleCancel}>
+              <Button variant="outline" onClick={handleCancel} disabled={isSubmitting}>
                 {t('projects.scoring.actions.cancel')}
               </Button>
-              <Button onClick={handleSave}>
+              <Button onClick={handleSave} disabled={isSubmitting}>
                 <Save className="h-4 w-4 mr-2" />
                 {t('projects.scoring.actions.save')}
               </Button>
             </>
           ) : (
-            <Button variant="outline" onClick={() => setIsEditing(true)}>
+            <Button variant="outline" onClick={() => setIsEditing(true)} disabled={isSubmitting}>
               <SquarePen className="h-4 w-4 mr-2" />
               {t('projects.scoring.actions.edit')}
             </Button>
