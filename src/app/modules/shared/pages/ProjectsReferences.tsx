@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { enUS, es, fr } from 'date-fns/locale';
-import { ArrowDown, ArrowUp, ArrowUpDown, Search, Download, FileText, Eye, Pencil } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Search, Download, FileText, Eye, Pencil, Loader2, TriangleAlert } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from '@app/contexts/LanguageContext';
 import { ProjectReferenceFicheModal } from '@app/components/ProjectReferenceFicheModal';
@@ -21,6 +21,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tool
 import {
   CountryEnum,
   FundingAgencyEnum,
+  MatchingAlertCategoryEnum,
+  NoticeTypeEnum,
+  ProcurementTypeEnum,
   RegionEnum,
   REGION_COUNTRY_MAP,
   SectorEnum,
@@ -30,6 +33,12 @@ import {
 } from '@app/types/tender.dto';
 import { ProjectReferenceFicheDTO, ProjectReferenceFicheModalMode, ProjectReferenceValidationState } from '@app/types/project-reference-fiche.dto';
 import { getLocalizedCountryName } from '@app/utils/country-translator';
+import { useOrganizationProjectReferences } from '@app/modules/organization/hooks/useOrganizationProjectReferences';
+import {
+  OrganizationProjectReferenceDTO,
+  OrganizationProjectReferenceFormValues,
+} from '@app/modules/organization/types/organizationProjectReference.dto';
+import { toast } from 'sonner';
 
 type StatusFilter = 'ongoing' | 'past' | 'all';
 type SortField = 'organization' | 'location' | 'title' | 'period' | 'budget';
@@ -50,130 +59,73 @@ const parseIsoDate = (value?: string): Date | undefined => {
   return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 };
 
-// Mock project references data for ongoing and past projects
-const mockProjectReferences: ProjectReferenceRow[] = [
-  {
-    id: 'ref-1',
-    title: 'Health Infrastructure Development',
-    referenceNumber: 'PROJ-2024-001',
-    organizationName: 'WHO',
-    country: CountryEnum.KENYA,
+const mapReferenceToRow = (reference: OrganizationProjectReferenceDTO): ProjectReferenceRow => {
+  const publishedDate = parseIsoDate(reference.startDate);
+  const projectEndDate = parseIsoDate(reference.endDate);
+  const status = reference.status === 'verified' ? 'past' : 'ongoing';
+  const referenceState: ProjectReferenceValidationState = reference.status === 'verified' ? 'valid' : 'notVerified';
+
+  return {
+    id: reference.id,
+    title: reference.title,
+    referenceNumber: reference.referenceNumber || reference.id,
+    organizationName: reference.client || '-',
+    country: reference.country,
     isMultiCountry: false,
-    region: RegionEnum.AFRICA,
-    sectors: [SectorEnum.HEALTH],
-    subsectors: [],
-    budget: { amount: 500000, currency: 'USD', formatted: '$500,000' },
-    publishedDate: new Date('2023-01-15'),
-    deadline: new Date('2024-12-31'),
-    status: 'ongoing' as const,
-    alertCategory: 'PROJECTS' as any,
-    procurementType: 'SERVICES' as any,
-    noticeType: 'PROJECT_NOTICE' as any,
-    fundingAgency: FundingAgencyEnum.WORLD_BANK,
-    mostRelevantPartnersCount: 3,
-    otherPossiblePartnersCount: 7,
-    projectEndDate: new Date('2024-12-31'),
-    referenceState: 'notVerified',
-  },
-  {
-    id: 'ref-2',
-    title: 'Education Quality Improvement',
-    referenceNumber: 'PROJ-2023-005',
-    organizationName: 'UNESCO',
-    country: CountryEnum.MALI,
-    isMultiCountry: false,
-    region: RegionEnum.AFRICA,
-    sectors: [SectorEnum.EDUCATION],
-    subsectors: [],
-    budget: { amount: 250000, currency: 'EUR', formatted: '€250,000' },
-    publishedDate: new Date('2022-06-01'),
-    deadline: new Date('2023-12-31'),
-    status: 'past' as const,
-    alertCategory: 'PROJECTS' as any,
-    procurementType: 'SERVICES' as any,
-    noticeType: 'PROJECT_NOTICE' as any,
-    fundingAgency: FundingAgencyEnum.EUROPEAN_UNION,
-    mostRelevantPartnersCount: 2,
-    otherPossiblePartnersCount: 5,
-    projectEndDate: new Date('2023-12-31'),
-    referenceState: 'valid',
-  },
-  {
-    id: 'ref-3',
-    title: 'Water & Sanitation Program',
-    referenceNumber: 'PROJ-2024-003',
-    organizationName: 'UNICEF',
-    country: CountryEnum.UGANDA,
-    isMultiCountry: false,
-    region: RegionEnum.AFRICA,
-    sectors: [SectorEnum.WATER_AND_SANITATION],
-    subsectors: [],
-    budget: { amount: 750000, currency: 'USD', formatted: '$750,000' },
-    publishedDate: new Date('2023-09-01'),
-    deadline: new Date('2025-08-31'),
-    status: 'ongoing' as const,
-    alertCategory: 'PROJECTS' as any,
-    procurementType: 'WORKS' as any,
-    noticeType: 'PROJECT_NOTICE' as any,
-    fundingAgency: FundingAgencyEnum.AFRICAN_DEVELOPMENT_BANK,
-    mostRelevantPartnersCount: 4,
-    otherPossiblePartnersCount: 8,
-    projectEndDate: new Date('2025-08-31'),
-    referenceState: 'notVerified',
-  },
-  {
-    id: 'ref-4',
-    title: 'Climate Resilience Initiative',
-    referenceNumber: 'PROJ-2022-002',
-    organizationName: 'UNEP',
-    country: CountryEnum.SENEGAL,
-    isMultiCountry: false,
-    region: RegionEnum.AFRICA,
-    sectors: [SectorEnum.ENVIRONMENT],
-    subsectors: [],
-    budget: { amount: 600000, currency: 'USD', formatted: '$600,000' },
-    publishedDate: new Date('2021-03-15'),
-    deadline: new Date('2023-02-28'),
-    status: 'past' as const,
-    alertCategory: 'PROJECTS' as any,
-    procurementType: 'SERVICES' as any,
-    noticeType: 'PROJECT_NOTICE' as any,
-    fundingAgency: FundingAgencyEnum.GLOBAL_ENVIRONMENT_FACILITY,
-    mostRelevantPartnersCount: 3,
-    otherPossiblePartnersCount: 6,
-    projectEndDate: new Date('2023-02-28'),
-    referenceState: 'valid',
-  },
-  {
-    id: 'ref-5',
-    title: 'Agriculture Productivity Enhancement',
-    referenceNumber: 'PROJ-2024-002',
-    organizationName: 'FAO',
-    country: CountryEnum.GHANA,
-    isMultiCountry: false,
-    region: RegionEnum.AFRICA,
-    sectors: [SectorEnum.AGRICULTURE],
-    subsectors: [],
-    budget: { amount: 450000, currency: 'USD', formatted: '$450,000' },
-    publishedDate: new Date('2023-11-01'),
-    deadline: new Date('2025-10-31'),
-    status: 'ongoing' as const,
-    alertCategory: 'PROJECTS' as any,
-    procurementType: 'SERVICES' as any,
-    noticeType: 'PROJECT_NOTICE' as any,
-    fundingAgency: FundingAgencyEnum.WORLD_BANK,
-    mostRelevantPartnersCount: 2,
-    otherPossiblePartnersCount: 5,
-    projectEndDate: new Date('2025-10-31'),
-    referenceState: 'notVerified',
-  },
-];
+    region: reference.region,
+    sectors: reference.sector ? [reference.sector] : [],
+    subsectors: reference.subSector ? [reference.subSector] : [],
+    budget: { amount: 0, currency: 'USD', formatted: '-' },
+    publishedDate,
+    createdAt: publishedDate || new Date(),
+    deadline: projectEndDate || publishedDate || new Date(),
+    daysRemaining: 0,
+    status: status as ProjectReferenceRow['status'],
+    alertCategory: MatchingAlertCategoryEnum.PROJECTS,
+    procurementType: ProcurementTypeEnum.SERVICES,
+    noticeType: NoticeTypeEnum.PROJECT_NOTICE,
+    fundingAgency: reference.donor,
+    mostRelevantPartnersCount: 0,
+    otherPossiblePartnersCount: 0,
+    projectEndDate,
+    description: reference.description,
+    referenceState,
+  } as ProjectReferenceRow;
+};
+
+const mapFicheToReferenceFormValues = (
+  source: OrganizationProjectReferenceDTO,
+  fiche: ProjectReferenceFicheDTO,
+): OrganizationProjectReferenceFormValues => ({
+  referenceNumber: fiche.referenceNumber,
+  title: fiche.title,
+  summary: source.summary,
+  description: fiche.description,
+  country: fiche.country,
+  region: source.region,
+  sector: fiche.sector,
+  subSector: fiche.subSector,
+  client: fiche.organizationName,
+  donor: fiche.donor,
+  startDate: fiche.startDate,
+  endDate: fiche.endDate,
+  status: fiche.referenceState === 'valid' ? 'verified' : 'notVerified',
+  referenceType: source.referenceType,
+  url: source.url,
+  documents: source.documents,
+});
 
 export default function ProjectsReferences() {
   const { t, language } = useTranslation();
   const navigate = useNavigate();
+  const {
+    references,
+    isLoading,
+    error,
+    refreshReferences,
+    updateReference,
+  } = useOrganizationProjectReferences();
 
-  const [projectReferences, setProjectReferences] = useState<ProjectReferenceRow[]>(mockProjectReferences);
   const [isFicheModalOpen, setIsFicheModalOpen] = useState(false);
   const [isGenerateReferenceOpen, setIsGenerateReferenceOpen] = useState(false);
   const [ficheMode, setFicheMode] = useState<ProjectReferenceFicheModalMode>('view');
@@ -194,6 +146,11 @@ export default function ProjectsReferences() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   const dateLocale = language === 'fr' ? fr : language === 'es' ? es : enUS;
+  const projectReferences = useMemo(() => references.map(mapReferenceToRow), [references]);
+  const referencesById = useMemo(
+    () => new Map(references.map((reference) => [reference.id, reference])),
+    [references],
+  );
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -345,11 +302,6 @@ export default function ProjectsReferences() {
     return 'border-amber-200 bg-amber-50 text-amber-700';
   };
 
-  const selectedReference = useMemo(() => {
-    if (!selectedReferenceId) return null;
-    return projectReferences.find(item => item.id === selectedReferenceId) || null;
-  }, [projectReferences, selectedReferenceId]);
-
   const buildFicheFromRow = (row: ProjectReferenceRow): ProjectReferenceFicheDTO => ({
     id: row.id,
     referenceNumber: row.referenceNumber,
@@ -369,9 +321,11 @@ export default function ProjectsReferences() {
   });
 
   const activeFiche = useMemo(() => {
-    if (!selectedReference) return null;
-    return buildFicheFromRow(selectedReference);
-  }, [selectedReference]);
+    if (!selectedReferenceId) return null;
+    const row = projectReferences.find((item) => item.id === selectedReferenceId);
+    if (!row) return null;
+    return buildFicheFromRow(row);
+  }, [projectReferences, selectedReferenceId]);
 
   const handleOpenFiche = (row: ProjectReferenceRow, mode: ProjectReferenceFicheModalMode) => {
     setSelectedReferenceId(row.id);
@@ -379,31 +333,20 @@ export default function ProjectsReferences() {
     setIsFicheModalOpen(true);
   };
 
-  const handleSaveFiche = (updated: ProjectReferenceFicheDTO) => {
-    setProjectReferences(prev => prev.map(row => {
-      if (row.id !== updated.id) return row;
+  const handleSaveFiche = async (updated: ProjectReferenceFicheDTO) => {
+    const source = referencesById.get(updated.id);
+    if (!source) {
+      toast.error('Unable to find selected project reference');
+      return;
+    }
 
-      return {
-        ...row,
-        title: updated.title,
-        description: updated.description,
-        referenceNumber: updated.referenceNumber,
-        organizationName: updated.organizationName,
-        sectors: [updated.sector],
-        subsectors: updated.subSector ? [updated.subSector] : [],
-        country: updated.country,
-        fundingAgency: updated.donor,
-        budget: {
-          ...row.budget,
-          formatted: updated.budgetFormatted || row.budget.formatted,
-        },
-        publishedDate: parseIsoDate(updated.startDate) || row.publishedDate,
-        projectEndDate: parseIsoDate(updated.endDate) || row.projectEndDate,
-        deadline: parseIsoDate(updated.deadline) || row.deadline,
-        status: updated.projectStatus,
-        referenceState: updated.referenceState,
-      };
-    }));
+    try {
+      await updateReference(updated.id, mapFicheToReferenceFormValues(source, updated));
+      toast.success(t('organizations.projectReferences.updateSuccess'));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update project reference';
+      toast.error(message);
+    }
   };
 
   const handleOpenReferenceGeneration = (row: ProjectReferenceRow) => {
@@ -570,6 +513,24 @@ export default function ProjectsReferences() {
             )}
           </div>
 
+          {isLoading && (
+            <div className="bg-white rounded-xl border border-gray-200 p-10 text-center text-gray-600 shadow-sm">
+              <Loader2 className="h-6 w-6 animate-spin mx-auto mb-3" />
+              <p>{t('common.loading')}</p>
+            </div>
+          )}
+
+          {!isLoading && error && (
+            <div className="bg-white rounded-xl border border-red-200 p-8 text-center text-red-700 shadow-sm">
+              <TriangleAlert className="h-6 w-6 mx-auto mb-3" />
+              <p className="font-medium mb-3">{error}</p>
+              <Button type="button" variant="outline" onClick={refreshReferences}>
+                {t('error.retry')}
+              </Button>
+            </div>
+          )}
+
+          {!isLoading && !error && (
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <div className="w-full">
@@ -688,6 +649,7 @@ export default function ProjectsReferences() {
               </div>
             </div>
           </div>
+          )}
 
           <ProjectReferenceFicheModal
             open={isFicheModalOpen}

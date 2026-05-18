@@ -179,6 +179,10 @@ export const canAccessTasks = (accountType?: AccountType): boolean => {
   return ['organization', 'expert', 'admin'].includes(accountType || '');
 };
 
+export const canAccessProjectsOrganizationsScoring = (accountType?: AccountType): boolean => {
+  return ['organization', 'admin'].includes(accountType || '');
+};
+
 export const canAccessTeamMembers = (accountType?: AccountType): boolean => {
   return ['organization', 'admin'].includes(accountType || '');
 };
