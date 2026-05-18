@@ -32,17 +32,11 @@ export function RegionCountryFilter({
   const [activeRegion, setActiveRegion] = React.useState<string | null>(selectedRegions[0] || null);
   const [showAllRegions, setShowAllRegions] = React.useState(false);
   const totalSelected = selectedCountries.length;
-  const resolvedRegionCountryMap = regionCountryMap || (REGION_COUNTRY_MAP as unknown as Record<string, string[]>);
-  const allRegions = React.useMemo(() => {
-    const fallbackRegions = Object.values(TenderRegionEnum);
-    const configuredRegions = Object.keys(resolvedRegionCountryMap);
-    return configuredRegions.length > 0 ? configuredRegions : fallbackRegions;
-  }, [resolvedRegionCountryMap]);
   const resolveRegionLabel = React.useCallback((region: string) => {
-    return getRegionLabel?.(region) || t(`regions.${region}`);
-  }, [getRegionLabel, t]);
+    return t(`regions.${region}`);
+  }, [t]);
 
-  const handleRegionClick = (region: RegionEnum) => {
+  const handleRegionClick = (region: string) => {
     setActiveRegion(prev => prev === region ? null : region);
     onSelectRegion({ name: region } as RegionDTO);
   };
@@ -74,16 +68,16 @@ export function RegionCountryFilter({
   }, [activeRegion, allowedCountries, dynamicRegionCountryMap]);
 
   // Limit regions display to 4 by default
-  const allRegions = React.useMemo(() => {
+  const visibleRegions = React.useMemo(() => {
     const currentMap = dynamicRegionCountryMap || REGION_COUNTRY_MAP;
-    const regions = dynamicRegionCountryMap ? Object.keys(dynamicRegionCountryMap) : Object.values(RegionEnum);
+    const regions = dynamicRegionCountryMap ? Object.keys(dynamicRegionCountryMap) : Object.values(TenderRegionEnum);
     
-    if (!allowedCountries) return regions as RegionEnum[];
+    if (!allowedCountries) return regions as string[];
     
     return (regions as string[]).filter(region => {
       const regionCountryCodes = currentMap[region as any] || [];
       return allowedCountries.some(c => regionCountryCodes.includes(c.code as any));
-    }) as RegionEnum[];
+    });
   }, [allowedCountries, dynamicRegionCountryMap]);
 
   const displayedRegions = showAllRegions ? visibleRegions : visibleRegions.slice(0, 4);
