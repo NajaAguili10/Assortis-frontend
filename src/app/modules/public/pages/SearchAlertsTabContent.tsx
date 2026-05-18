@@ -1272,7 +1272,7 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
                 checked={notIncludedInMembershipSubscription}
                 onChange={event => setNotIncludedInMembershipSubscription(event.target.checked)}
               />
-              <span>Not included in the membership subscription</span>
+              <span>{language === 'fr' ? "Non inclus dans l'abonnement d'adhésion" : 'Not included in the membership subscription'}</span>
             </label>
 
             <div className="flex items-center gap-3 py-1">

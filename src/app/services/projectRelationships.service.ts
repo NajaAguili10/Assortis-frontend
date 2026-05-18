@@ -21,7 +21,7 @@ export interface ProjectRelationships {
   relatedContracts: EarlyIntelligenceRelatedItem[];
 }
 
-const normalizePhase = (value?: string | null) => (value || '').trim().toLowerCase();
+const normalizePhase = (value?: string | null) => (value || '').trim().toLowerCase().replace(/[_-]+/g, ' ');
 
 export const isEarlyIntelligencePhase = (...values: Array<string | undefined | null>) =>
   values.some(value => {
