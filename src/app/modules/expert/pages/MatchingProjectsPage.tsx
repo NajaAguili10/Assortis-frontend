@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from '@app/components/ui/select';
 import { useMatchingOpportunities } from '@app/modules/expert/hooks/useMatchingOpportunities';
+import { usePipeline } from '@app/modules/expert/hooks/usePipeline';
 import {
   MatchingProjectsFilterDTO,
   MatchingVacancyFiltersDTO,
@@ -40,6 +41,7 @@ import {
   PUBLIC_VISIBLE_ITEM_LIMIT,
   getMatchingProjectsAccessMode,
 } from '@app/services/permissions.service';
+import { toast } from 'sonner';
 
 const OPPORTUNITY_TYPE_OPTIONS = [
   { value: 'ALL', labelKey: 'matching-opportunities.projects.filter.all-categories' },
@@ -74,6 +76,36 @@ const TYPE_PARAM_MAP: Record<string, OpportunityTypeEnum | 'ALL'> = {
   'in-house': OpportunityTypeEnum.IN_HOUSE_VACANCY,
 };
 
+function readSavedProjectIds(): string[] {
+  try {
+    const stored = localStorage.getItem('projects.favouriteIds');
+    if (!stored) return [];
+
+    const parsed = JSON.parse(stored);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((value): value is string => typeof value === 'string');
+    }
+
+    if (parsed && typeof parsed === 'object') {
+      return Object.entries(parsed)
+        .filter(([, isSaved]) => Boolean(isSaved))
+        .map(([projectId]) => projectId);
+    }
+  } catch {
+    return [];
+  }
+
+  return [];
+}
+
+function writeSavedProjectIds(projectIds: string[]) {
+  try {
+    localStorage.setItem('projects.favouriteIds', JSON.stringify(projectIds));
+  } catch {
+    // Ignore storage errors; pipeline state remains available in memory.
+  }
+}
+
 function toggleInArray<T>(items: T[], value: T): T[] {
   return items.includes(value) ? items.filter(item => item !== value) : [...items, value];
 }
@@ -106,6 +138,8 @@ export default function MatchingProjectsPage() {
   const isSubscribed = accessMode === 'full';
   const isPreviewMode = accessMode === 'preview';
   const [isUpgradePromptOpen, setIsUpgradePromptOpen] = useState(false);
+  const [favouriteIds, setFavouriteIds] = useState<Set<string>>(() => new Set(readSavedProjectIds()));
+  const { addToPipeline, isInPipeline } = usePipeline();
   const {
     opportunities,
     saveOpportunity,
@@ -120,7 +154,7 @@ export default function MatchingProjectsPage() {
     const typeParam = searchParams.get('type');
     return {
       ...DEFAULT_FILTERS,
-      category: typeParam ? TYPE_PARAM_MAP[typeParam] ?? 'ALL' : 'ALL',
+      category: typeParam ? TYPE_PARAM_MAP[typeParam] ?? OpportunityTypeEnum.OPEN_PROJECT : OpportunityTypeEnum.OPEN_PROJECT,
     };
   });
   const [showCustomDate, setShowCustomDate] = useState(false);
@@ -232,6 +266,40 @@ export default function MatchingProjectsPage() {
     }
 
     navigate(`/matching-opportunities/opportunities/project/${opportunityId}`);
+  };
+
+  const handleAddToMyProjects = (opportunityId: string) => {
+    const opportunity = opportunities.find(item => item.id === opportunityId);
+    if (!opportunity || opportunity.type !== OpportunityTypeEnum.OPEN_PROJECT) return;
+
+    if (favouriteIds.has(opportunity.id) && isInPipeline(opportunity.id)) {
+      toast.success('Project is already in My Projects');
+      return;
+    }
+
+    setFavouriteIds(prev => {
+      const next = new Set(prev);
+      next.add(opportunity.id);
+      writeSavedProjectIds(Array.from(next));
+      return next;
+    });
+
+    addToPipeline(opportunity.id, undefined, undefined, 50, {
+      tenderTitle: opportunity.title,
+      tenderReference: opportunity.id,
+      organizationName: opportunity.organization || opportunity.donor,
+      country: opportunity.country,
+      donor: opportunity.donor,
+      status: opportunity.status,
+      expectedValue: opportunity.budget || opportunity.contractValue || 0,
+      currency: opportunity.currency || 'USD',
+      deadline: opportunity.deadline.toISOString(),
+      sectors: [opportunity.sector],
+      matchScore: opportunity.relevanceScore,
+    });
+
+    saveOpportunity(opportunity.id);
+    toast.success('Project added to My Projects as EOI Preparation');
   };
 
   const dateRangeLabelKey: Record<MatchingProjectsFilterDTO['dateRange'], string> = {
@@ -616,6 +684,7 @@ export default function MatchingProjectsPage() {
                   onRemove={removeOpportunity}
                   onApply={openDetail}
                   onExpressInterest={openDetail}
+                  onAddToMyProjects={opportunity.type === OpportunityTypeEnum.OPEN_PROJECT ? handleAddToMyProjects : undefined}
                   onNotInterested={dismissOpportunity}
                   onOrganizationClick={(organizationId) => navigate(`/organizations/${organizationId}`)}
                   previewMode={isPreviewMode}
