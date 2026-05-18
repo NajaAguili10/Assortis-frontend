@@ -38,7 +38,7 @@ export default function Projects() {
   const { t, language } = useLanguage();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { kpis, allProjects, filteredProjects, viewMode, setViewMode, updateFilters } = useProjects();
+  const { kpis, allProjects, filteredProjects = [], viewMode, setViewMode, updateFilters } = useProjects();
   
   // Vérifier les permissions d'accès
   const hasAccess = hasProjectsAccess(user?.accountType);
@@ -54,7 +54,7 @@ export default function Projects() {
 
   // Use filteredProjects (viewMode + search applied in hook)
   const CURRENT_USER_ID = 'user-1';
-  const userCreatedProjects = filteredProjects;
+  const userCreatedProjects = Array.isArray(filteredProjects) ? filteredProjects : [];
   const now = Date.now();
 
   const handleSearchChange = (value: string) => {
@@ -98,7 +98,7 @@ export default function Projects() {
       return true;
     }
 
-    const endDate = new Date(project.timeline.endDate).getTime();
+    const endDate = new Date(project.timeline?.endDate || project.updatedDate || project.createdDate).getTime();
     return Number.isFinite(endDate) && endDate < now;
   };
 
@@ -353,9 +353,9 @@ export default function Projects() {
                                 </div>
                                 <div className="leading-snug text-gray-700">{location}</div>
                                 <div className="leading-snug text-gray-700">{project.leadOrganization}</div>
-                                <div className="font-medium text-gray-700">{formatProjectBudget(project.budget.total, project.budget.currency)}</div>
+                                <div className="font-medium text-gray-700">{formatProjectBudget((project as any).budget?.total ?? 0, (project as any).budget?.currency ?? 'USD')}</div>
                                 <div className="text-gray-700">{formatProjectDate(project.createdDate)}</div>
-                                <div className="text-gray-700">{formatProjectDate(project.timeline.endDate)}</div>
+                                <div className="text-gray-700">{formatProjectDate(project.timeline?.endDate || project.updatedDate || project.createdDate)}</div>
                                 <div className="text-xs text-gray-600">
                                   {(project as typeof project & { createdBy?: string }).createdBy === CURRENT_USER_ID
                                     ? t('common.you')
@@ -426,8 +426,8 @@ export default function Projects() {
                                   </div>
                                   <div className="inline-flex items-center gap-2 rounded-md border border-sky-200 bg-sky-50 px-2.5 py-1">
                                     <span className="text-[11px] font-medium text-sky-700">{t('projects.stats.averageCompletion')}</span>
-                                    <span className="text-xs font-semibold text-sky-900">{project.timeline.completionPercentage}%</span>
-                                    {project.timeline.completionPercentage < 100 && (
+                                    <span className="text-xs font-semibold text-sky-900">{project.timeline?.completionPercentage ?? 0}%</span>
+                                    {(project.timeline?.completionPercentage ?? 0) < 100 && (
                                       <button
                                         type="button"
                                         className="text-[11px] font-semibold text-blue-600 underline underline-offset-2 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"

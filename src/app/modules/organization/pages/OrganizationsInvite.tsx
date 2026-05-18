@@ -1,4 +1,4 @@
-﻿import { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { useEffect } from 'react';
 import { useLanguage } from '@app/contexts/LanguageContext';
@@ -89,7 +89,8 @@ export default function OrganizationsInvite() {
   const location = useLocation();
   const { addHistoryEntry } = useAssistanceHistory();
   const { pipelineItems } = usePipeline();
-  const { allTenders } = useTenders();
+  const { tenders } = useTenders();
+  const allTenders = tenders?.data || [];
   const { allToRs } = useToRs();
   
   // Detect which module we're in based on the URL path

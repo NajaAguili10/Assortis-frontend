@@ -13,6 +13,7 @@ import { Badge } from '@app/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@app/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@app/components/ui/tabs';
 import { Separator } from '@app/components/ui/separator';
+import { Progress } from '@app/components/ui/progress';
 import { slugifyPartnerName } from '@app/services/organizationPartnerContracts.service';
 
 import { useOrganizations } from '@app/modules/organization/hooks/useOrganizations';

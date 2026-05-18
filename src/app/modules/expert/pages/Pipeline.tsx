@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { PageBanner } from '@app/components/PageBanner';
@@ -206,7 +206,8 @@ export default function Pipeline() {
   } = usePipeline();
   
   // Use tenders hook to get tender details
-  const { allTenders } = useTenders();
+  const { tenders } = useTenders();
+  const allTenders = tenders?.data || [];
 
   // Use ToRs hook to get ToRs details
   const { allToRs } = useToRs();
@@ -999,15 +1000,6 @@ export default function Pipeline() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-8 px-2"
-                                onClick={() => handleUpdateProbability(tender)}
-                                title="Update probability"
-                              >
-                                <Percent className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
                                 className="h-8 px-2 text-gray-600 hover:text-red-600 hover:bg-red-50"
                                 onClick={() => handleMarkResult(tender, 'discarded')}
                                 title="Mark as discarded"
@@ -1080,40 +1072,6 @@ export default function Pipeline() {
                                 ))}
                               </SelectContent>
                             </Select>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleUpdateProbability(tender)}
-                            >
-                              <Percent className="w-4 h-4 mr-1" />
-                              {t('pipeline.actions.updateProbability')}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleAddNotes(tender)}
-                            >
-                              <Edit3 className="w-4 h-4 mr-1" />
-                              {t('pipeline.actions.addNotes')}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleMarkResult(tender, 'won')}
-                              className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                            >
-                              <Trophy className="w-4 h-4 mr-1" />
-                              {t('pipeline.actions.markAsWon')}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleMarkResult(tender, 'lost')}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <XCircle className="w-4 h-4 mr-1" />
-                              {t('pipeline.actions.markAsLost')}
-                            </Button>
                           </>
                         )}
                         

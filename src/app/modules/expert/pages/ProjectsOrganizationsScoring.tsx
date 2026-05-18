@@ -8,6 +8,7 @@ import { StatCard } from '@app/components/StatCard';
 import { useAuth } from '@app/contexts/AuthContext';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useExpertProjectsScoring } from '@app/modules/expert/hooks/useExpertProjectsScoring';
+import { canAccessProjectsOrganizationsScoring } from '@app/services/permissions.service';
 import { toast } from 'sonner';
 import { ClipboardList, Star, Target, TriangleAlert } from 'lucide-react';
 
@@ -23,7 +24,7 @@ export default function ProjectsOrganizationsScoring() {
     saveCollaborationScore,
   } = useExpertProjectsScoring();
 
-  const hasAccess = user?.accountType === 'expert';
+  const hasAccess = canAccessProjectsOrganizationsScoring(user?.accountType);
 
   return (
     <div className="min-h-screen">
@@ -88,9 +89,15 @@ export default function ProjectsOrganizationsScoring() {
                     score={row.score}
                     missingEvaluation={row.missingEvaluation}
                     recentlyScored={row.recentlyScored}
-                    onSave={(collaborationId, score) => {
-                      saveCollaborationScore(collaborationId, score);
-                      toast.success(t('projects.scoring.saved'));
+                    onSave={async (collaborationId, score) => {
+                      try {
+                        await saveCollaborationScore(collaborationId, score);
+                        toast.success(t('projects.scoring.saved'));
+                      } catch (error) {
+                        const message = error instanceof Error ? error.message : 'Failed to save score';
+                        toast.error(message);
+                        throw error;
+                      }
                     }}
                   />
                 ))}

@@ -782,7 +782,7 @@ export default function ProjectDetail() {
     updatedDate: '2024-02-20',
   };
 
-  const project = dynamicProject || PROJECT_MOCK;
+  const project = dynamicProject ?? PROJECT_MOCK;
   const pipelineItem = getPipelineItem(project.id || '');
   const currentPipelineStage = pipelineItem?.stage || 'eoi_preparation';
   const currentPipelineStageDefinition = PIPELINE_STAGES.find((stage) => stage.id === currentPipelineStage);
@@ -927,11 +927,18 @@ export default function ProjectDetail() {
     project.description ||
     project.objectives ||
     'No project description is available for this notice.';
+  const noticeOverviewDescription = [
+    noticeDescription,
+    `Overview: ${project.title} is led by ${project.leadOrganization || 'the lead organization'} in ${project.country || 'the selected country'}.`,
+    `Budget: ${project.budget.total.toLocaleString()} ${project.budget.currency}; spent: ${project.budget.spent.toLocaleString()} ${project.budget.currency}; remaining: ${project.budget.remaining.toLocaleString()} ${project.budget.currency}.`,
+    `Progress: ${project.tasksCompleted}/${project.totalTasks} tasks completed and ${project.timeline.completionPercentage}% timeline completion.`,
+  ].filter(Boolean).join(' ');
   const isEarlyIntelligenceProject = isEarlyIntelligencePhase(
     project.phase,
     project.noticeType,
-    activeLifecycleDoc.sectionLabel,
-    activeLifecycleDoc.itemLabel
+    project.projectSource,
+    project.source,
+    project.type
   );
 
   const suggestedExperts: SuggestedExpert[] = [
@@ -2091,7 +2098,7 @@ export default function ProjectDetail() {
                     onClick={() => navigate(`/projects/${project.id || id}/related-projects-contracts`)}
                   >
                     <Briefcase className="mr-2 h-4 w-4" />
-                    Related Projects & Contracts
+                    Projets et contrats associés
                   </Button>
                 )}
               </div>
@@ -2175,7 +2182,7 @@ export default function ProjectDetail() {
                               <FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />
                               Full notice description
                             </p>
-                            <p className="mt-3 max-w-5xl text-base leading-8 text-[#1E293B]">{noticeDescription}</p>
+                            <p className="mt-3 max-w-5xl text-base leading-8 text-[#1E293B]">{noticeOverviewDescription}</p>
                           </div>
                           {isEarlyIntelligenceProject && (
                             <Button
@@ -2184,7 +2191,7 @@ export default function ProjectDetail() {
                               onClick={() => navigate(`/projects/${project.id || id}/related-projects-contracts`)}
                             >
                               <Briefcase className="mr-2 h-4 w-4" />
-                              Related Projects & Contracts
+                              Projets et contrats associés
                             </Button>
                           )}
                         </div>
@@ -2210,60 +2217,6 @@ export default function ProjectDetail() {
                         </div>
                       </div>
 
-                      <div className="rounded-xl border border-[#4A5568]/15 bg-white p-5">
-                        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]">
-                              <Route className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />
-                              {t('projects.details.projectLifecycle')}
-                            </p>
-                            <p className="mt-1 text-sm text-muted-foreground">Current document: {activeLifecycleDoc.itemLabel}</p>
-                          </div>
-                          <Badge variant="outline" className="w-fit">{projectOpenClosedLabel}</Badge>
-                        </div>
-
-                        <div className="grid gap-3 lg:grid-cols-3">
-                          {lifecycleSections.map((section) => {
-                            const isActiveSection = section.items.some(item => item.id === activeLifecycleDocId);
-                            return (
-                              <div
-                                key={section.key}
-                                className={`rounded-lg border p-4 ${
-                                  isActiveSection ? 'border-[#E63462]/30 bg-[#FFF1F4]' : 'border-[#4A5568]/15 bg-[#F8FAFC]'
-                                }`}
-                              >
-                                <div className="mb-3 flex items-center justify-between gap-2">
-                                  <p className="text-sm font-semibold text-primary">{section.title}</p>
-                                  {isActiveSection && <Badge className="bg-[#E63462] text-white">Active</Badge>}
-                                </div>
-                                <div className="space-y-2">
-                                  {section.items.map(item => (
-                                    <button
-                                      key={item.id}
-                                      type="button"
-                                      aria-pressed={activeLifecycleDocId === item.id}
-                                      onClick={() => setActiveLifecycleDocId(item.id)}
-                                      className={`w-full rounded-md border px-3 py-2 text-left text-sm transition-colors ${
-                                        activeLifecycleDocId === item.id
-                                          ? 'border-[#E63462]/30 bg-white text-[#E63462]'
-                                          : 'border-transparent bg-white/70 text-[#4A5568] hover:border-[#4A5568]/15'
-                                      }`}
-                                    >
-                                      {item.itemLabel}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        <div className="mt-4 rounded-lg border border-[#4A5568]/15 bg-[#F8FAFC] p-4">
-                          <p className="text-xs capitalize tracking-[0.08em] text-muted-foreground">{activeLifecycleDoc.sectionLabel}</p>
-                          <h3 className="mt-1 text-base font-semibold text-primary">{activeLifecycleDoc.itemLabel}</h3>
-                          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{activeLifecycleDoc.description}</p>
-                        </div>
-                      </div>
                     </div>
                   </TabsContent>
 

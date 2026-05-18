@@ -35,9 +35,11 @@ import {
   Building2,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { ProjectStatusEnum, type ProjectFiltersDTO } from '@app/types/project.dto';
-import { buildOrganizationProfileSearchFields, savedSearchService, type SavedSearchAlertSettings } from '@app/services/savedSearchService';
+import { ProjectStatusEnum, ProjectPriorityEnum, type ProjectFiltersDTO } from '@app/types/project.dto';
+import { savedSearchService, type SavedSearchAlertSettings } from '@app/services/savedSearchService';
+import { projectService } from '@app/services/projectService';
 import { toast } from 'sonner';
+import { PUBLIC_VISIBLE_ITEM_LIMIT, isPublicAccount } from '@app/services/permissions.service';
 
 interface ProjectSavedPayload {
   searchQuery: string;
@@ -98,23 +100,43 @@ export default function SearchProjectsTabContent() {
   const [isSaveSearchDialogOpen, setIsSaveSearchDialogOpen] = useState(false);
   const [editingSavedSearch, setEditingSavedSearch] = useState<SavedSearchEntry<ProjectSavedPayload> | null>(null);
   const [savedSearches, setSavedSearches] = useState<SavedSearchEntry<ProjectSavedPayload>[]>([]);
+  const [isLoadingSavedSearches, setIsLoadingSavedSearches] = useState(false);
+  const isPublicPreview = isPublicAccount(user?.accountType);
+  const visibleProjects = isPublicPreview ? projects.data.slice(0, PUBLIC_VISIBLE_ITEM_LIMIT) : projects.data;
+  const isPublicLimitReached = isPublicPreview && projects.meta.totalItems > PUBLIC_VISIBLE_ITEM_LIMIT;
+  const membershipFilterLabel = language === 'fr'
+    ? "Non inclus dans l'abonnement d'adhésion"
+    : 'Not included in the membership subscription';
 
-  const readSavedSearches = (): SavedSearchEntry<ProjectSavedPayload>[] => savedSearchService
-    .list(user?.id, 'projects')
-    .filter((item) => !activeOrganizationProfile || item.organizationProfileId === activeOrganizationProfile.id)
-    .map((item) => ({
-      id: item.id,
-      label: item.name,
-      createdAt: item.created_at,
-      payload: item.filters as ProjectSavedPayload,
-      organizationProfileId: item.organizationProfileId,
-      organizationProfileName: item.organizationProfileName,
-      organizationProfileEmail: item.organizationProfileEmail,
-    }));
+  const loadSavedSearches = React.useCallback(async () => {
+    if (!user?.id) return;
+    setIsLoadingSavedSearches(true);
+    try {
+      const response: any = await projectService.getSavedSearches(Number(user.id));
+      console.log('API Response for saved searches:', response);
+      
+      const items = Array.isArray(response) ? response : (response?.data || []);
+      
+      const mapped = items.map((item: any) => ({
+        id: item?.id?.toString() || 'unknown',
+        label: item?.name || 'Unnamed search',
+        createdAt: item?.createdAt || new Date().toISOString(),
+        payload: (item?.payload || {}) as ProjectSavedPayload,
+      }));
+      
+      setSavedSearches(mapped);
+    } catch (err) {
+      console.error('Failed to load saved searches', err);
+    } finally {
+      setIsLoadingSavedSearches(false);
+    }
+  }, [user?.id]);
 
   useEffect(() => {
-    setSavedSearches(readSavedSearches());
-  }, [user?.id, activeOrganizationProfile?.id]);
+    if (user?.id) {
+      loadSavedSearches();
+    }
+  }, [user?.id, loadSavedSearches]);
 
   useEffect(() => {
     const q = (searchParams.get('q') || '').trim();
@@ -131,6 +153,7 @@ export default function SearchProjectsTabContent() {
   const handleClearFilters = () => {
     setSearchQuery('');
     setSelectedSectors([]);
+    setNotIncludedInMembershipSubscription(false);
     clearFilters();
   };
 
@@ -173,11 +196,15 @@ export default function SearchProjectsTabContent() {
       projectFilters.region?.length ? `Regions: ${projectFilters.region.length}` : '',
       projectFilters.minBudget !== undefined ? `Min budget: ${projectFilters.minBudget}` : '',
       projectFilters.maxBudget !== undefined ? `Max budget: ${projectFilters.maxBudget}` : '',
-      projectFilters.notIncludedInMembershipSubscription ? 'Not included in membership subscription' : '',
+      projectFilters.notIncludedInMembershipSubscription ? membershipFilterLabel : '',
     ].filter(Boolean);
   };
 
-  const formatList = (items?: string[]) => (items || []).map((item) => item.replace(/_/g, ' '));
+  const formatList = (items?: any[]) => (items || []).map((item) => {
+    if (typeof item === 'string') return item.replace(/_/g, ' ');
+    if (item && typeof item === 'object') return item.name || item.code || String(item);
+    return String(item);
+  });
 
   const buildReviewItemsFromPayload = (payload: ProjectSavedPayload): SavedSearchReviewItem[] => {
     const projectFilters = payload.filters || {};
@@ -191,7 +218,7 @@ export default function SearchProjectsTabContent() {
       { label: 'Countries / Regions', value: formatList(projectFilters.region as string[]) },
       { label: 'Budget', value: projectFilters.minBudget !== undefined || projectFilters.maxBudget !== undefined ? `${projectFilters.minBudget ?? 'Any'} - ${projectFilters.maxBudget ?? 'Any'}` : '' },
       { label: 'Organisation Name', value: projectFilters.leadOrganization },
-      { label: 'Membership Subscription', value: projectFilters.notIncludedInMembershipSubscription ? 'Not included in the membership subscription' : '' },
+      { label: 'Membership Subscription', value: projectFilters.notIncludedInMembershipSubscription ? membershipFilterLabel : '' },
     ];
   };
 
@@ -217,72 +244,70 @@ export default function SearchProjectsTabContent() {
     setIsSaveSearchDialogOpen(true);
   };
 
-  const saveSearch = ({ name, alertSettings, useCurrentCriteria }: SavedSearchEditorSavePayload) => {
-    if (editingSavedSearch) {
-      const nextPayload = useCurrentCriteria ? buildPayload() : editingSavedSearch.payload;
-      savedSearchService.update(editingSavedSearch.id, {
-        name,
-        filters: nextPayload,
-        ...buildOrganizationProfileSearchFields(activeOrganizationProfile),
-        context: useCurrentCriteria
-          ? {
-              type: 'projects',
-              route: '/search/projects',
-              label: 'Projects',
-              summary: buildSummary(),
-              language,
-              accountType: user?.accountType,
-            }
-          : savedSearchService.get(editingSavedSearch.id)?.context,
-        alertsEnabled: alertSettings.alertFrequency !== 'unsubscribe' && alertSettings.status === 'active',
-        alertFrequency: alertSettings.alertFrequency,
-        alertDays: alertSettings.alertDays,
-        alertHour: alertSettings.alertHour,
-        emailFormat: alertSettings.emailFormat,
-        status: alertSettings.status,
-      });
-      setSavedSearches(readSavedSearches());
-      setIsSaveSearchDialogOpen(false);
-      setEditingSavedSearch(null);
-      toast.success('Saved search updated');
+  const saveSearch = async ({ name, alertSettings, useCurrentCriteria }: SavedSearchEditorSavePayload) => {
+    if (!user?.id) {
+      toast.error('You must be logged in to save searches');
       return;
     }
 
-    savedSearchService.save({
-      userId: user?.id,
-      name,
-      filters: buildPayload(),
-      ...buildOrganizationProfileSearchFields(activeOrganizationProfile),
-      context: {
-        type: 'projects',
-        route: '/search/projects',
-        label: 'Projects',
-        summary: buildSummary(),
-        language,
-        accountType: user?.accountType,
-      },
-      alertsEnabled: alertSettings.alertFrequency !== 'unsubscribe' && alertSettings.status === 'active',
-      alertFrequency: alertSettings.alertFrequency,
-      alertDays: alertSettings.alertDays,
-      alertHour: alertSettings.alertHour,
-      emailFormat: alertSettings.emailFormat,
-      status: alertSettings.status,
-    });
-    setSavedSearches(readSavedSearches());
-    setIsSaveSearchDialogOpen(false);
-    setEditingSavedSearch(null);
-    toast.success('Search saved');
+    const payloadToSave = useCurrentCriteria || !editingSavedSearch ? buildPayload() : editingSavedSearch.payload;
+
+    try {
+      let savedItem: any;
+      if (editingSavedSearch) {
+        savedItem = await projectService.updateSavedSearch(Number(editingSavedSearch.id), name, payloadToSave);
+      } else {
+        savedItem = await projectService.saveSearch(Number(user.id), name, payloadToSave);
+      }
+      
+      const newEntry: SavedSearchEntry<ProjectSavedPayload> = {
+        id: savedItem?.id?.toString() || 'unknown',
+        label: savedItem?.name || name,
+        createdAt: savedItem?.createdAt || new Date().toISOString(),
+        payload: (savedItem?.payload || payloadToSave) as ProjectSavedPayload,
+      };
+
+      setSavedSearches(prev => {
+        if (editingSavedSearch) {
+          return prev.map(s => s.id === newEntry.id ? newEntry : s);
+        }
+        return [newEntry, ...prev];
+      });
+      
+      setIsSaveSearchDialogOpen(false);
+      setEditingSavedSearch(null);
+      toast.success(editingSavedSearch ? 'Saved search updated' : 'Search saved');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to save search');
+    }
   };
 
-  const deleteSavedSearch = (id: string) => {
-    savedSearchService.remove(id);
-    setSavedSearches(readSavedSearches());
+  const deleteSavedSearch = async (id: string) => {
+    try {
+      await projectService.deleteSavedSearch(Number(id));
+      setSavedSearches(prev => prev.filter(s => s.id !== id));
+      toast.success('Search deleted');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to delete search');
+    }
   };
 
   const formatProjectBudget = (amount: number, currency: string) => new Intl.NumberFormat(
     language === 'fr' ? 'fr-FR' : language === 'es' ? 'es-ES' : 'en-GB',
     { style: 'currency', currency, maximumFractionDigits: 0 }
   ).format(amount);
+  const getProjectBudget = (project: any) => typeof project.budget === 'number'
+    ? { total: project.budget, currency: 'USD' }
+    : {
+        total: Number(project.budget?.total ?? 0),
+        currency: project.budget?.currency || 'USD',
+      };
+  const getProjectTimeline = (project: any) => ({
+    endDate: project.timeline?.endDate || project.updatedDate || project.createdDate || new Date().toISOString(),
+    completionPercentage: Number(project.timeline?.completionPercentage ?? 0),
+  });
 
   const getStatusColor = (status: ProjectStatusEnum) => {
     switch (status) {
@@ -330,8 +355,8 @@ export default function SearchProjectsTabContent() {
           )}
           <Button variant="outline" size="sm" onClick={openCreateSavedSearch}>Save Search</Button>
           <Button variant="outline" size="sm" onClick={() => {
-            setSavedSearches(readSavedSearches());
             setIsLoadDialogOpen(true);
+            loadSavedSearches();
           }}>Load Search</Button>
           <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
             <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
@@ -374,7 +399,7 @@ export default function SearchProjectsTabContent() {
               updateFilters({ notIncludedInMembershipSubscription: event.target.checked });
             }}
           />
-          <span>Not included in the membership subscription</span>
+          <span>{membershipFilterLabel}</span>
         </label>
       </div>
 
@@ -399,9 +424,12 @@ export default function SearchProjectsTabContent() {
              <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
              <p className="text-gray-500 font-medium">Fetching projects from server...</p>
           </div>
-        ) : projects.data.length > 0 ? (
+        ) : visibleProjects.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 mb-6">
-            {projects.data.map((project) => (
+            {visibleProjects.map((project) => {
+              const budget = getProjectBudget(project);
+              const timeline = getProjectTimeline(project);
+              return (
               <div key={project.id} className="bg-white rounded-lg border p-5 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-start gap-3">
@@ -429,11 +457,11 @@ export default function SearchProjectsTabContent() {
                   </span>
                   <span className="flex items-center gap-1.5">
                     <DollarSign className="w-4 h-4" />
-                    {formatProjectBudget(project.budget.total, project.budget.currency)}
+                    {formatProjectBudget(budget.total, budget.currency)}
                   </span>
                   <span className="flex items-center gap-1.5">
                     <Clock className="w-4 h-4" />
-                    {format(new Date(project.timeline.endDate), 'PP', { locale: language === 'fr' ? undefined : undefined })}
+                    {format(new Date(timeline.endDate), 'PP', { locale: language === 'fr' ? undefined : undefined })}
                   </span>
                 </div>
 
@@ -442,12 +470,12 @@ export default function SearchProjectsTabContent() {
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center justify-between text-[10px] font-medium text-gray-500 mb-1">
                         <span>{t('projects.stats.completion')}</span>
-                        <span>{project.timeline.completionPercentage}%</span>
+                        <span>{timeline.completionPercentage}%</span>
                       </div>
                       <div className="w-32 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-blue-500 rounded-full transition-all"
-                          style={{ width: `${project.timeline.completionPercentage}%` }}
+                          style={{ width: `${timeline.completionPercentage}%` }}
                         />
                       </div>
                     </div>
@@ -457,7 +485,17 @@ export default function SearchProjectsTabContent() {
                   </Button>
                 </div>
               </div>
-            ))}
+              );
+            })}
+            {isPublicLimitReached && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-amber-900">
+                <p className="font-semibold">Limited SMART preview</p>
+                <p className="mt-1 text-sm">
+                  You can preview the first {PUBLIC_VISIBLE_ITEM_LIMIT} important projects. Upgrade your account to continue viewing full matching results and project details.
+                </p>
+                <Button className="mt-4" onClick={() => navigate('/account/subscription')}>Upgrade account</Button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-center py-12 bg-white rounded-lg border">
@@ -467,7 +505,7 @@ export default function SearchProjectsTabContent() {
           </div>
         )}
 
-        {projects.meta.totalPages > 1 && (
+        {!isPublicPreview && projects.meta.totalPages > 1 && (
           <div className="flex items-center justify-between mt-6">
             <Button
               variant="outline"
@@ -511,7 +549,11 @@ export default function SearchProjectsTabContent() {
             <DialogTitle>Load Search</DialogTitle>
             <DialogDescription>Choose a saved search for projects.</DialogDescription>
           </DialogHeader>
-          {savedSearches.length === 0 ? (
+          {isLoadingSavedSearches ? (
+            <div className="py-8 flex justify-center items-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : savedSearches.length === 0 ? (
             <p className="text-sm text-muted-foreground">No saved searches found for this page.</p>
           ) : (
             <div className="max-h-80 overflow-auto space-y-2">

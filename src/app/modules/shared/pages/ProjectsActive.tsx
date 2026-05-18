@@ -1,4 +1,4 @@
-﻿import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { format, isAfter, startOfToday } from 'date-fns';
 import { enUS, es, fr } from 'date-fns/locale';
@@ -75,7 +75,8 @@ function writeSavedProjectIds(projectIds: string[]) {
 export default function ProjectsActive() {
   const { t, language } = useTranslation();
   const navigate = useNavigate();
-  const { allTenders } = useTenders();
+  const { tenders } = useTenders();
+  const allTenders = tenders?.data || [];
   const { pipelineItems } = usePipeline();
 
   const [activeTab, setActiveTab] = useState<ActiveProjectsTab>('open');
@@ -238,10 +239,42 @@ export default function ProjectsActive() {
   };
 
   const projectRows = useMemo(() => {
-    return allTenders.filter(item => (
+    const tenderRows = allTenders.filter(item => (
       item.alertCategory === MatchingAlertCategoryEnum.PROJECTS && pipelineItemById.has(item.id)
     ));
-  }, [allTenders, pipelineItemById]);
+
+    const tenderIds = new Set(tenderRows.map(item => item.id));
+    const metadataRows = pipelineItems
+      .filter(item => item.tenderId.startsWith('opp-') && item.tenderTitle && !tenderIds.has(item.tenderId))
+      .map((item): TenderListDTO => {
+        const expectedValue = Number(item.expectedValue || 0);
+        const currency = (item.currency || 'USD') as TenderListDTO['budget']['currency'];
+        const deadline = item.deadline ? new Date(item.deadline) : new Date(item.addedAt);
+        return {
+          id: item.tenderId,
+          referenceNumber: item.tenderReference || item.tenderId,
+          title: item.tenderTitle || item.tenderId,
+          organizationName: item.organizationName || item.donor || 'N/A',
+          country: (item.country || 'N/A') as TenderListDTO['country'],
+          deadline,
+          daysRemaining: Math.ceil((deadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+          budget: {
+            amount: expectedValue,
+            currency,
+            formatted: `${currency} ${expectedValue.toLocaleString()}`,
+          },
+          status: (item.status as TenderStatusEnum) || TenderStatusEnum.PUBLISHED,
+          matchScore: item.matchScore,
+          sectors: (item.sectors || []) as TenderListDTO['sectors'],
+          createdAt: new Date(item.addedAt),
+          publishedDate: item.addedAt ? new Date(item.addedAt) : undefined,
+          alertCategory: MatchingAlertCategoryEnum.PROJECTS,
+          isMultiCountry: false,
+        };
+      });
+
+    return [...tenderRows, ...metadataRows];
+  }, [allTenders, pipelineItemById, pipelineItems]);
 
   const rowsByTab = useMemo(() => {
     const open = projectRows.filter(row => !isFinishedProject(row) && !deletedIds.has(row.id));
@@ -453,6 +486,15 @@ export default function ProjectsActive() {
       writeSavedProjectIds(Array.from(next));
       return next;
     });
+  };
+
+  const openProjectDetail = (row: TenderListDTO) => {
+    if (row.id.startsWith('opp-')) {
+      navigate(`/matching-opportunities/opportunities/project/${row.id}`);
+      return;
+    }
+
+    navigate(`/projects/${row.id}`, { state: { fromMyProjects: true, isFavorited: favouriteIds.has(row.id) } });
   };
 
   const handleDelete = (id: string) => {
@@ -901,7 +943,7 @@ export default function ProjectsActive() {
                                         size="sm"
                                         className="min-h-10 w-10 border-gray-300 p-0"
                                         aria-label={t('activeTenders.button.viewDetails')}
-                                        onClick={() => navigate(`/projects/${row.id}`, { state: { fromMyProjects: true, isFavorited: favouriteIds.has(row.id) } })}
+                                        onClick={() => openProjectDetail(row)}
                                       >
                                         <Eye className="h-4 w-4" />
                                       </Button>

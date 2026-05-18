@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@app/components/ui/alert';
 import { PageBanner } from '@app/components/PageBanner';
 import { LogIn, CheckCircle2, Clock, ArrowRight, ShieldCheck, UserRound, UsersRound } from 'lucide-react';
 import { initializeTestAccounts, authenticateUser, getTestAccounts, type IncompleteSignupData } from '@app/services/userStatusService';
+import { canManageOrganizationAdminActions } from '@app/services/permissions.service';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -79,14 +80,16 @@ const Login = () => {
       if (storedUser) {
         const user = JSON.parse(storedUser);
         const role = (user.role || user.accountType || '').toUpperCase();
+        const accountType = (user.accountType || '').toLowerCase();
+        const isOrganizationAdmin = canManageOrganizationAdminActions(user.accountType, user.role);
 
         // Dynamic Role-Based Redirection
-        if (role === 'EXPERT') {
+        if (role === 'EXPERT' || accountType === 'expert') {
           navigate('/calls/active');
-        } else if (role === 'ADMIN') {
+        } else if (role === 'ADMIN' || accountType === 'admin') {
           navigate('/calls/active');
-        } else if (role === 'ORGANIZATION') {
-          navigate('/calls/active');
+        } else if (role === 'ORGANIZATION' || accountType === 'organization' || isOrganizationAdmin) {
+          navigate('/calls/overview');
         } else {
           navigate('/calls/active');
         }
@@ -106,7 +109,11 @@ const Login = () => {
     setLoading(true);
     try {
       await quickLogin(accountType);
-      navigate('/calls/active');
+      if (accountType === 'organization' || accountType === 'organization-user') {
+        navigate('/calls/overview');
+      } else {
+        navigate('/calls/active');
+      }
     } catch (err: any) {
       setError(err.message || 'Demo access failed');
     } finally {

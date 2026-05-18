@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useTranslation } from '@app/contexts/LanguageContext';
 import { PageBanner } from '@app/components/PageBanner';
@@ -40,18 +40,55 @@ export default function AIMatchingTenderDetail() {
   const { id } = useParams<{ id: string }>();
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { allTenders, kpis } = useTenders();
+  const { kpis: rawKpis, getTenderById } = useTenders();
+  const [tender, setTender] = React.useState<TenderListDTO | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
+  
+  const kpis = rawKpis || {
+    totalTenders: 0,
+    activeTenders: 0,
+    closedTenders: 0,
+    awardedTenders: 0,
+    averageBudget: { amount: 0, currency: 'EUR', formatted: '€0' },
+    averageProposalsPerTender: 0,
+    successRate: 0,
+    mySubmissions: 0,
+    myPendingSubmissions: 0,
+    myInvitations: 0,
+    pipelineValue: { amount: 0, currency: 'EUR', formatted: '€0' }
+  };
+
+  React.useEffect(() => {
+    if (id) {
+      setIsLoading(true);
+      getTenderById(id)
+        .then(data => {
+          setTender(data);
+          setIsLoading(false);
+        })
+        .catch(() => {
+          setIsLoading(false);
+        });
+    }
+  }, [id, getTenderById]);
   const { addToPipeline, isInPipeline } = usePipeline();
 
-  // Find tender by ID (ensure string comparison) - use allTenders not tenders.data
-  const tender = allTenders.find((t) => String(t.id) === String(id));
+  // Tender is now fetched via useEffect
+  // const tender = allTenders.find((t) => String(t.id) === String(id));
 
   // Debug logging
   React.useEffect(() => {
     console.log('🔍 AIMatchingTenderDetail - Looking for tender:', id);
-    console.log('📊 Available tenders:', allTenders.map(t => ({ id: t.id, title: t.title })));
     console.log('✅ Found tender:', tender ? tender.title : 'NOT FOUND');
-  }, [id, allTenders, tender]);
+  }, [id, tender]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+      </div>
+    );
+  }
 
   // Document download handler
   const handleDownloadDocument = (docName: string, docUrl?: string) => {

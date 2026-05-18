@@ -64,10 +64,11 @@ export default function ExpertPublicProfile() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams<{ id: string }>();
-  const { experts } = useExperts();
+  const { experts, allExperts } = useExperts();
     const { allExperts: assistanceExperts } = useAssistance();
   const { addNotification } = useNotifications();
   const { addHistoryEntry } = useAssistanceHistory();
+  const { expertLibrary, recordExpertDownload, linkExpertToVacancy } = useCVCredits();
 
 
   // Detect search context from navigation state first, then fallback to pathname.

@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@app/components/ui/select';
 import { toast } from 'sonner';
+import ReactCountryFlag from 'react-country-flag';
 import { 
   Phone, 
   Mail,
@@ -28,6 +29,31 @@ import { useContactPageContent } from '@app/hooks/useOffersContent';
 import { submitContactForm } from '@app/services/contactService';
 import { ContactFormData } from '@app/types/contact.types';
 import { getIconByName } from '@app/utils/iconMapper';
+import { phoneCountryCodes } from '@app/utils/phoneCountryCodes';
+
+const fallbackPhoneCountry =
+  phoneCountryCodes.find((country) => country.isoCode === 'US') ?? phoneCountryCodes[0];
+
+const getBrowserPhoneCountry = () => {
+  const localeCandidates = [navigator.language, ...(navigator.languages ?? [])].filter(Boolean);
+
+  for (const locale of localeCandidates) {
+    const region = locale
+      .replace('_', '-')
+      .split('-')
+      .find((part) => /^[A-Za-z]{2}$/.test(part) && part.length === 2);
+
+    const matchedCountry = phoneCountryCodes.find(
+      (country) => country.isoCode === region?.toUpperCase(),
+    );
+
+    if (matchedCountry) {
+      return matchedCountry;
+    }
+  }
+
+  return fallbackPhoneCountry;
+};
 
 export default function Contact() {
   const { t, language } = useLanguage();
@@ -36,10 +62,13 @@ export default function Contact() {
   
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [selectedCountryCode, setSelectedCountryCode] = useState(getBrowserPhoneCountry);
+  const [phoneNumber, setPhoneNumber] = useState('');
 
   const [formData, setFormData] = useState<ContactFormData>({
     fullName: '',
     email: '',
+    countryCallingCode: selectedCountryCode.dialCode,
     phone: '',
     subject: '',
     message: '',
@@ -55,7 +84,7 @@ export default function Contact() {
     if (!content) return;
 
     // Validation
-    if (!formData.fullName || !formData.email || !formData.subject || !formData.message) {
+    if (!formData.fullName.trim() || !formData.email.trim() || !formData.subject.trim() || !formData.message.trim()) {
       toast.error(content.form.errorMessage[language]);
       return;
     }
@@ -63,14 +92,23 @@ export default function Contact() {
     setSubmitting(true);
 
     try {
-      await submitContactForm(formData);
+      const trimmedPhoneNumber = phoneNumber.trim();
+      const formattedPhone = trimmedPhoneNumber
+        ? `${selectedCountryCode.dialCode} ${trimmedPhoneNumber}`
+        : '';
+
+      await submitContactForm({
+        ...formData,
+        countryCallingCode: selectedCountryCode.dialCode,
+        phone: trimmedPhoneNumber,
+      });
       
       // ✅ Enregistrer dans l'historique
       addHistoryEntry({
         type: 'general_inquiry',
         organizationName: 'Assortis Support',
         title: formData.subject,
-        message: `${language === 'fr' ? 'De' : language === 'es' ? 'De' : 'From'}: ${formData.fullName}\n${language === 'fr' ? 'Email' : language === 'es' ? 'Correo electrónico' : 'Email'}: ${formData.email}${formData.phone ? `\n${language === 'fr' ? 'Téléphone' : language === 'es' ? 'Teléfono' : 'Phone'}: ${formData.phone}` : ''}\n\n${formData.message}`,
+        message: `${language === 'fr' ? 'De' : language === 'es' ? 'De' : 'From'}: ${formData.fullName}\n${language === 'fr' ? 'Email' : language === 'es' ? 'Correo electrónico' : 'Email'}: ${formData.email}${formattedPhone ? `\n${language === 'fr' ? 'Téléphone' : language === 'es' ? 'Teléfono' : 'Phone'}: ${formattedPhone}` : ''}\n\n${formData.message}`,
         status: 'sent',
       });
       
@@ -83,15 +121,22 @@ export default function Contact() {
         setFormData({
           fullName: '',
           email: '',
+          countryCallingCode: getBrowserPhoneCountry().dialCode,
           phone: '',
           subject: '',
           message: '',
         });
+        setSelectedCountryCode(getBrowserPhoneCountry());
+        setPhoneNumber('');
         setSubmitted(false);
       }, 3000);
-    } catch (err) {
+    } catch (err: any) {
       setSubmitting(false);
-      toast.error(content.form.errorMessage[language]);
+      toast.error(err?.message || (language === 'fr'
+        ? 'Une erreur est survenue lors de l’envoi du message'
+        : language === 'es'
+          ? 'Se produjo un error al enviar el mensaje'
+          : 'An error occurred while sending your message'));
     }
   };
 
@@ -316,15 +361,67 @@ export default function Contact() {
                         )}
                         
                         {field.type === 'tel' && (
-                          <Input
-                            id={field.name}
-                            type="tel"
-                            placeholder={field.placeholder[language]}
-                            value={formData[field.name as keyof ContactFormData]}
-                            onChange={(e) => handleInputChange(field.name as keyof ContactFormData, e.target.value)}
-                            required={field.required}
-                            className="w-full"
-                          />
+                          <div className="flex flex-col gap-3 sm:flex-row">
+                            <Select
+                              value={selectedCountryCode.isoCode}
+                              onValueChange={(value) => {
+                                const nextCountry = phoneCountryCodes.find((country) => country.isoCode === value);
+                                if (nextCountry) {
+                                  setSelectedCountryCode(nextCountry);
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    countryCallingCode: nextCountry.dialCode,
+                                  }));
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="w-full sm:w-[260px]">
+                                <SelectValue>
+                                  <span className="flex items-center gap-2">
+                                    <ReactCountryFlag
+                                      countryCode={selectedCountryCode.isoCode}
+                                      svg
+                                      aria-label={selectedCountryCode.country}
+                                    />
+                                    <span className="truncate">
+                                      {selectedCountryCode.country} ({selectedCountryCode.dialCode})
+                                    </span>
+                                  </span>
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {phoneCountryCodes.map((country) => (
+                                  <SelectItem key={country.isoCode} value={country.isoCode}>
+                                    <span className="flex items-center gap-2">
+                                      <ReactCountryFlag
+                                        countryCode={country.isoCode}
+                                        svg
+                                        aria-label={country.country}
+                                      />
+                                      <span>{country.country} ({country.dialCode})</span>
+                                    </span>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+
+                            <Input
+                              id={field.name}
+                              type="tel"
+                              placeholder={field.placeholder[language]}
+                              value={phoneNumber}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setPhoneNumber(value);
+                                setFormData(prev => ({
+                                  ...prev,
+                                  phone: value,
+                                }));
+                              }}
+                              required={field.required}
+                              className="w-full"
+                            />
+                          </div>
                         )}
                         
                         {field.type === 'select' && field.options && (

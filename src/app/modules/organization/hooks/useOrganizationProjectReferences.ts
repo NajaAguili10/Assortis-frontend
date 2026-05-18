@@ -22,12 +22,17 @@ const normalizeReferenceStatus = (reference: OrganizationProjectReferenceDTO): O
 export function useOrganizationProjectReferences() {
   const [references, setReferences] = useState<OrganizationProjectReferenceDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const refreshReferences = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const nextReferences = await organizationProjectReferenceService.getReferences();
       setReferences(sortReferences(nextReferences.map(normalizeReferenceStatus)));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load project references';
+      setError(message);
     } finally {
       setIsLoading(false);
     }
@@ -38,24 +43,42 @@ export function useOrganizationProjectReferences() {
   }, [refreshReferences]);
 
   const createReference = useCallback(async (values: OrganizationProjectReferenceFormValues) => {
-    const nextReference = normalizeReferenceStatus(await organizationProjectReferenceService.createReference(values));
-    setReferences((current) => sortReferences([nextReference, ...current]));
-    return nextReference;
+    try {
+      const nextReference = normalizeReferenceStatus(await organizationProjectReferenceService.createReference(values));
+      setReferences((current) => sortReferences([nextReference, ...current]));
+      return nextReference;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create project reference';
+      setError(message);
+      throw err;
+    }
   }, []);
 
   const updateReference = useCallback(async (referenceId: string, values: OrganizationProjectReferenceFormValues) => {
-    const updatedReference = normalizeReferenceStatus(
-      await organizationProjectReferenceService.updateReference(referenceId, values),
-    );
-    setReferences((current) => sortReferences(current.map(reference => (
-      reference.id === referenceId ? updatedReference : reference
-    ))));
-    return updatedReference;
+    try {
+      const updatedReference = normalizeReferenceStatus(
+        await organizationProjectReferenceService.updateReference(referenceId, values),
+      );
+      setReferences((current) => sortReferences(current.map(reference => (
+        reference.id === referenceId ? updatedReference : reference
+      ))));
+      return updatedReference;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update project reference';
+      setError(message);
+      throw err;
+    }
   }, []);
 
   const deleteReference = useCallback(async (referenceId: string) => {
-    await organizationProjectReferenceService.deleteReference(referenceId);
-    setReferences((current) => current.filter(reference => reference.id !== referenceId));
+    try {
+      await organizationProjectReferenceService.deleteReference(referenceId);
+      setReferences((current) => current.filter(reference => reference.id !== referenceId));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to delete project reference';
+      setError(message);
+      throw err;
+    }
   }, []);
 
   const addDocuments = useCallback(async (referenceId: string, documents: OrganizationProjectReferenceDocumentDTO[]) => {
@@ -106,6 +129,7 @@ export function useOrganizationProjectReferences() {
     references,
     metrics,
     isLoading,
+    error,
     refreshReferences,
     createReference,
     updateReference,

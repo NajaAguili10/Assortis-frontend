@@ -368,12 +368,14 @@ const normalizeOrganization = (org: Organization): Organization => {
     city: org.city ? { id: org.city.id, name: org.city.name } : undefined,
     country: org.country ? { id: org.country.id, name: org.country.name, code: org.country.code } : undefined,
     region: normalizeRegion(org),
-    mainSector: sectors[0],
-    sectors,
-    subSectors: normalizeSubsectors(org),
-    activeProjects: org.activeProjects ?? 0,
-    completedProjects: org.completedProjects ?? 0,
-    partnerships: org.partnerships ?? 0,
+    mainSector: org.mainSector,
+    sectors: Array.isArray(org.sectors)
+      ? org.sectors.map((s: any) => typeof s === 'string' ? { id: 0, name: s, code: s } : s)
+      : (org.mainSector ? [org.mainSector] : []),
+    subSectors: org.subsectors || [],
+    activeProjects: org.activeProjects || 0,
+    completedProjects: 0,
+    partnerships: 0,
     employeeCount: org.employeesCount ?? undefined,
     yearEstablished: org.yearFounded ?? undefined,
     teamMembers: org.teamMembers ?? org.employeesCount ?? undefined,
@@ -479,16 +481,16 @@ const applyFiltersAndSort = (
 
   if (filters?.sectors?.length) {
     filtered = filtered.filter((org) =>
-      (org.sectors || []).some((orgSector) => 
-        filters.sectors!.some(s => getNormalizedCode(s) === getNormalizedCode(orgSector))
+      (org.sectors || []).some((orgSector) =>
+        filters.sectors!.some(s => s.code === (orgSector.code || orgSector))
       ),
     );
   }
 
   if (filters?.subSectors?.length) {
     filtered = filtered.filter((org) =>
-      (org.subSectors || []).some((orgSub) => 
-        filters.subSectors!.some(s => getNormalizedCode(s) === getNormalizedCode(orgSub))
+      (org.subSectors || []).some((orgSub) =>
+        filters.subSectors!.some(s => s.code === orgSub.code)
       ),
     );
   }
@@ -809,5 +811,20 @@ export const organizationService = {
   },
   getMySubscriptionCountries: async () => {
     return apiClient.get<CountryDTO[]>(`/organizations/my-subscription-countries`);
+  },
+  getMySubscriptionSubsectors: async () => {
+    return apiClient.get<SubsectorDTO[]>(`/organizations/my-subscription-subsectors`);
+  },
+  getMySubscriptionRegions: async () => {
+    return apiClient.get<string[]>(`/organizations/my-subscription-regions`);
+  },
+  getShortlists: async (organizationId: string | number) => {
+    return apiClient.get<any[]>(`/organizations/${organizationId}/shortlists`);
+  },
+  getMyShortlists: async () => {
+    return apiClient.get<any[]>(`/organizations/my-shortlists`);
+  },
+  getMyAwards: async () => {
+    return apiClient.get<any[]>(`/organizations/my-awards`);
   }
 };

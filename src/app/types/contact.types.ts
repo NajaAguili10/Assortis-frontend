@@ -70,6 +70,7 @@ export interface ContactPageContent {
 export interface ContactFormData {
   fullName: string;
   email: string;
+  countryCallingCode: string;
   phone: string;
   subject: string;
   message: string;

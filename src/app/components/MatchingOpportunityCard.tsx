@@ -2,7 +2,7 @@ import { MatchingOpportunityDTO, OpportunityTypeEnum } from '@app/types/matching
 import { Card, CardContent } from '@app/components/ui/card';
 import { Badge } from '@app/components/ui/badge';
 import { Button } from '@app/components/ui/button';
-import { Bookmark, AlertCircle, X, UserCircle2, Bell, Building2 } from 'lucide-react';
+import { Bookmark, AlertCircle, X, UserCircle2, Bell, Building2, FolderPlus } from 'lucide-react';
 import { format } from 'date-fns';
 import { useState } from 'react';
 
@@ -13,6 +13,7 @@ interface MatchingOpportunityCardProps {
   onRemove?: (opportunityId: string) => void;
   onApply?: (opportunityId: string) => void;
   onExpressInterest?: (opportunityId: string) => void;
+  onAddToMyProjects?: (opportunityId: string) => void;
   onNotInterested?: (opportunityId: string) => void;
   onOrganizationClick?: (organizationId: string) => void;
   previewMode?: boolean;
@@ -35,6 +36,12 @@ const OPPORTUNITY_TYPE_COLORS: Record<OpportunityTypeEnum, string> = {
   [OpportunityTypeEnum.IN_HOUSE_VACANCY]: 'bg-pink-100 text-pink-800',
 };
 
+const toValidDate = (value: Date | string | number | null | undefined) => {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isFinite(date.getTime()) ? date : null;
+};
+
 export function MatchingOpportunityCard({
   opportunity,
   isSaved = false,
@@ -42,14 +49,17 @@ export function MatchingOpportunityCard({
   onRemove,
   onApply,
   onExpressInterest,
+  onAddToMyProjects,
   onNotInterested,
   onOrganizationClick,
   previewMode = false,
   onPreviewRestrictedAction,
 }: MatchingOpportunityCardProps) {
   const [localSaved, setLocalSaved] = useState(isSaved);
+  const deadlineDate = toValidDate(opportunity.deadline);
   const isDeadlineSoon =
-    Math.floor((opportunity.deadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) <= 7;
+    deadlineDate !== null &&
+    Math.floor((deadlineDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) <= 7;
 
   const handleSaveClick = () => {
     if (previewMode) {
@@ -133,7 +143,7 @@ export function MatchingOpportunityCard({
             <p
               className={`font-medium ${isDeadlineSoon ? 'text-red-600' : 'text-gray-800'}`}
             >
-              {format(opportunity.deadline, 'MMM dd, yyyy')}
+              {deadlineDate ? format(deadlineDate, 'MMM dd, yyyy') : 'No deadline'}
             </p>
           </div>
         </div>
@@ -230,7 +240,20 @@ export function MatchingOpportunityCard({
             </Button>
           ) : null}
 
-          {opportunity.type !== OpportunityTypeEnum.PROJECT_VACANCY &&
+          {opportunity.type === OpportunityTypeEnum.OPEN_PROJECT && onAddToMyProjects ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => previewMode ? onPreviewRestrictedAction?.() : onAddToMyProjects(opportunity.id)}
+              className="flex-1 sm:flex-none"
+            >
+              <FolderPlus className="w-4 h-4 mr-1" />
+              Add to My Projects
+            </Button>
+          ) : null}
+
+          {opportunity.type !== OpportunityTypeEnum.OPEN_PROJECT &&
+          opportunity.type !== OpportunityTypeEnum.PROJECT_VACANCY &&
           opportunity.type !== OpportunityTypeEnum.IN_HOUSE_VACANCY ? (
             <Button
               variant="outline"

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
@@ -11,7 +11,7 @@ import { TenderMetricsCard } from '@app/components/TenderMetricsCard';
 import { AccessDenied } from '@app/components/AccessDenied';
 import { Separator } from '@app/components/ui/separator';
 import { useTenders } from '@app/hooks/useTenders';
-import { hasTendersAccess } from '@app/services/permissions.service';
+import { canManageOrganizationAdminActions, hasTendersAccess } from '@app/services/permissions.service';
 import {
   FileText,
   Target,
@@ -21,11 +21,25 @@ export default function TendersHub() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { kpis } = useTenders();
+  const { kpis: rawKpis } = useTenders();
+  const kpis = rawKpis || {
+    totalTenders: 0,
+    activeTenders: 0,
+    closedTenders: 0,
+    awardedTenders: 0,
+    averageBudget: { amount: 0, currency: 'EUR', formatted: '€0' },
+    averageProposalsPerTender: 0,
+    successRate: 0,
+    mySubmissions: 0,
+    myPendingSubmissions: 0,
+    myInvitations: 0,
+    pipelineValue: { amount: 0, currency: 'EUR', formatted: '€0' }
+  };
   
   // Vérifier les permissions d'accès
   const hasAccess = hasTendersAccess(user?.accountType);
   const isOrganizationUser = user?.accountType === 'organization';
+  const isOrganizationAdmin = user?.accountType === 'organization' && canManageOrganizationAdminActions(user?.accountType, user?.role);
   
   // Définir les sous-menus et leurs descriptions pour la page d'accès refusé
   const subMenuItems = [
@@ -51,7 +65,7 @@ export default function TendersHub() {
     <div className="min-h-screen">
       {/* Banner */}
       <PageBanner
-        title={t('tenders.module.title')}
+        title={isOrganizationAdmin ? t('tenders.module.dashboard') : t('tenders.module.title')}
         description={t('tenders.module.subtitle')}
         icon={FileText}
         stats={hasAccess ? [

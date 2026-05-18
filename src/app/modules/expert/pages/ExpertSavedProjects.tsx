@@ -44,7 +44,8 @@ export default function ExpertSavedProjects() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { allTenders } = useTenders();
+  const { tenders } = useTenders();
+  const allTenders = tenders?.data || [];
 
   const [savedIds, setSavedIds] = useState<Set<string>>(() => new Set(readSavedProjectIds()));
 

@@ -21,6 +21,7 @@
  * };
  */
 
+import { apiClient } from '@app/api/apiClient';
 import { ContactPageContent, ContactFormData } from '../types/contact.types';
 
 // ==========================================
@@ -345,17 +346,5 @@ export const getContactPageContent = async (): Promise<ContactPageContent> => {
  * TODO: Remplacer par un appel API au backoffice
  */
 export const submitContactForm = async (data: ContactFormData): Promise<void> => {
-  // Simuler un délai réseau
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  
-  // Simuler une validation côté serveur
-  if (!data.fullName || !data.email || !data.subject || !data.message) {
-    throw new Error('Missing required fields');
-  }
-
-  // En production, ceci serait un appel API réel
-  console.log('Contact form submitted:', data);
-  
-  // Simuler une réponse réussie
-  return;
+  await apiClient.post('/contact-requests', data);
 };

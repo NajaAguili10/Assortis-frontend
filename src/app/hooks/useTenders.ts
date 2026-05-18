@@ -1,8 +1,11 @@
-import { useState, useMemo } from 'react';
-import { 
-  TenderListDTO, 
-  TenderStatusEnum, 
-  SectorEnum, 
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { tenderService } from '../services/tenderService';
+import { organizationService } from '../services/organizationService';
+import { useAuth } from '../contexts/AuthContext';
+import {
+  TenderListDTO,
+  TenderStatusEnum,
+  SectorEnum,
   SubSectorEnum,
   SECTOR_SUBSECTOR_MAP,
   CountryEnum,
@@ -83,7 +86,7 @@ trailer
 startxref
 487
 %%EOF`;
-  
+
   const blob = new Blob([pdfContent], { type: 'application/pdf' });
   return URL.createObjectURL(blob);
 };
@@ -109,7 +112,7 @@ const generateMockTenders = (count: number): TenderListDTO[] => {
   const procurementTypes = [ProcurementTypeEnum.SERVICES, ProcurementTypeEnum.EQUIPMENT, ProcurementTypeEnum.WORKS, ProcurementTypeEnum.GRANTS];
   const noticeTypes = [NoticeTypeEnum.EARLY_INTELLIGENCE, NoticeTypeEnum.FORECAST_PRIOR_NOTICE, NoticeTypeEnum.PROJECT_NOTICE];
   const currencies = [CurrencyEnum.USD, CurrencyEnum.EUR, CurrencyEnum.USD, CurrencyEnum.EUR, CurrencyEnum.EUR]; // Mix of USD and EUR
-  
+
   const tenders = Array.from({ length: count }, (_, i) => {
     const amount = Math.floor(Math.random() * 5000000) + 100000;
     const deadline = new Date();
@@ -118,14 +121,14 @@ const generateMockTenders = (count: number): TenderListDTO[] => {
     const proposalsCount = Math.floor(Math.random() * 25) + 1;
     const interestedOrgsCount = Math.floor(Math.random() * 50) + proposalsCount;
     const publishedDate = new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000);
-    
+
     const referenceNumber = `TND-2026-${String(i + 1).padStart(4, '0')}`;
-    
+
     // Select sector and get corresponding subsectors
     const selectedSector = sectors[i % sectors.length];
     const availableSubSectors = SECTOR_SUBSECTOR_MAP[selectedSector] || [];
     const selectedSubSector = availableSubSectors[i % availableSubSectors.length];
-    
+
     // Select currency from mix (60% EUR, 40% USD)
     const selectedCurrency = currencies[i % currencies.length];
     const currencySymbol = selectedCurrency === CurrencyEnum.USD ? '$' : '€';
@@ -141,7 +144,7 @@ const generateMockTenders = (count: number): TenderListDTO[] => {
       MatchingAlertCategoryEnum.SHORTLISTS,
     ];
     const alertCategory = categoryCycle[i % categoryCycle.length];
-    
+
     return {
       id: `tender-${i + 1}`,
       referenceNumber,
@@ -168,18 +171,18 @@ const generateMockTenders = (count: number): TenderListDTO[] => {
       publishedDate,
       eligibility: ['NGOs', 'International Organizations', 'Registered Non-Profits', 'Academic Institutions'],
       documents: [
-        { 
-          name: 'Terms of Reference', 
+        {
+          name: 'Terms of Reference',
           type: 'PDF',
           url: generateDemoPDF('Terms of Reference', referenceNumber)
         },
-        { 
-          name: 'Application Form', 
+        {
+          name: 'Application Form',
           type: 'DOCX',
           url: generateDemoPDF('Application Form', referenceNumber)
         },
-        { 
-          name: 'Budget Template', 
+        {
+          name: 'Budget Template',
           type: 'XLSX',
           url: generateDemoPDF('Budget Template', referenceNumber)
         },
@@ -194,41 +197,41 @@ const generateMockTenders = (count: number): TenderListDTO[] => {
       otherPossiblePartnersCount: Math.floor(Math.random() * 8) + 2,
       awardCompanies: alertCategory === MatchingAlertCategoryEnum.AWARDS
         ? [
-            {
-              name: `Awarded Company ${i + 1}`,
-              organizationId: String((i % 3) + 1),
-              budget: {
-                amount: Math.floor(amount * 0.6),
-                currency: selectedCurrency,
-                formatted: `${currencySymbol}${Math.floor(amount * 0.6).toLocaleString()}`
-              },
-              date: new Date(publishedDate.getTime() + 2 * 24 * 60 * 60 * 1000),
+          {
+            name: `Awarded Company ${i + 1}`,
+            organizationId: String((i % 3) + 1),
+            budget: {
+              amount: Math.floor(amount * 0.6),
+              currency: selectedCurrency,
+              formatted: `${currencySymbol}${Math.floor(amount * 0.6).toLocaleString()}`
             },
-            {
-              name: `Joint Venture ${i + 2}`,
-              organizationId: String(((i + 1) % 3) + 1),
-              budget: {
-                amount: Math.floor(amount * 0.4),
-                currency: selectedCurrency,
-                formatted: `${currencySymbol}${Math.floor(amount * 0.4).toLocaleString()}`
-              },
-              date: new Date(publishedDate.getTime() + 3 * 24 * 60 * 60 * 1000),
+            date: new Date(publishedDate.getTime() + 2 * 24 * 60 * 60 * 1000),
+          },
+          {
+            name: `Joint Venture ${i + 2}`,
+            organizationId: String(((i + 1) % 3) + 1),
+            budget: {
+              amount: Math.floor(amount * 0.4),
+              currency: selectedCurrency,
+              formatted: `${currencySymbol}${Math.floor(amount * 0.4).toLocaleString()}`
             },
-          ]
+            date: new Date(publishedDate.getTime() + 3 * 24 * 60 * 60 * 1000),
+          },
+        ]
         : undefined,
       shortlistCompanies: alertCategory === MatchingAlertCategoryEnum.SHORTLISTS
         ? [
-            {
-              name: `Shortlisted Partner ${i + 1}`,
-              organizationId: String((i % 3) + 1),
-              date: new Date(publishedDate.getTime() + 2 * 24 * 60 * 60 * 1000),
-            },
-            {
-              name: `Consortium Candidate ${i + 3}`,
-              organizationId: String(((i + 1) % 3) + 1),
-              date: new Date(publishedDate.getTime() + 4 * 24 * 60 * 60 * 1000),
-            },
-          ]
+          {
+            name: `Shortlisted Partner ${i + 1}`,
+            organizationId: String((i % 3) + 1),
+            date: new Date(publishedDate.getTime() + 2 * 24 * 60 * 60 * 1000),
+          },
+          {
+            name: `Consortium Candidate ${i + 3}`,
+            organizationId: String(((i + 1) % 3) + 1),
+            date: new Date(publishedDate.getTime() + 4 * 24 * 60 * 60 * 1000),
+          },
+        ]
         : undefined,
       torId: `tor-${(i * 2) + 1}` // Link to associated ToR for all tenders
     };
@@ -262,191 +265,104 @@ export interface TenderFilters {
 export type SortField = 'newest' | 'oldest' | 'deadline' | 'budgetHigh' | 'budgetLow' | 'matchScore';
 
 export function useTenders() {
-  const [allTenders] = useState<TenderListDTO[]>(() => generateMockTenders(50));
+  const { isAuthenticated } = useAuth();
+  const [tendersData, setTendersData] = useState<PaginatedResponseDTO<TenderListDTO>>({
+    data: [],
+    meta: {
+      page: 1,
+      pageSize: 10,
+      totalItems: 0,
+      totalPages: 0,
+      hasNextPage: false,
+      hasPreviousPage: false
+    }
+  });
+  const [kpis, setKpis] = useState<TenderKPIsDTO | null>(null);
   const [filters, setFilters] = useState<TenderFilters>({});
   const [sortBy, setSortBy] = useState<SortField>('newest');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
+  const [isLoading, setIsLoading] = useState(false);
   const [savedTenderIds, setSavedTenderIds] = useState<Set<string>>(new Set());
 
-  // Filter tenders
-  const filteredTenders = useMemo(() => {
-    return allTenders.filter(tender => {
-      // Status filter
-      if (filters.status && filters.status.length > 0) {
-        if (!filters.status.includes(tender.status)) return false;
-      }
+  const fetchTenders = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [tendersResponse, shortlistsResponse] = await Promise.all([
+        tenderService.getAllTenders(),
+        isAuthenticated 
+          ? organizationService.getMyShortlists().catch(err => {
+              console.warn('Failed to fetch my shortlists:', err);
+              return [];
+            })
+          : Promise.resolve([])
+      ]);
 
-      // Sectors filter
-      if (filters.sectors && filters.sectors.length > 0) {
-        if (!tender.sectors.some(s => filters.sectors?.includes(s))) return false;
-      }
-
-      // SubSectors filter
-      if (filters.subSectors && filters.subSectors.length > 0) {
-        if (!tender.subsectors?.some(s => filters.subSectors?.includes(s))) return false;
-      }
-
-      // Countries filter
-      if (filters.countries && filters.countries.length > 0) {
-        if (!filters.countries.includes(tender.country)) return false;
-      }
-
-      // Regions filter
-      if (filters.regions && filters.regions.length > 0) {
-        // Assuming a region is associated with a country, this is a placeholder
-        const regionCountries = filters.regions.flatMap(region => {
-          // This should be a map of regions to countries
-          return REGION_COUNTRY_MAP[region] || [];
-        });
-        if (!regionCountries.includes(tender.country)) return false;
-      }
-
-      // Funding Agencies filter
-      if (filters.fundingAgencies && filters.fundingAgencies.length > 0) {
-        if (!filters.fundingAgencies.includes(tender.fundingAgency)) return false;
-      }
-
-      // Procurement Types filter
-      if (filters.procurementTypes && filters.procurementTypes.length > 0) {
-        if (!filters.procurementTypes.includes(tender.procurementType)) return false;
-      }
-
-      // Notice Types filter
-      if (filters.noticeTypes && filters.noticeTypes.length > 0) {
-        if (!filters.noticeTypes.includes(tender.noticeType)) return false;
-      }
-
-      // Search query
-      if (filters.searchQuery) {
-        const query = filters.searchQuery.toLowerCase();
-        const haystack = `${tender.title} ${tender.referenceNumber} ${tender.organizationName}`.toLowerCase();
-
-        if (filters.searchMode === 'exactPhrase') {
-          if (!haystack.includes(query)) return false;
-        } else if (filters.searchMode === 'anyWords') {
-          const words = query.split(/\s+/).filter(Boolean);
-          if (!words.some(word => haystack.includes(word))) return false;
-        } else if (filters.searchMode === 'boolean') {
-          if (query.includes(' and ')) {
-            const words = query.split(' and ').map(word => word.trim()).filter(Boolean);
-            if (!words.every(word => haystack.includes(word))) return false;
-          } else if (query.includes(' or ')) {
-            const words = query.split(' or ').map(word => word.trim()).filter(Boolean);
-            if (!words.some(word => haystack.includes(word))) return false;
-          } else {
-            if (!haystack.includes(query)) return false;
+      const mappedShortlists: TenderListDTO[] = (shortlistsResponse || []).map((s: any) => ({
+        id: `shortlist-${s.id}`,
+        referenceNumber: `SH-${s.id}`,
+        title: s.project || s.tenderTitle || 'N/A',
+        organizationName: s.donor || s.organizationName || 'N/A',
+        country: s.location || 'N/A',
+        isMultiCountry: false,
+        deadline: s.shortlistedAt ? new Date(s.shortlistedAt) : new Date(),
+        daysRemaining: 0,
+        budget: {
+          amount: s.budget || 0,
+          currency: 'EUR',
+          formatted: `EUR ${Number(s.budget || 0).toLocaleString()}`
+        },
+        status: s.status || 'ACTIVE',
+        sectors: [],
+        createdAt: s.shortlistedAt ? new Date(s.shortlistedAt) : new Date(),
+        publishedDate: s.shortlistedAt ? new Date(s.shortlistedAt) : new Date(),
+        alertCategory: MatchingAlertCategoryEnum.SHORTLISTS,
+        shortlistCompanies: [
+          {
+            name: `${s.organizationName} (Rank: ${s.rank || 'N/A'}, Score: ${s.score || 'N/A'}%)`,
+            organizationId: String(s.organizationId),
+            date: s.shortlistedAt ? new Date(s.shortlistedAt) : new Date()
           }
-        } else {
-          const words = query.split(/\s+/).filter(Boolean);
-          if (!words.every(word => haystack.includes(word))) return false;
+        ],
+        comments: s.comments
+      }));
+
+      const combined = [...tendersResponse, ...mappedShortlists];
+
+      setTendersData({
+        data: combined,
+        meta: {
+          page: 1,
+          pageSize: combined.length,
+          totalItems: combined.length,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPreviousPage: false
         }
-      }
-
-      // Budget range
-      if (filters.budgetDirection === 'above' && filters.minBudget && tender.budget.amount < filters.minBudget) return false;
-      if (filters.budgetDirection === 'below' && filters.maxBudget && tender.budget.amount > filters.maxBudget) return false;
-      if (!filters.budgetDirection || filters.budgetDirection === 'any') {
-        if (filters.minBudget && tender.budget.amount < filters.minBudget) return false;
-        if (filters.maxBudget && tender.budget.amount > filters.maxBudget) return false;
-      }
-
-      // Published date range
-      if (filters.publishedFrom && tender.publishedDate < filters.publishedFrom) return false;
-      if (filters.publishedTo && tender.publishedDate > filters.publishedTo) return false;
-
-      // Hide multi-country projects
-      if (filters.hideMultiCountry && tender.isMultiCountry) return false;
-
-      // Alert category filter
-      if (filters.alertCategory && tender.alertCategory !== filters.alertCategory) return false;
-
-      return true;
-    });
-  }, [allTenders, filters]);
-
-  // Sort tenders
-  const sortedTenders = useMemo(() => {
-    const sorted = [...filteredTenders];
-    
-    switch (sortBy) {
-      case 'newest':
-        return sorted.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-      case 'oldest':
-        return sorted.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-      case 'deadline':
-        return sorted.sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
-      case 'budgetHigh':
-        return sorted.sort((a, b) => b.budget.amount - a.budget.amount);
-      case 'budgetLow':
-        return sorted.sort((a, b) => a.budget.amount - b.budget.amount);
-      case 'matchScore':
-        return sorted.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
-      default:
-        return sorted;
+      });
+    } catch (error) {
+      console.error('Failed to fetch tenders:', error);
+    } finally {
+      setIsLoading(false);
     }
-  }, [filteredTenders, sortBy]);
+  }, [isAuthenticated]);
 
-  // Paginate tenders
-  const paginatedTenders: PaginatedResponseDTO<TenderListDTO> = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    const data = sortedTenders.slice(startIndex, endIndex);
-    
-    const totalPages = Math.ceil(sortedTenders.length / pageSize);
-    
-    return {
-      data,
-      meta: {
-        page: currentPage,
-        pageSize,
-        totalItems: sortedTenders.length,
-        totalPages,
-        hasNextPage: currentPage < totalPages,
-        hasPreviousPage: currentPage > 1
-      }
-    };
-  }, [sortedTenders, currentPage, pageSize]);
+  const fetchKPIs = useCallback(async () => {
+    try {
+      const response = await tenderService.getKPIs();
+      setKpis(response);
+    } catch (error) {
+      console.error('Failed to fetch KPIs:', error);
+    }
+  }, []);
 
-  // Calculate KPIs
-  const kpis: TenderKPIsDTO = useMemo(() => {
-    const activeTenders = allTenders.filter(t => t.status === TenderStatusEnum.PUBLISHED).length;
-    const closedTenders = allTenders.filter(t => t.status === TenderStatusEnum.CLOSED).length;
-    const awardedTenders = allTenders.filter(t => t.status === TenderStatusEnum.AWARDED).length;
-    
-    const totalBudget = allTenders.reduce((sum, t) => sum + t.budget.amount, 0);
-    const avgBudget = totalBudget / allTenders.length;
-    
-    const successRate = allTenders.length > 0 ? (awardedTenders / allTenders.length) * 100 : 0;
-    
-    // Mock user-specific data
-    const mySubmissions = 8;
-    const myPendingSubmissions = 3;
-    const myInvitations = 5;
-    const pipelineValue = 4500000;
+  useEffect(() => {
+    fetchTenders();
+  }, [fetchTenders]);
 
-    return {
-      totalTenders: allTenders.length,
-      activeTenders,
-      closedTenders,
-      awardedTenders,
-      averageBudget: {
-        amount: avgBudget,
-        currency: CurrencyEnum.EUR,
-        formatted: `€${Math.round(avgBudget).toLocaleString()}`
-      },
-      averageProposalsPerTender: 12,
-      successRate,
-      mySubmissions,
-      myPendingSubmissions,
-      myInvitations,
-      pipelineValue: {
-        amount: pipelineValue,
-        currency: CurrencyEnum.EUR,
-        formatted: `€${(pipelineValue / 1000000).toFixed(1)}M`
-      }
-    };
-  }, [allTenders]);
+  useEffect(() => {
+    fetchKPIs();
+  }, [fetchKPIs]);
 
   // Actions
   const saveTender = (tenderId: string) => {
@@ -465,15 +381,15 @@ export function useTenders() {
     return savedTenderIds.has(tenderId);
   };
 
-  const updateFilters = (newFilters: Partial<TenderFilters>) => {
+  const updateFilters = useCallback((newFilters: Partial<TenderFilters>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
     setCurrentPage(1); // Reset to first page when filters change
-  };
+  }, []);
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setFilters({});
     setCurrentPage(1);
-  };
+  }, []);
 
   const activeFiltersCount = useMemo(() => {
     let count = 0;
@@ -497,9 +413,10 @@ export function useTenders() {
 
   return {
     // Data
-    tenders: paginatedTenders,
+    tenders: tendersData,
     kpis,
-    
+    isLoading,
+
     // Filters & Sort
     filters,
     updateFilters,
@@ -507,17 +424,17 @@ export function useTenders() {
     activeFiltersCount,
     sortBy,
     setSortBy,
-    
+
     // Pagination
     currentPage,
     setCurrentPage,
-    
+
     // Actions
     saveTender,
     unsaveTender,
     isTenderSaved,
-    
-    // Access to all tenders (unfiltered, unpaginated) for detail pages
-    allTenders,
+
+    refreshTenders: fetchTenders,
+    getTenderById: tenderService.getTenderById
   };
 }
