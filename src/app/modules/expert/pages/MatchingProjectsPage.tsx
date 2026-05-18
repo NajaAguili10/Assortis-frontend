@@ -54,7 +54,7 @@ const FREE_PREVIEW_COUNT = PUBLIC_VISIBLE_ITEM_LIMIT;
 
 const DEFAULT_FILTERS: MatchingProjectsFilterDTO = {
   sort: 'relevance',
-  category: 'ALL',
+  category: OpportunityTypeEnum.OPEN_PROJECT,
   country: 'ALL',
   minScore: 0,
   dateRange: '5days',
@@ -137,10 +137,9 @@ export default function MatchingProjectsPage() {
 
   useEffect(() => {
     const typeParam = searchParams.get('type');
-    if (!typeParam) return;
     setFilters(prev => ({
       ...prev,
-      category: TYPE_PARAM_MAP[typeParam] ?? 'ALL',
+      category: typeParam ? TYPE_PARAM_MAP[typeParam] ?? OpportunityTypeEnum.OPEN_PROJECT : OpportunityTypeEnum.OPEN_PROJECT,
     }));
   }, [searchParams]);
 

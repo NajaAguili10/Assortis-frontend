@@ -50,7 +50,7 @@ export function MatchingOpportunitiesSubMenu() {
             label: t('matching-opportunities.nav.openProjects'),
             active: activeTab === 'openProjects',
             icon: Layers,
-            onClick: () => navigate('/matching-opportunities/projects'),
+            onClick: () => navigate('/matching-opportunities/projects?type=open-projects'),
           },
           {
             label: t('matching-opportunities.nav.shortlists'),
@@ -87,7 +87,7 @@ export function MatchingOpportunitiesSubMenu() {
       label: t('matching-opportunities.nav.projects'),
       active: activeTab === 'openProjects',
       icon: Layers,
-      onClick: () => navigate('/matching-opportunities/projects'),
+      onClick: () => navigate('/matching-opportunities/projects?type=open-projects'),
     },
     {
       label: t('matching-opportunities.nav.saved'),

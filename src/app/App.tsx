@@ -338,6 +338,7 @@ const router = createBrowserRouter([
       { path: 'matching', Component: SmartMatching },
       { path: 'subscriptions', Component: Subscriptions },
       { path: 'training', Component: withPermissionProtection(Training, canAccessTraining) },
+      { path: 'training/overview', element: <Navigate to="/training/catalog" replace /> },
       { path: 'training/portfolio', Component: withPermissionProtection(TrainingPortfolio, canAccessTraining) },
       { path: 'training/activated-pills', Component: withPermissionProtection(TrainingActivatedPills, canAccessTraining) },
       { path: 'training/catalog', Component: withPermissionProtection(TrainingCatalog, canAccessTraining) },
