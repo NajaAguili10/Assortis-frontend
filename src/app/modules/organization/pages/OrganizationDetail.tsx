@@ -16,6 +16,7 @@ import { Separator } from '@app/components/ui/separator';
 import { slugifyPartnerName } from '@app/services/organizationPartnerContracts.service';
 
 import { useOrganizations } from '@app/modules/organization/hooks/useOrganizations';
+import { useOrganizationBookmarks } from '@app/modules/shared/hooks/useOrganizationBookmarks';
 import {
   Award,
   BarChart3,

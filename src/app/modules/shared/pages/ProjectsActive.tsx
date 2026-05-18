@@ -1,4 +1,4 @@
-﻿import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { format, isAfter, startOfToday } from 'date-fns';
 import { enUS, es, fr } from 'date-fns/locale';
@@ -75,7 +75,8 @@ function writeSavedProjectIds(projectIds: string[]) {
 export default function ProjectsActive() {
   const { t, language } = useTranslation();
   const navigate = useNavigate();
-  const { allTenders } = useTenders();
+  const { tenders } = useTenders();
+  const allTenders = tenders?.data || [];
   const { pipelineItems } = usePipeline();
 
   const [activeTab, setActiveTab] = useState<ActiveProjectsTab>('open');

@@ -36,7 +36,8 @@ export default function GlobalSearch() {
   const [isSearching, setIsSearching] = useState(false);
 
   // Hooks for data
-  const { allTenders } = useTenders();
+  const { tenders } = useTenders();
+  const allTenders = tenders?.data || [];
   const { allProjects } = useProjects();
   const { allExperts } = useExperts();
   const { allOrganizations } = useOrganizations();

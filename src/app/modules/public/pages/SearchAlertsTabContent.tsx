@@ -126,7 +126,8 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
   const { user, activeOrganizationProfile } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { allTenders } = useTenders();
+  const { tenders } = useTenders();
+  const allTenders = tenders?.data || [];
   const storageKey = `search.tab.saved.${tab}`;
   const alertsStorageKey = `search.tab.alerts.${tab}.${activeOrganizationProfile?.id || 'default'}`;
 
@@ -169,6 +170,28 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
   const [allSubsectors, setAllSubsectors] = useState<SubsectorDTO[]>([]);
   const [dynamicSubsectorsMap, setDynamicSubsectorsMap] = useState<Record<number, SubsectorDTO[]>>({});
   const [isLoadingSubscriptions, setIsLoadingSubscriptions] = useState(false);
+  const [shortlists, setShortlists] = useState<any[]>([]);
+  const [awards, setAwards] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (tab === 'shortlists') {
+      organizationService.getMyShortlists()
+        .then(data => {
+          setShortlists(data || []);
+        })
+        .catch(err => {
+          console.error('Error fetching shortlists in SearchAlertsTabContent:', err);
+        });
+    } else if (tab === 'awards') {
+      organizationService.getMyAwards()
+        .then(data => {
+          setAwards(data || []);
+        })
+        .catch(err => {
+          console.error('Error fetching awards in SearchAlertsTabContent:', err);
+        });
+    }
+  }, [tab]);
 
   const dateLocale = language === 'fr' ? fr : language === 'es' ? es : enUS;
   const today = startOfToday();
@@ -503,7 +526,11 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
     notIncludedInMembershipSubscription ? 'Not included in membership subscription' : '',
   ].filter(Boolean);
 
-  const formatList = (items: string[]) => items.map((item) => item.replace(/_/g, ' '));
+  const formatList = (items?: any[]) => (items || []).map((item) => {
+    if (typeof item === 'string') return item.replace(/_/g, ' ');
+    if (item && typeof item === 'object') return item.name || item.code || String(item);
+    return String(item);
+  });
 
   const formatDateString = (value?: string | null) => {
     if (!value) return '';
@@ -778,9 +805,41 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
 
   const baseRows = useMemo(() => {
     if (tab === 'projects') return allTenders.filter(item => item.alertCategory === MatchingAlertCategoryEnum.PROJECTS);
-    if (tab === 'awards') return allTenders.filter(item => item.alertCategory === MatchingAlertCategoryEnum.AWARDS);
-    return allTenders.filter(item => item.alertCategory === MatchingAlertCategoryEnum.SHORTLISTS);
-  }, [allTenders, tab]);
+    if (tab === 'awards') {
+      return awards.map(item => ({
+        ...item,
+        publishedDate: item.publishedDate ? new Date(item.publishedDate) : null,
+        deadline: item.deadline ? new Date(item.deadline) : null,
+        createdAt: item.createdAt ? new Date(item.createdAt) : null
+      }));
+    }
+    
+    return shortlists.map(item => {
+      const budgetAmount = item.budget != null ? Number(item.budget) : 0;
+      const formattedBudget = item.budget != null 
+        ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(budgetAmount)
+        : '—';
+        
+      return {
+        id: item.tenderId ?? item.id,
+        title: item.tenderTitle || item.project || 'N/A',
+        country: item.location || 'N/A',
+        organizationName: item.donor || item.organizationName || 'N/A',
+        budget: {
+          amount: budgetAmount,
+          formatted: formattedBudget
+        },
+        publishedDate: item.shortlistedAt ? new Date(item.shortlistedAt) : null,
+        deadline: item.shortlistedAt ? new Date(item.shortlistedAt) : new Date(),
+        procurementType: (item.role || 'Partner') as any,
+        noticeType: (item.status || 'DRAFT') as any,
+        alertCategory: MatchingAlertCategoryEnum.SHORTLISTS,
+        sectors: [],
+        subsectors: [],
+        isMultiCountry: false
+      } as unknown as TenderListDTO;
+    });
+  }, [allTenders, tab, shortlists, awards]);
 
   const passesSearch = (row: TenderListDTO) => {
     if (!searchQuery) return true;

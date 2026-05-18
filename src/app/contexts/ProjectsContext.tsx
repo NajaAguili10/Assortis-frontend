@@ -489,7 +489,7 @@ const initialMockProjects: ProjectListDTOInternal[] = [
 
 
 // Mock Tasks Initial
-
+/*
 const initialMockTasks: TaskDTO[] = [
   {
     id: 't1',
@@ -727,7 +727,10 @@ const initialMockCollaborations: CollaborationDTO[] = [
   },
 ];
 
+/*
+
 // Mock Templates Initial
+/*
 const initialMockTemplates: ProjectTemplateDTO[] = [
   {
     id: 'tmp1',
@@ -781,17 +784,17 @@ const initialMockTemplates: ProjectTemplateDTO[] = [
     createdBy: 'UNICEF',
     createdDate: '2022-06-30',
   },
-]; 
+];  
+*/
 
 export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-const [projects, setProjects] = useState<ProjectListDTO[]>([]); 
-  const [isProjectsLoading, setIsProjectsLoading] = useState(false);
+  const [projects, setProjects] = useState<ProjectListDTO[]>([]);
+  const [templates, setTemplates] = useState<ProjectTemplateDTO[]>([]);
+  const [isProjectsLoading, setIsProjectsLoading] = useState<boolean>(false);
   const [projectsError, setProjectsError] = useState<string | null>(null);
 
-  // Local-only placeholders until task, collaboration, and template APIs exist.
-  const [tasks, setTasks] = useState<TaskDTO[]>(initialMockTasks);
-  const [collaborations, setCollaborations] = useState<CollaborationDTO[]>(initialMockCollaborations);
-  const [templates, setTemplates] = useState<ProjectTemplateDTO[]>(initialMockTemplates);
+  const [tasks, setTasks] =  useState<TaskDTO[]>([]); 
+  const [collaborations, setCollaborations] = useState<CollaborationDTO[]>([]); 
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -835,7 +838,7 @@ const [projects, setProjects] = useState<ProjectListDTO[]>([]);
   };
 
   const getProjectById = (id: string) => {
-    return projects.find((project) => String(project.id) === String(id));
+    return projects.find((project) => project.id === id);
   };
 
   const addTask = (task: TaskDTO) => {

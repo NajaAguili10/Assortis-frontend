@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useTenders } from '@app/hooks/useTenders';
@@ -47,7 +47,20 @@ import { toast } from 'sonner';
 export default function MySubmissions() {
   const { t: tBase, language } = useLanguage();
   const navigate = useNavigate();
-  const { kpis, tenders } = useTenders();
+  const { kpis: rawKpis, tenders } = useTenders();
+  const kpis = rawKpis || {
+    totalTenders: 0,
+    activeTenders: 0,
+    closedTenders: 0,
+    awardedTenders: 0,
+    averageBudget: { amount: 0, currency: 'EUR', formatted: '€0' },
+    averageProposalsPerTender: 0,
+    successRate: 0,
+    mySubmissions: 0,
+    myPendingSubmissions: 0,
+    myInvitations: 0,
+    pipelineValue: { amount: 0, currency: 'EUR', formatted: '€0' }
+  };
   const { 
     pipelineItems, 
     getSubmissions, 

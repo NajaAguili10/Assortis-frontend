@@ -145,6 +145,8 @@ const createEmptyFormData = () => ({
   // Step 4: Team & Resources (Pre-filled from myOrganizationData)
   teamSize: '',
   experts: '',
+  technicalCapacity: '',
+  equipmentInfrastructure: '',
   
   // Step 5: Financial & Projects (Pre-filled from myOrganizationData)
   annualBudget: '',
@@ -245,6 +247,8 @@ export default function OrganizationsEditProfile() {
           // Step 4: Team & Resources (Pre-filled from myOrganizationData)
           teamSize: profileData.teamSize != null ? String(profileData.teamSize) : '',
           experts: profileData.experts != null ? String(profileData.experts) : '',
+          technicalCapacity: profileData.technicalCapacity && profileData.technicalCapacity !== '-' ? profileData.technicalCapacity : '',
+          equipmentInfrastructure: profileData.equipment && profileData.equipment !== '-' ? profileData.equipment : '',
           
           // Step 5: Financial & Projects (Pre-filled from myOrganizationData)
           annualBudget: profileData.annualBudget != null ? String(profileData.annualBudget) : '',
@@ -400,6 +404,8 @@ export default function OrganizationsEditProfile() {
         // Step 4: Team & Resources (Pre-filled from myOrganizationData)
         teamSize: savedProfile.teamSize != null ? String(savedProfile.teamSize) : '',
         experts: savedProfile.experts != null ? String(savedProfile.experts) : '',
+        technicalCapacity: savedProfile.technicalCapacity && savedProfile.technicalCapacity !== '-' ? savedProfile.technicalCapacity : '',
+        equipmentInfrastructure: savedProfile.equipment && savedProfile.equipment !== '-' ? savedProfile.equipment : '',
         
         // Step 5: Financial & Projects (Pre-filled from myOrganizationData)
         annualBudget: savedProfile.annualBudget != null ? String(savedProfile.annualBudget) : '',
@@ -967,6 +973,30 @@ export default function OrganizationsEditProfile() {
                       placeholder={t('organizations.form.experts.placeholder')}
                       className="mt-1"
                       min="0"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="technicalCapacity">{t('organizations.form.technicalCapacity')}</Label>
+                    <Textarea
+                      id="technicalCapacity"
+                      value={formData.technicalCapacity}
+                      onChange={(e) => handleInputChange('technicalCapacity', e.target.value)}
+                      placeholder={t('organizations.form.technicalCapacity.placeholder')}
+                      className="mt-1 min-h-[120px]"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="equipmentInfrastructure">{t('organizations.form.equipmentInfrastructure')}</Label>
+                    <Textarea
+                      id="equipmentInfrastructure"
+                      value={formData.equipmentInfrastructure}
+                      onChange={(e) => handleInputChange('equipmentInfrastructure', e.target.value)}
+                      placeholder={t('organizations.form.equipmentInfrastructure.placeholder')}
+                      className="mt-1 min-h-[120px]"
                     />
                   </div>
                 </div>

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { PageBanner } from '@app/components/PageBanner';
@@ -83,9 +83,39 @@ export default function TenderDetail() {
   const { id } = useParams<{ id: string }>();
   const { t, language } = useLanguage();
   const navigate = useNavigate();
-  const { allTenders, kpis } = useTenders();
+  const { kpis: rawKpis, getTenderById } = useTenders();
+  const [tender, setTender] = useState<TenderListDTO | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const kpis = rawKpis || {
+    totalTenders: 0,
+    activeTenders: 0,
+    closedTenders: 0,
+    awardedTenders: 0,
+    averageBudget: { amount: 0, currency: 'EUR', formatted: '€0' },
+    averageProposalsPerTender: 0,
+    successRate: 0,
+    mySubmissions: 0,
+    myPendingSubmissions: 0,
+    myInvitations: 0,
+    pipelineValue: { amount: 0, currency: 'EUR', formatted: '€0' }
+  };
   
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+
+  React.useEffect(() => {
+    if (id) {
+      setIsLoading(true);
+      getTenderById(id)
+        .then(data => {
+          setTender(data);
+          setIsLoading(false);
+        })
+        .catch(() => {
+          setIsLoading(false);
+        });
+    }
+  }, [id, getTenderById]);
   
   // Helper function to get translation with fallback
   const getTrans = (key: string): string => {
@@ -158,8 +188,16 @@ export default function TenderDetail() {
     setTimeout(() => window.URL.revokeObjectURL(url), 1000);
   };
 
-  // Find tender by ID - use allTenders not tenders.data
-  const tender = allTenders.find((t) => String(t.id) === String(id));
+  // Tender is now fetched via useEffect
+  // const tender = allTenders.find((t) => String(t.id) === String(id));
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
+      </div>
+    );
+  }
 
   if (!tender) {
     return (

@@ -778,6 +778,10 @@
     'organizations.form.teamSize.placeholder': 'Number of employees',
     'organizations.form.experts': 'Number of Experts',
     'organizations.form.experts.placeholder': 'Number of experts',
+    'organizations.form.technicalCapacity': 'Technical Capacity',
+    'organizations.form.technicalCapacity.placeholder': 'Describe your organization\'s technical capacity',
+    'organizations.form.equipmentInfrastructure': 'Equipment & Infrastructure',
+    'organizations.form.equipmentInfrastructure.placeholder': 'List major equipment, facilities, and infrastructure resources',
     
     // Form Fields - Financial
     'organizations.form.annualBudget': 'Annual Budget (USD)',
@@ -1622,6 +1626,10 @@
     'organizations.form.teamSize.placeholder': 'Nombre d\'employÃ©s',
     'organizations.form.experts': 'Nombre d\'Experts',
     'organizations.form.experts.placeholder': 'Nombre d\'experts',
+    'organizations.form.technicalCapacity': 'CapacitÃ© Technique',
+    'organizations.form.technicalCapacity.placeholder': 'DÃ©crivez la capacitÃ© technique de votre organisation',
+    'organizations.form.equipmentInfrastructure': 'Ã‰quipement & Infrastructure',
+    'organizations.form.equipmentInfrastructure.placeholder': 'Listez les principaux Ã©quipements, installations et ressources d\'infrastructure',
     
     // Form Fields - Financial
     'organizations.form.annualBudget': 'Budget Annuel (USD)',
@@ -2466,6 +2474,10 @@
     'organizations.form.teamSize.placeholder': 'NÃºmero de empleados',
     'organizations.form.experts': 'NÃºmero de Expertos',
     'organizations.form.experts.placeholder': 'NÃºmero de expertos',
+    'organizations.form.technicalCapacity': 'Capacidad TÃ©cnica',
+    'organizations.form.technicalCapacity.placeholder': 'Describa la capacidad tÃ©cnica de su organizaciÃ³n',
+    'organizations.form.equipmentInfrastructure': 'Equipamiento & Infraestructura',
+    'organizations.form.equipmentInfrastructure.placeholder': 'Enumere los principales equipos, instalaciones y recursos de infraestructura',
     
     // Form Fields - Financial
     'organizations.form.annualBudget': 'Presupuesto Anual (USD)',

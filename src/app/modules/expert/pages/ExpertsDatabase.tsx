@@ -41,7 +41,20 @@ import { buildOrganizationProfileSearchFields, savedSearchService } from '@app/s
 import { JobOfferListDTO, JobOfferStatusEnum } from '@app/modules/posting-board/types/JobOffer.dto';
 import { getAllJobOffers } from '@app/modules/posting-board/services/jobOfferService';
 import { downloadExpertCvFile } from '@app/modules/expert/services/expertReferenceGeneration.service';
+import { organizationService } from '@app/services/organizationService';
+import { sectorService } from '@app/services/sectorService';
 import { toast } from 'sonner';
+import { useExperts, ExpertDTO, ExpertSectorDTO } from '@app/modules/expert/hooks/useExperts';
+import { SectorEnum, RegionEnum, CountryEnum, REGION_COUNTRY_MAP } from '@app/types/tender.dto';
+import { SECTOR_SUBSECTOR_MAP } from '@app/config/subsectors.config';
+import { Separator } from '@app/components/ui/separator';
+import { Popover, PopoverContent, PopoverTrigger } from '@app/components/ui/popover';
+import { Briefcase, CheckCircle, MapPin, Star, UserCircle, UserCheck, TrendingUp, Filter, Clock } from 'lucide-react';
+import { getLocalizedCountryName } from '@app/utils/country-translator';
+import { SectorSubsectorFilter } from '@app/components/SectorSubsectorFilter';
+import { RegionCountryFilter } from '@app/components/RegionCountryFilter';
+import { RegionDTO } from '@/app/types/project.dto';
+import { CountryDTO, SectorDTO, SubsectorDTO } from '@/app/types/organization.dto';
 
 const EMPTY_FILTERS: ExpertSearchFilters = {
   sectors: [],
@@ -89,178 +102,7 @@ function MultiOptionList({
     return options.filter(option => option.toLowerCase().includes(needle));
   }, [options, query]);
 
-  // Get available countries based on selected regions
-  const availableCountries = useMemo(() => {
-    if (selectedRegions.length === 0) return [];
-    const countries: string[] = [];
-    selectedRegions.forEach(region => {
-      const regionCountries = REGION_COUNTRY_MAP[region as RegionEnum] || [];
-      countries.push(...regionCountries);
-    });
-    return [...new Set(countries)];
-  }, [selectedRegions]);
-
-  // Experience ranges
-  const experienceRanges = [
-    { value: '0-5', label: '0-5 years' },
-    { value: '5-10', label: '5-10 years' },
-    { value: '10-15', label: '10-15 years' },
-    { value: '15+', label: '15+ years' },
-  ];
-
-  // Real-time search and filter
-  const filteredExperts = useMemo(() => {
-    let filtered = [...experts.data];
-
-    // Text search
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter((expert) => {
-        const fullName = `${expert.firstName} ${expert.lastName}`.toLowerCase();
-        const cityStr = typeof expert.city === 'object' ? (expert.city as any)?.name : (expert.city || '');
-        const countryStr = typeof expert.country === 'object' ? (expert.country as any)?.name : (expert.country || '');
-        const location = `${cityStr} ${countryStr}`.toLowerCase();
-
-        return (
-          fullName.includes(query) ||
-          expert.title?.toLowerCase().includes(query) ||
-          location.includes(query) ||
-          expert.bio?.toLowerCase().includes(query) ||
-          expert.skills?.some(skill => (typeof skill === 'object' ? (skill as any).skillName : String(skill)).toLowerCase().includes(query)) ||
-          expert.sectors?.some(sector => sector.toLowerCase().includes(query))
-        );
-      });
-    }
-
-    // Filter by sectors
-    if (selectedSectors.length > 0) {
-      filtered = filtered.filter((expert) =>
-        expert.sectors?.some(sector => selectedSectors.includes(sector))
-      );
-    }
-
-    // Filter by subsectors
-    if (selectedSubSectors.length > 0) {
-      filtered = filtered.filter((expert) =>
-        expert.subSectors?.some(sub => selectedSubSectors.includes(sub))
-      );
-    }
-
-    // Filter by regions
-    if (selectedRegions.length > 0) {
-      filtered = filtered.filter((expert) =>
-        selectedRegions.includes(expert.region)
-      );
-    }
-
-    // Filter by countries
-    if (selectedCountries.length > 0) {
-      filtered = filtered.filter((expert) =>
-        selectedCountries.includes(expert.country)
-      );
-    }
-
-    // Filter by years of experience
-    if (selectedExperience.length > 0) {
-      filtered = filtered.filter((expert) => {
-        const years = expert.yearsOfExperience;
-        return selectedExperience.some(range => {
-          switch (range) {
-            case '0-5':
-              return years <= 5;
-            case '5-10':
-              return years > 5 && years <= 10;
-            case '10-15':
-              return years > 10 && years <= 15;
-            case '15+':
-              return years > 15;
-            default:
-              return true;
-          }
-        });
-      });
-    }
-
-    return filtered;
-  }, [experts.data, searchQuery, selectedSectors, selectedSubSectors, selectedRegions, selectedCountries, selectedExperience]);
-
-  const handleSearchChange = (value: string) => {
-    setSearchQuery(value);
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-  };
-
-  const handleSectorFilter = (sector: string) => {
-    const newSectors = selectedSectors.includes(sector)
-      ? selectedSectors.filter(s => s !== sector)
-      : [...selectedSectors, sector];
-
-    setSelectedSectors(newSectors);
-
-    // Clear subsectors if no sectors selected
-    if (newSectors.length === 0) {
-      setSelectedSubSectors([]);
-    } else {
-      // Remove invalid subsectors
-      const validSubSectors = selectedSubSectors.filter(sub => {
-        return newSectors.some(sec => SUBSECTOR_MAP[sec as SectorEnum]?.includes(sub));
-      });
-      setSelectedSubSectors(validSubSectors);
-    }
-  };
-
-  const handleSubSectorFilter = (subSector: string) => {
-    const newSubSectors = selectedSubSectors.includes(subSector)
-      ? selectedSubSectors.filter(s => s !== subSector)
-      : [...selectedSubSectors, subSector];
-    setSelectedSubSectors(newSubSectors);
-  };
-
-  const handleRegionFilter = (region: string) => {
-    const newRegions = selectedRegions.includes(region)
-      ? selectedRegions.filter(r => r !== region)
-      : [...selectedRegions, region];
-
-    setSelectedRegions(newRegions);
-
-    // Clear countries if no regions selected
-    if (newRegions.length === 0) {
-      setSelectedCountries([]);
-    } else {
-      // Remove invalid countries
-      const validCountries = selectedCountries.filter(country => {
-        return newRegions.some(reg => REGION_COUNTRY_MAP[reg as RegionEnum]?.includes(country));
-      });
-      setSelectedCountries(validCountries);
-    }
-  };
-
-  const handleCountryFilter = (country: string) => {
-    const newCountries = selectedCountries.includes(country)
-      ? selectedCountries.filter(c => c !== country)
-      : [...selectedCountries, country];
-    setSelectedCountries(newCountries);
-  };
-
-  const handleExperienceFilter = (experience: string) => {
-    const newExperience = selectedExperience.includes(experience)
-      ? selectedExperience.filter(e => e !== experience)
-      : [...selectedExperience, experience];
-    setSelectedExperience(newExperience);
-  };
-
-  const clearAllFilters = () => {
-    setSearchQuery('');
-    setSelectedSectors([]);
-    setSelectedSubSectors([]);
-    setSelectedRegions([]);
-    setSelectedCountries([]);
-    setSelectedExperience([]);
-  };
-
-  const activeFiltersCount = selectedSectors.length + selectedSubSectors.length + selectedRegions.length + selectedCountries.length + selectedExperience.length;
+  const allFilteredSelected = filteredOptions.length > 0 && filteredOptions.every(option => selected.includes(option));
 
   return (
     <div className="space-y-3">
@@ -313,6 +155,8 @@ function MultiOptionList({
     </div>
   );
 }
+
+
 
 function GroupedFilter({
   groups,
@@ -871,6 +715,61 @@ export function ExpertsSearchFiltersWorkspace() {
   const [pendingUnlockPreview, setPendingUnlockPreview] = useState(false);
   const [projectVacancies, setProjectVacancies] = useState<JobOfferListDTO[]>([]);
   const [selectedVacancyId, setSelectedVacancyId] = useState('');
+  const [subscriptionSectors, setSubscriptionSectors] = useState<SectorDTO[]>([]);
+  const [subscriptionSubsectors, setSubscriptionSubsectors] = useState<SubsectorDTO[]>([]);
+  const [subscriptionCountries, setSubscriptionCountries] = useState<CountryDTO[]>([]);
+  const [isLoadingSubscriptions, setIsLoadingSubscriptions] = useState(true);
+
+  // Fetch subscriptions
+  useEffect(() => {
+    const fetchSubscriptions = async () => {
+      try {
+        let sectors = await organizationService.getMySubscriptionSectors();
+        const countries = await organizationService.getMySubscriptionCountries();
+
+        // If no subscription sectors, fetch all sectors as fallback
+        if (!sectors || sectors.length === 0) {
+          sectors = await sectorService.getAllSectors();
+        }
+
+        setSubscriptionSectors(sectors);
+        setSubscriptionCountries(countries);
+
+        // Fetch subsectors for each sector
+        if (sectors.length > 0) {
+          const subsectorPromises = sectors.map(s => sectorService.getSubsectorsBySectorId(s.id));
+          const allSubsectorsResults = await Promise.all(subsectorPromises);
+          setSubscriptionSubsectors(allSubsectorsResults.flat());
+        }
+      } catch (error) {
+        console.error('Error fetching subscription data:', error);
+      } finally {
+        setIsLoadingSubscriptions(false);
+      }
+    };
+    fetchSubscriptions();
+  }, []);
+
+  const dynamicSectorGroups = useMemo(() => {
+    if (subscriptionSectors.length === 0 && !isLoadingSubscriptions) return SECTOR_GROUPS;
+    return subscriptionSectors.map(s => ({
+      label: s.name,
+      options: subscriptionSubsectors
+        .filter(sub => sub.sectorId === s.id)
+        .map(sub => sub.name)
+    }));
+  }, [subscriptionSectors, subscriptionSubsectors, isLoadingSubscriptions]);
+
+  const dynamicCountryGroups = useMemo(() => {
+    if (subscriptionCountries.length === 0) return COUNTRY_GROUPS;
+    const groups: Record<string, string[]> = {};
+    subscriptionCountries.forEach(c => {
+      const region = c.regionWorld || 'Other';
+      if (!groups[region]) groups[region] = [];
+      groups[region].push(c.name);
+    });
+    return Object.entries(groups).map(([label, options]) => ({ label, options }));
+  }, [subscriptionCountries]);
 
   const activeChips = useMemo(() => {
     const chips: { key: keyof ExpertSearchFilters; label: string; value: string }[] = [];
@@ -1185,14 +1084,14 @@ export function ExpertsSearchFiltersWorkspace() {
             className="h-9 min-w-32 justify-between gap-3 rounded-none bg-red-500 px-4 text-xs font-bold uppercase hover:bg-red-600"
             onClick={() => setShowSectorFilter((current) => !current)}
           >
-            Sectors <Badge className="bg-white/20 text-white">{filters.sectors.length + filters.subSectors.length}</Badge>
+            Sectors <Badge className="bg-white/20 text-white">{filters.sectors.length}</Badge>
           </Button>
           <Button
             type="button"
             className="h-9 min-w-32 justify-between gap-3 rounded-none bg-red-500 px-4 text-xs font-bold uppercase hover:bg-red-600"
             onClick={() => setShowCountryFilter((current) => !current)}
           >
-            Countries <Badge className="bg-white/20 text-white">{filters.regions.length + filters.countries.length}</Badge>
+            Countries <Badge className="bg-white/20 text-white">{filters.countries.length}</Badge>
           </Button>
           <Button type="button" size="sm" variant="outline" className="h-9 px-5 text-xs uppercase" onClick={() => setIsSaveSearchDialogOpen(true)}>
             Save Search
@@ -1204,9 +1103,9 @@ export function ExpertsSearchFiltersWorkspace() {
       </div>
 
       {showSectorFilter && (
-        <ReferenceSection title="Sectors" count={filters.sectors.length + filters.subSectors.length}>
+        <ReferenceSection title="Sectors" count={filters.sectors.length}>
           <ReferenceGroupedFilter
-            groups={SECTOR_GROUPS}
+            groups={dynamicSectorGroups}
             selectedGroup={selectedSectorPanel}
             selectedGroups={filters.sectors}
             selectedOptions={filters.subSectors}
@@ -1220,9 +1119,9 @@ export function ExpertsSearchFiltersWorkspace() {
       )}
 
       {showCountryFilter && (
-        <ReferenceSection title="Countries" count={filters.regions.length + filters.countries.length}>
+        <ReferenceSection title="Countries" count={filters.countries.length}>
           <ReferenceGroupedFilter
-            groups={COUNTRY_GROUPS}
+            groups={dynamicCountryGroups}
             selectedGroup={selectedCountryPanel}
             selectedGroups={filters.regions}
             selectedOptions={filters.countries}
@@ -1379,9 +1278,145 @@ export function ExpertsSearchFiltersWorkspace() {
 
 export default function ExpertsDatabase() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { allExperts } = useExperts();
+  const { t } = useLanguage();
+
+  // Search & Filter State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSectors, setSelectedSectors] = useState<SectorDTO[]>([]);
+  const [selectedSubSectors, setSelectedSubSectors] = useState<SubsectorDTO[]>([]);
+  const [selectedRegions, setSelectedRegions] = useState<RegionDTO[]>([]);
+  const [selectedCountries, setSelectedCountries] = useState<CountryDTO[]>([]);
+  const [selectedExperience, setSelectedExperience] = useState<string[]>([]);
+  const [hoveredSector, setHoveredSector] = useState<SectorDTO | null>(null);
+  const [showFilters, setShowFilters] = useState(true);
+  const [subscriptionSectors, setSubscriptionSectors] = useState<SectorDTO[]>([]);
+  const [subscriptionCountries, setSubscriptionCountries] = useState<CountryDTO[]>([]);
+  const [isLoadingSubscriptions, setIsLoadingSubscriptions] = useState(true);
+
+  // Fetch subscriptions
+  useEffect(() => {
+    const fetchSubscriptions = async () => {
+      try {
+        const [sectors, countries] = await Promise.all([
+          organizationService.getMySubscriptionSectors(),
+          organizationService.getMySubscriptionCountries()
+        ]);
+        setSubscriptionSectors(sectors);
+        setSubscriptionCountries(countries);
+      } catch (error) {
+        console.error('Error fetching subscription data:', error);
+      } finally {
+        setIsLoadingSubscriptions(false);
+      }
+    };
+    fetchSubscriptions();
+  }, []);
+
+  // Dynamic Maps
+  const dynamicSectorSubsectorMap = useMemo(() => {
+    const map: Record<number, SubsectorDTO[]> = {};
+    // Note: Since subscription sectors API doesn't return subsectors, 
+    // we would ideally fetch them here or the API should include them.
+    // For now, we'll return an empty map or use a fallback if needed.
+    return map;
+  }, [subscriptionSectors]);
+
+  const dynamicRegionCountryMap = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    subscriptionCountries.forEach(c => {
+      if (c.regionWorld) {
+        if (!map[c.regionWorld]) map[c.regionWorld] = [];
+        map[c.regionWorld].push(c.code);
+      }
+    });
+    return map;
+  }, [subscriptionCountries]);
+
+  const subscriptionRegionCountryMap = useMemo(() => {
+    return Object.keys(dynamicRegionCountryMap).length > 0 ? dynamicRegionCountryMap : REGION_COUNTRY_MAP;
+  }, [dynamicRegionCountryMap]);
+
+  const subscriptionSectorSubsectorMap = useMemo(() => {
+    // Use the static map for now as fallback for the logic
+    return SECTOR_SUBSECTOR_MAP;
+  }, []);
+
   if (user?.accountType === 'organization' || user?.accountType === 'admin') {
     return <Navigate to="/experts/search" replace />;
   }
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+  };
+
+  const clearAllFilters = () => {
+    setSearchQuery('');
+    setSelectedSectors([]);
+    setSelectedSubSectors([]);
+    setSelectedRegions([]);
+    setSelectedCountries([]);
+    setSelectedExperience([]);
+  };
+
+  const activeFiltersCount =
+    selectedSectors.length +
+    selectedSubSectors.length +
+    selectedRegions.length +
+    selectedCountries.length +
+    selectedExperience.length;
+
+  const filteredExperts = useMemo(() => {
+    if (!allExperts) return [];
+    let filtered = [...allExperts];
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((expert) => {
+        const fullName = `${expert.firstName} ${expert.lastName}`.toLowerCase();
+        const title = (expert.title || expert.currentPosition || '').toLowerCase();
+        const bio = (expert.bio || expert.profileSummary || '').toLowerCase();
+        return fullName.includes(query) || title.includes(query) || bio.includes(query);
+      });
+    }
+
+    if (selectedSectors.length > 0) {
+      filtered = filtered.filter((expert) =>
+        expert.sectors?.some(s => selectedSectors.some(sel => sel.code === s.sectorCode))
+      );
+    }
+
+    if (selectedRegions.length > 0) {
+      filtered = filtered.filter((expert) => {
+        const countryCode = expert.country?.code;
+        return selectedRegions.some(region => subscriptionRegionCountryMap[region.name as any]?.includes(countryCode));
+      });
+    }
+
+    if (selectedCountries.length > 0) {
+      filtered = filtered.filter((expert) => selectedCountries.some(c => c.code === expert.country?.code));
+    }
+
+    if (selectedExperience.length > 0) {
+      filtered = filtered.filter((expert) => {
+        const years = expert.yearsExperience ?? expert.yearsExperience ?? 0;
+        return selectedExperience.some(range => {
+          if (range === '0-5') return years <= 5;
+          if (range === '5-10') return years > 5 && years <= 10;
+          if (range === '10-15') return years > 10 && years <= 15;
+          if (range === '15+') return years > 15;
+          return true;
+        });
+      });
+    }
+
+    return filtered;
+  }, [allExperts, searchQuery, selectedSectors, selectedRegions, selectedCountries, selectedExperience, subscriptionRegionCountryMap]);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -1464,22 +1499,24 @@ export default function ExpertsDatabase() {
                     hoveredSector={hoveredSector}
                     onHoverSector={setHoveredSector}
                     onSelectSector={(sector) => {
-                      const newSectors = selectedSectors.includes(sector)
-                        ? selectedSectors.filter(s => s !== sector)
+                      const isSelected = selectedSectors.some(s => s.id === sector.id);
+                      const newSectors = isSelected
+                        ? selectedSectors.filter(s => s.id !== sector.id)
                         : [...selectedSectors, sector];
                       setSelectedSectors(newSectors);
                       if (newSectors.length === 0) {
                         setSelectedSubSectors([]);
                       } else {
                         const validSubSectors = selectedSubSectors.filter(sub => {
-                          return newSectors.some(sec => SECTOR_SUBSECTOR_MAP[sec]?.includes(sub));
+                          return newSectors.some(sec => sec.id === sub.sectorId);
                         });
                         setSelectedSubSectors(validSubSectors);
                       }
                     }}
                     onSelectSubSector={(subSector) => {
-                      const newSubSectors = selectedSubSectors.includes(subSector)
-                        ? selectedSubSectors.filter(s => s !== subSector)
+                      const isSelected = selectedSubSectors.some(s => s.id === subSector.id);
+                      const newSubSectors = isSelected
+                        ? selectedSubSectors.filter(s => s.id !== subSector.id)
                         : [...selectedSubSectors, subSector];
                       setSelectedSubSectors(newSubSectors);
                     }}
@@ -1493,16 +1530,17 @@ export default function ExpertsDatabase() {
                       }
                     }}
                     onSelectAllSubSectors={(sector) => {
-                      const sectorSubs = SECTOR_SUBSECTOR_MAP[sector] || [];
-                      const allSelected = sectorSubs.every(sub => selectedSubSectors.includes(sub));
+                      const sectorSubs = subscriptionSectorSubsectorMap[sector.sectorCode as any] || [];
+                      const allSelected = sectorSubs.every(sub => selectedSubSectors.includes(sub as any));
                       if (allSelected) {
-                        const newSubs = selectedSubSectors.filter(sub => !sectorSubs.includes(sub));
+                        const newSubs = selectedSubSectors.filter(sub => !sectorSubs.includes(sub as any));
                         setSelectedSubSectors(newSubs);
                       } else {
-                        const newSubs = [...new Set([...selectedSubSectors, ...sectorSubs])];
+                        const newSubs = [...new Set([...selectedSubSectors, ...sectorSubs])] as any;
                         setSelectedSubSectors(newSubs);
                       }
                     }}
+                    allowedSectors={subscriptionSectors}
                     t={t}
                   />
                 </div>
@@ -1513,22 +1551,23 @@ export default function ExpertsDatabase() {
                     selectedRegions={selectedRegions}
                     selectedCountries={selectedCountries}
                     onSelectRegion={(region) => {
-                      const newRegions = selectedRegions.includes(region)
-                        ? selectedRegions.filter(r => r !== region)
+                      const isSelected = selectedRegions.some(r => r.name === region.name);
+                      const newRegions = isSelected
+                        ? selectedRegions.filter(r => r.name !== region.name)
                         : [...selectedRegions, region];
                       setSelectedRegions(newRegions);
                       if (newRegions.length === 0) {
                         setSelectedCountries([]);
                       } else {
                         const validCountries = selectedCountries.filter(country => {
-                          return newRegions.some(reg => REGION_COUNTRY_MAP[reg]?.includes(country));
+                          return newRegions.some(reg => subscriptionRegionCountryMap[reg.name as any]?.includes(country.code));
                         });
                         setSelectedCountries(validCountries);
                       }
                     }}
                     onSelectCountry={(country) => {
-                      const newCountries = selectedCountries.includes(country)
-                        ? selectedCountries.filter(c => c !== country)
+                      const newCountries = selectedCountries.some(c => c.id === country.id)
+                        ? selectedCountries.filter(c => c.id !== country.id)
                         : [...selectedCountries, country];
                       setSelectedCountries(newCountries);
                     }}
@@ -1541,6 +1580,8 @@ export default function ExpertsDatabase() {
                         setSelectedRegions(allRegions);
                       }
                     }}
+                    allowedCountries={subscriptionCountries}
+                    dynamicRegionCountryMap={subscriptionRegionCountryMap}
                     t={t}
                   />
                 </div>
@@ -1701,9 +1742,9 @@ export default function ExpertsDatabase() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="font-semibold text-gray-900 truncate">
-                      {/* Nom masqué pour confidentialité */}
+                      {expert.fullName || `${expert.firstName} ${expert.lastName}`}
                     </h4>
-                    <p className="text-sm text-gray-600 truncate">{expert.title}</p>
+                    <p className="text-sm text-gray-600 truncate">{expert.title || expert.currentPosition}</p>
                     <div className="flex items-center gap-1 mt-1">
                       <MapPin className="w-3 h-3 text-gray-400" />
                       <span className="text-xs text-gray-500 truncate">
@@ -1721,7 +1762,7 @@ export default function ExpertsDatabase() {
                       <span className="text-xs text-gray-600">{t('experts.yearsExp')}</span>
                     </div>
                     <p className="text-lg font-semibold text-primary">
-                      {expert.yearsOfExperience || 0}
+                      {expert.yearsOfExperience ?? expert.yearsExperience ?? 0}
                     </p>
                   </div>
                   <div className="bg-gray-50 rounded-lg p-3">
@@ -1730,7 +1771,7 @@ export default function ExpertsDatabase() {
                       <span className="text-xs text-gray-600">{t('experts.rating')}</span>
                     </div>
                     <p className="text-lg font-semibold text-primary">
-                      {expert.clientRating?.toFixed(1) || '0.0'}
+                      {(expert.clientRating ?? expert.ratingAvg)?.toFixed(1) || '0.0'}
                     </p>
                   </div>
                 </div>
@@ -1751,7 +1792,7 @@ export default function ExpertsDatabase() {
                   )}
                   <Badge variant="outline" className="text-xs">
                     <Clock className="w-3 h-3 mr-1" />
-                    {t(`experts.availability.${expert.availability}`)}
+                    {t(`experts.availability.${expert.availability || expert.availabilityStatus}`)}
                   </Badge>
                 </div>
 
@@ -1799,7 +1840,7 @@ export default function ExpertsDatabase() {
                       <span className="text-xs text-gray-600">{t('experts.missions')}</span>
                     </div>
                     <p className="text-sm font-semibold text-primary">
-                      {expert.completedMissions || 0}
+                      {expert.completedMissions ?? expert.completedProjects ?? 0}
                     </p>
                   </div>
                   <div className="text-center">
