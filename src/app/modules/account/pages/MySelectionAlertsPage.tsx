@@ -94,6 +94,8 @@ interface SearchEditorState {
   alertHour: string;
   emailFormat: SavedSearchEmailFormat;
   status: SavedSearchStatus;
+  lastExecutionAt?: string;
+  lastMatchCount?: number;
 }
 
 interface ProfileFormState {
@@ -607,8 +609,8 @@ function SearchEditorDialog({
   onSave: () => void;
 }) {
   const updateState = (patch: Partial<SearchEditorState>) => onStateChange({ ...state, ...patch });
-  const lastExecution = state.id ? savedSearchService.get(state.id)?.lastExecutionAt : undefined;
-  const lastCount = state.id ? savedSearchService.get(state.id)?.lastMatchCount : undefined;
+  const lastExecution = state.lastExecutionAt;
+  const lastCount = state.lastMatchCount;
   const hasChosenType = mode === 'edit' || Boolean(state.name.trim());
 
   return (
@@ -685,17 +687,28 @@ export default function MySelectionAlertsPage() {
   const navigate = useNavigate();
   const { profiles, createProfile, updateProfile, deleteProfile } = useMatchingOpportunities();
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
+  const [isLoadingSearches, setIsLoadingSearches] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [editor, setEditor] = useState<SearchEditorState>(() => defaultEditor());
   const [showProfileCreate, setShowProfileCreate] = useState(false);
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
 
-  const refresh = () => {
-    const rows = savedSearchService
-      .list(user?.id)
-      .filter((search) => MANAGED_TYPES.some((item) => item.type === search.context.type));
-    setSavedSearches(activeOrganizationProfile ? rows.filter((search) => search.organizationProfileId === activeOrganizationProfile.id) : rows);
+  const refresh = async () => {
+    setIsLoadingSearches(true);
+    try {
+      const rows = (await savedSearchService.listRemote())
+        .filter((search) => MANAGED_TYPES.some((item) => item.type === search.context.type));
+      setSavedSearches(activeOrganizationProfile ? rows.filter((search) => search.organizationProfileId === activeOrganizationProfile.id) : rows);
+    } catch (error) {
+      toast.error('Saved searches could not be loaded from the server.');
+      const fallbackRows = savedSearchService
+        .list(user?.id)
+        .filter((search) => MANAGED_TYPES.some((item) => item.type === search.context.type));
+      setSavedSearches(activeOrganizationProfile ? fallbackRows.filter((search) => search.organizationProfileId === activeOrganizationProfile.id) : fallbackRows);
+    } finally {
+      setIsLoadingSearches(false);
+    }
   };
 
   useEffect(() => {
@@ -731,11 +744,13 @@ export default function MySelectionAlertsPage() {
       alertHour: search.alertHour || '08:00',
       emailFormat: search.emailFormat || 'summary',
       status: search.status || 'active',
+      lastExecutionAt: search.lastExecutionAt,
+      lastMatchCount: search.lastMatchCount,
     });
     setDialogOpen(true);
   };
 
-  const saveEditor = () => {
+  const saveEditor = async () => {
     const payload = toRoutePayload(editor);
     const context = {
       type: editor.type as SavedSearchType,
@@ -757,38 +772,58 @@ export default function MySelectionAlertsPage() {
       status: editor.status,
     };
 
-    if (dialogMode === 'edit' && editor.id) {
-      savedSearchService.update(editor.id, patch);
-      toast.success('Saved search updated');
-    } else {
-      savedSearchService.save({ userId: user?.id, ...patch });
-      toast.success('Saved search created');
+    try {
+      if (dialogMode === 'edit' && editor.id) {
+        await savedSearchService.updateRemote(editor.id, patch);
+        toast.success('Saved search updated');
+      } else {
+        await savedSearchService.saveRemote({ userId: user?.id, ...patch });
+        toast.success('Saved search created');
+      }
+      setDialogOpen(false);
+      await refresh();
+    } catch {
+      toast.error('Saved search could not be saved.');
     }
-    setDialogOpen(false);
-    refresh();
   };
 
-  const duplicateSearch = (id: string) => {
-    savedSearchService.duplicate(id);
-    refresh();
-    toast.success('Saved search duplicated');
+  const duplicateSearch = async (id: string) => {
+    try {
+      await savedSearchService.duplicateRemote(id);
+      await refresh();
+      toast.success('Saved search duplicated');
+    } catch {
+      toast.error('Saved search could not be duplicated.');
+    }
   };
 
-  const pauseSearch = (search: SavedSearch) => {
-    savedSearchService.setPaused(search.id, search.status === 'active');
-    refresh();
+  const pauseSearch = async (search: SavedSearch) => {
+    try {
+      await savedSearchService.setPausedRemote(search, search.status === 'active');
+      await refresh();
+    } catch {
+      toast.error('Alert status could not be changed.');
+    }
   };
 
-  const deleteSearch = (id: string) => {
-    savedSearchService.remove(id);
-    refresh();
-    toast.success('Saved search deleted');
+  const deleteSearch = async (id: string) => {
+    try {
+      await savedSearchService.removeRemote(id);
+      await refresh();
+      toast.success('Saved search deleted');
+    } catch {
+      toast.error('Saved search could not be deleted.');
+    }
   };
 
-  const runSearch = (search: SavedSearch) => {
-    savedSearchService.recordRun(search.id);
-    refresh();
-    navigate(`${search.context.route}?savedSearchId=${encodeURIComponent(search.id)}`);
+  const runSearch = async (search: SavedSearch) => {
+    try {
+      await savedSearchService.recordRunRemote(search.id);
+      await refresh();
+      navigate(`${search.context.route}?savedSearchId=${encodeURIComponent(search.id)}`);
+    } catch {
+      toast.error('Saved search could not be run.');
+    }
   };
 
   const handleCreateProfile = (form: ProfileFormState) => {
@@ -844,6 +879,9 @@ export default function MySelectionAlertsPage() {
                   <SavedSearchProfileBadge profileName={activeOrganizationProfile.fullName} profileEmail={activeOrganizationProfile.email} />
                 </div>
               )}
+              <p className="mt-2 text-sm text-gray-600">
+                Alert recipient: <span className="font-medium text-primary">{activeOrganizationProfile?.email || user?.email || 'No email selected'}</span>
+              </p>
             </div>
             <Button onClick={openCreate} className="w-fit">
               <Plus className="mr-2 h-4 w-4" />
@@ -867,7 +905,9 @@ export default function MySelectionAlertsPage() {
               <CardDescription>All saved searches from projects, awards, shortlists, and organisations.</CardDescription>
             </CardHeader>
             <CardContent>
-              {savedSearches.length === 0 ? (
+              {isLoadingSearches ? (
+                <p className="text-sm text-muted-foreground">Loading saved searches...</p>
+              ) : savedSearches.length === 0 ? (
                 <div className="rounded-lg border border-dashed p-10 text-center">
                   <Search className="mx-auto mb-3 h-10 w-10 text-gray-400" />
                   <p className="font-semibold text-primary">No saved searches yet</p>

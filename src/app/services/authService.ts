@@ -14,6 +14,10 @@ export const authService = {
     return apiClient.post<LoginResponse>('/auth/login', { email, password });
   },
 
+  demoLogin: async (accountType: string): Promise<LoginResponse> => {
+    return apiClient.post<LoginResponse>('/auth/demo-login', { accountType });
+  },
+
   register: async (formData: any): Promise<any> => {
     return apiClient.post('/auth/register', formData);
   },

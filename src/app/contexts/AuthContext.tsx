@@ -15,6 +15,25 @@ interface User {
 
 type QuickLoginAccountType = 'expert' | 'organization' | 'organization-user' | 'admin' | 'public';
 
+const buildUserFromLoginResponse = (response: LoginResponse): User => {
+  const { id, email: userEmail, roles } = response;
+  const primaryRole = roles && roles.length > 0 ? roles[0] : 'public';
+  const normalizedRole = primaryRole.toLowerCase().replace(/_/g, '-');
+  const accountType = normalizedRole === 'organization-user'
+    ? 'organization'
+    : normalizedRole as User['accountType'];
+
+  return {
+    id: String(id),
+    email: userEmail,
+    firstName: userEmail.split('@')[0],
+    lastName: 'User',
+    role: normalizedRole,
+    accountType,
+    organizationId: response.organizationId,
+  };
+};
+
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
@@ -34,6 +53,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [activeOrganizationProfileState, setActiveOrganizationProfileState] = useState<OrganizationProfile | null>(null);
+
+  const persistLoginResponse = (response: LoginResponse) => {
+    const { token } = response;
+    const loggedInUser = buildUserFromLoginResponse(response);
+
+    setUser(loggedInUser);
+    setIsAuthenticated(true);
+    localStorage.setItem('assortis_token', token);
+    localStorage.setItem('assortis_user', JSON.stringify(loggedInUser));
+  };
 
   // Check for existing session on mount
   useEffect(() => {
@@ -82,24 +111,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     try {
       const response: LoginResponse = await authService.login(email, password);
-      const { token, id, email: userEmail, roles } = response;
-      
-      const primaryRole = roles && roles.length > 0 ? roles[0] : 'public';
-      
-      const loggedInUser: User = {
-        id: String(id),
-        email: userEmail,
-        firstName: userEmail.split('@')[0], // Extract first part of email as fallback
-        lastName: 'User',
-        role: primaryRole,
-        accountType: primaryRole.toLowerCase() as any,
-        organizationId: response.organizationId,
-      };
-
-      setUser(loggedInUser);
-      setIsAuthenticated(true);
-      localStorage.setItem('assortis_token', token);
-      localStorage.setItem('assortis_user', JSON.stringify(loggedInUser));
+      persistLoginResponse(response);
     } catch (error: any) {
       throw new Error(error.message || 'Login failed');
     }
@@ -163,7 +175,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const quickLogin = async (accountType: QuickLoginAccountType): Promise<void> => {
-    throw new Error('Quick login is not available');
+    const response = await authService.demoLogin(accountType);
+    persistLoginResponse(response);
   };
 
   return (

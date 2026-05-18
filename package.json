@@ -4,7 +4,8 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "build": "vite build",
+    "build": "vite build && npm run verify:production-html",
+    "verify:production-html": "node scripts/verify-production-html.mjs",
     "dev": "vite"
   },
   "dependencies": {
