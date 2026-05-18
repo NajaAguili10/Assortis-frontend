@@ -21,7 +21,7 @@ import { RadioGroup, RadioGroupItem } from '@app/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@app/components/ui/popover';
 import { Coins, Globe, MapPin, UserRound, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
-import { savedSearchService } from '@app/services/savedSearchService';
+import { buildOrganizationProfileSearchFields, savedSearchService } from '@app/services/savedSearchService';
 
 type MarkerType = 'all' | 'projects' | 'experts' | 'locked-experts';
 type MarkerTypeExtended = MarkerType | 'unlocked-experts';
@@ -368,6 +368,7 @@ export default function SearchMapTabContent() {
     savedSearchService.save({
       userId: user?.id,
       name,
+      ...buildOrganizationProfileSearchFields(activeOrganizationProfile),
       filters: {
         selectedType,
         selectedCountries,

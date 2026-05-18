@@ -21,6 +21,7 @@ import {
   OrganizationProjectReferenceDTO,
   OrganizationProjectReferenceFormValues,
 } from '@app/modules/organization/types/organizationProjectReference.dto';
+import { CountryDTO, SectorDTO, SubsectorDTO } from '@app/types/organization.dto';
 import { hasOrganizationsSubMenuAccess } from '@app/services/permissions.service';
 import {
   CountryEnum,
@@ -30,8 +31,12 @@ import {
   SECTOR_SUBSECTOR_MAP,
   SubSectorEnum,
 } from '@app/types/tender.dto';
+import {
+  ORGANIZATION_REGION_COUNTRY_MAP,
+  ORGANIZATION_REGION_LABELS,
+} from '@app/config/organization-region-country.config';
 import { getLocalizedCountryName } from '@app/utils/country-translator';
-import { Download, Eye, FileText, Search } from 'lucide-react';
+import { Download, Eye, FileText, Loader2, Search, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 type StatusFilter = 'all' | 'notVerified' | 'verified';
@@ -43,19 +48,19 @@ export default function OrganizationProjectReferences() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const { references, metrics, createReference, updateReference } = useOrganizationProjectReferences();
+  const { references, metrics, isLoading, createReference, updateReference, deleteReference } = useOrganizationProjectReferences();
   const canManage = hasOrganizationsSubMenuAccess('projectReferences', user?.accountType);
   const dateLocale = language === 'fr' ? fr : language === 'es' ? es : enUS;
 
   const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [selectedSectors, setSelectedSectors] = useState<SectorEnum[]>([]);
-  const [selectedSubSectors, setSelectedSubSectors] = useState<SubSectorEnum[]>([]);
+  const [selectedSectors, setSelectedSectors] = useState<SectorDTO[]>([]);
+  const [selectedSubSectors, setSelectedSubSectors] = useState<SubsectorDTO[]>([]);
   const [selectedRegions, setSelectedRegions] = useState<RegionEnum[]>([]);
-  const [selectedCountries, setSelectedCountries] = useState<CountryEnum[]>([]);
+  const [selectedCountries, setSelectedCountries] = useState<CountryDTO[]>([]);
   const [selectedFundingAgencies, setSelectedFundingAgencies] = useState<FundingAgencyEnum[]>([]);
   const [fundingAgencySearch, setFundingAgencySearch] = useState('');
-  const [hoveredSector, setHoveredSector] = useState<SectorEnum | null>(null);
+  const [hoveredSector, setHoveredSector] = useState<SectorDTO | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [sortField, setSortField] = useState<SortField>('startDate');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -80,6 +85,71 @@ export default function OrganizationProjectReferences() {
     ));
   }, [fundingAgencySearch, t]);
 
+  const getSectorLabel = (reference: OrganizationProjectReferenceDTO) => {
+    const translated = reference.sector ? t(`sectors.${reference.sector}`) : '';
+    if (translated && translated !== `sectors.${reference.sector}`) {
+      return translated;
+    }
+    return reference.sectorName || reference.sector?.replace(/_/g, ' ') || '-';
+  };
+
+  const getDonorLabel = (reference: OrganizationProjectReferenceDTO) => {
+    const translated = reference.donor ? t(`fundingAgencies.${reference.donor}`) : '';
+    if (translated && translated !== `fundingAgencies.${reference.donor}`) {
+      return translated;
+    }
+    return reference.donorName || reference.donor || '-';
+  };
+
+  const getCountryLabel = (reference: OrganizationProjectReferenceDTO) => {
+    return reference.countryName || getLocalizedCountryName(reference.country, language);
+  };
+
+  const sectorOptions = useMemo<SectorDTO[]>(() => {
+    return Object.values(SectorEnum).map((code, index) => {
+      const translation = t(`sectors.${code}`);
+      return {
+        id: index + 1,
+        code,
+        name: translation === `sectors.${code}` ? code.replace(/_/g, ' ') : translation,
+      };
+    });
+  }, [t]);
+
+  const subsectorOptionsBySector = useMemo<Record<string, SubsectorDTO[]>>(() => {
+    return sectorOptions.reduce<Record<string, SubsectorDTO[]>>((accumulator, sector) => {
+      const subsectorCodes = SECTOR_SUBSECTOR_MAP[sector.code as SectorEnum] || [];
+      accumulator[String(sector.id)] = subsectorCodes.map((code, index) => {
+        const translation = t(`subsectors.${code}`);
+        return {
+          id: Number(`${sector.id}${index + 1}`),
+          code,
+          name: translation === `subsectors.${code}` ? code.replace(/_/g, ' ') : translation,
+          sectorId: sector.id,
+        };
+      });
+      return accumulator;
+    }, {});
+  }, [sectorOptions, t]);
+
+  const countryOptions = useMemo<CountryDTO[]>(() => {
+    const seen = new Set<string>();
+    return Object.values(RegionEnum).flatMap((region) => {
+      return (ORGANIZATION_REGION_COUNTRY_MAP[region] || [])
+        .filter((countryCode) => {
+          if (seen.has(countryCode)) return false;
+          seen.add(countryCode);
+          return true;
+        })
+        .map((countryCode, index) => ({
+          id: index + 1 + region.length * 100,
+          code: countryCode,
+          name: getLocalizedCountryName(countryCode, language),
+          regionWorld: region,
+        }));
+    });
+  }, [language]);
+
   const filteredReferences = useMemo(() => {
     return references.filter(reference => {
       const query = searchInput.trim().toLowerCase();
@@ -87,10 +157,10 @@ export default function OrganizationProjectReferences() {
 
       if (query && !haystack.includes(query)) return false;
       if (statusFilter !== 'all' && reference.status !== statusFilter) return false;
-      if (selectedSectors.length > 0 && !selectedSectors.includes(reference.sector)) return false;
-      if (selectedSubSectors.length > 0 && (!reference.subSector || !selectedSubSectors.includes(reference.subSector))) return false;
+      if (selectedSectors.length > 0 && !selectedSectors.some(sector => sector.code === reference.sector)) return false;
+      if (selectedSubSectors.length > 0 && (!reference.subSector || !selectedSubSectors.some(subSector => subSector.code === reference.subSector))) return false;
       if (selectedRegions.length > 0 && !selectedRegions.includes(reference.region)) return false;
-      if (selectedCountries.length > 0 && !selectedCountries.includes(reference.country)) return false;
+      if (selectedCountries.length > 0 && !selectedCountries.some(country => country.code === reference.country)) return false;
       if (selectedFundingAgencies.length > 0 && !selectedFundingAgencies.includes(reference.donor)) return false;
 
       return true;
@@ -149,10 +219,10 @@ export default function OrganizationProjectReferences() {
     const rows = sortedReferences.map(reference => [
       reference.title,
       reference.referenceNumber,
-      getLocalizedCountryName(reference.country, language),
-      t(`sectors.${reference.sector}`),
+      getCountryLabel(reference),
+      getSectorLabel(reference),
       reference.client,
-      t(`fundingAgencies.${reference.donor}`),
+      getDonorLabel(reference),
       reference.startDate,
       reference.endDate,
       t(`organizations.projectReferences.status.${reference.status}`),
@@ -174,25 +244,32 @@ export default function OrganizationProjectReferences() {
     URL.revokeObjectURL(url);
   };
 
-  const handleCreateReference = (values: OrganizationProjectReferenceFormValues) => {
-    const reference = createReference(values);
+  const handleCreateReference = async (values: OrganizationProjectReferenceFormValues) => {
+    const reference = await createReference(values);
     toast.success(t('organizations.projectReferences.createSuccess'));
     navigate(`/organizations/project-references/${reference.id}`);
   };
 
-  const handleUpdateReference = (values: OrganizationProjectReferenceFormValues) => {
+  const handleUpdateReference = async (values: OrganizationProjectReferenceFormValues) => {
     if (!editingReference) return;
-    updateReference(editingReference.id, values);
+    await updateReference(editingReference.id, values);
     toast.success(t('organizations.projectReferences.updateSuccess'));
     setEditingReference(null);
   };
 
-  const handleCloneReference = (values: OrganizationProjectReferenceFormValues) => {
-    const reference = createReference({ ...values, title: `${values.title} (Copy)` });
+  const handleCloneReference = async (values: OrganizationProjectReferenceFormValues) => {
+    const reference = await createReference({ ...values, title: `${values.title} (Copy)` });
     toast.success(t('projects.references.actions.clone'));
     navigate(`/organizations/project-references/${reference.id}`);
     setCloningReference(null);
   };
+
+  const handleDeleteReference = async (reference: OrganizationProjectReferenceDTO) => {
+    await deleteReference(reference.id);
+    toast.success(t('common.delete'));
+  };
+
+  const tableMinWidthClass = 'min-w-[1540px]';
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -270,35 +347,41 @@ export default function OrganizationProjectReferences() {
                   selectedSubSectors={selectedSubSectors}
                   hoveredSector={hoveredSector}
                   onHoverSector={setHoveredSector}
+                  allowedSectors={sectorOptions}
+                  dynamicSubsectorsMap={subsectorOptionsBySector}
                   onSelectSector={(sector) => {
-                    const nextSectors = selectedSectors.includes(sector)
-                      ? selectedSectors.filter(item => item !== sector)
+                    const nextSectors = selectedSectors.some(item => item.code === sector.code)
+                      ? selectedSectors.filter(item => item.code !== sector.code)
                       : [...selectedSectors, sector];
                     setSelectedSectors(nextSectors);
                     setSelectedSubSectors(prev => prev.filter(subSector => nextSectors.some(selectedSector => (
-                      SECTOR_SUBSECTOR_MAP[selectedSector]?.includes(subSector)
+                      selectedSector.id === subSector.sectorId
                     ))));
                   }}
                   onSelectSubSector={(subSector) => {
                     setSelectedSubSectors(prev => (
-                      prev.includes(subSector) ? prev.filter(item => item !== subSector) : [...prev, subSector]
+                      prev.some(item => item.code === subSector.code)
+                        ? prev.filter(item => item.code !== subSector.code)
+                        : [...prev, subSector]
                     ));
                   }}
                   onSelectAllSectors={() => {
-                    if (selectedSectors.length === Object.values(SectorEnum).length) {
+                    if (selectedSectors.length === sectorOptions.length) {
                       setSelectedSectors([]);
                       setSelectedSubSectors([]);
                     } else {
-                      setSelectedSectors(Object.values(SectorEnum));
+                      setSelectedSectors(sectorOptions);
                     }
                   }}
                   onSelectAllSubSectors={(sector) => {
-                    const subSectors = SECTOR_SUBSECTOR_MAP[sector] || [];
-                    const allSelected = subSectors.every(subSector => selectedSubSectors.includes(subSector));
+                    const subSectors = subsectorOptionsBySector[String(sector.id)] || [];
+                    const allSelected = subSectors.every(subSector =>
+                      selectedSubSectors.some(item => item.code === subSector.code)
+                    );
                     setSelectedSubSectors(prev => (
                       allSelected
-                        ? prev.filter(item => !subSectors.includes(item))
-                        : [...new Set([...prev, ...subSectors])]
+                        ? prev.filter(item => !subSectors.some(subSector => subSector.code === item.code))
+                        : [...prev, ...subSectors.filter(subSector => !prev.some(item => item.code === subSector.code))]
                     ));
                   }}
                   t={t}
@@ -307,6 +390,9 @@ export default function OrganizationProjectReferences() {
                 <RegionCountryFilter
                   selectedRegions={selectedRegions}
                   selectedCountries={selectedCountries}
+                  allowedCountries={countryOptions}
+                  regionCountryMap={ORGANIZATION_REGION_COUNTRY_MAP}
+                  getRegionLabel={(region) => ORGANIZATION_REGION_LABELS[region as RegionEnum] || region}
                   onSelectRegion={(region) => {
                     const nextRegions = selectedRegions.includes(region)
                       ? selectedRegions.filter(item => item !== region)
@@ -314,19 +400,29 @@ export default function OrganizationProjectReferences() {
                     setSelectedRegions(nextRegions);
                     if (nextRegions.length === 0) {
                       setSelectedCountries([]);
+                      return;
                     }
+                    const validCountries = selectedCountries.filter(country =>
+                      nextRegions.some(selectedRegion =>
+                        ORGANIZATION_REGION_COUNTRY_MAP[selectedRegion]?.includes(country.code as CountryEnum)
+                      )
+                    );
+                    setSelectedCountries(validCountries);
                   }}
                   onSelectCountry={(country) => {
                     setSelectedCountries(prev => (
-                      prev.includes(country) ? prev.filter(item => item !== country) : [...prev, country]
+                      prev.some(item => item.code === country.code)
+                        ? prev.filter(item => item.code !== country.code)
+                        : [...prev, country]
                     ));
                   }}
                   onSelectAllRegions={() => {
-                    if (selectedRegions.length === Object.values(RegionEnum).length) {
+                    const allRegions = Object.values(RegionEnum);
+                    if (selectedRegions.length === allRegions.length) {
                       setSelectedRegions([]);
                       setSelectedCountries([]);
                     } else {
-                      setSelectedRegions(Object.values(RegionEnum));
+                      setSelectedRegions(allRegions);
                     }
                   }}
                   t={t}
@@ -390,73 +486,153 @@ export default function OrganizationProjectReferences() {
 
           <div className="bg-white rounded-xl border border-primary/15 overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
-              <div className="min-w-[1280px]">
-                <div className="grid grid-cols-[1.8fr_1.2fr_1.1fr_1.2fr_1.2fr_1fr_1fr_1fr_auto] gap-3 px-5 py-3.5 border-b border-primary/15 bg-primary/5 text-xs font-semibold uppercase tracking-wide text-primary">
-                  <button className="text-left hover:text-primary/80" onClick={() => toggleSort('title')}>{t('organizations.projectReferences.table.projectTitle')}</button>
-                  <button className="text-left hover:text-primary/80" onClick={() => toggleSort('country')}>{t('organizations.projectReferences.table.country')}</button>
-                  <button className="text-left hover:text-primary/80" onClick={() => toggleSort('sector')}>{t('organizations.projectReferences.table.sector')}</button>
-                  <button className="text-left hover:text-primary/80" onClick={() => toggleSort('client')}>{t('organizations.projectReferences.table.client')}</button>
-                  <button className="text-left hover:text-primary/80" onClick={() => toggleSort('donor')}>{t('organizations.projectReferences.table.donor')}</button>
-                  <button className="text-left hover:text-primary/80" onClick={() => toggleSort('startDate')}>{t('organizations.projectReferences.table.startDate')}</button>
-                  <button className="text-left hover:text-primary/80" onClick={() => toggleSort('endDate')}>{t('organizations.projectReferences.table.endDate')}</button>
-                  <span className="text-left">{t('organizations.projectReferences.table.status')}</span>
-                  <span className="text-left">{t('organizations.projectReferences.table.actions')}</span>
+              {isLoading ? (
+                <div className="p-10 text-center text-gray-500">
+                  <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-primary" />
+                  <p className="text-sm">{t('common.loading')}</p>
                 </div>
-
-                {sortedReferences.length === 0 ? (
-                  <div className="p-10 text-center text-gray-500">
-                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 mb-3">
-                      <Search className="h-6 w-6 text-gray-400" />
-                    </div>
-                    <p className="font-medium text-gray-700 mb-1">{t('organizations.projectReferences.emptyTitle')}</p>
-                    <p className="text-sm">{t('organizations.projectReferences.emptySubtitle')}</p>
-                    <Button variant="outline" className="mt-4 min-h-11" onClick={clearFilters}>{t('organizations.filters.clear')}</Button>
+              ) : sortedReferences.length === 0 ? (
+                <div className="p-10 text-center text-gray-500">
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 mb-3">
+                    <Search className="h-6 w-6 text-gray-400" />
                   </div>
-                ) : (
-                  <div className="divide-y divide-primary/10">
+                  <p className="font-medium text-gray-700 mb-1">{t('organizations.projectReferences.emptyTitle')}</p>
+                  <p className="text-sm">{t('organizations.projectReferences.emptySubtitle')}</p>
+                  <Button variant="outline" className="mt-4 min-h-11" onClick={clearFilters}>{t('organizations.filters.clear')}</Button>
+                </div>
+              ) : (
+                <table className={`${tableMinWidthClass} table-fixed border-separate border-spacing-0`}>
+                  <colgroup>
+                    <col className="w-[22%]" />
+                    <col className="w-[11%]" />
+                    <col className="w-[10%]" />
+                    <col className="w-[14%]" />
+                    <col className="w-[14%]" />
+                    <col className="w-[10%]" />
+                    <col className="w-[10%]" />
+                    <col className="w-[9%]" />
+                    <col className="w-[280px]" />
+                  </colgroup>
+                  <thead>
+                    <tr className="border-b border-primary/15 bg-primary/5 text-xs font-semibold uppercase tracking-wide text-primary">
+                      <th className="px-5 py-3.5 text-left">
+                        <button className="text-left hover:text-primary/80" onClick={() => toggleSort('title')}>
+                          {t('organizations.projectReferences.table.projectTitle')}
+                        </button>
+                      </th>
+                      <th className="px-4 py-3.5 text-left">
+                        <button className="text-left hover:text-primary/80" onClick={() => toggleSort('country')}>
+                          {t('organizations.projectReferences.table.country')}
+                        </button>
+                      </th>
+                      <th className="px-4 py-3.5 text-left">
+                        <button className="text-left hover:text-primary/80" onClick={() => toggleSort('sector')}>
+                          {t('organizations.projectReferences.table.sector')}
+                        </button>
+                      </th>
+                      <th className="px-4 py-3.5 text-left">
+                        <button className="text-left hover:text-primary/80" onClick={() => toggleSort('client')}>
+                          {t('organizations.projectReferences.table.client')}
+                        </button>
+                      </th>
+                      <th className="px-4 py-3.5 text-left">
+                        <button className="text-left hover:text-primary/80" onClick={() => toggleSort('donor')}>
+                          {t('organizations.projectReferences.table.donor')}
+                        </button>
+                      </th>
+                      <th className="px-4 py-3.5 text-left">
+                        <button className="text-left hover:text-primary/80" onClick={() => toggleSort('startDate')}>
+                          {t('organizations.projectReferences.table.startDate')}
+                        </button>
+                      </th>
+                      <th className="px-4 py-3.5 text-left">
+                        <button className="text-left hover:text-primary/80" onClick={() => toggleSort('endDate')}>
+                          {t('organizations.projectReferences.table.endDate')}
+                        </button>
+                      </th>
+                      <th className="px-4 py-3.5 text-left">{t('organizations.projectReferences.table.status')}</th>
+                      <th className="px-4 py-3.5 text-left">{t('organizations.projectReferences.table.actions')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {sortedReferences.map((reference, index) => (
-                      <div key={reference.id} className={`px-5 py-4 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-primary/5'} hover:bg-primary/10`}>
-                        <div className="grid grid-cols-[1.8fr_1.2fr_1.1fr_1.2fr_1.2fr_1fr_1fr_1fr_auto] gap-3 items-center text-sm">
-                          <div>
-                            <p className="font-semibold text-gray-900 leading-snug">{reference.title}</p>
-                            <p className="text-xs text-gray-500 mt-1 line-clamp-2">{reference.summary || 'Additional details can be completed later.'}</p>
+                      <tr
+                        key={reference.id}
+                        className={`transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-primary/5'} hover:bg-primary/10`}
+                      >
+                        <td className="px-5 py-4 align-top">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-gray-900 leading-6 break-words line-clamp-2">{reference.title}</p>
+                            <p className="text-xs text-gray-500 mt-1 leading-5 break-words line-clamp-2">
+                              {reference.summary || 'Additional details can be completed later.'}
+                            </p>
                           </div>
-                          <div className="text-gray-700 leading-snug">{getLocalizedCountryName(reference.country, language)}</div>
-                          <div className="text-gray-700 leading-snug">{t(`sectors.${reference.sector}`)}</div>
-                          <div className="text-gray-700 leading-snug">{reference.client}</div>
-                          <div className="text-gray-700 leading-snug">{t(`fundingAgencies.${reference.donor}`)}</div>
-                          <div className="text-gray-700">{reference.startDate ? format(new Date(reference.startDate), 'dd MMM yyyy', { locale: dateLocale }) : 'Not set'}</div>
-                          <div className="text-gray-700">{reference.endDate ? format(new Date(reference.endDate), 'dd MMM yyyy', { locale: dateLocale }) : 'Not set'}</div>
-                          <div>
-                            <Badge
-                              variant={reference.status === 'notVerified' ? 'secondary' : 'default'}
-                              className={reference.status === 'notVerified' ? 'rounded-full bg-amber-100 text-amber-800 border-amber-200' : 'rounded-full bg-emerald-100 text-emerald-800 border-emerald-200'}
+                        </td>
+                        <td className="px-4 py-4 align-middle">
+                          <div className="text-gray-700 leading-6 break-words">{getCountryLabel(reference)}</div>
+                        </td>
+                        <td className="px-4 py-4 align-middle">
+                          <div className="text-gray-700 leading-6 break-words">{getSectorLabel(reference)}</div>
+                        </td>
+                        <td className="px-4 py-4 align-middle">
+                          <div className="text-gray-700 leading-6 break-words line-clamp-2">{reference.client || '-'}</div>
+                        </td>
+                        <td className="px-4 py-4 align-middle">
+                          <div className="text-gray-700 leading-6 break-words line-clamp-2">{getDonorLabel(reference)}</div>
+                        </td>
+                        <td className="px-4 py-4 align-middle text-gray-700 whitespace-nowrap">
+                          {reference.startDate ? format(new Date(reference.startDate), 'dd MMM yyyy', { locale: dateLocale }) : 'Not set'}
+                        </td>
+                        <td className="px-4 py-4 align-middle text-gray-700 whitespace-nowrap">
+                          {reference.endDate ? format(new Date(reference.endDate), 'dd MMM yyyy', { locale: dateLocale }) : 'Not set'}
+                        </td>
+                        <td className="px-4 py-4 align-middle">
+                          <Badge
+                            variant={reference.status === 'notVerified' ? 'secondary' : 'default'}
+                            className={reference.status === 'notVerified' ? 'rounded-full bg-amber-100 text-amber-800 border-amber-200' : 'rounded-full bg-emerald-100 text-emerald-800 border-emerald-200'}
+                          >
+                            {t(`organizations.projectReferences.status.${reference.status}`)}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-4 align-middle">
+                          <div className="flex min-h-[44px] items-center gap-2 whitespace-nowrap">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0"
+                              onClick={() => navigate(`/organizations/project-references/${reference.id}`)}
                             >
-                              {t(`organizations.projectReferences.status.${reference.status}`)}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button type="button" variant="outline" size="sm" onClick={() => navigate(`/organizations/project-references/${reference.id}`)}>
                               <Eye className="w-4 h-4 mr-2" />
                               {t('organizations.projectReferences.table.open')}
                             </Button>
                             {canManage && (
                               <>
-                                <Button type="button" variant="ghost" size="sm" onClick={() => setEditingReference(reference)}>
+                                <Button type="button" variant="ghost" size="sm" className="shrink-0 px-2.5" onClick={() => setEditingReference(reference)}>
                                   {t('common.edit')}
                                 </Button>
-                                <Button type="button" variant="ghost" size="sm" onClick={() => setCloningReference(reference)}>
+                                <Button type="button" variant="ghost" size="sm" className="shrink-0 px-2.5" onClick={() => setCloningReference(reference)}>
                                   {t('projects.references.actions.clone')}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="shrink-0 px-2.5 text-red-600 hover:text-red-700"
+                                  onClick={() => handleDeleteReference(reference)}
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  {t('common.delete')}
                                 </Button>
                               </>
                             )}
                           </div>
-                        </div>
-                      </div>
+                        </td>
+                      </tr>
                     ))}
-                  </div>
-                )}
-              </div>
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
 

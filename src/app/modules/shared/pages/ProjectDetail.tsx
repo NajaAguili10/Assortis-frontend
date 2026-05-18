@@ -62,6 +62,7 @@ import {
 import { ProjectStatusEnum, ProjectPriorityEnum } from '@app/types/project.dto';
 import { aiDiscountSamples, expertPricingBySeniority } from '@app/modules/shared/data/statistics.mock';
 import { canAssignProjectTasks } from '@app/services/permissions.service';
+import { isEarlyIntelligencePhase } from '@app/services/projectRelationships.service';
 import { projectService } from '@app/services/projectService';
 import { JobOfferListDTO } from '@app/modules/posting-board/types/JobOffer.dto';
 import { getJobOffersByProject } from '@app/modules/posting-board/services/jobOfferService';
@@ -915,6 +916,22 @@ export default function ProjectDetail() {
   const activeLifecycleDoc = useMemo(
     () => lifecycleDocuments.find((doc) => doc.id === activeLifecycleDocId) || lifecycleDocuments[0],
     [activeLifecycleDocId]
+  );
+  const lifecycleSections = [
+    { key: 'early-intelligence' as const, title: 'Early Intelligence', items: lifecycleDocuments.filter((doc) => doc.group === 'early-intelligence') },
+    { key: 'open-procurement' as const, title: 'Open Procurement', items: lifecycleDocuments.filter((doc) => doc.group === 'open-procurement') },
+    { key: 'contract-shortlist' as const, title: 'Contract / Shortlist', items: lifecycleDocuments.filter((doc) => doc.group === 'contract-shortlist') },
+  ];
+  const noticeDescription =
+    project.noticeDescription ||
+    project.description ||
+    project.objectives ||
+    'No project description is available for this notice.';
+  const isEarlyIntelligenceProject = isEarlyIntelligencePhase(
+    project.phase,
+    project.noticeType,
+    activeLifecycleDoc.sectionLabel,
+    activeLifecycleDoc.itemLabel
   );
 
   const suggestedExperts: SuggestedExpert[] = [
@@ -1965,155 +1982,6 @@ export default function ProjectDetail() {
             organization={contactOrganization}
           />
 
-          <section aria-label={t('projects.details.projectLifecycle')} className="mb-6">
-            <Accordion type="single" collapsible defaultValue="project-lifecycle" className="w-full">
-              <AccordionItem value="project-lifecycle" className="overflow-hidden rounded-lg border border-[#4A5568]/15 bg-white shadow-sm">
-                <AccordionTrigger className="px-4 py-4 hover:no-underline sm:px-5">
-                  <span className="flex min-w-0 flex-1 items-start gap-3 text-left">
-                    <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#E63462]/20 bg-[#FFF1F4] text-[#E63462]">
-                      <Route className="h-5 w-5" aria-hidden />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-base font-semibold text-[#4A5568]">{t('projects.details.projectLifecycle')}</span>
-                      <span className="mt-1 block text-sm font-normal leading-relaxed text-[#4A5568]/80">
-                        Track stage, workflow state, documents, partners, and delivery progress in one place.
-                      </span>
-                    </span>
-                  </span>
-                </AccordionTrigger>
-                <AccordionContent className="px-4 pb-4 sm:px-5 sm:pb-5">
-                  <div className="rounded-lg border border-[#4A5568]/10 bg-gradient-to-br from-[#F8FAFC] via-white to-[#FFF1F4] p-4 sm:p-5">
-                    <div className="mb-4 grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
-                      <div className="rounded-lg border border-[#4A5568]/15 bg-white p-3">
-                        <p className="text-[#4A5568]/70">Timeline</p>
-                        <p className="mt-1 font-semibold text-[#4A5568]">{project.timeline.completionPercentage}%</p>
-                      </div>
-                      <div className="rounded-lg border border-[#4A5568]/15 bg-white p-3">
-                        <p className="text-[#4A5568]/70">Tasks</p>
-                        <p className="mt-1 font-semibold text-[#4A5568]">{taskCompletionPercentage}%</p>
-                      </div>
-                      <div className="rounded-lg border border-[#4A5568]/15 bg-white p-3">
-                        <p className="text-[#4A5568]/70">Budget</p>
-                        <p className="mt-1 font-semibold text-[#4A5568]">{budgetUtilization}%</p>
-                      </div>
-                    </div>
-
-                    <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-                      {project.milestones.map((milestone) => (
-                        <div key={milestone.id} className="rounded-lg border border-[#4A5568]/15 bg-white p-3">
-                          <Badge variant="outline" className={milestone.status === 'COMPLETED' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : milestone.status === 'IN_PROGRESS' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-slate-200 bg-slate-50 text-slate-700'}>
-                            {formatLabel(milestone.status)}
-                          </Badge>
-                          <p className="mt-2 text-sm font-semibold text-[#4A5568]">{milestone.title}</p>
-                          <p className="mt-1 text-xs text-[#4A5568]/75">{formatDate(milestone.date)}</p>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[280px_1fr]">
-                      <nav aria-label="Project lifecycle navigation" className="space-y-4 rounded-lg border border-[#4A5568]/15 bg-slate-50 p-3">
-                        {[
-                          { key: 'early-intelligence' as const, title: 'Early Intelligence', items: lifecycleDocuments.filter((doc) => doc.group === 'early-intelligence') },
-                          { key: 'open-procurement' as const, title: 'Open Procurement', items: lifecycleDocuments.filter((doc) => doc.group === 'open-procurement') },
-                          { key: 'contract-shortlist' as const, title: 'Contract / Shortlist', items: lifecycleDocuments.filter((doc) => doc.group === 'contract-shortlist') },
-                        ].map((section) => (
-                          <div key={section.key}>
-                            <p className="mb-2 text-xs font-semibold capitalize tracking-[0.08em] text-muted-foreground">{section.title}</p>
-                            <div className="space-y-1">
-                              {section.items.map((item) => (
-                                <button
-                                  key={item.id}
-                                  type="button"
-                                  aria-pressed={activeLifecycleDocId === item.id}
-                                  onClick={() => setActiveLifecycleDocId(item.id)}
-                                  className={`w-full rounded-md border px-3 py-2 text-left text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 ${
-                                    activeLifecycleDocId === item.id
-                                      ? 'border-accent/20 bg-secondary text-accent'
-                                      : 'bg-white hover:bg-gray-50'
-                                  }`}
-                                >
-                                  {item.itemLabel}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </nav>
-
-                      <div className="rounded-lg border border-[#4A5568]/15 bg-white p-4">
-                        <p className="text-xs capitalize tracking-[0.08em] text-muted-foreground">{activeLifecycleDoc.sectionLabel}</p>
-                        <h3 className="mt-1 text-base font-semibold text-primary">{activeLifecycleDoc.itemLabel}</h3>
-                        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{activeLifecycleDoc.description}</p>
-
-                        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                          <div className="rounded-lg border bg-[#F8FAFC] p-3">
-                            <p className="text-xs text-muted-foreground">Workflow state</p>
-                            <p className="mt-1 text-sm font-semibold text-primary">{projectOpenClosedLabel}</p>
-                          </div>
-                          <div className="rounded-lg border bg-[#F8FAFC] p-3">
-                            <p className="text-xs text-muted-foreground">Remaining tasks</p>
-                            <p className="mt-1 text-sm font-semibold text-primary">{remainingTasks}</p>
-                          </div>
-                          <div className="rounded-lg border bg-[#F8FAFC] p-3">
-                            <p className="text-xs text-muted-foreground">Active document</p>
-                            <p className="mt-1 text-sm font-semibold text-primary">{activeLifecycleDoc.itemLabel}</p>
-                          </div>
-                        </div>
-
-                        {activeLifecycleDoc.hasShortlist && (
-                          <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50/60 p-3">
-                            <p className="mb-2 text-sm font-semibold text-primary">Shortlisted Companies / Organizations</p>
-                            <div className="space-y-2">
-                              {project.shortlistedCompanies.map((item, index) => (
-                                <div key={index} className="rounded-md border bg-white p-3 text-sm">
-                                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                    <Link to={buildOrganizationDetailPath(item.name)} className="font-semibold text-primary underline-offset-2 hover:text-accent hover:underline">
-                                      {item.name}
-                                    </Link>
-                                    <div className="flex flex-wrap gap-2">
-                                      {renderOrganizationBookmarkButton(item.name)}
-                                      {renderOrganizationContactButton(item.name)}
-                                    </div>
-                                  </div>
-                                  <p className="mt-1 text-xs text-muted-foreground">Shortlisted on: {formatDate(item.date)}</p>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {activeLifecycleDoc.hasContract && (
-                          <div className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50/60 p-3">
-                            <p className="mb-2 text-sm font-semibold text-primary">Contract Awarded Companies</p>
-                            <div className="space-y-2">
-                              {project.contractAwardedCompanies.map((item, index) => (
-                                <div key={index} className="rounded-md border bg-white p-3 text-sm">
-                                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                    <Link to={buildOrganizationDetailPath(item.name)} className="font-semibold text-primary underline-offset-2 hover:text-accent hover:underline">
-                                      {item.name}
-                                    </Link>
-                                    <div className="flex flex-wrap gap-2">
-                                      {renderOrganizationBookmarkButton(item.name)}
-                                      {renderOrganizationContactButton(item.name)}
-                                    </div>
-                                  </div>
-                                  <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                                    <span>Date: {formatDate(item.date)}</span>
-                                    <span>Budget: {item.budget}</span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </section>
-
           <section
             className={`mb-6 overflow-hidden rounded-2xl border p-6 shadow-sm ${
               isProjectSaved
@@ -2216,6 +2084,16 @@ export default function ProjectDetail() {
                   <h1 className="text-2xl font-bold leading-tight text-primary sm:text-3xl">{project.title}</h1>
                   <p className="mt-1 text-sm text-muted-foreground">{project.code}</p>
                 </div>
+                {isEarlyIntelligenceProject && (
+                  <Button
+                    type="button"
+                    className="w-fit bg-[#E63462] text-white hover:bg-[#D42F5A]"
+                    onClick={() => navigate(`/projects/${project.id || id}/related-projects-contracts`)}
+                  >
+                    <Briefcase className="mr-2 h-4 w-4" />
+                    Related Projects & Contracts
+                  </Button>
+                )}
               </div>
             </div>
           </section>
@@ -2290,97 +2168,100 @@ export default function ProjectDetail() {
                         })}
                       </div>
 
-                      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                        <div className="space-y-4 rounded-xl border border-[#4A5568]/15 bg-white p-4">
-                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <div>
-                              <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Briefcase className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Procurement Type</p>
-                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.procurementType || t(`projects.type.${project.type}`)}</p>
-                            </div>
-                            <div>
-                              <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Notice Type</p>
-                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.noticeType || t(`projects.create.source.${project.projectSource}`)}</p>
-                            </div>
-                            <div>
-                              <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Reference</p>
-                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.code}</p>
-                            </div>
-                            <div>
-                              <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Target className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Funding Agency</p>
-                              <p className="mt-1 text-sm font-semibold text-[#1E293B]">{project.fundingAgency || project.relatedTender}</p>
-                            </div>
-                          </div>
-
-                          <div className="rounded-2xl border border-[#4A5568]/15 bg-[#F8FAFC] p-4">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                              <div>
-                                <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Building2 className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.details.organizations')}</p>
-                                <div className="mt-2 space-y-2 text-sm">
-                                  <p><span className="font-medium text-[#4A5568]">{t('projects.create.leadOrganization')}:</span> <span className="font-semibold text-[#1E293B]">{project.leadOrganization}</span></p>
-                                  <p><span className="font-medium text-[#4A5568]">Funding Agency:</span> <span className="font-semibold text-[#1E293B]">{project.donor}</span></p>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
+                      <div className="rounded-xl border border-[#4A5568]/15 bg-white p-5">
+                        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                           <div>
-                            <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><MapPin className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Countries</p>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {project.countries.map((country) => (
-                                <Badge key={country} variant="outline" className="border-[#4A5568]/20 bg-[#F8FAFC] text-[#1E293B]">
-                                  {country}
-                                </Badge>
-                              ))}
-                            </div>
+                            <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]">
+                              <FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />
+                              Full notice description
+                            </p>
+                            <p className="mt-3 max-w-5xl text-base leading-8 text-[#1E293B]">{noticeDescription}</p>
                           </div>
+                          {isEarlyIntelligenceProject && (
+                            <Button
+                              type="button"
+                              className="w-fit shrink-0 bg-[#E63462] text-white hover:bg-[#D42F5A]"
+                              onClick={() => navigate(`/projects/${project.id || id}/related-projects-contracts`)}
+                            >
+                              <Briefcase className="mr-2 h-4 w-4" />
+                              Related Projects & Contracts
+                            </Button>
+                          )}
                         </div>
 
-                        <div className="space-y-4 rounded-xl border border-[#4A5568]/15 bg-white p-4">
+                        <div className="grid gap-4 border-t pt-4 md:grid-cols-2 xl:grid-cols-4">
+                          {[
+                            { label: 'Procurement Type', value: project.procurementType || t(`projects.type.${project.type}`), icon: Briefcase },
+                            { label: 'Notice Type', value: project.noticeType || t(`projects.create.source.${project.projectSource}`), icon: FileText },
+                            { label: 'Reference', value: project.code, icon: FileText },
+                            { label: 'Funding Agency', value: project.fundingAgency || project.relatedTender, icon: Target },
+                          ].map((item) => {
+                            const ItemIcon = item.icon;
+                            return (
+                              <div key={item.label} className="rounded-lg border border-[#4A5568]/15 bg-[#F8FAFC] p-4">
+                                <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]">
+                                  <ItemIcon className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />
+                                  {item.label}
+                                </p>
+                                <p className="mt-1 text-sm font-semibold text-[#1E293B]">{item.value}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-[#4A5568]/15 bg-white p-5">
+                        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div>
-                            <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Target className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />Sectors</p>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {(project.sectors && project.sectors.length > 0 ? project.sectors : [project.sector]).map((sector) => (
-                                <Badge key={sector} variant="outline" className="border-[#4A5568]/20 bg-[#F8FAFC] text-[#1E293B]">
-                                  {formatLabel(sector)}
-                                </Badge>
-                              ))}
-                            </div>
-                            <ul className="mt-2 space-y-1 text-sm text-[#4A5568]/90">
-                              {project.subsectors.map((subsector) => (
-                                <li key={subsector} className="flex items-start gap-2">
-                                  <span className="mt-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[#E63462]" />
-                                  <span className="text-[#1E293B]">{subsector.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}</span>
-                                </li>
-                              ))}
-                            </ul>
+                            <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]">
+                              <Route className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />
+                              {t('projects.details.projectLifecycle')}
+                            </p>
+                            <p className="mt-1 text-sm text-muted-foreground">Current document: {activeLifecycleDoc.itemLabel}</p>
                           </div>
+                          <Badge variant="outline" className="w-fit">{projectOpenClosedLabel}</Badge>
+                        </div>
 
-                          <div className="rounded-2xl border border-[#4A5568]/15 bg-[#F8FAFC] p-4">
-                            <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><FileText className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.projectObjectives')}</p>
-                            <p className="mt-2 text-sm leading-relaxed text-[#1E293B]">{project.objectives}</p>
-                          </div>
-
-                          <div className="rounded-2xl border border-[#4A5568]/15 bg-white p-4">
-                            <p className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.08em] text-[#4A5568]"><Users className="h-3.5 w-3.5 text-[#E63462]" aria-hidden />{t('projects.create.partnerOrganizations')}</p>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {project.partners.filter(isPartnerVisible).map((partner) => (
-                                <div key={partner} className="inline-flex items-center gap-1.5">
-                                  <Link to={buildOrganizationDetailPath(partner)} className="inline-flex">
-                                    <Badge variant="secondary" className="cursor-pointer border-[#4A5568]/15 bg-white text-[#1E293B] transition-colors hover:border-[#E63462]/30 hover:bg-[#E63462]/10 hover:text-[#E63462]">
-                                      {partner}
-                                    </Badge>
-                                  </Link>
-                                  {renderOrganizationContactButton(partner)}
-                                  {renderPartnerVisibilityToggle(partner)}
+                        <div className="grid gap-3 lg:grid-cols-3">
+                          {lifecycleSections.map((section) => {
+                            const isActiveSection = section.items.some(item => item.id === activeLifecycleDocId);
+                            return (
+                              <div
+                                key={section.key}
+                                className={`rounded-lg border p-4 ${
+                                  isActiveSection ? 'border-[#E63462]/30 bg-[#FFF1F4]' : 'border-[#4A5568]/15 bg-[#F8FAFC]'
+                                }`}
+                              >
+                                <div className="mb-3 flex items-center justify-between gap-2">
+                                  <p className="text-sm font-semibold text-primary">{section.title}</p>
+                                  {isActiveSection && <Badge className="bg-[#E63462] text-white">Active</Badge>}
                                 </div>
-                              ))}
-                              {hiddenProjectPartnerCount > 0 && (
-                                <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={showAllProjectPartners}>
-                                  Show all partners ({hiddenProjectPartnerCount} hidden)
-                                </Button>
-                              )}
-                            </div>
-                          </div>
+                                <div className="space-y-2">
+                                  {section.items.map(item => (
+                                    <button
+                                      key={item.id}
+                                      type="button"
+                                      aria-pressed={activeLifecycleDocId === item.id}
+                                      onClick={() => setActiveLifecycleDocId(item.id)}
+                                      className={`w-full rounded-md border px-3 py-2 text-left text-sm transition-colors ${
+                                        activeLifecycleDocId === item.id
+                                          ? 'border-[#E63462]/30 bg-white text-[#E63462]'
+                                          : 'border-transparent bg-white/70 text-[#4A5568] hover:border-[#4A5568]/15'
+                                      }`}
+                                    >
+                                      {item.itemLabel}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <div className="mt-4 rounded-lg border border-[#4A5568]/15 bg-[#F8FAFC] p-4">
+                          <p className="text-xs capitalize tracking-[0.08em] text-muted-foreground">{activeLifecycleDoc.sectionLabel}</p>
+                          <h3 className="mt-1 text-base font-semibold text-primary">{activeLifecycleDoc.itemLabel}</h3>
+                          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{activeLifecycleDoc.description}</p>
                         </div>
                       </div>
                     </div>

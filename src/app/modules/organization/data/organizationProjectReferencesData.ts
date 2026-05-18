@@ -18,7 +18,7 @@ export const organizationProjectReferencesSeed: OrganizationProjectReferenceDTO[
     description:
       'Global Development Partners led the delivery of technical assistance, teacher training support, and implementation oversight across regional education ministries. The assignment combined policy support, capacity building, and performance monitoring for national stakeholders.',
     country: CountryEnum.SENEGAL,
-    region: RegionEnum.AFRICA,
+    region: RegionEnum.WEST_AFRICA,
     sector: SectorEnum.EDUCATION,
     subSector: SubSectorEnum.TEACHER_TRAINING,
     client: 'Ministry of Education',
@@ -55,7 +55,7 @@ export const organizationProjectReferencesSeed: OrganizationProjectReferenceDTO[
     description:
       'The organization coordinated rehabilitation packages, quality assurance, and procurement monitoring for health facility upgrades in dense urban areas. The project included site supervision, stakeholder coordination, and post-implementation reporting.',
     country: CountryEnum.KENYA,
-    region: RegionEnum.AFRICA,
+    region: RegionEnum.EAST_AFRICA,
     sector: SectorEnum.HEALTH,
     client: 'County Health Directorate',
     donor: FundingAgencyEnum.AFRICAN_DEVELOPMENT_BANK,
@@ -83,9 +83,9 @@ export const organizationProjectReferencesSeed: OrganizationProjectReferenceDTO[
     description:
       'Global Development Partners supported resilient water-system design, climate risk assessment, and implementation planning for local authorities. The workstream covered feasibility analysis, stakeholder facilitation, and reporting to donor teams.',
     country: CountryEnum.GHANA,
-    region: RegionEnum.AFRICA,
-    sector: SectorEnum.WATER_AND_SANITATION,
-    subSector: SubSectorEnum.WATER_SUPPLY,
+    region: RegionEnum.WEST_AFRICA,
+    sector: SectorEnum.WATER_SANITATION,
+    subSector: SubSectorEnum.DRINKING_WATER,
     client: 'Metropolitan Water Utility',
     donor: FundingAgencyEnum.EUROPEAN_UNION,
     startDate: '2023-09-01',

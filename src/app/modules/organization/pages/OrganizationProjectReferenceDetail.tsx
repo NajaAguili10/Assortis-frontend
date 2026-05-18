@@ -26,7 +26,7 @@ export default function OrganizationProjectReferenceDetail() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { references, metrics, updateReference, addDocuments, removeDocument, replaceDocument } = useOrganizationProjectReferences();
+  const { references, metrics, isLoading, updateReference, addDocuments, removeDocument, replaceDocument } = useOrganizationProjectReferences();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const canManage = canManageOrganizationAdminActions(user?.accountType, user?.role);
   const restrictedActionMessage = t('permissions.organization.adminOnlyAction');
@@ -34,7 +34,7 @@ export default function OrganizationProjectReferenceDetail() {
 
   const reference = useMemo(() => references.find(item => item.id === id), [id, references]);
 
-  if (!reference) {
+  if (!reference && !isLoading) {
     return (
       <div className="min-h-screen bg-gray-100">
         <PageBanner
@@ -55,13 +55,47 @@ export default function OrganizationProjectReferenceDetail() {
     );
   }
 
-  const handleUpdateReference = (values: OrganizationProjectReferenceFormValues) => {
-    updateReference(reference.id, values);
+  if (!reference) {
+    return (
+      <div className="min-h-screen bg-gray-100">
+        <PageBanner
+          title={t('organizations.projectReferences.title')}
+          description={t('common.loading')}
+          icon={FileText}
+        />
+        <OrganizationsSubMenu />
+        <PageContainer className="my-6">
+          <div className="px-4 sm:px-5 lg:px-6 py-10 text-center text-gray-500">
+            {t('common.loading')}
+          </div>
+        </PageContainer>
+      </div>
+    );
+  }
+
+  const getSectorLabel = () => {
+    const translated = reference.sector ? t(`sectors.${reference.sector}`) : '';
+    if (translated && translated !== `sectors.${reference.sector}`) {
+      return translated;
+    }
+    return reference.sectorName || reference.sector?.replace(/_/g, ' ') || '-';
+  };
+
+  const getDonorLabel = () => {
+    const translated = reference.donor ? t(`fundingAgencies.${reference.donor}`) : '';
+    if (translated && translated !== `fundingAgencies.${reference.donor}`) {
+      return translated;
+    }
+    return reference.donorName || reference.donor || '-';
+  };
+
+  const handleUpdateReference = async (values: OrganizationProjectReferenceFormValues) => {
+    await updateReference(reference.id, values);
     toast.success(t('organizations.projectReferences.updateSuccess'));
   };
 
-  const handleValidateReference = () => {
-    updateReference(reference.id, { ...reference, status: 'verified' });
+  const handleValidateReference = async () => {
+    await updateReference(reference.id, { ...reference, status: 'verified' });
     toast.success(t('organizations.projectReferences.validateSuccess'));
   };
 
@@ -140,15 +174,15 @@ export default function OrganizationProjectReferenceDetail() {
                       <Globe2 className="w-4 h-4 text-blue-600" />
                       {t('organizations.projectReferences.fields.country')}
                     </div>
-                    <p className="text-sm text-gray-700">{getLocalizedCountryName(reference.country, language)}</p>
+                    <p className="text-sm text-gray-700">{reference.countryName || getLocalizedCountryName(reference.country, language)}</p>
                   </div>
                   <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
                     <div className="flex items-center gap-2 text-sm font-medium text-gray-900 mb-2">
                       <Layers3 className="w-4 h-4 text-primary" />
                       {t('organizations.projectReferences.fields.sector')}
                     </div>
-                    <p className="text-sm text-gray-700">{t(`sectors.${reference.sector}`)}</p>
-                    {reference.subSector && <p className="text-xs text-gray-500 mt-1">{t(`subsectors.${reference.subSector}`)}</p>}
+                    <p className="text-sm text-gray-700">{getSectorLabel()}</p>
+                    {reference.subSector && <p className="text-xs text-gray-500 mt-1">{reference.subSectorName || t(`subsectors.${reference.subSector}`)}</p>}
                   </div>
                   <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-4">
                     <div className="flex items-center gap-2 text-sm font-medium text-gray-900 mb-2">
@@ -162,7 +196,7 @@ export default function OrganizationProjectReferenceDetail() {
                       <Landmark className="w-4 h-4 text-violet-600" />
                       {t('organizations.projectReferences.fields.donor')}
                     </div>
-                    <p className="text-sm text-gray-700">{t(`fundingAgencies.${reference.donor}`)}</p>
+                    <p className="text-sm text-gray-700">{getDonorLabel()}</p>
                   </div>
                   <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-4 sm:col-span-2">
                     <div className="flex items-center gap-2 text-sm font-medium text-gray-900 mb-2">
@@ -185,9 +219,9 @@ export default function OrganizationProjectReferenceDetail() {
             <OrganizationProjectReferenceDocumentsSection
               documents={reference.documents}
               editable={canManage}
-              onAddDocuments={(documents) => addDocuments(reference.id, documents)}
-              onReplaceDocument={(documentId, document) => replaceDocument(reference.id, documentId, document)}
-              onRemoveDocument={(documentId) => removeDocument(reference.id, documentId)}
+              onAddDocuments={async (documents) => { await addDocuments(reference.id, documents); }}
+              onReplaceDocument={async (documentId, document) => { await replaceDocument(reference.id, documentId, document); }}
+              onRemoveDocument={async (documentId) => { await removeDocument(reference.id, documentId); }}
             />
           </div>
         </div>

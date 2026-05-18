@@ -11,12 +11,15 @@ import { OrganizationProjectReferenceDocumentsSection } from '@app/components/Or
 import {
   CountryEnum,
   FundingAgencyEnum,
-  REGION_COUNTRY_MAP,
   RegionEnum,
   SectorEnum,
   SECTOR_SUBSECTOR_MAP,
   SubSectorEnum,
 } from '@app/types/tender.dto';
+import {
+  ORGANIZATION_REGION_COUNTRY_MAP,
+  ORGANIZATION_REGION_LABELS,
+} from '@app/config/organization-region-country.config';
 import {
   OrganizationProjectReferenceDTO,
   OrganizationProjectReferenceDocumentDTO,
@@ -32,7 +35,7 @@ interface OrganizationProjectReferenceFormDialogProps {
   mode: 'create' | 'edit';
   initialReference?: OrganizationProjectReferenceDTO | null;
   onOpenChange?: (open: boolean) => void;
-  onSubmit: (values: OrganizationProjectReferenceFormValues) => void;
+  onSubmit: (values: OrganizationProjectReferenceFormValues) => void | Promise<void>;
   inline?: boolean;
   quickMode?: boolean;
 }
@@ -42,12 +45,12 @@ const getInitialValues = (): OrganizationProjectReferenceFormValues => ({
   title: '',
   summary: '',
   description: '',
-  region: RegionEnum.AFRICA,
+  region: RegionEnum.WEST_AFRICA,
   country: CountryEnum.SENEGAL,
   sector: SectorEnum.EDUCATION,
   subSector: undefined,
   client: '',
-  donor: FundingAgencyEnum.WORLD_BANK,
+  donor: FundingAgencyEnum.WB,
   startDate: '',
   endDate: '',
   status: 'notVerified',
@@ -67,6 +70,7 @@ export function OrganizationProjectReferenceFormDialog({
   const [formValues, setFormValues] = useState<OrganizationProjectReferenceFormValues>(getInitialValues());
   const [referenceType, setReferenceType] = useState<ReferenceTypeEnum>(ReferenceTypeEnum.DOCUMENT);
   const [url, setUrl] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!open && !inline) {
@@ -101,19 +105,34 @@ export function OrganizationProjectReferenceFormDialog({
   }, [initialReference, open, inline]);
 
   const availableCountries = useMemo(() => {
-    return REGION_COUNTRY_MAP[formValues.region] || [];
+    return ORGANIZATION_REGION_COUNTRY_MAP[formValues.region] || [];
   }, [formValues.region]);
 
   const availableSubSectors = useMemo(() => {
-    return SECTOR_SUBSECTOR_MAP[formValues.sector] || [];
-  }, [formValues.sector]);
+    const nextSubsectors = SECTOR_SUBSECTOR_MAP[formValues.sector] || [];
+    if (formValues.subSector && !nextSubsectors.includes(formValues.subSector)) {
+      return [formValues.subSector, ...nextSubsectors];
+    }
+    return nextSubsectors;
+  }, [formValues.sector, formValues.subSector]);
+
+  const getSubsectorLabel = (subSector: string) => {
+    const translated = t(`subsectors.${subSector}`);
+    if (translated !== `subsectors.${subSector}`) {
+      return translated;
+    }
+    if (initialReference?.subSector === subSector && initialReference.subSectorName) {
+      return initialReference.subSectorName;
+    }
+    return subSector.replace(/_/g, ' ');
+  };
 
   const setField = <K extends keyof OrganizationProjectReferenceFormValues>(field: K, value: OrganizationProjectReferenceFormValues[K]) => {
     setFormValues(prev => ({ ...prev, [field]: value }));
   };
 
   const handleRegionChange = (value: RegionEnum) => {
-    const nextCountries = REGION_COUNTRY_MAP[value] || [];
+    const nextCountries = ORGANIZATION_REGION_COUNTRY_MAP[value] || [];
     setFormValues(prev => ({
       ...prev,
       region: value,
@@ -130,21 +149,30 @@ export function OrganizationProjectReferenceFormDialog({
     }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (isSubmitting) {
+      return;
+    }
     if (quickMode) {
       if (!formValues.title.trim() || !formValues.client.trim()) {
         toast.error(t('organizations.projectReferences.form.validation.required'));
         return;
       }
-
-      onSubmit({
-        ...formValues,
-        status: 'notVerified',
-        referenceType,
-        url: referenceType === ReferenceTypeEnum.LINK ? url : undefined,
-      });
-      if (!inline) {
-        onOpenChange?.(false);
+      try {
+        setIsSubmitting(true);
+        await onSubmit({
+          ...formValues,
+          status: 'notVerified',
+          referenceType,
+          url: referenceType === ReferenceTypeEnum.LINK ? url : undefined,
+        });
+        if (!inline) {
+          onOpenChange?.(false);
+        }
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : t('common.error'));
+      } finally {
+        setIsSubmitting(false);
       }
       return;
     }
@@ -168,9 +196,16 @@ export function OrganizationProjectReferenceFormDialog({
       return;
     }
 
-    onSubmit({ ...formValues, referenceType, url: referenceType === ReferenceTypeEnum.LINK ? url : undefined });
-    if (!inline) {
-      onOpenChange?.(false);
+    try {
+      setIsSubmitting(true);
+      await onSubmit({ ...formValues, referenceType, url: referenceType === ReferenceTypeEnum.LINK ? url : undefined });
+      if (!inline) {
+        onOpenChange?.(false);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('common.error'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -283,12 +318,14 @@ export function OrganizationProjectReferenceFormDialog({
             <div className="space-y-2">
               <Label>{t('organizations.projectReferences.form.region')}</Label>
               <Select value={formValues.region} onValueChange={(value: RegionEnum) => handleRegionChange(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
                   {Object.values(RegionEnum).map(region => (
-                    <SelectItem key={region} value={region}>{t(`regions.${region}`)}</SelectItem>
+                    <SelectItem key={region} value={region}>
+                      {ORGANIZATION_REGION_LABELS[region] || t(`regions.${region}`)}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -311,10 +348,10 @@ export function OrganizationProjectReferenceFormDialog({
             <div className="space-y-2">
               <Label>{t('organizations.projectReferences.form.sector')}</Label>
               <Select value={formValues.sector} onValueChange={(value: SectorEnum) => handleSectorChange(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
                   {Object.values(SectorEnum).map(sector => (
                     <SelectItem key={sector} value={sector}>{t(`sectors.${sector}`)}</SelectItem>
                   ))}
@@ -334,7 +371,7 @@ export function OrganizationProjectReferenceFormDialog({
                 <SelectContent>
                   <SelectItem value="none">{t('organizations.projectReferences.form.noSubSector')}</SelectItem>
                   {availableSubSectors.map(subSector => (
-                    <SelectItem key={subSector} value={subSector}>{t(`subsectors.${subSector}`)}</SelectItem>
+                    <SelectItem key={subSector} value={subSector}>{getSubsectorLabel(subSector)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -390,13 +427,13 @@ export function OrganizationProjectReferenceFormDialog({
         </div>
 
         <DialogFooter className="mt-2">
-          <Button type="button" variant="outline" onClick={() => onOpenChange?.(false)}>
+                      <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => onOpenChange?.(false)}>
             {t('organizations.projectReferences.form.cancel')}
           </Button>
-          <Button type="button" onClick={handleSubmit}>
+          <Button type="button" disabled={isSubmitting} onClick={handleSubmit}>
             {mode === 'create'
-              ? t('organizations.projectReferences.form.createAction')
-              : t('organizations.projectReferences.form.saveAction')}
+              ? (isSubmitting ? t('common.loading') : t('organizations.projectReferences.form.createAction'))
+              : (isSubmitting ? t('common.loading') : t('organizations.projectReferences.form.saveAction'))}
           </Button>
         </DialogFooter>
     </>

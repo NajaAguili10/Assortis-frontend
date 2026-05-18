@@ -14,10 +14,22 @@ import { Separator } from '@app/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@app/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tooltip';
 import { useOrganizations } from '@app/modules/organization/hooks/useOrganizations';
-import { Organization, OrganizationTypeEnum, OrganizationStatusEnum, OrganizationSectorEnum, RegionEnum, CountryEnum } from '@app/types/organization.dto';
-import { SubSectorEnum, SectorEnum } from '@app/types/tender.dto';
+import {
+  Organization,
+  OrganizationTypeEnum,
+  OrganizationStatusEnum,
+  OrganizationSectorEnum,
+  RegionEnum,
+  SectorDTO,
+  SubsectorDTO,
+  CountryDTO,
+} from '@app/types/organization.dto';
+import { SubSectorEnum, SectorEnum, CountryEnum } from '@app/types/tender.dto';
 import { ORGANIZATION_SECTOR_SUBSECTOR_MAP } from '@app/config/organization-sectors.config';
-import { REGION_COUNTRY_MAP } from '@app/types/tender.dto';
+import {
+  ORGANIZATION_REGION_COUNTRY_MAP,
+  ORGANIZATION_REGION_LABELS,
+} from '@app/config/organization-region-country.config';
 import {
   Database,
   Search,
@@ -47,6 +59,40 @@ import {
 import { getLocalizedCountryName } from '@app/utils/country-translator';
 
 type EmployeeSizeFilter = 'micro' | 'small' | 'medium' | 'large';
+const EMPLOYEE_SIZE_LABELS: Record<EmployeeSizeFilter, string> = {
+  micro: 'Micro (<10)',
+  small: 'Small (10-50)',
+  medium: 'Medium (50-200)',
+  large: 'Large (200+)',
+};
+
+function getCertificationLabel(certification: any): string {
+  if (!certification) return '';
+  if (typeof certification === 'string') return certification;
+  return certification.certificationName || certification.credentialId || certification.issuingOrganization || '';
+}
+
+function getCertificationMeta(certification: any): string {
+  if (!certification || typeof certification === 'string') return '';
+  return [
+    certification.issuingOrganization,
+    certification.credentialId ? `ID: ${certification.credentialId}` : '',
+    certification.issuedDate,
+    certification.expiryDate,
+  ]
+    .filter(Boolean)
+    .join(' | ');
+}
+
+function getSectorLabel(sector: any): string {
+  if (!sector) return '';
+  if (typeof sector === 'string') return sector;
+  return sector.code || sector.name || '';
+}
+
+function isGarbageEncoded(text: string): boolean {
+  return /â|Ã|Â/.test(text);
+}
 
 /** Compute a 0–5 profile completeness score based on present fields. */
 function computeProfileScore(org: Organization): number {
@@ -70,7 +116,7 @@ function matchesEmployeeSize(org: Organization, size: EmployeeSizeFilter | null)
 }
 
 export default function OrganizationsDatabase() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const {
     organizations,
@@ -90,28 +136,59 @@ export default function OrganizationsDatabase() {
   } = useOrganizations();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSectors, setSelectedSectors] = useState<OrganizationSectorEnum[]>([]);
-  const [selectedSubSectors, setSelectedSubSectors] = useState<SubSectorEnum[]>([]);
+  const [selectedSectors, setSelectedSectors] = useState<SectorDTO[]>([]);
+  const [selectedSubSectors, setSelectedSubSectors] = useState<SubsectorDTO[]>([]);
   const [selectedRegions, setSelectedRegions] = useState<RegionEnum[]>([]);
-  const [selectedCountries, setSelectedCountries] = useState<CountryEnum[]>([]);
-  const [hoveredSector, setHoveredSector] = useState<SectorEnum | null>(null);
+  const [selectedCountries, setSelectedCountries] = useState<CountryDTO[]>([]);
+  const [hoveredSector, setHoveredSector] = useState<SectorDTO | null>(null);
   const [selectedStatuses, setSelectedStatuses] = useState<OrganizationStatusEnum[]>([]);
   const [selectedEmployeeSize, setSelectedEmployeeSize] = useState<EmployeeSizeFilter | null>(null);
   
   // State for filters visibility toggle
   const [showFilters, setShowFilters] = useState(true);
 
-  // Get available subsectors based on selected sectors
-  const availableSubSectors = useMemo(() => {
-    if (selectedSectors.length === 0) return [];
-    const subSectors: SubSectorEnum[] = [];
-    selectedSectors.forEach(sector => {
-      // Cast OrganizationSectorEnum to SectorEnum since they share the same values
-      const sectorSubSectors = ORGANIZATION_SECTOR_SUBSECTOR_MAP[sector as unknown as keyof typeof ORGANIZATION_SECTOR_SUBSECTOR_MAP] || [];
-      subSectors.push(...sectorSubSectors);
+  const sectorOptions = useMemo<SectorDTO[]>(() => {
+    return Object.values(OrganizationSectorEnum).map((code, index) => {
+      const translation = t(`sectors.${code}`);
+      return {
+        id: index + 1,
+        code,
+        name: translation === `sectors.${code}` ? code.replace(/_/g, ' ') : translation,
+      };
     });
-    return [...new Set(subSectors)]; // Remove duplicates
-  }, [selectedSectors]);
+  }, [t]);
+
+  const subsectorOptionsBySector = useMemo<Record<string, SubsectorDTO[]>>(() => {
+    return sectorOptions.reduce<Record<string, SubsectorDTO[]>>((accumulator, sector) => {
+      const subsectorCodes = ORGANIZATION_SECTOR_SUBSECTOR_MAP[sector.code as OrganizationSectorEnum] || [];
+      accumulator[String(sector.id)] = subsectorCodes.map((code, index) => {
+        const translation = t(`subsectors.${code}`);
+        return {
+          id: Number(`${sector.id}${index + 1}`),
+          code,
+          name: translation === `subsectors.${code}` ? code.replace(/_/g, ' ') : translation,
+          sectorId: sector.id,
+        };
+      });
+      return accumulator;
+    }, {});
+  }, [sectorOptions, t]);
+
+  const countryOptions = useMemo<CountryDTO[]>(() => {
+    const seen = new Set<string>();
+    return Object.values(RegionEnum).flatMap((region) => {
+      return (ORGANIZATION_REGION_COUNTRY_MAP[region] || []).filter((countryCode) => {
+        if (seen.has(countryCode)) return false;
+        seen.add(countryCode);
+        return true;
+      }).map((countryCode, index) => ({
+        id: index + 1 + region.length * 100,
+        code: countryCode,
+        name: getLocalizedCountryName(countryCode, language),
+        regionWorld: region,
+      }));
+    });
+  }, [language, t]);
 
   // Client-side filter for employee size (not a server filter)
   const displayedOrganizations = useMemo(() => {
@@ -159,9 +236,9 @@ export default function OrganizationsDatabase() {
     updateFilters({ status: newStatuses.length > 0 ? newStatuses : undefined });
   };
 
-  const handleSectorFilter = (sector: OrganizationSectorEnum) => {
-    const newSectors = selectedSectors.includes(sector)
-      ? selectedSectors.filter(s => s !== sector)
+  const handleSectorFilter = (sector: SectorDTO) => {
+    const newSectors = selectedSectors.some(item => item.code === sector.code)
+      ? selectedSectors.filter(item => item.code !== sector.code)
       : [...selectedSectors, sector];
     
     setSelectedSectors(newSectors);
@@ -173,7 +250,7 @@ export default function OrganizationsDatabase() {
     } else {
       // Remove subsectors that don't belong to any selected sector
       const validSubSectors = selectedSubSectors.filter(sub => {
-        return newSectors.some(sec => ORGANIZATION_SECTOR_SUBSECTOR_MAP[sec]?.includes(sub));
+        return newSectors.some(sec => sec.id === sub.sectorId);
       });
       setSelectedSubSectors(validSubSectors);
       updateFilters({ 
@@ -183,9 +260,9 @@ export default function OrganizationsDatabase() {
     }
   };
 
-  const handleSubSectorFilter = (subSector: SubSectorEnum) => {
-    const newSubSectors = selectedSubSectors.includes(subSector)
-      ? selectedSubSectors.filter(s => s !== subSector)
+  const handleSubSectorFilter = (subSector: SubsectorDTO) => {
+    const newSubSectors = selectedSubSectors.some(item => item.code === subSector.code)
+      ? selectedSubSectors.filter(item => item.code !== subSector.code)
       : [...selectedSubSectors, subSector];
     
     setSelectedSubSectors(newSubSectors);
@@ -196,6 +273,8 @@ export default function OrganizationsDatabase() {
     setSearchQuery('');
     setSelectedSectors([]);
     setSelectedSubSectors([]);
+    setSelectedRegions([]);
+    setSelectedCountries([]);
     setSelectedStatuses([]);
     setSelectedEmployeeSize(null);
     clearFilters();
@@ -209,8 +288,25 @@ export default function OrganizationsDatabase() {
 
   const getTranslatedRegionLabel = (region?: string) => {
     if (!region) return '-';
+    if (region in ORGANIZATION_REGION_LABELS) {
+      return ORGANIZATION_REGION_LABELS[region as RegionEnum];
+    }
     const translation = t(`organizations.region.${region}`);
     return translation === `organizations.region.${region}` ? region.replace(/_/g, ' ') : translation;
+  };
+
+  const getTranslatedSectorLabel = (sector: any) => {
+    const code = getSectorLabel(sector);
+    if (!code) return '-';
+    const translation = t(`sectors.${code}`);
+    return translation === `sectors.${code}` ? code.replace(/_/g, ' ') : translation;
+  };
+
+  const getEmployeeSizeLabel = (size: EmployeeSizeFilter) => {
+    const translation = t(`organizations.filters.employeeSize.${size}`);
+    return translation === `organizations.filters.employeeSize.${size}` || isGarbageEncoded(translation)
+      ? EMPLOYEE_SIZE_LABELS[size]
+      : translation;
   };
 
   const getLocationLabel = (org: { city?: string | { name: string }; country?: string | { name: string } }) => {
@@ -415,7 +511,11 @@ export default function OrganizationsDatabase() {
                         <button
                           key={size}
                           type="button"
-                          onClick={() => setSelectedEmployeeSize(selectedEmployeeSize === size ? null : size)}
+                          onClick={() => {
+                            const nextSize = selectedEmployeeSize === size ? null : size;
+                            setSelectedEmployeeSize(nextSize);
+                            updateFilters({ teamSize: nextSize ? [nextSize.toUpperCase()] : undefined });
+                          }}
                           className={[
                             'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
                             selectedEmployeeSize === size
@@ -423,7 +523,7 @@ export default function OrganizationsDatabase() {
                               : 'bg-white text-gray-700 border-gray-200 hover:border-primary hover:text-primary',
                           ].join(' ')}
                         >
-                          {t(`organizations.filters.employeeSize.${size}`)}
+                          {getEmployeeSizeLabel(size)}
                         </button>
                       ))}
                     </div>
@@ -433,14 +533,16 @@ export default function OrganizationsDatabase() {
                 {/* Filters Row 2: Secteur & Sous-secteur - ASSORTIS RED & BLACK DESIGN */}
                 <div className="grid grid-cols-1 gap-4 mb-4">
                   <SectorSubsectorFilter
-                    selectedSectors={selectedSectors as any}
+                    selectedSectors={selectedSectors}
                     selectedSubSectors={selectedSubSectors}
                     hoveredSector={hoveredSector}
                     onHoverSector={setHoveredSector}
-                    onSelectSector={handleSectorFilter as any}
+                    onSelectSector={handleSectorFilter}
                     onSelectSubSector={handleSubSectorFilter}
+                    allowedSectors={sectorOptions}
+                    dynamicSubsectorsMap={subsectorOptionsBySector}
                     onSelectAllSectors={() => {
-                      const allSectors = Object.values(OrganizationSectorEnum);
+                      const allSectors = sectorOptions;
                       if (selectedSectors.length === allSectors.length) {
                         setSelectedSectors([]);
                         setSelectedSubSectors([]);
@@ -451,14 +553,19 @@ export default function OrganizationsDatabase() {
                       }
                     }}
                     onSelectAllSubSectors={(sector) => {
-                      const sectorSubs = ORGANIZATION_SECTOR_SUBSECTOR_MAP[sector as any] || [];
-                      const allSelected = sectorSubs.every(sub => selectedSubSectors.includes(sub));
+                      const sectorSubs = subsectorOptionsBySector[String(sector.id)] || [];
+                      const allSelected = sectorSubs.every(sub => selectedSubSectors.some(item => item.code === sub.code));
                       if (allSelected) {
-                        const newSubs = selectedSubSectors.filter(sub => !sectorSubs.includes(sub));
+                        const newSubs = selectedSubSectors.filter(sub => !sectorSubs.some(item => item.code === sub.code));
                         setSelectedSubSectors(newSubs);
                         updateFilters({ subSectors: newSubs.length > 0 ? newSubs : undefined });
                       } else {
-                        const newSubs = [...new Set([...selectedSubSectors, ...sectorSubs])];
+                        const newSubs = [...selectedSubSectors];
+                        sectorSubs.forEach((sub) => {
+                          if (!newSubs.some(item => item.code === sub.code)) {
+                            newSubs.push(sub);
+                          }
+                        });
                         setSelectedSubSectors(newSubs);
                         updateFilters({ subSectors: newSubs });
                       }
@@ -472,6 +579,9 @@ export default function OrganizationsDatabase() {
                   <RegionCountryFilter
                     selectedRegions={selectedRegions}
                     selectedCountries={selectedCountries}
+                    allowedCountries={countryOptions}
+                    regionCountryMap={ORGANIZATION_REGION_COUNTRY_MAP}
+                    getRegionLabel={getTranslatedRegionLabel}
                     onSelectRegion={(region) => {
                       const newRegions = selectedRegions.includes(region)
                         ? selectedRegions.filter(r => r !== region)
@@ -484,7 +594,7 @@ export default function OrganizationsDatabase() {
                         updateFilters({ regions: undefined, countries: undefined });
                       } else {
                         const validCountries = selectedCountries.filter(country => {
-                          return newRegions.some(reg => REGION_COUNTRY_MAP[reg]?.includes(country));
+                          return newRegions.some(reg => ORGANIZATION_REGION_COUNTRY_MAP[reg]?.includes(country.code as CountryEnum));
                         });
                         setSelectedCountries(validCountries);
                         updateFilters({ 
@@ -494,8 +604,8 @@ export default function OrganizationsDatabase() {
                       }
                     }}
                     onSelectCountry={(country) => {
-                      const newCountries = selectedCountries.includes(country)
-                        ? selectedCountries.filter(c => c !== country)
+                      const newCountries = selectedCountries.some(item => item.code === country.code)
+                        ? selectedCountries.filter(c => c.code !== country.code)
                         : [...selectedCountries, country];
                       setSelectedCountries(newCountries);
                       updateFilters({ countries: newCountries.length > 0 ? newCountries : undefined });
@@ -542,16 +652,19 @@ export default function OrganizationsDatabase() {
                       ))}
                       {selectedEmployeeSize && (
                         <Badge variant="secondary" className="gap-1">
-                          {t(`organizations.filters.employeeSize.${selectedEmployeeSize}`)}
+                          {getEmployeeSizeLabel(selectedEmployeeSize)}
                           <X
                             className="w-3 h-3 cursor-pointer hover:text-destructive"
-                            onClick={() => setSelectedEmployeeSize(null)}
+                            onClick={() => {
+                              setSelectedEmployeeSize(null);
+                              updateFilters({ teamSize: undefined });
+                            }}
                           />
                         </Badge>
                       )}
                       {selectedSectors.map((sector) => (
-                        <Badge key={sector} variant="secondary" className="gap-1">
-                          {t(`sectors.${sector}`)}
+                        <Badge key={sector.code} variant="secondary" className="gap-1">
+                          {sector.name}
                           <X
                             className="w-3 h-3 cursor-pointer hover:text-destructive"
                             onClick={() => handleSectorFilter(sector)}
@@ -559,8 +672,8 @@ export default function OrganizationsDatabase() {
                         </Badge>
                       ))}
                       {selectedSubSectors.map((subSector) => (
-                        <Badge key={subSector} variant="secondary" className="gap-1">
-                          {t(`subsectors.${subSector}`)}
+                        <Badge key={subSector.code} variant="secondary" className="gap-1">
+                          {subSector.name}
                           <X
                             className="w-3 h-3 cursor-pointer hover:text-destructive"
                             onClick={() => handleSubSectorFilter(subSector)}
@@ -569,7 +682,7 @@ export default function OrganizationsDatabase() {
                       ))}
                       {selectedRegions.map((region) => (
                         <Badge key={region} variant="secondary" className="gap-1">
-                          {t(`regions.${region}`)}
+                          {getTranslatedRegionLabel(region)}
                           <X
                             className="w-3 h-3 cursor-pointer hover:text-destructive"
                             onClick={() => {
@@ -580,7 +693,7 @@ export default function OrganizationsDatabase() {
                                 updateFilters({ regions: undefined, countries: undefined });
                               } else {
                                 const validCountries = selectedCountries.filter(country => {
-                                  return newRegions.some(reg => REGION_COUNTRY_MAP[reg]?.includes(country));
+                                  return newRegions.some(reg => ORGANIZATION_REGION_COUNTRY_MAP[reg]?.includes(country.code as CountryEnum));
                                 });
                                 setSelectedCountries(validCountries);
                                 updateFilters({ 
@@ -593,12 +706,12 @@ export default function OrganizationsDatabase() {
                         </Badge>
                       ))}
                       {selectedCountries.map((country) => (
-                        <Badge key={country} variant="secondary" className="gap-1">
-                          {getLocalizedCountryName(country, t('language'))}
+                        <Badge key={country.code} variant="secondary" className="gap-1">
+                          {country.name}
                           <X
                             className="w-3 h-3 cursor-pointer hover:text-destructive"
                             onClick={() => {
-                              const newCountries = selectedCountries.filter(c => c !== country);
+                              const newCountries = selectedCountries.filter(c => c.code !== country.code);
                               setSelectedCountries(newCountries);
                               updateFilters({ countries: newCountries.length > 0 ? newCountries : undefined });
                             }}
@@ -655,8 +768,8 @@ export default function OrganizationsDatabase() {
               <div className="grid grid-cols-1 gap-5 mb-6">
                 {displayedOrganizations.map((org) => {
                   const score = computeProfileScore(org);
-                  const sharedSectors = selectedSectors.filter(s =>
-                    (org.sectors || []).includes(s as unknown as string)
+                  const sharedSectors = selectedSectors.filter((sector) =>
+                    (org.sectors || []).some((orgSector) => orgSector.code === sector.code)
                   );
                   const countryName = typeof org.country === 'string'
                     ? org.country
@@ -801,7 +914,7 @@ export default function OrganizationsDatabase() {
                           {/* Sectors */}
                           <div className="flex items-center gap-1.5 flex-wrap">
                             {(org.sectors || []).slice(0, 4).map((sector, index) => {
-                              const isShared = selectedSectors.includes(sector as unknown as OrganizationSectorEnum);
+                              const isShared = selectedSectors.some((selectedSector) => selectedSector.code === sector.code);
                               return (
                                 <Badge
                                   key={`${org.id}-sector-${index}`}
@@ -809,7 +922,7 @@ export default function OrganizationsDatabase() {
                                   className={`text-xs ${isShared ? 'bg-primary/10 text-primary border border-primary/20' : ''}`}
                                 >
                                   {isShared && <Layers className="w-3 h-3 mr-1" />}
-                                  {t(`sectors.${sector}`)}
+                                  {getTranslatedSectorLabel(sector)}
                                 </Badge>
                               );
                             })}
@@ -831,8 +944,12 @@ export default function OrganizationsDatabase() {
                             <div className="flex items-center gap-2 mt-2.5 flex-wrap">
                               <Award className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
                               {org.certifications.slice(0, 3).map((cert, i) => (
-                                <span key={i} className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded">
-                                  {cert}
+                                <span
+                                  key={typeof cert === 'string' ? cert : cert.id || cert.credentialId || i}
+                                  className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded"
+                                  title={getCertificationMeta(cert)}
+                                >
+                                  {getCertificationLabel(cert)}
                                 </span>
                               ))}
                               {org.certifications.length > 3 && (

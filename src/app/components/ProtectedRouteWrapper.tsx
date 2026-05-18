@@ -8,9 +8,11 @@ import AccountMessagesPage from '../modules/account/pages/AccountMessagesPage';
 import MySelectionAlertsPage from '../modules/account/pages/MySelectionAlertsPage';
 import AccountSubscriptionPage from '../modules/account/pages/AccountSubscriptionPage';
 import AccountTeamsPage from '../modules/account/pages/AccountTeamsPage';
+import ManageProfilesPage from '../modules/account/pages/ManageProfilesPage';
 import OrganizationAccountDashboard from '../modules/account/pages/OrganizationAccountDashboard';
 import OrganizationUserProfileSettingsPage from '../modules/account/pages/OrganizationUserProfileSettingsPage';
-import { isExpertAccount, isOrganizationOrAdminAccount } from '../services/permissions.service';
+import { canAccessTeamMembers, isExpertAccount, isOrganizationOrAdminAccount } from '../services/permissions.service';
+import { Navigate } from 'react-router';
 
 export const ProtectedCompteUtilisateur = () => (
   <ProtectedRoute>
@@ -62,7 +64,13 @@ export const ProtectedAccountSubscription = () => (
 
 export const ProtectedAccountTeams = () => (
   <ProtectedRoute>
-    <AccountTeamsPage />
+    <RoleAwareAccountTeams />
+  </ProtectedRoute>
+);
+
+export const ProtectedManageProfiles = () => (
+  <ProtectedRoute>
+    <ManageProfilesPage />
   </ProtectedRoute>
 );
 
@@ -94,4 +102,14 @@ const RoleAwareProfileSettings = () => {
   }
 
   return <CompteUtilisateurPage />;
+};
+
+const RoleAwareAccountTeams = () => {
+  const { user } = useAuth();
+
+  if (!canAccessTeamMembers(user?.accountType)) {
+    return <Navigate to="/account" replace />;
+  }
+
+  return <AccountTeamsPage />;
 };

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { PageBanner } from '@app/components/PageBanner';
@@ -29,6 +29,10 @@ import {
 import { useOrganizations } from '@app/modules/organization/hooks/useOrganizations';
 import { useNotifications } from '@app/modules/administrator/hooks/useNotifications';
 import { NotificationTypeEnum, NotificationPriorityEnum } from '@app/types/notification.dto';
+import {
+  organizationInvitationService,
+  OrganizationInvitationStatsApiDTO,
+} from '@app/services/organizationInvitationService';
 import { 
   Building2, 
   Inbox, 
@@ -60,93 +64,15 @@ interface Invitation {
   expiryDate: string;
 }
 
-// Mock invitations data
-const mockInvitations: Invitation[] = [
-  {
-    id: '1',
-    type: 'received',
-    from: 'World Health Organization',
-    to: 'UNICEF',
-    invitationType: 'partnership',
-    status: 'pending',
-    subject: 'Strategic Partnership Proposal',
-    message: 'We would like to propose a strategic partnership for health programs in Africa.',
-    sentDate: '2024-02-20',
-    expiryDate: '2024-03-20',
-  },
-  {
-    id: '2',
-    type: 'received',
-    from: 'UNESCO',
-    to: 'UNICEF',
-    invitationType: 'consortium',
-    status: 'pending',
-    subject: 'Education Consortium Invitation',
-    message: 'Join our education consortium for Southeast Asia development projects.',
-    sentDate: '2024-02-18',
-    expiryDate: '2024-03-18',
-  },
-  {
-    id: '3',
-    type: 'received',
-    from: 'Red Cross International',
-    to: 'UNICEF',
-    invitationType: 'collaboration',
-    status: 'accepted',
-    subject: 'Humanitarian Response Collaboration',
-    message: 'Collaborate on emergency response in conflict zones.',
-    sentDate: '2024-01-15',
-    expiryDate: '2024-02-15',
-  },
-  {
-    id: '4',
-    type: 'sent',
-    from: 'UNICEF',
-    to: 'World Bank',
-    invitationType: 'partnership',
-    status: 'accepted',
-    subject: 'Development Finance Partnership',
-    message: 'We propose a partnership for financing child welfare programs.',
-    sentDate: '2024-02-10',
-    expiryDate: '2024-03-10',
-  },
-  {
-    id: '5',
-    type: 'sent',
-    from: 'UNICEF',
-    to: 'Doctors Without Borders',
-    invitationType: 'collaboration',
-    status: 'pending',
-    subject: 'Medical Support Collaboration',
-    message: 'Collaborate on providing medical support in underserved areas.',
-    sentDate: '2024-02-15',
-    expiryDate: '2024-03-15',
-  },
-  {
-    id: '6',
-    type: 'sent',
-    from: 'UNICEF',
-    to: 'Save the Children',
-    invitationType: 'consortium',
-    status: 'rejected',
-    subject: 'Child Protection Consortium',
-    message: 'Join our consortium for child protection initiatives.',
-    sentDate: '2024-01-20',
-    expiryDate: '2024-02-20',
-  },
-  {
-    id: '7',
-    type: 'received',
-    from: 'Global Education Alliance',
-    to: 'UNICEF',
-    invitationType: 'team',
-    status: 'expired',
-    subject: 'Team Member Invitation',
-    message: 'We invite you to join our advisory team for education policy.',
-    sentDate: '2024-01-01',
-    expiryDate: '2024-02-01',
-  },
-];
+const emptyStats: OrganizationInvitationStatsApiDTO = {
+  received: 0,
+  sent: 0,
+  pending: 0,
+  accepted: 0,
+  rejected: 0,
+  expired: 0,
+  total: 0,
+};
 
 export default function OrganizationsInvitations() {
   const { t } = useLanguage();
@@ -158,7 +84,9 @@ export default function OrganizationsInvitations() {
   // Detect which module we're in based on the URL path
   const isMonEspace = location.pathname.startsWith('/mon-espace');
   
-  const [invitations, setInvitations] = useState<Invitation[]>(mockInvitations);
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [invitationStats, setInvitationStats] = useState<OrganizationInvitationStatsApiDTO>(emptyStats);
+  const [isLoadingInvitations, setIsLoadingInvitations] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<'received' | 'sent'>('received');
@@ -171,6 +99,57 @@ export default function OrganizationsInvitations() {
   const [invitationToDelete, setInvitationToDelete] = useState<Invitation | null>(null);
   const [rejectionJustification, setRejectionJustification] = useState('');
   const [justificationError, setJustificationError] = useState(false);
+
+  const loadInvitations = useCallback(async () => {
+    setIsLoadingInvitations(true);
+    try {
+      const [apiInvitations, stats] = await Promise.all([
+        organizationInvitationService.getCurrentOrganizationInvitations(),
+        organizationInvitationService.getCurrentOrganizationStats(),
+      ]);
+
+      setInvitations(apiInvitations.map((invitation) => ({
+        id: String(invitation.id),
+        type: invitation.direction,
+        from: invitation.from || '',
+        to: invitation.to || '',
+        invitationType: invitation.invitationType,
+        status: invitation.status,
+        subject: invitation.subject || '',
+        message: invitation.message || '',
+        sentDate: invitation.sentDate || '',
+        expiryDate: invitation.expiryDate || '',
+      })));
+      setInvitationStats(stats);
+    } catch (error) {
+      console.error('Error loading organization invitations:', error);
+      setInvitations([]);
+      setInvitationStats(emptyStats);
+    } finally {
+      setIsLoadingInvitations(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadInvitations();
+  }, [loadInvitations]);
+
+  useEffect(() => {
+    const handleFocus = () => loadInvitations();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadInvitations();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [loadInvitations]);
 
   // Filter invitations
   const filteredInvitations = invitations
@@ -188,7 +167,6 @@ export default function OrganizationsInvitations() {
 
   const receivedInvitations = invitations.filter(inv => inv.type === 'received');
   const sentInvitations = invitations.filter(inv => inv.type === 'sent');
-  const pendingInvitations = invitations.filter(inv => inv.status === 'pending');
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -224,60 +202,67 @@ export default function OrganizationsInvitations() {
     }
   };
 
-  const handleAcceptInvitation = (invitation: Invitation) => {
-    setInvitations(prev =>
-      prev.map(inv =>
-        inv.id === invitation.id ? { ...inv, status: 'accepted' as const } : inv
-      )
-    );
-    toast.success(t('organizations.invitations.accepted'), {
-      description: `Accepted invitation from ${invitation.from}`,
-    });
-    
-    // Add notification to Assortis notification system
-    addNotification({
-      type: NotificationTypeEnum.SUCCESS,
-      priority: NotificationPriorityEnum.HIGH,
-      titleKey: 'notifications.invitation.accepted.title',
-      messageKey: 'notifications.invitation.accepted.message',
-      params: { organization: invitation.from },
-      link: '/organizations/invitations',
-      actionable: false,
-    });
-    
-    setSelectedInvitation(null);
+  const handleAcceptInvitation = async (invitation: Invitation) => {
+    try {
+      await organizationInvitationService.acceptInvitation(invitation.id);
+      await loadInvitations();
+      toast.success(t('organizations.invitations.accepted'), {
+        description: `Accepted invitation from ${invitation.from}`,
+      });
+      
+      // Add notification to Assortis notification system
+      addNotification({
+        type: NotificationTypeEnum.SUCCESS,
+        priority: NotificationPriorityEnum.HIGH,
+        titleKey: 'notifications.invitation.accepted.title',
+        messageKey: 'notifications.invitation.accepted.message',
+        params: { organization: invitation.from },
+        link: '/organizations/invitations',
+        actionable: false,
+      });
+      
+      setSelectedInvitation(null);
+    } catch (error: any) {
+      toast.error(error?.message || t('organizations.invitations.rejected'));
+    }
   };
 
-  const handleRejectInvitation = (invitation: Invitation) => {
-    setInvitations(prev =>
-      prev.map(inv =>
-        inv.id === invitation.id ? { ...inv, status: 'rejected' as const } : inv
-      )
-    );
-    toast.error(t('organizations.invitations.rejected'), {
-      description: `Rejected invitation from ${invitation.from}`,
-    });
-    
-    // Add notification to Assortis notification system
-    addNotification({
-      type: NotificationTypeEnum.INVITATION,
-      priority: NotificationPriorityEnum.HIGH,
-      titleKey: 'notifications.invitation.declined.title',
-      messageKey: 'notifications.invitation.declined.message',
-      params: { organization: invitation.from },
-      link: '/organizations/invitations',
-      actionable: false,
-    });
-    
-    setSelectedInvitation(null);
+  const handleRejectInvitation = async (invitation: Invitation) => {
+    try {
+      await organizationInvitationService.rejectInvitation(invitation.id, rejectionJustification);
+      await loadInvitations();
+      toast.error(t('organizations.invitations.rejected'), {
+        description: `Rejected invitation from ${invitation.from}`,
+      });
+      
+      // Add notification to Assortis notification system
+      addNotification({
+        type: NotificationTypeEnum.INVITATION,
+        priority: NotificationPriorityEnum.HIGH,
+        titleKey: 'notifications.invitation.declined.title',
+        messageKey: 'notifications.invitation.declined.message',
+        params: { organization: invitation.from },
+        link: '/organizations/invitations',
+        actionable: false,
+      });
+      
+      setSelectedInvitation(null);
+    } catch (error: any) {
+      toast.error(error?.message || t('organizations.invitations.rejected'));
+    }
   };
 
-  const handleDeleteInvitation = (invitation: Invitation) => {
-    setInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
-    toast.success(t('organizations.invitations.deleted'), {
-      description: 'Invitation has been deleted',
-    });
-    setSelectedInvitation(null);
+  const handleDeleteInvitation = async (invitation: Invitation) => {
+    try {
+      await organizationInvitationService.deleteInvitation(invitation.id);
+      await loadInvitations();
+      toast.success(t('organizations.invitations.deleted'), {
+        description: 'Invitation has been deleted',
+      });
+      setSelectedInvitation(null);
+    } catch (error: any) {
+      toast.error(error?.message || t('organizations.invitations.deleted'));
+    }
   };
 
   const handleSendInvitation = () => {
@@ -319,15 +304,14 @@ export default function OrganizationsInvitations() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
             <StatCard
               title={t('organizations.invitations.received')}
-              value={receivedInvitations.length.toString()}
-              trend="+5%"
+              value={invitationStats.received.toString()}
               icon={Inbox}
               iconBgColor="bg-pink-50"
               iconColor="text-pink-500"
             />
             <StatCard
               title={t('organizations.kpis.pendingInvitations')}
-              value={pendingInvitations.length.toString()}
+              value={invitationStats.pending.toString()}
               subtitle={t('organizations.invitations.pending')}
               icon={Mail}
               iconBgColor="bg-purple-50"
@@ -335,7 +319,7 @@ export default function OrganizationsInvitations() {
             />
             <StatCard
               title={t('organizations.invitations.sent')}
-              value={sentInvitations.length.toString()}
+              value={invitationStats.sent.toString()}
               subtitle={t('dashboard.total')}
               icon={Send}
               iconBgColor="bg-blue-50"
@@ -390,7 +374,12 @@ export default function OrganizationsInvitations() {
             {/* Invitations List */}
             <TabsContent value="received" className="mt-0">
               <div className="space-y-4">
-                {filteredInvitations.length > 0 ? (
+                {isLoadingInvitations ? (
+                  <div className="bg-white rounded-lg border p-12 text-center">
+                    <Inbox className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-sm text-muted-foreground">Loading...</p>
+                  </div>
+                ) : filteredInvitations.length > 0 ? (
                   filteredInvitations.map((invitation) => {
                     const statusBadge = getStatusBadge(invitation.status);
                     return (
@@ -422,11 +411,11 @@ export default function OrganizationsInvitations() {
                               <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
                                 <span className="flex items-center gap-1">
                                   <Calendar className="w-3 h-3" />
-                                  {new Date(invitation.sentDate).toLocaleDateString()}
+                                  {invitation.sentDate ? new Date(invitation.sentDate).toLocaleDateString() : '-'}
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <Clock className="w-3 h-3" />
-                                  Expires: {new Date(invitation.expiryDate).toLocaleDateString()}
+                                  Expires: {invitation.expiryDate ? new Date(invitation.expiryDate).toLocaleDateString() : '-'}
                                 </span>
                               </div>
                             </div>
@@ -493,7 +482,12 @@ export default function OrganizationsInvitations() {
 
             <TabsContent value="sent" className="mt-0">
               <div className="space-y-4">
-                {filteredInvitations.length > 0 ? (
+                {isLoadingInvitations ? (
+                  <div className="bg-white rounded-lg border p-12 text-center">
+                    <Send className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-sm text-muted-foreground">Loading...</p>
+                  </div>
+                ) : filteredInvitations.length > 0 ? (
                   filteredInvitations.map((invitation) => {
                     const statusBadge = getStatusBadge(invitation.status);
                     return (
@@ -525,11 +519,11 @@ export default function OrganizationsInvitations() {
                               <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
                                 <span className="flex items-center gap-1">
                                   <Calendar className="w-3 h-3" />
-                                  {new Date(invitation.sentDate).toLocaleDateString()}
+                                  {invitation.sentDate ? new Date(invitation.sentDate).toLocaleDateString() : '-'}
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <Clock className="w-3 h-3" />
-                                  Expires: {new Date(invitation.expiryDate).toLocaleDateString()}
+                                  Expires: {invitation.expiryDate ? new Date(invitation.expiryDate).toLocaleDateString() : '-'}
                                 </span>
                               </div>
                             </div>

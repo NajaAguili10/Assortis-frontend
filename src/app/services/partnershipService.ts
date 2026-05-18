@@ -187,11 +187,11 @@ const extractPartnerships = (response: PartnershipApiRecord[] | { data?: Partner
 export const partnershipService = {
   getPartnerships: async () => {
     const response = await apiClient.get<
-      PartnershipApiRecord[] | { data?: PartnershipApiRecord[]; items?: PartnershipApiRecord[]; content?: PartnershipApiRecord[] }
-    >('/partnerships');
+        PartnershipApiRecord[] | { data?: PartnershipApiRecord[]; items?: PartnershipApiRecord[]; content?: PartnershipApiRecord[] }
+    >('/partnerships/current');
 
     return extractPartnerships(response)
-      .map(normalizePartnership)
-      .filter((partnership) => partnership.id);
+        .map(normalizePartnership)
+        .filter((partnership) => partnership.id);
   },
 };

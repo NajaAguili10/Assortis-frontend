@@ -305,6 +305,7 @@ export interface ProjectFiltersDTO {
   endDateTo?: string;
   leadOrganization?: string[];
   partners?: string[];
+  notIncludedInMembershipSubscription?: boolean;
 }
 
 export interface TaskAssigneeDTO {

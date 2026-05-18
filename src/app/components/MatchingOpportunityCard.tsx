@@ -15,6 +15,8 @@ interface MatchingOpportunityCardProps {
   onExpressInterest?: (opportunityId: string) => void;
   onNotInterested?: (opportunityId: string) => void;
   onOrganizationClick?: (organizationId: string) => void;
+  previewMode?: boolean;
+  onPreviewRestrictedAction?: () => void;
 }
 
 const OPPORTUNITY_TYPE_LABELS: Record<OpportunityTypeEnum, string> = {
@@ -42,12 +44,18 @@ export function MatchingOpportunityCard({
   onExpressInterest,
   onNotInterested,
   onOrganizationClick,
+  previewMode = false,
+  onPreviewRestrictedAction,
 }: MatchingOpportunityCardProps) {
   const [localSaved, setLocalSaved] = useState(isSaved);
   const isDeadlineSoon =
     Math.floor((opportunity.deadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) <= 7;
 
   const handleSaveClick = () => {
+    if (previewMode) {
+      onPreviewRestrictedAction?.();
+      return;
+    }
     if (localSaved && onRemove) {
       onRemove(opportunity.id);
       setLocalSaved(false);
@@ -67,12 +75,12 @@ export function MatchingOpportunityCard({
               {opportunity.title}
             </h3>
           </div>
-          <div className="ml-4 flex items-center gap-2">
+          {!previewMode && <div className="ml-4 flex items-center gap-2">
             <div className="flex flex-col items-center">
               <div className="text-2xl font-bold text-green-600">{opportunity.relevanceScore}</div>
               <div className="text-xs text-gray-500">% Match</div>
             </div>
-          </div>
+          </div>}
         </div>
 
         {/* Type and Status badges */}
@@ -134,7 +142,7 @@ export function MatchingOpportunityCard({
         <p className="text-sm text-gray-600 mb-4 line-clamp-2">{opportunity.description}</p>
 
         {/* Match origin */}
-        {(opportunity.matchedViaProfile || opportunity.matchedViaAlert) && (
+        {!previewMode && (opportunity.matchedViaProfile || opportunity.matchedViaAlert) && (
           <div className="flex items-center gap-1.5 mb-4">
             {opportunity.matchedViaProfile ? (
               <>
@@ -154,7 +162,7 @@ export function MatchingOpportunityCard({
           </div>
         )}
 
-        {(opportunity.type === OpportunityTypeEnum.CONTRACT_AWARD && (opportunity.awardCompanies || []).length > 0) && (
+        {!previewMode && (opportunity.type === OpportunityTypeEnum.CONTRACT_AWARD && (opportunity.awardCompanies || []).length > 0) && (
           <div className="mb-4 rounded-md border border-gray-200 bg-gray-50 p-3">
             <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase text-gray-500">
               <Building2 className="h-3.5 w-3.5" />
@@ -183,7 +191,7 @@ export function MatchingOpportunityCard({
           </div>
         )}
 
-        {(opportunity.type === OpportunityTypeEnum.SHORTLIST && (opportunity.shortlistCompanies || []).length > 0) && (
+        {!previewMode && (opportunity.type === OpportunityTypeEnum.SHORTLIST && (opportunity.shortlistCompanies || []).length > 0) && (
           <div className="mb-4 rounded-md border border-gray-200 bg-gray-50 p-3">
             <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase text-gray-500">
               <Building2 className="h-3.5 w-3.5" />
@@ -215,7 +223,7 @@ export function MatchingOpportunityCard({
             <Button
               variant="default"
               size="sm"
-              onClick={() => onApply?.(opportunity.id)}
+              onClick={() => previewMode ? onPreviewRestrictedAction?.() : onApply?.(opportunity.id)}
               className="flex-1 sm:flex-none"
             >
               Apply
@@ -227,7 +235,7 @@ export function MatchingOpportunityCard({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => onExpressInterest?.(opportunity.id)}
+              onClick={() => previewMode ? onPreviewRestrictedAction?.() : onExpressInterest?.(opportunity.id)}
               className="flex-1 sm:flex-none"
             >
               Express Interest
@@ -243,7 +251,7 @@ export function MatchingOpportunityCard({
             <Bookmark className={`w-4 h-4 ${localSaved ? 'fill-current' : ''}`} />
           </Button>
 
-          {onNotInterested && (
+          {onNotInterested && !previewMode && (
             <Button
               variant="ghost"
               size="sm"

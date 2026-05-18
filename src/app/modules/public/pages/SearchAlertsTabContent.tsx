@@ -25,6 +25,7 @@ import {
   type SavedSearchEditorSavePayload,
   type SavedSearchReviewItem,
 } from '@app/components/SavedSearchEditorDialog';
+import { SavedSearchProfileBadge } from '@app/components/SavedSearchProfileBadge';
 import { Badge } from '@app/components/ui/badge';
 import { Button } from '@app/components/ui/button';
 import { Input } from '@app/components/ui/input';
@@ -43,6 +44,7 @@ import {
 import { useTenders } from '@app/hooks/useTenders';
 import {
   savedSearchService,
+  buildOrganizationProfileSearchFields,
   type SavedSearchAlertSettings,
   type SavedSearchType,
 } from '@app/services/savedSearchService';
@@ -99,6 +101,7 @@ interface AlertsSavedPayload {
   sortDirection: SortDirection;
   locationFilters: string[];
   donorFilters: string[];
+  notIncludedInMembershipSubscription: boolean;
 }
 
 interface SavedSearchEntry<TPayload> {
@@ -106,6 +109,9 @@ interface SavedSearchEntry<TPayload> {
   label: string;
   createdAt: string;
   payload: TPayload;
+  organizationProfileId?: string;
+  organizationProfileName?: string;
+  organizationProfileEmail?: string;
 }
 
 interface SavedAlertPreference {
@@ -117,13 +123,13 @@ interface SavedAlertPreference {
 
 export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentProps) {
   const { t, language } = useLanguage();
-  const { user } = useAuth();
+  const { user, activeOrganizationProfile } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { tenders } = useTenders();
   const allTenders = tenders?.data || [];
   const storageKey = `search.tab.saved.${tab}`;
-  const alertsStorageKey = `search.tab.alerts.${tab}`;
+  const alertsStorageKey = `search.tab.alerts.${tab}.${activeOrganizationProfile?.id || 'default'}`;
 
   const [showFilters, setShowFilters] = useState(tab === 'projects');
   const [showSectorFilters, setShowSectorFilters] = useState(tab === 'projects');
@@ -150,6 +156,7 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
   const [sortDirection, setSortDirection] = useState<SortDirection>('none');
   const [locationFilters, setLocationFilters] = useState<string[]>([]);
   const [donorFilters, setDonorFilters] = useState<string[]>([]);
+  const [notIncludedInMembershipSubscription, setNotIncludedInMembershipSubscription] = useState(false);
   const [isLoadDialogOpen, setIsLoadDialogOpen] = useState(false);
   const [isSaveSearchDialogOpen, setIsSaveSearchDialogOpen] = useState(false);
   const [editingSavedSearch, setEditingSavedSearch] = useState<SavedSearchEntry<AlertsSavedPayload> | null>(null);
@@ -207,8 +214,11 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
             id: s.id.toString(),
             label: s.name,
             createdAt: s.createdAt,
-            payload: s.payload
-          }));
+            payload: s.payload,
+            organizationProfileId: s.organizationProfileId,
+            organizationProfileName: s.organizationProfileName,
+            organizationProfileEmail: s.organizationProfileEmail,
+          })).filter((item: SavedSearchEntry<AlertsSavedPayload>) => !activeOrganizationProfile || item.organizationProfileId === activeOrganizationProfile.id);
           setSavedSearches(mapped);
         } catch (error) {
           console.error('Error fetching saved searches:', error);
@@ -229,7 +239,7 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
     } catch {
       setAlertPreferences([]);
     }
-  }, [alertsStorageKey, tab]);
+  }, [alertsStorageKey, tab, user?.id, activeOrganizationProfile?.id]);
 
   // Fetch Subscriptions (Sectors and Countries)
   useEffect(() => {
@@ -376,6 +386,7 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
     setFundingAgencySearch('');
     setLocationFilters([]);
     setDonorFilters([]);
+    setNotIncludedInMembershipSubscription(false);
   };
 
   const readSavedSearches = (): SavedSearchEntry<AlertsSavedPayload>[] => {
@@ -384,7 +395,10 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
       label: item.name,
       createdAt: item.created_at,
       payload: item.filters as AlertsSavedPayload,
-    }));
+      organizationProfileId: item.organizationProfileId,
+      organizationProfileName: item.organizationProfileName,
+      organizationProfileEmail: item.organizationProfileEmail,
+    })).filter((item) => !activeOrganizationProfile || item.organizationProfileId === activeOrganizationProfile.id);
     const raw = localStorage.getItem(storageKey);
     if (!raw) return unified;
 
@@ -455,6 +469,7 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
     setSortDirection(payload.sortDirection || 'none');
     setLocationFilters(payload.locationFilters || []);
     setDonorFilters(payload.donorFilters || []);
+    setNotIncludedInMembershipSubscription(Boolean(payload.notIncludedInMembershipSubscription));
     setHasSearched(true);
   };
 
@@ -493,6 +508,7 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
       sortDirection,
       locationFilters,
       donorFilters,
+      notIncludedInMembershipSubscription,
   });
 
   const buildSummary = () => [
@@ -507,6 +523,7 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
     budgetValue ? `Budget ${budgetMode}: ${budgetValue}` : '',
     publishedFrom ? `From: ${format(publishedFrom, 'yyyy-MM-dd')}` : '',
     publishedTo ? `To: ${format(publishedTo, 'yyyy-MM-dd')}` : '',
+    notIncludedInMembershipSubscription ? 'Not included in membership subscription' : '',
   ].filter(Boolean);
 
   const formatList = (items?: any[]) => (items || []).map((item) => {
@@ -538,6 +555,7 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
     { label: 'Countries', value: formatList((payload.selectedCountries || []) as string[]) },
     { label: 'Regions', value: formatList((payload.selectedRegions || []) as string[]) },
     { label: 'Donors', value: formatList((payload.selectedFundingAgencies || []) as string[]) },
+    { label: 'Membership Subscription', value: payload.notIncludedInMembershipSubscription ? 'Not included in the membership subscription' : '' },
     { label: 'Office Location', value: payload.locationFilters },
     { label: 'Organisation Name', value: payload.donorFilters },
     { label: 'Hide multi-country', value: payload.hideMultiCountry ? 'Yes' : '' },
@@ -633,6 +651,7 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
         userId: user?.id,
         name: label,
         filters: payload,
+        ...buildOrganizationProfileSearchFields(activeOrganizationProfile),
         context: {
           type: tab as SavedSearchType,
           route: `/search/${tab}`,
@@ -673,6 +692,7 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
       savedSearchService.update(entry.id, {
         name: nextName,
         filters: nextFilters,
+        ...buildOrganizationProfileSearchFields(activeOrganizationProfile),
         context: editorPayload?.useCurrentCriteria
           ? {
               type: tab as SavedSearchType,
@@ -752,7 +772,6 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
     const existing = alertPreferences.find((p) => p.searchId === searchId);
     let next: SavedAlertPreference[];
     if (enabled) {
-      if (activeAlertCount >= 5) return; // limit enforced inline in UI
       if (existing) {
         next = alertPreferences.map((p) => p.searchId === searchId ? { ...p, enabled: true } : p);
       } else {
@@ -871,6 +890,13 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
       if (selectedRegions.length > 0 && (!row.region || !selectedRegions.includes(row.region))) return false;
       if (selectedCountries.length > 0 && !selectedCountries.some(c => c.code === row.country)) return false;
       if (selectedFundingAgencies.length > 0 && (!row.fundingAgency || !selectedFundingAgencies.includes(row.fundingAgency))) return false;
+      if (notIncludedInMembershipSubscription) {
+        const sectorCodes = allowedSectors.map((sector) => sector.code);
+        const countryCodes = allowedCountries.map((country) => country.code);
+        const sectorOutsideSubscription = sectorCodes.length > 0 && row.sectors.some((sector) => !sectorCodes.includes(String(sector)));
+        const countryOutsideSubscription = countryCodes.length > 0 && !countryCodes.includes(String(row.country));
+        if (!sectorOutsideSubscription && !countryOutsideSubscription) return false;
+      }
 
       const locationLabel = row.isMultiCountry
         ? t('activeTenders.multiCountryLabel')
@@ -888,6 +914,9 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
     hideMultiCountry,
     language,
     locationFilters,
+    notIncludedInMembershipSubscription,
+    allowedCountries,
+    allowedSectors,
     publishedFrom,
     publishedTo,
     searchMode,
@@ -1024,6 +1053,7 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
     selectedFundingAgencies.length,
     locationFilters.length,
     donorFilters.length,
+    notIncludedInMembershipSubscription ? 1 : 0,
   ].reduce((sum, value) => sum + value, 0);
 
   const sectionHeadingKey = `search.section.${tab}.filters.heading`;
@@ -1235,6 +1265,16 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
               <span>{t('activeTenders.filters.hideMultiCountry')}</span>
             </label>
 
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={notIncludedInMembershipSubscription}
+                onChange={event => setNotIncludedInMembershipSubscription(event.target.checked)}
+              />
+              <span>Not included in the membership subscription</span>
+            </label>
+
             <div className="flex items-center gap-3 py-1">
               <Button
                 variant="outline"
@@ -1362,14 +1402,15 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
                   const alertPref = alertPreferences.find((p) => p.searchId === entry.id);
                   const isExpanded = expandedAlertId === entry.id;
                   const isAlertEnabled = alertPref?.enabled ?? false;
-                  const atLimit = activeAlertCount >= 5 && !isAlertEnabled;
+                  const atLimit = false;
                   return (
                     <div key={entry.id} className="rounded-md border border-gray-100 p-3">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-2 min-w-0">
                           <div className="min-w-0">
                             <p className="font-medium text-sm text-primary truncate">{entry.label}</p>
-                            <p className="text-xs text-muted-foreground">{format(new Date(entry.createdAt), 'yyyy-MM-dd HH:mm')}</p>
+                        <p className="text-xs text-muted-foreground">{format(new Date(entry.createdAt), 'yyyy-MM-dd HH:mm')}</p>
+                        <SavedSearchProfileBadge profileName={entry.organizationProfileName} profileEmail={entry.organizationProfileEmail} />
                           </div>
                           <Badge className={isAlertEnabled ? 'shrink-0 bg-green-100 text-green-700 border-green-200 hover:bg-green-100' : 'shrink-0 bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-100'}>
                             {isAlertEnabled ? 'Email ON' : 'Email OFF'}
@@ -1393,10 +1434,6 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
 
                       {isExpanded && (
                         <div className="mt-2 rounded-md border border-gray-100 bg-gray-50/60 p-3 space-y-3">
-                          {atLimit && (
-                            <p className="text-xs text-red-600 font-medium">You have reached the maximum of 5 email alerts. Disable another alert to enable this one.</p>
-                          )}
-
                           <label className="flex items-center gap-2 text-sm cursor-pointer">
                             <input
                               type="checkbox"
@@ -1407,6 +1444,7 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
                             />
                             <span className={atLimit ? 'text-muted-foreground' : 'text-primary font-medium'}>
                               Enable email alerts for this search
+                              {entry.organizationProfileEmail ? ` (${entry.organizationProfileEmail})` : ''}
                             </span>
                           </label>
 
@@ -1687,6 +1725,9 @@ export default function SearchAlertsTabContent({ tab }: SearchAlertsTabContentPr
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-primary">{entry.label}</p>
                       <p className="text-xs text-muted-foreground">{format(new Date(entry.createdAt), 'yyyy-MM-dd HH:mm')}</p>
+                      <div className="mt-1">
+                        <SavedSearchProfileBadge profileName={entry.organizationProfileName} profileEmail={entry.organizationProfileEmail} />
+                      </div>
                     </div>
                     <div className="flex shrink-0 gap-2">
                       <Button

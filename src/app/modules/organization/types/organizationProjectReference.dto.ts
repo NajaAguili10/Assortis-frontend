@@ -22,16 +22,22 @@ export interface OrganizationProjectReferenceDocumentDTO {
 
 export interface OrganizationProjectReferenceDTO {
   id: string;
+  organizationId?: number;
   referenceNumber: string;
   title: string;
   summary: string;
   description: string;
   country: CountryEnum;
+  countryName?: string;
   region: RegionEnum;
+  regionLabel?: string;
   sector: SectorEnum;
+  sectorName?: string;
   subSector?: SubSectorEnum;
+  subSectorName?: string;
   client: string;
   donor: FundingAgencyEnum;
+  donorName?: string;
   startDate: string;
   endDate: string;
   status: OrganizationProjectReferenceStatus;

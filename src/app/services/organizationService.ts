@@ -12,44 +12,115 @@ import {
 } from '../types/organization.dto';
 
 const COUNTRY_REGION_MAP: Record<string, RegionEnum> = {
-  DZ: RegionEnum.AFRICA,
+  AF: RegionEnum.SOUTH_ASIA,
+  AE: RegionEnum.MIDDLE_EAST,
   AR: RegionEnum.SOUTH_AMERICA,
-  AM: RegionEnum.ASIA,
+  AL: RegionEnum.SOUTHEASTERN_EUROPE,
+  AM: RegionEnum.CENTRAL_ASIA,
+  AT: RegionEnum.WESTERN_EUROPE,
   AU: RegionEnum.OCEANIA,
-  AT: RegionEnum.EUROPE,
-  BE: RegionEnum.EUROPE,
-  BJ: RegionEnum.AFRICA,
+  BA: RegionEnum.SOUTHEASTERN_EUROPE,
+  BD: RegionEnum.SOUTH_ASIA,
+  BE: RegionEnum.WESTERN_EUROPE,
+  BF: RegionEnum.WEST_AFRICA,
+  BG: RegionEnum.SOUTHEASTERN_EUROPE,
+  BH: RegionEnum.MIDDLE_EAST,
+  BI: RegionEnum.EAST_AFRICA,
+  BJ: RegionEnum.WEST_AFRICA,
   BO: RegionEnum.SOUTH_AMERICA,
-  BA: RegionEnum.EUROPE,
+  BW: RegionEnum.SOUTHERN_AFRICA,
   BR: RegionEnum.SOUTH_AMERICA,
+  CG: RegionEnum.CENTRAL_AFRICA,
   CA: RegionEnum.NORTH_AMERICA,
-  TD: RegionEnum.AFRICA,
-  KM: RegionEnum.AFRICA,
-  CD: RegionEnum.AFRICA,
-  ET: RegionEnum.AFRICA,
-  FR: RegionEnum.EUROPE,
-  GE: RegionEnum.ASIA,
-  DE: RegionEnum.EUROPE,
-  GH: RegionEnum.AFRICA,
-  IN: RegionEnum.ASIA,
-  KG: RegionEnum.ASIA,
-  MW: RegionEnum.AFRICA,
-  MU: RegionEnum.AFRICA,
-  MA: RegionEnum.AFRICA,
-  MM: RegionEnum.ASIA,
-  NG: RegionEnum.AFRICA,
-  PK: RegionEnum.ASIA,
+  CF: RegionEnum.CENTRAL_AFRICA,
+  CD: RegionEnum.CENTRAL_AFRICA,
+  CH: RegionEnum.WESTERN_EUROPE,
+  CM: RegionEnum.CENTRAL_AFRICA,
+  CN: RegionEnum.NORTHEAST_ASIA,
+  CR: RegionEnum.CENTRAL_AMERICA,
+  CZ: RegionEnum.CENTRAL_EASTERN_EUROPE,
+  DE: RegionEnum.WESTERN_EUROPE,
+  DZ: RegionEnum.NORTH_AFRICA,
+  EG: RegionEnum.NORTH_AFRICA,
+  ES: RegionEnum.WESTERN_EUROPE,
+  ET: RegionEnum.EAST_AFRICA,
+  FJ: RegionEnum.OCEANIA,
+  FR: RegionEnum.WESTERN_EUROPE,
+  GA: RegionEnum.CENTRAL_AFRICA,
+  GB: RegionEnum.WESTERN_EUROPE,
+  GE: RegionEnum.CENTRAL_ASIA,
+  GH: RegionEnum.WEST_AFRICA,
+  GT: RegionEnum.CENTRAL_AMERICA,
+  HR: RegionEnum.SOUTHEASTERN_EUROPE,
+  HU: RegionEnum.CENTRAL_EASTERN_EUROPE,
+  ID: RegionEnum.SOUTHEAST_ASIA,
+  IN: RegionEnum.SOUTH_ASIA,
+  IQ: RegionEnum.MIDDLE_EAST,
+  IT: RegionEnum.WESTERN_EUROPE,
+  JO: RegionEnum.MIDDLE_EAST,
+  JP: RegionEnum.NORTHEAST_ASIA,
+  KE: RegionEnum.EAST_AFRICA,
+  KG: RegionEnum.CENTRAL_ASIA,
+  KH: RegionEnum.SOUTHEAST_ASIA,
+  KP: RegionEnum.NORTHEAST_ASIA,
+  KR: RegionEnum.NORTHEAST_ASIA,
+  KW: RegionEnum.MIDDLE_EAST,
+  KZ: RegionEnum.CENTRAL_ASIA,
+  LB: RegionEnum.MIDDLE_EAST,
+  LK: RegionEnum.SOUTH_ASIA,
+  LY: RegionEnum.NORTH_AFRICA,
+  MA: RegionEnum.NORTH_AFRICA,
+  ME: RegionEnum.SOUTHEASTERN_EUROPE,
+  ML: RegionEnum.WEST_AFRICA,
+  MM: RegionEnum.SOUTHEAST_ASIA,
+  MN: RegionEnum.NORTHEAST_ASIA,
+  MX: RegionEnum.CENTRAL_AMERICA,
+  MY: RegionEnum.SOUTHEAST_ASIA,
+  MZ: RegionEnum.SOUTHERN_AFRICA,
+  NA: RegionEnum.SOUTHERN_AFRICA,
+  NE: RegionEnum.WEST_AFRICA,
+  NG: RegionEnum.WEST_AFRICA,
+  NI: RegionEnum.CENTRAL_AMERICA,
+  NL: RegionEnum.WESTERN_EUROPE,
+  NP: RegionEnum.SOUTH_ASIA,
+  NZ: RegionEnum.OCEANIA,
+  OM: RegionEnum.MIDDLE_EAST,
+  PA: RegionEnum.CENTRAL_AMERICA,
+  PE: RegionEnum.SOUTH_AMERICA,
+  PG: RegionEnum.OCEANIA,
+  PH: RegionEnum.SOUTHEAST_ASIA,
+  PK: RegionEnum.SOUTH_ASIA,
+  PL: RegionEnum.CENTRAL_EASTERN_EUROPE,
+  PT: RegionEnum.WESTERN_EUROPE,
   PS: RegionEnum.MIDDLE_EAST,
   PY: RegionEnum.SOUTH_AMERICA,
-  RW: RegionEnum.AFRICA,
-  SC: RegionEnum.AFRICA,
-  ZA: RegionEnum.AFRICA,
-  CH: RegionEnum.EUROPE,
-  TG: RegionEnum.AFRICA,
-  TN: RegionEnum.AFRICA,
-  UA: RegionEnum.EUROPE,
+  QA: RegionEnum.MIDDLE_EAST,
+  RS: RegionEnum.SOUTHEASTERN_EUROPE,
+  RW: RegionEnum.EAST_AFRICA,
+  SA: RegionEnum.MIDDLE_EAST,
+  SE: RegionEnum.WESTERN_EUROPE,
+  SG: RegionEnum.SOUTHEAST_ASIA,
+  SI: RegionEnum.CENTRAL_EASTERN_EUROPE,
+  SK: RegionEnum.CENTRAL_EASTERN_EUROPE,
+  SO: RegionEnum.EAST_AFRICA,
+  SN: RegionEnum.WEST_AFRICA,
+  SV: RegionEnum.CENTRAL_AMERICA,
+  TD: RegionEnum.CENTRAL_AFRICA,
+  TG: RegionEnum.WEST_AFRICA,
+  TH: RegionEnum.SOUTHEAST_ASIA,
+  TJ: RegionEnum.CENTRAL_ASIA,
+  TM: RegionEnum.CENTRAL_ASIA,
+  TN: RegionEnum.NORTH_AFRICA,
+  TZ: RegionEnum.EAST_AFRICA,
+  UA: RegionEnum.CENTRAL_EASTERN_EUROPE,
+  UG: RegionEnum.EAST_AFRICA,
   US: RegionEnum.NORTH_AMERICA,
-  ZM: RegionEnum.AFRICA,
+  UZ: RegionEnum.CENTRAL_ASIA,
+  VN: RegionEnum.SOUTHEAST_ASIA,
+  YE: RegionEnum.MIDDLE_EAST,
+  ZA: RegionEnum.SOUTHERN_AFRICA,
+  ZM: RegionEnum.SOUTHERN_AFRICA,
+  ZW: RegionEnum.SOUTHERN_AFRICA,
 };
 
 const normalizeOrganizationType = (type?: string) => {
@@ -93,17 +164,177 @@ const mapFormOrganizationTypeToBackend = (type?: string) => {
   }
 };
 
-const normalizeSector = (sector?: string | null): OrganizationSectorEnum[] => {
-  if (!sector) return [];
+const getDisplayValue = (value: any): string => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  if (Array.isArray(value)) return value.map(getDisplayValue).filter(Boolean).join(' ');
+  if (typeof value === 'object') return value.code || value.name || value.label || value.value || '';
+  return '';
+};
 
-  const normalized = sector.toUpperCase().replace(/[\s&/-]+/g, '_');
-  return Object.values(OrganizationSectorEnum).includes(normalized as OrganizationSectorEnum)
-    ? [normalized as OrganizationSectorEnum]
-    : [];
+const getBudgetAmount = (budget: any): number => {
+  if (typeof budget === 'number') return budget;
+  if (budget && typeof budget.amount === 'number') return budget.amount;
+  return 0;
+};
+
+const getNormalizedCode = (value: any): string | undefined => {
+  if (!value) return undefined;
+  if (typeof value === 'string') return value.toUpperCase().replace(/[\s-]+/g, '_');
+  if (typeof value === 'object') {
+    const code = value.code || value.name || value.label || value.value;
+    return typeof code === 'string' ? code.toUpperCase().replace(/[\s-]+/g, '_') : undefined;
+  }
+  return undefined;
+};
+
+const getNormalizedStatus = (org: Organization): string | undefined => {
+  if (org.status) return org.status.toUpperCase();
+  if (org.verificationStatus) return org.verificationStatus.toUpperCase();
+  return undefined;
+};
+
+const normalizeSectorCode = (sector?: string | null) => {
+  if (!sector) return '';
+  return sector.toUpperCase().replace(/[\s&/-]+/g, '_');
+};
+
+const formatBusinessTimezone = (timezone?: string | null, countryCode?: string | null) => {
+  if (!timezone && !countryCode) return '-';
+
+  const normalizedTimezone = timezone?.trim();
+  const upperCountryCode = countryCode?.toUpperCase() || '';
+
+  const timezoneMap: Record<string, string> = {
+    'Africa/Tunis': 'CET (UTC+1)',
+    'Europe/Paris': 'CET (UTC+1)',
+    'Europe/Berlin': 'CET (UTC+1)',
+    'Europe/Rome': 'CET (UTC+1)',
+    'Europe/Madrid': 'CET (UTC+1)',
+    'Europe/Zurich': 'CET (UTC+1)',
+    'Europe/Vienna': 'CET (UTC+1)',
+    'Europe/Amsterdam': 'CET (UTC+1)',
+    'Europe/Brussels': 'CET (UTC+1)',
+    'Europe/Warsaw': 'CET (UTC+1)',
+    'Europe/Prague': 'CET (UTC+1)',
+    'Europe/Budapest': 'CET (UTC+1)',
+    'Europe/Belgrade': 'CET (UTC+1)',
+    'Europe/Ljubljana': 'CET (UTC+1)',
+    'Europe/Bratislava': 'CET (UTC+1)',
+    'Europe/Sarajevo': 'CET (UTC+1)',
+    'Europe/Podgorica': 'CET (UTC+1)',
+    'Europe/Zagreb': 'CET (UTC+1)',
+    'Africa/Algiers': 'CET (UTC+1)',
+    'Europe/London': 'GMT (UTC+0)',
+    'Africa/Accra': 'GMT (UTC+0)',
+    'Africa/Dakar': 'GMT (UTC+0)',
+    'Africa/Bamako': 'GMT (UTC+0)',
+    'Africa/Casablanca': 'GMT (UTC+0)',
+    'Africa/Ouagadougou': 'GMT (UTC+0)',
+    'Africa/Lome': 'GMT (UTC+0)',
+    'Europe/Lisbon': 'GMT (UTC+0)',
+    'Africa/Cairo': 'EET (UTC+2)',
+    'Europe/Sofia': 'EET (UTC+2)',
+    'Asia/Amman': 'EET (UTC+2)',
+    'Asia/Beirut': 'EET (UTC+2)',
+    'Africa/Tripoli': 'EET (UTC+2)',
+  };
+
+  const countryFallbackMap: Record<string, string> = {
+    TN: 'CET (UTC+1)',
+    FR: 'CET (UTC+1)',
+    DE: 'CET (UTC+1)',
+    IT: 'CET (UTC+1)',
+    ES: 'CET (UTC+1)',
+    CH: 'CET (UTC+1)',
+    AT: 'CET (UTC+1)',
+    NL: 'CET (UTC+1)',
+    BE: 'CET (UTC+1)',
+    PL: 'CET (UTC+1)',
+    CZ: 'CET (UTC+1)',
+    HU: 'CET (UTC+1)',
+    RS: 'CET (UTC+1)',
+    SI: 'CET (UTC+1)',
+    SK: 'CET (UTC+1)',
+    BA: 'CET (UTC+1)',
+    ME: 'CET (UTC+1)',
+    HR: 'CET (UTC+1)',
+    DZ: 'CET (UTC+1)',
+    GB: 'GMT (UTC+0)',
+    GH: 'GMT (UTC+0)',
+    SN: 'GMT (UTC+0)',
+    ML: 'GMT (UTC+0)',
+    MA: 'GMT (UTC+0)',
+    BF: 'GMT (UTC+0)',
+    TG: 'GMT (UTC+0)',
+    PT: 'GMT (UTC+0)',
+    EG: 'EET (UTC+2)',
+    BG: 'EET (UTC+2)',
+    JO: 'EET (UTC+2)',
+    LB: 'EET (UTC+2)',
+    LY: 'EET (UTC+2)',
+  };
+
+  return (normalizedTimezone && timezoneMap[normalizedTimezone])
+    || countryFallbackMap[upperCountryCode]
+    || normalizedTimezone
+    || '-';
+};
+
+const normalizeSectors = (org: OrganizationBackend): SectorDTO[] => {
+  if (Array.isArray(org.sectors) && org.sectors.length > 0) {
+    return org.sectors
+      .filter((sector): sector is SectorDTO => Boolean(sector?.code && sector?.name))
+      .map((sector) => ({
+        id: sector.id,
+        code: normalizeSectorCode(sector.code || sector.name),
+        name: sector.name,
+      }));
+  }
+
+  if (org.mainSector && typeof org.mainSector === 'object' && 'code' in org.mainSector) {
+    const normalizedCode = normalizeSectorCode(org.mainSector.code || org.mainSector.name);
+    if (Object.values(OrganizationSectorEnum).includes(normalizedCode as OrganizationSectorEnum)) {
+      return [{
+        id: org.mainSector.id,
+        code: normalizedCode,
+        name: org.mainSector.name,
+      }];
+    }
+  }
+
+  const normalizedCode = normalizeSectorCode(typeof org.mainSector === 'string' ? org.mainSector : null);
+  if (Object.values(OrganizationSectorEnum).includes(normalizedCode as OrganizationSectorEnum)) {
+    return [{
+      id: 0,
+      code: normalizedCode,
+      name: normalizedCode.replace(/_/g, ' '),
+    }];
+  }
+
+  return [];
+};
+
+const normalizeSubsectors = (org: OrganizationBackend): SubsectorDTO[] => {
+  if (!Array.isArray(org.subsectors)) {
+    return [];
+  }
+
+  return org.subsectors
+    .filter((subsector): subsector is SubsectorDTO => Boolean(subsector?.code && subsector?.name))
+    .map((subsector) => ({
+      id: subsector.id,
+      code: subsector.code,
+      name: subsector.name,
+      description: subsector.description,
+      sectorId: subsector.sectorId,
+    }));
 };
 
 const normalizeRegion = (backendOrg: Organization): RegionEnum | undefined => {
-  const backendRegion = backendOrg.region?.toUpperCase().replace(/[\s-]+/g, '_');
+  const backendRegion = getDisplayValue(backendOrg.region).toUpperCase().replace(/[\s-]+/g, '_');
 
   if (backendRegion && Object.values(RegionEnum).includes(backendRegion as RegionEnum)) {
     return backendRegion as RegionEnum;
@@ -115,7 +346,7 @@ const normalizeRegion = (backendOrg: Organization): RegionEnum | undefined => {
 
 const normalizeOrganization = (org: Organization): Organization => {
   const budgetAmount = typeof org.annualTurnover === 'number' ? org.annualTurnover : undefined;
-  const sectors = normalizeSector(org.mainSector);
+  const sectors = normalizeSectors(org);
 
   return {
     id: org.id.toString(),
@@ -134,8 +365,8 @@ const normalizeOrganization = (org: Organization): Organization => {
     updatedAt: org.updatedAt,
     legalName: org.legalName,
     logoUrl: org.logoUrl,
-    city: org.city ? { id: org.city.id, name: org.city.name } : { id: 0, name: '' },
-    country: org.country ? { id: org.country.id, name: org.country.name, code: org.country.code } : { id: 0, name: '', code: '' },
+    city: org.city ? { id: org.city.id, name: org.city.name } : undefined,
+    country: org.country ? { id: org.country.id, name: org.country.name, code: org.country.code } : undefined,
     region: normalizeRegion(org),
     mainSector: org.mainSector,
     sectors: Array.isArray(org.sectors)
@@ -147,7 +378,7 @@ const normalizeOrganization = (org: Organization): Organization => {
     partnerships: 0,
     employeeCount: org.employeesCount ?? undefined,
     yearEstablished: org.yearFounded ?? undefined,
-    teamMembers: org.employeesCount ?? undefined,
+    teamMembers: org.teamMembers ?? org.employeesCount ?? undefined,
     budget: budgetAmount,
     certifications: Array.isArray(org.certifications) ? org.certifications : [],
     equipmentInfrastructure: org.equipmentInfrastructure,
@@ -176,7 +407,7 @@ const applyFiltersAndSort = (
       org.name.toLowerCase().includes(query) ||
       org.acronym?.toLowerCase().includes(query) ||
       org.description?.toLowerCase().includes(query) ||
-      (org.sectors || []).some((sector) => sector.toLowerCase().includes(query)),
+      (org.sectors || []).some((sector) => getDisplayValue(sector).toLowerCase().includes(query)),
     );
   }
 
@@ -200,7 +431,7 @@ const applyFiltersAndSort = (
   if (filters?.projectBudget) {
     const budget = Number(filters.projectBudget);
     if (!Number.isNaN(budget)) {
-      filtered = filtered.filter((org) => (org.budget?.amount || 0) >= budget);
+      filtered = filtered.filter((org) => getBudgetAmount(org.budget) >= budget);
     }
   }
 
@@ -227,12 +458,25 @@ const applyFiltersAndSort = (
     filtered = filtered.filter((org) =>
       org.type?.toLowerCase().includes(query) ||
       org.description?.toLowerCase().includes(query) ||
-      (org.sectors || []).some((sector) => sector.toLowerCase().includes(query)),
+      (org.sectors || []).some((sector) => getDisplayValue(sector).toLowerCase().includes(query)),
     );
   }
 
   if (filters?.status?.length) {
-    filtered = filtered.filter((org) => filters.status!.includes((org.status || org.verificationStatus) as any));
+    filtered = filtered.filter((org) => {
+      const verificationStatus = org.verificationStatus?.toUpperCase();
+      const status = getNormalizedStatus(org);
+
+      return filters.status!.some((filterStatus) => {
+        const normalizedFilter = filterStatus.toUpperCase();
+
+        if (normalizedFilter === 'ACTIVE') {
+          return status === 'ACTIVE';
+        }
+
+        return normalizedFilter === status || normalizedFilter === verificationStatus;
+      });
+    });
   }
 
   if (filters?.sectors?.length) {
@@ -259,7 +503,7 @@ const applyFiltersAndSort = (
   const countryFilters = filters?.countries;
   if (countryFilters?.length) {
     filtered = filtered.filter((org) => {
-      const orgCountryCode = org.country?.code;
+      const orgCountryCode = getNormalizedCode(org.country);
       return orgCountryCode ? countryFilters.some(c => c.code === orgCountryCode) : false;
     });
   }
@@ -328,7 +572,7 @@ const normalizeCurrentOrganizationProfile = (org: OrganizationBackend) => ({
       : [],
   sectors: Array.isArray(org.sectors)
     ? org.sectors.map((sector) => sector?.code || sector?.name).filter(Boolean)
-    : normalizeSector(org.mainSector),
+    : normalizeSectors(org).map((sector) => sector.code),
   sectorLabels: Array.isArray(org.sectors)
     ? Object.fromEntries(
       org.sectors
@@ -349,7 +593,7 @@ const normalizeCurrentOrganizationProfile = (org: OrganizationBackend) => ({
   languages: Array.isArray(org.languages) ? org.languages.filter(Boolean) : [],
   services: Array.isArray(org.services) ? org.services.filter(Boolean) : [],
   teamSize: org.employeesCount ?? org.teamMembers ?? 0,
-  experts: org.teamMembers ?? 0,
+  experts: org.expertsCount ?? org.teamMembers ?? 0,
   annualBudget: typeof org.annualTurnover === 'number' ? org.annualTurnover : 0,
   projectsCompleted: org.completedProjects ?? 0,
   activeProjects: org.activeProjects ?? 0,
@@ -368,8 +612,9 @@ const normalizeCurrentOrganizationProfile = (org: OrganizationBackend) => ({
     }).format(org.budget)
     : '-',
   employees: org.employeesCount != null ? String(org.employeesCount) : '-',
-  technicalCapacity: org.equipmentInfrastructure ? 'Available' : '-',
+  technicalCapacity: org.technicalCapacity || '-',
   equipment: org.equipmentInfrastructure || '-',
+  timezone: formatBusinessTimezone(org.timezone, org.country?.code),
   certifications: Array.isArray(org.certifications)
     ? org.certifications.map((certification) => certification.certificationName).filter(Boolean)
     : [],
@@ -399,6 +644,9 @@ const buildCurrentOrganizationUpdatePayload = (formData: {
   subsectors: string[];
   languages: string[];
   teamSize: string;
+  experts: string;
+  technicalCapacity: string;
+  equipmentInfrastructure: string;
   annualBudget: string;
   projectsCompleted: string;
   selectedServices: string[];
@@ -423,6 +671,9 @@ const buildCurrentOrganizationUpdatePayload = (formData: {
   subsectors: formData.subsectors,
   languages: formData.languages,
   employeesCount: formData.teamSize ? parseInt(formData.teamSize, 10) : 0,
+  expertsCount: formData.experts ? parseInt(formData.experts, 10) : 0,
+  technicalCapacity: formData.technicalCapacity,
+  equipmentInfrastructure: formData.equipmentInfrastructure,
   annualTurnover: formData.annualBudget ? parseInt(formData.annualBudget, 10) : 0,
   projectsCompleted: formData.projectsCompleted ? parseInt(formData.projectsCompleted, 10) : 0,
   services: formData.selectedServices,
@@ -501,6 +752,9 @@ export const organizationService = {
     subsectors: string[];
     languages: string[];
     teamSize: string;
+    experts: string;
+    technicalCapacity: string;
+    equipmentInfrastructure: string;
     annualBudget: string;
     projectsCompleted: string;
     selectedServices: string[];

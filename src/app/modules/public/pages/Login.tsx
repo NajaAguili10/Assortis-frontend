@@ -6,15 +6,14 @@ import { useTranslation } from '@app/contexts/LanguageContext';
 import { Button } from '@app/components/ui/button';
 import { Input } from '@app/components/ui/input';
 import { Label } from '@app/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@app/components/ui/card';
 import { Alert, AlertDescription } from '@app/components/ui/alert';
 import { PageBanner } from '@app/components/PageBanner';
-import { LogIn, Building2, User, Sparkles, AlertCircle, CheckCircle2, Clock, ArrowRight, Shield } from 'lucide-react';
+import { LogIn, CheckCircle2, Clock, ArrowRight, ShieldCheck, UserRound, UsersRound } from 'lucide-react';
 import { initializeTestAccounts, authenticateUser, getTestAccounts, type IncompleteSignupData } from '@app/services/userStatusService';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, quickLogin } = useAuth();
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -102,6 +101,19 @@ const Login = () => {
     }
   };
 
+  const handleQuickLogin = async (accountType: Parameters<typeof quickLogin>[0]) => {
+    setError('');
+    setLoading(true);
+    try {
+      await quickLogin(accountType);
+      navigate('/calls/active');
+    } catch (err: any) {
+      setError(err.message || 'Demo access failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleContinueSignup = () => {
     if (incompleteSignupData) {
       // Store the incomplete signup data and navigate to signup page
@@ -115,23 +127,6 @@ const Login = () => {
     navigate('/signup');
   };
 
-  const handleQuickLogin = async (accountType: 'expert' | 'organization' | 'organization-user' | 'admin' | 'public') => {
-    /* OLD STATIC AUTH (disabled for dynamic backend auth)
-    setError('');
-    setLoading(true);
-
-    try {
-      await quickLogin(accountType);
-      navigate(accountType === 'expert' ? '/experts/dashboard' : '/calls/overview');
-    } catch (err: any) {
-      setError(err.message || t('auth.login.invalidCredentials'));
-    } finally {
-      setLoading(false);
-    }
-    */
-    setError('Quick login is disabled for backend authentication.');
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Bannire Connexion */}
@@ -142,112 +137,6 @@ const Login = () => {
       />
 
       <div className="max-w-3xl mx-auto px-4 py-8">
-        {/* OLD STATIC AUTH (disabled for dynamic backend auth)
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 p-6 mb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <Sparkles className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
-            <h3 className="font-semibold text-primary">
-              {t('auth.login.testAccounts') || 'Quick Login (Test)'}
-            </h3>
-          </div>
-          <p className="text-sm text-gray-600 mb-4">
-            {t('auth.login.testDescription') || 'Use these test accounts to explore the platform:'}
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <Button
-              variant="outline"
-              className="w-full justify-start h-auto py-3 px-4 border-2 hover:border-blue-400 hover:bg-white"
-              onClick={() => handleQuickLogin('expert')}
-              disabled={loading}
-            >
-              <div className="flex items-start gap-3 w-full">
-                <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                  <User className="w-5 h-5 text-blue-600" />
-                </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <p className="font-semibold text-primary text-sm">
-                    {t('auth.login.expert')}
-                  </p>
-                  <p className="text-xs text-gray-500 truncate">expert@example.com</p>
-                </div>
-              </div>
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start h-auto py-3 px-4 border-2 hover:border-green-400 hover:bg-white"
-              onClick={() => handleQuickLogin('organization')}
-              disabled={loading}
-            >
-              <div className="flex items-start gap-3 w-full">
-                <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
-                  <Building2 className="w-5 h-5 text-green-600" />
-                </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <p className="font-semibold text-primary text-sm">
-                    {t('auth.login.organizationAdmin')}
-                  </p>
-                  <p className="text-xs text-gray-500 truncate">organization@example.com</p>
-                </div>
-              </div>
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start h-auto py-3 px-4 border-2 hover:border-emerald-400 hover:bg-white"
-              onClick={() => handleQuickLogin('organization-user')}
-              disabled={loading}
-            >
-              <div className="flex items-start gap-3 w-full">
-                <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                  <Building2 className="w-5 h-5 text-emerald-600" />
-                </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <p className="font-semibold text-primary text-sm">
-                    {t('auth.login.organizationUser')}
-                  </p>
-                  <p className="text-xs text-gray-500 truncate">organization-user@example.com</p>
-                </div>
-              </div>
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start h-auto py-3 px-4 border-2 hover:border-red-400 hover:bg-white"
-              onClick={() => handleQuickLogin('admin')}
-              disabled={loading}
-            >
-              <div className="flex items-start gap-3 w-full">
-                <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
-                  <Shield className="w-5 h-5 text-red-600" />
-                </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <p className="font-semibold text-primary text-sm">
-                    {t('auth.login.admin')}
-                  </p>
-                  <p className="text-xs text-gray-500 truncate">admin@example.com</p>
-                </div>
-              </div>
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start h-auto py-3 px-4 border-2 hover:border-gray-400 hover:bg-white"
-              onClick={() => handleQuickLogin('public')}
-              disabled={loading}
-            >
-              <div className="flex items-start gap-3 w-full">
-                <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                  <User className="w-5 h-5 text-gray-600" />
-                </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <p className="font-semibold text-primary text-sm">
-                    {t('auth.login.public')}
-                  </p>
-                  <p className="text-xs text-gray-500 truncate">public@example.com</p>
-                </div>
-              </div>
-            </Button>
-          </div>
-        </div>
-        */}
-
         {/* Form Card */}
         <div className="bg-white rounded-xl border-2 border-gray-200 p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -313,6 +202,40 @@ const Login = () => {
               </Link>
             </div>
           </form>
+        </div>
+
+        <div className="mt-6 rounded-xl border-2 border-gray-200 bg-white p-6">
+          <div className="mb-4">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-primary">
+              <ShieldCheck className="h-5 w-5" />
+              Demo access
+            </h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Use seeded server accounts with real backend authentication.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <Button type="button" variant="outline" disabled={loading} onClick={() => handleQuickLogin('organization')}>
+              <UsersRound className="h-4 w-4" />
+              Organization
+            </Button>
+            <Button type="button" variant="outline" disabled={loading} onClick={() => handleQuickLogin('organization-user')}>
+              <UserRound className="h-4 w-4" />
+              Org User
+            </Button>
+            <Button type="button" variant="outline" disabled={loading} onClick={() => handleQuickLogin('expert')}>
+              <UserRound className="h-4 w-4" />
+              Expert
+            </Button>
+            <Button type="button" variant="outline" disabled={loading} onClick={() => handleQuickLogin('admin')}>
+              <ShieldCheck className="h-4 w-4" />
+              Admin
+            </Button>
+            <Button type="button" variant="outline" disabled={loading} onClick={() => handleQuickLogin('public')}>
+              <LogIn className="h-4 w-4" />
+              Public
+            </Button>
+          </div>
         </div>
 
         {/* Incomplete Signup Modal */}

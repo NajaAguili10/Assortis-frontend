@@ -73,11 +73,23 @@ export const ORGANIZATION_SECTOR_SUBSECTOR_MAP: Record<OrganizationSectorEnum, S
     SubSectorEnum.GBV_PREVENTION,
     SubSectorEnum.ECONOMIC_INCLUSION,
   ],
+  [OrganizationSectorEnum.HUMAN_RIGHTS]: [
+    SubSectorEnum.CIVIL_RIGHTS,
+    SubSectorEnum.REFUGEE_PROTECTION,
+    SubSectorEnum.DISABILITY_RIGHTS,
+    SubSectorEnum.MINORITY_RIGHTS,
+  ],
   [OrganizationSectorEnum.YOUTH]: [
     SubSectorEnum.YOUTH_EMPLOYMENT,
     SubSectorEnum.YOUTH_ENGAGEMENT,
     SubSectorEnum.YOUTH_EDUCATION,
     SubSectorEnum.YOUTH_HEALTH,
+  ],
+  [OrganizationSectorEnum.EMERGENCY_RESPONSE]: [
+    SubSectorEnum.DISASTER_RELIEF,
+    SubSectorEnum.HUMANITARIAN_AID,
+    SubSectorEnum.CONFLICT_RESPONSE,
+    SubSectorEnum.DISPLACEMENT,
   ],
   // Organization-specific sectors
   [OrganizationSectorEnum.HUMANITARIAN]: [

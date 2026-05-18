@@ -17,9 +17,9 @@ import { toast } from 'sonner';
 interface OrganizationProjectReferenceDocumentsSectionProps {
   documents: OrganizationProjectReferenceDocumentDTO[];
   editable?: boolean;
-  onAddDocuments?: (documents: OrganizationProjectReferenceDocumentDTO[]) => void;
-  onReplaceDocument?: (documentId: string, document: OrganizationProjectReferenceDocumentDTO) => void;
-  onRemoveDocument?: (documentId: string) => void;
+  onAddDocuments?: (documents: OrganizationProjectReferenceDocumentDTO[]) => void | Promise<void>;
+  onReplaceDocument?: (documentId: string, document: OrganizationProjectReferenceDocumentDTO) => void | Promise<void>;
+  onRemoveDocument?: (documentId: string) => void | Promise<void>;
 }
 
 const ACCEPTED_TYPES = '.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -66,6 +66,7 @@ export function OrganizationProjectReferenceDocumentsSection({
   const addInputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
   const [replaceTargetId, setReplaceTargetId] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const dateLocale = language === 'fr' ? fr : language === 'es' ? es : enUS;
 
@@ -124,16 +125,17 @@ export function OrganizationProjectReferenceDocumentsSection({
     }
 
     try {
+      setIsUploading(true);
       const files = Array.from(fileList);
       const documentsToStore = await Promise.all(files.map(file => createStoredDocument(file, uploadType)));
 
       if (mode === 'replace') {
         if (replaceTargetId && documentsToStore[0] && onReplaceDocument) {
-          onReplaceDocument(replaceTargetId, documentsToStore[0]);
+          await onReplaceDocument(replaceTargetId, documentsToStore[0]);
           toast.success(t('organizations.projectReferences.documents.replaceSuccess'));
         }
       } else if (onAddDocuments) {
-        onAddDocuments(documentsToStore);
+        await onAddDocuments(documentsToStore);
         toast.success(t('organizations.projectReferences.documents.addSuccess'));
       }
     } catch (error) {
@@ -148,6 +150,7 @@ export function OrganizationProjectReferenceDocumentsSection({
       }
       setReplaceTargetId(null);
       setIsDragging(false);
+      setIsUploading(false);
     }
   };
 
@@ -231,7 +234,7 @@ export function OrganizationProjectReferenceDocumentsSection({
               <div className="flex xl:justify-end">
                 <Button type="button" className="min-h-11 w-full sm:w-auto" onClick={() => addInputRef.current?.click()}>
                   <Upload className="w-4 h-4 mr-2" />
-                  {t('organizations.projectReferences.documents.add')}
+                  {isUploading ? t('common.loading') : t('organizations.projectReferences.documents.add')}
                 </Button>
               </div>
             </div>
@@ -241,6 +244,7 @@ export function OrganizationProjectReferenceDocumentsSection({
               className="hidden"
               accept={ACCEPTED_TYPES}
               multiple
+              disabled={isUploading}
               onChange={(event) => handleFiles(event.target.files, 'add')}
             />
             <input
@@ -248,6 +252,7 @@ export function OrganizationProjectReferenceDocumentsSection({
               type="file"
               className="hidden"
               accept={ACCEPTED_TYPES}
+              disabled={isUploading}
               onChange={(event) => handleFiles(event.target.files, 'replace')}
             />
           </div>
@@ -317,10 +322,10 @@ export function OrganizationProjectReferenceDocumentsSection({
                         variant="outline"
                         size="sm"
                         className="text-red-600 hover:text-red-700"
-                        onClick={() => {
-                          onRemoveDocument(projectDocument.id);
-                          toast.success(t('organizations.projectReferences.documents.removeSuccess'));
-                        }}
+                          onClick={async () => {
+                            await onRemoveDocument(projectDocument.id);
+                            toast.success(t('organizations.projectReferences.documents.removeSuccess'));
+                          }}
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
                         {t('organizations.projectReferences.documents.remove')}

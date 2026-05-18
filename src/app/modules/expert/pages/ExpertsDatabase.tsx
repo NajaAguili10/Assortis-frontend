@@ -37,7 +37,7 @@ import {
 import { useAuth } from '@app/contexts/AuthContext';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useCVCredits } from '@app/contexts/CVCreditsContext';
-import { savedSearchService } from '@app/services/savedSearchService';
+import { buildOrganizationProfileSearchFields, savedSearchService } from '@app/services/savedSearchService';
 import { JobOfferListDTO, JobOfferStatusEnum } from '@app/modules/posting-board/types/JobOffer.dto';
 import { getAllJobOffers } from '@app/modules/posting-board/services/jobOfferService';
 import { downloadExpertCvFile } from '@app/modules/expert/services/expertReferenceGeneration.service';
@@ -689,7 +689,7 @@ function ExpertPreviewDialog({
 }
 
 export function ExpertsSearchFiltersWorkspace() {
-  const { user } = useAuth();
+  const { user, activeOrganizationProfile } = useAuth();
   const { language } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
@@ -856,6 +856,7 @@ export function ExpertsSearchFiltersWorkspace() {
     savedSearchService.save({
       userId: user?.id,
       name,
+      ...buildOrganizationProfileSearchFields(activeOrganizationProfile),
       filters,
       context: {
         type: 'experts',

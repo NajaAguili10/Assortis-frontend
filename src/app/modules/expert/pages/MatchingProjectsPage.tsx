@@ -12,6 +12,7 @@ import { Badge } from '@app/components/ui/badge';
 import { Input } from '@app/components/ui/input';
 import { Checkbox } from '@app/components/ui/checkbox';
 import { Calendar } from '@app/components/ui/calendar';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@app/components/ui/dialog';
 import {
   Popover,
   PopoverContent,
@@ -35,6 +36,10 @@ import {
   FundingAgencyEnum,
   SectorEnum,
 } from '@app/types/tender.dto';
+import {
+  PUBLIC_VISIBLE_ITEM_LIMIT,
+  getMatchingProjectsAccessMode,
+} from '@app/services/permissions.service';
 
 const OPPORTUNITY_TYPE_OPTIONS = [
   { value: 'ALL', labelKey: 'matching-opportunities.projects.filter.all-categories' },
@@ -45,7 +50,7 @@ const OPPORTUNITY_TYPE_OPTIONS = [
   { value: OpportunityTypeEnum.PROJECT_VACANCY, label: 'Project Vacancies' },
 ];
 
-const FREE_PREVIEW_COUNT = 2;
+const FREE_PREVIEW_COUNT = PUBLIC_VISIBLE_ITEM_LIMIT;
 
 const DEFAULT_FILTERS: MatchingProjectsFilterDTO = {
   sort: 'relevance',
@@ -96,7 +101,11 @@ export default function MatchingProjectsPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
-  const isSubscribed = user?.isSubscribed !== false;
+  const subscriptionActive = user?.isSubscribed !== false;
+  const accessMode = getMatchingProjectsAccessMode(user?.accountType, subscriptionActive);
+  const isSubscribed = accessMode === 'full';
+  const isPreviewMode = accessMode === 'preview';
+  const [isUpgradePromptOpen, setIsUpgradePromptOpen] = useState(false);
   const {
     opportunities,
     saveOpportunity,
@@ -197,6 +206,11 @@ export default function MatchingProjectsPage() {
   };
 
   const openDetail = (opportunityId: string) => {
+    if (isPreviewMode) {
+      setIsUpgradePromptOpen(true);
+      return;
+    }
+
     const opportunity = opportunities.find(item => item.id === opportunityId);
     if (!opportunity) return;
 
@@ -576,13 +590,13 @@ export default function MatchingProjectsPage() {
           </div>
         )}
 
-        {!isSubscribed && (
+        {isPreviewMode && (
           <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
             <div className="flex items-start gap-3">
               <Lock className="mt-0.5 h-5 w-5" />
               <div>
-                <p className="font-semibold">Subscription preview</p>
-                <p className="mt-1">You are seeing a limited preview. Subscribe to unlock all matching projects and advanced filters.</p>
+                <p className="font-semibold">Limited preview</p>
+                <p className="mt-1">You can preview up to {FREE_PREVIEW_COUNT} matching projects. Upgrade your account to unlock details, actions, and advanced filters.</p>
               </div>
             </div>
           </div>
@@ -605,12 +619,14 @@ export default function MatchingProjectsPage() {
                   onExpressInterest={openDetail}
                   onNotInterested={dismissOpportunity}
                   onOrganizationClick={(organizationId) => navigate(`/organizations/${organizationId}`)}
+                  previewMode={isPreviewMode}
+                  onPreviewRestrictedAction={() => setIsUpgradePromptOpen(true)}
                 />
               </div>
             ))
           )}
 
-          {!isSubscribed && hiddenCount > 0 && (
+          {isPreviewMode && hiddenCount > 0 && (
             <div className="rounded-xl border border-dashed bg-white p-8 text-center">
               <Sparkles className="mx-auto mb-3 h-6 w-6 text-primary" />
               <p className="font-semibold text-primary">{hiddenCount} more matching projects available</p>
@@ -618,6 +634,21 @@ export default function MatchingProjectsPage() {
             </div>
           )}
         </div>
+
+        <Dialog open={isUpgradePromptOpen} onOpenChange={setIsUpgradePromptOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Upgrade required</DialogTitle>
+              <DialogDescription>
+                Advanced matching details, saved actions, applications, expressions of interest, and full opportunity access require an upgraded account.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsUpgradePromptOpen(false)}>Keep previewing</Button>
+              <Button onClick={() => navigate('/account/subscription')}>View upgrade options</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </PageContainer>
     </div>
   );
