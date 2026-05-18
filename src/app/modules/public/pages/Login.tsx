@@ -8,12 +8,12 @@ import { Input } from '@app/components/ui/input';
 import { Label } from '@app/components/ui/label';
 import { Alert, AlertDescription } from '@app/components/ui/alert';
 import { PageBanner } from '@app/components/PageBanner';
-import { LogIn, CheckCircle2, Clock, ArrowRight } from 'lucide-react';
+import { LogIn, CheckCircle2, Clock, ArrowRight, ShieldCheck, UserRound, UsersRound } from 'lucide-react';
 import { initializeTestAccounts, authenticateUser, getTestAccounts, type IncompleteSignupData } from '@app/services/userStatusService';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, quickLogin } = useAuth();
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -97,6 +97,19 @@ const Login = () => {
       setLoading(false);
     } catch (err: any) {
       setError('Username or password incorrect');
+      setLoading(false);
+    }
+  };
+
+  const handleQuickLogin = async (accountType: Parameters<typeof quickLogin>[0]) => {
+    setError('');
+    setLoading(true);
+    try {
+      await quickLogin(accountType);
+      navigate('/calls/active');
+    } catch (err: any) {
+      setError(err.message || 'Demo access failed');
+    } finally {
       setLoading(false);
     }
   };
@@ -189,6 +202,40 @@ const Login = () => {
               </Link>
             </div>
           </form>
+        </div>
+
+        <div className="mt-6 rounded-xl border-2 border-gray-200 bg-white p-6">
+          <div className="mb-4">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-primary">
+              <ShieldCheck className="h-5 w-5" />
+              Demo access
+            </h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Use seeded server accounts with real backend authentication.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <Button type="button" variant="outline" disabled={loading} onClick={() => handleQuickLogin('organization')}>
+              <UsersRound className="h-4 w-4" />
+              Organization
+            </Button>
+            <Button type="button" variant="outline" disabled={loading} onClick={() => handleQuickLogin('organization-user')}>
+              <UserRound className="h-4 w-4" />
+              Org User
+            </Button>
+            <Button type="button" variant="outline" disabled={loading} onClick={() => handleQuickLogin('expert')}>
+              <UserRound className="h-4 w-4" />
+              Expert
+            </Button>
+            <Button type="button" variant="outline" disabled={loading} onClick={() => handleQuickLogin('admin')}>
+              <ShieldCheck className="h-4 w-4" />
+              Admin
+            </Button>
+            <Button type="button" variant="outline" disabled={loading} onClick={() => handleQuickLogin('public')}>
+              <LogIn className="h-4 w-4" />
+              Public
+            </Button>
+          </div>
         </div>
 
         {/* Incomplete Signup Modal */}

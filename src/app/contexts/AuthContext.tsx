@@ -15,6 +15,33 @@ interface User {
 
 type QuickLoginAccountType = 'expert' | 'organization' | 'organization-user' | 'admin' | 'public';
 
+const QUICK_LOGIN_CREDENTIALS: Record<QuickLoginAccountType, { email: string; password: string }> = {
+  expert: { email: 'expert@example.com', password: 'password123' },
+  organization: { email: 'organization@example.com', password: 'password12345' },
+  'organization-user': { email: 'organization-user@example.com', password: 'password1234' },
+  admin: { email: 'admin@example.com', password: 'password1234' },
+  public: { email: 'public@example.com', password: 'password123' },
+};
+
+const buildUserFromLoginResponse = (response: LoginResponse): User => {
+  const { id, email: userEmail, roles } = response;
+  const primaryRole = roles && roles.length > 0 ? roles[0] : 'public';
+  const normalizedRole = primaryRole.toLowerCase().replace(/_/g, '-');
+  const accountType = normalizedRole === 'organization-user'
+    ? 'organization'
+    : normalizedRole as User['accountType'];
+
+  return {
+    id: String(id),
+    email: userEmail,
+    firstName: userEmail.split('@')[0],
+    lastName: 'User',
+    role: normalizedRole,
+    accountType,
+    organizationId: response.organizationId,
+  };
+};
+
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
@@ -82,19 +109,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     try {
       const response: LoginResponse = await authService.login(email, password);
-      const { token, id, email: userEmail, roles } = response;
-      
-      const primaryRole = roles && roles.length > 0 ? roles[0] : 'public';
-      
-      const loggedInUser: User = {
-        id: String(id),
-        email: userEmail,
-        firstName: userEmail.split('@')[0], // Extract first part of email as fallback
-        lastName: 'User',
-        role: primaryRole,
-        accountType: primaryRole.toLowerCase() as any,
-        organizationId: response.organizationId,
-      };
+      const { token } = response;
+      const loggedInUser = buildUserFromLoginResponse(response);
 
       setUser(loggedInUser);
       setIsAuthenticated(true);
@@ -163,7 +179,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const quickLogin = async (accountType: QuickLoginAccountType): Promise<void> => {
-    throw new Error('Quick login is not available');
+    const credentials = QUICK_LOGIN_CREDENTIALS[accountType];
+    if (!credentials) {
+      throw new Error('Quick login account is not available');
+    }
+
+    await login(credentials.email, credentials.password);
   };
 
   return (
