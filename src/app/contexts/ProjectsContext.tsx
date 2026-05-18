@@ -788,11 +788,13 @@ const initialMockTemplates: ProjectTemplateDTO[] = [
 */
 
 export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-const [templates, setProjects] = useState<ProjectListDTO[]>([]); 
+  const [projects, setProjects] = useState<ProjectListDTO[]>([]);
+  const [templates, setTemplates] = useState<ProjectTemplateDTO[]>([]);
+  const [isProjectsLoading, setIsProjectsLoading] = useState<boolean>(false);
+  const [projectsError, setProjectsError] = useState<string | null>(null);
 
-  const [tasks, setTasks] =  useState<ProjectListDTO[]>([]); 
-  const [collaborations, setCollaborations] = useState<ProjectListDTO[]>([]); 
- // const [templates, setTemplates] = useState<ProjectTemplateDTO[]>(initialMockTemplates);
+  const [tasks, setTasks] =  useState<TaskDTO[]>([]); 
+  const [collaborations, setCollaborations] = useState<CollaborationDTO[]>([]); 
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -836,7 +838,7 @@ const [templates, setProjects] = useState<ProjectListDTO[]>([]);
   };
 
   const getProjectById = (id: string) => {
-    return templates.find((project) => project.id === id);
+    return projects.find((project) => project.id === id);
   };
 
   const addTask = (task: TaskDTO) => {
@@ -858,7 +860,7 @@ const [templates, setProjects] = useState<ProjectListDTO[]>([]);
   return (
     <ProjectsContext.Provider
       value={{
-   
+        projects,
         addProject,
         updateProject,
         deleteProject,
