@@ -38,6 +38,7 @@ import { format } from 'date-fns';
 import { ProjectStatusEnum, type ProjectFiltersDTO } from '@app/types/project.dto';
 import { buildOrganizationProfileSearchFields, savedSearchService, type SavedSearchAlertSettings } from '@app/services/savedSearchService';
 import { toast } from 'sonner';
+import { PUBLIC_VISIBLE_ITEM_LIMIT, isPublicAccount } from '@app/services/permissions.service';
 
 interface ProjectSavedPayload {
   searchQuery: string;
@@ -98,6 +99,12 @@ export default function SearchProjectsTabContent() {
   const [isSaveSearchDialogOpen, setIsSaveSearchDialogOpen] = useState(false);
   const [editingSavedSearch, setEditingSavedSearch] = useState<SavedSearchEntry<ProjectSavedPayload> | null>(null);
   const [savedSearches, setSavedSearches] = useState<SavedSearchEntry<ProjectSavedPayload>[]>([]);
+  const isPublicPreview = isPublicAccount(user?.accountType);
+  const visibleProjects = isPublicPreview ? projects.data.slice(0, PUBLIC_VISIBLE_ITEM_LIMIT) : projects.data;
+  const isPublicLimitReached = isPublicPreview && projects.meta.totalItems > PUBLIC_VISIBLE_ITEM_LIMIT;
+  const membershipFilterLabel = language === 'fr'
+    ? "Non inclus dans l'abonnement d'adhésion"
+    : 'Not included in the membership subscription';
 
   const readSavedSearches = (): SavedSearchEntry<ProjectSavedPayload>[] => savedSearchService
     .list(user?.id, 'projects')
@@ -131,6 +138,7 @@ export default function SearchProjectsTabContent() {
   const handleClearFilters = () => {
     setSearchQuery('');
     setSelectedSectors([]);
+    setNotIncludedInMembershipSubscription(false);
     clearFilters();
   };
 
@@ -173,7 +181,7 @@ export default function SearchProjectsTabContent() {
       projectFilters.region?.length ? `Regions: ${projectFilters.region.length}` : '',
       projectFilters.minBudget !== undefined ? `Min budget: ${projectFilters.minBudget}` : '',
       projectFilters.maxBudget !== undefined ? `Max budget: ${projectFilters.maxBudget}` : '',
-      projectFilters.notIncludedInMembershipSubscription ? 'Not included in membership subscription' : '',
+      projectFilters.notIncludedInMembershipSubscription ? membershipFilterLabel : '',
     ].filter(Boolean);
   };
 
@@ -191,7 +199,7 @@ export default function SearchProjectsTabContent() {
       { label: 'Countries / Regions', value: formatList(projectFilters.region as string[]) },
       { label: 'Budget', value: projectFilters.minBudget !== undefined || projectFilters.maxBudget !== undefined ? `${projectFilters.minBudget ?? 'Any'} - ${projectFilters.maxBudget ?? 'Any'}` : '' },
       { label: 'Organisation Name', value: projectFilters.leadOrganization },
-      { label: 'Membership Subscription', value: projectFilters.notIncludedInMembershipSubscription ? 'Not included in the membership subscription' : '' },
+      { label: 'Membership Subscription', value: projectFilters.notIncludedInMembershipSubscription ? membershipFilterLabel : '' },
     ];
   };
 
@@ -283,6 +291,16 @@ export default function SearchProjectsTabContent() {
     language === 'fr' ? 'fr-FR' : language === 'es' ? 'es-ES' : 'en-GB',
     { style: 'currency', currency, maximumFractionDigits: 0 }
   ).format(amount);
+  const getProjectBudget = (project: any) => typeof project.budget === 'number'
+    ? { total: project.budget, currency: 'USD' }
+    : {
+        total: Number(project.budget?.total ?? 0),
+        currency: project.budget?.currency || 'USD',
+      };
+  const getProjectTimeline = (project: any) => ({
+    endDate: project.timeline?.endDate || project.updatedDate || project.createdDate || new Date().toISOString(),
+    completionPercentage: Number(project.timeline?.completionPercentage ?? 0),
+  });
 
   const getStatusColor = (status: ProjectStatusEnum) => {
     switch (status) {
@@ -374,7 +392,7 @@ export default function SearchProjectsTabContent() {
               updateFilters({ notIncludedInMembershipSubscription: event.target.checked });
             }}
           />
-          <span>Not included in the membership subscription</span>
+          <span>{membershipFilterLabel}</span>
         </label>
       </div>
 
@@ -399,9 +417,12 @@ export default function SearchProjectsTabContent() {
              <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
              <p className="text-gray-500 font-medium">Fetching projects from server...</p>
           </div>
-        ) : projects.data.length > 0 ? (
+        ) : visibleProjects.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 mb-6">
-            {projects.data.map((project) => (
+            {visibleProjects.map((project) => {
+              const budget = getProjectBudget(project);
+              const timeline = getProjectTimeline(project);
+              return (
               <div key={project.id} className="bg-white rounded-lg border p-5 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-start gap-3">
@@ -429,11 +450,11 @@ export default function SearchProjectsTabContent() {
                   </span>
                   <span className="flex items-center gap-1.5">
                     <DollarSign className="w-4 h-4" />
-                    {formatProjectBudget(project.budget.total, project.budget.currency)}
+                    {formatProjectBudget(budget.total, budget.currency)}
                   </span>
                   <span className="flex items-center gap-1.5">
                     <Clock className="w-4 h-4" />
-                    {format(new Date(project.timeline.endDate), 'PP', { locale: language === 'fr' ? undefined : undefined })}
+                    {format(new Date(timeline.endDate), 'PP', { locale: language === 'fr' ? undefined : undefined })}
                   </span>
                 </div>
 
@@ -442,12 +463,12 @@ export default function SearchProjectsTabContent() {
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center justify-between text-[10px] font-medium text-gray-500 mb-1">
                         <span>{t('projects.stats.completion')}</span>
-                        <span>{project.timeline.completionPercentage}%</span>
+                        <span>{timeline.completionPercentage}%</span>
                       </div>
                       <div className="w-32 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-blue-500 rounded-full transition-all"
-                          style={{ width: `${project.timeline.completionPercentage}%` }}
+                          style={{ width: `${timeline.completionPercentage}%` }}
                         />
                       </div>
                     </div>
@@ -457,7 +478,17 @@ export default function SearchProjectsTabContent() {
                   </Button>
                 </div>
               </div>
-            ))}
+              );
+            })}
+            {isPublicLimitReached && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-amber-900">
+                <p className="font-semibold">Limited SMART preview</p>
+                <p className="mt-1 text-sm">
+                  You can preview the first {PUBLIC_VISIBLE_ITEM_LIMIT} important projects. Upgrade your account to continue viewing full matching results and project details.
+                </p>
+                <Button className="mt-4" onClick={() => navigate('/account/subscription')}>Upgrade account</Button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-center py-12 bg-white rounded-lg border">
@@ -467,7 +498,7 @@ export default function SearchProjectsTabContent() {
           </div>
         )}
 
-        {projects.meta.totalPages > 1 && (
+        {!isPublicPreview && projects.meta.totalPages > 1 && (
           <div className="flex items-center justify-between mt-6">
             <Button
               variant="outline"
