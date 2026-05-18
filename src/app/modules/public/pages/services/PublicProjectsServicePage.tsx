@@ -26,7 +26,8 @@ import { getLocalizedCountryName } from '@app/utils/country-translator';
 export default function PublicProjectsServicePage() {
   const { t, language } = useLanguage();
   const navigate = useNavigate();
-  const { allTenders } = useTenders();
+  const { tenders } = useTenders();
+  const allTenders = tenders?.data || [];
 
   const [query, setQuery] = useState('');
   const [selectedProcurementTypes, setSelectedProcurementTypes] = useState<ProcurementTypeEnum[]>([]);

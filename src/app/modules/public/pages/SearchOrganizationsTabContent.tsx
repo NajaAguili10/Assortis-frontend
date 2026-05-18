@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
@@ -415,6 +415,18 @@ export default function SearchOrganizationsTabContent() {
     fetchCountries();
   }, [user]);
 
+  const readSavedSearches = useCallback((): SavedSearchEntry<OrganizationSavedPayload>[] =>
+    savedSearchService.list(user?.id, 'organisations').map((item) => ({
+      id: item.id,
+      label: item.name,
+      createdAt: item.created_at,
+      payload: item.filters as OrganizationSavedPayload,
+    })), [user?.id]);
+
+  useEffect(() => {
+    setSavedSearches(readSavedSearches());
+  }, [user?.id, readSavedSearches]);
+
   // Fetch subsectors for selected sectors
   useEffect(() => {
     const fetchSelectedSubsectors = async () => {
@@ -520,6 +532,7 @@ export default function SearchOrganizationsTabContent() {
     setSelectedSectors([]);
     setSelectedSubSectors([]);
     setSelectedCountries([]);
+    setSelectedRegions([]);
     clearFilters();
   };
 
@@ -550,6 +563,127 @@ export default function SearchOrganizationsTabContent() {
     updatePartnerState(organizationId, { engagements: [] });
   };
 
+  const buildPayload = (): OrganizationSavedPayload => ({
+    searchQuery,
+    procurementType,
+    publishedFrom,
+    publishedTo,
+    projectBudget,
+    keywords,
+    officeLocation,
+    city,
+    selectedSectors: (selectedSectors || []).map(s => s.code as OrganizationSectorEnum),
+    selectedSubSectors: (selectedSubSectors || []).map(s => s.code as SubSectorEnum),
+    selectedRegions: selectedRegions || [],
+    selectedCountries: (selectedCountries || []).map(c => c.code as CountryEnum),
+    type: filters.type || [],
+  });
+
+  const formatList = (items?: any[]) => (items || []).map((item) => {
+    if (typeof item === 'string') return item.replace(/_/g, ' ');
+    if (item && typeof item === 'object') return item.name || item.code || String(item);
+    return String(item);
+  });
+
+  const buildReviewItemsFromPayload = (payload: OrganizationSavedPayload): SavedSearchReviewItem[] => {
+    return [
+      { label: 'Type', value: 'Organisations' },
+      { label: 'Keywords', value: payload.searchQuery || payload.keywords },
+      { label: 'Sectors', value: formatList(payload.selectedSectors as string[]) },
+      { label: 'Subsectors', value: formatList(payload.selectedSubSectors as string[]) },
+      { label: 'Countries', value: formatList(payload.selectedCountries as string[]) },
+      { label: 'Organisation Type', value: formatList(payload.type as string[]) },
+      { label: 'Location', value: [payload.city, payload.officeLocation].filter(Boolean).join(', ') },
+    ];
+  };
+
+  const getAlertSettingsForEntry = (entry?: SavedSearchEntry<OrganizationSavedPayload> | null): Partial<SavedSearchAlertSettings> => {
+    if (!entry) return { alertFrequency: 'daily', alertDays: ['Every day'], alertHour: '08:00', emailFormat: 'summary', status: 'active' };
+    return {
+      alertFrequency: 'daily',
+      alertDays: ['Every day'],
+      alertHour: '08:00',
+      emailFormat: 'summary',
+      status: 'active',
+    };
+  };
+
+  const openEditSavedSearch = (entry: SavedSearchEntry<OrganizationSavedPayload>) => {
+    setEditingSavedSearch(entry);
+    setIsSaveSearchDialogOpen(true);
+  };
+
+  const buildSummary = () => {
+    const payload = buildPayload();
+    return [
+      payload.searchQuery ? `Keywords: ${payload.searchQuery}` : '',
+      payload.selectedSectors.length ? `Sectors: ${payload.selectedSectors.length}` : '',
+      payload.selectedCountries.length ? `Countries: ${payload.selectedCountries.length}` : '',
+      payload.type.length ? `Types: ${payload.type.length}` : '',
+    ].filter(Boolean);
+  };
+
+  const saveSearch = ({ name, alertSettings, useCurrentCriteria }: SavedSearchEditorSavePayload) => {
+    if (editingSavedSearch) {
+      const nextPayload = useCurrentCriteria ? buildPayload() : editingSavedSearch.payload;
+      savedSearchService.update(editingSavedSearch.id, {
+        name,
+        filters: nextPayload,
+        context: useCurrentCriteria
+          ? {
+            type: 'organisations',
+            route: '/search/organisations',
+            label: 'Organisations',
+            summary: buildSummary(),
+            language,
+            accountType: user?.accountType,
+          }
+          : savedSearchService.get(editingSavedSearch.id)?.context,
+        alertsEnabled: alertSettings.alertFrequency !== 'unsubscribe' && alertSettings.status === 'active',
+        alertFrequency: alertSettings.alertFrequency,
+        alertDays: alertSettings.alertDays,
+        alertHour: alertSettings.alertHour,
+        emailFormat: alertSettings.emailFormat,
+        status: alertSettings.status,
+      });
+      setSavedSearches(readSavedSearches());
+      setIsSaveSearchDialogOpen(false);
+      setEditingSavedSearch(null);
+      toast.success('Saved search updated');
+      return;
+    }
+
+    savedSearchService.save({
+      userId: user?.id,
+      name,
+      filters: buildPayload(),
+      context: {
+        type: 'organisations',
+        route: '/search/organisations',
+        label: 'Organisations',
+        summary: buildSummary(),
+        language,
+        accountType: user?.accountType,
+      },
+      alertsEnabled: alertSettings.alertFrequency !== 'unsubscribe' && alertSettings.status === 'active',
+      alertFrequency: alertSettings.alertFrequency,
+      alertDays: alertSettings.alertDays,
+      alertHour: alertSettings.alertHour,
+      emailFormat: alertSettings.emailFormat,
+      status: alertSettings.status,
+    });
+    setSavedSearches(readSavedSearches());
+    setIsSaveSearchDialogOpen(false);
+    setEditingSavedSearch(null);
+    toast.success('Search saved');
+  };
+
+  const deleteSavedSearch = (id: string) => {
+    savedSearchService.remove(id);
+    setSavedSearches(readSavedSearches());
+    toast.success('Search deleted');
+  };
+
   const fetchSavedSearches = async () => {
     if (!user) return;
     try {
@@ -572,6 +706,7 @@ export default function SearchOrganizationsTabContent() {
     setSelectedSectors(payload.selectedSectors || []);
     setSelectedSubSectors(payload.selectedSubSectors || []);
     setSelectedCountries(payload.selectedCountries || []);
+    setSelectedRegions(payload.selectedRegions || []);
     updateFilters({
       searchQuery: payload.searchQuery || undefined,
       procurementType: payload.procurementType || undefined,
@@ -837,8 +972,18 @@ export default function SearchOrganizationsTabContent() {
 
             <div className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-out ${showRegionFilters ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
               <RegionCountryFilter
+                selectedRegions={selectedRegions.map(r => ({ name: r } as any))}
                 selectedCountries={selectedCountries}
                 allowedCountries={subscriptionCountries}
+                onSelectRegion={(region) => {
+                  const regionName = region.name as unknown as RegionEnum;
+                  const isSelected = selectedRegions.includes(regionName);
+                  const next = isSelected
+                    ? selectedRegions.filter(r => r !== regionName)
+                    : [...selectedRegions, regionName];
+                  setSelectedRegions(next);
+                  updateFilters({ regions: next.length > 0 ? next : undefined } as any);
+                }}
                 onSelectCountry={(country) => {
                   const isSelected = selectedCountries.some(s => s.id === country.id);
                   const next = isSelected
@@ -916,24 +1061,24 @@ export default function SearchOrganizationsTabContent() {
                         )}
                       </div>
                     </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="shrink-0"
-                          onClick={() => removeLastEngagement(org.id)}
-                        >
-                          Undo last
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="shrink-0 text-destructive hover:text-destructive"
-                          onClick={() => clearEngagements(org.id)}
-                        >
-                          Clear all
-                        </Button>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0"
+                        onClick={() => removeLastEngagement(org.id)}
+                      >
+                        Undo last
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="shrink-0 text-destructive hover:text-destructive"
+                        onClick={() => clearEngagements(org.id)}
+                      >
+                        Clear all
+                      </Button>
+                    </div>
                   </div>
                 ))
             )}
@@ -960,138 +1105,138 @@ export default function SearchOrganizationsTabContent() {
             </div>
           </div>
 
-        {organizations.data.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4 mb-6">
-            {organizations.data.map((org) => (
-              <div key={org.id} className="bg-white rounded-lg border p-5 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-start gap-3">
-                    <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0"><Building2 className="w-6 h-6 text-blue-500" /></div>
-                    <div>
-                      <h3 className="font-semibold text-primary mb-1">{org.name}{org.acronym && <span className="text-sm text-muted-foreground ml-2">({org.acronym})</span>}</h3>
-                      <p className="text-sm text-muted-foreground line-clamp-2">{org.description}</p>
+          {organizations.data.length > 0 ? (
+            <div className="grid grid-cols-1 gap-4 mb-6">
+              {organizations.data.map((org) => (
+                <div key={org.id} className="bg-white rounded-lg border p-5 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0"><Building2 className="w-6 h-6 text-blue-500" /></div>
+                      <div>
+                        <h3 className="font-semibold text-primary mb-1">{org.name}{org.acronym && <span className="text-sm text-muted-foreground ml-2">({org.acronym})</span>}</h3>
+                        <p className="text-sm text-muted-foreground line-clamp-2">{org.description}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-100">
+                        {compatibilityByOrg[org.id] || 72}% compatibility
+                      </Badge>
+                      {shouldShowBookmarkButton && (
+                        <Button
+                          variant={isBookmarked(org.id) ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => toggleBookmark(org.id)}
+                          aria-label="Add to Partners"
+                          className="min-h-9"
+                        >
+                          <Plus className="w-4 h-4 mr-1.5" />
+                          {isBookmarked(org.id) ? 'Partner added' : 'Add to Partners'}
+                        </Button>
+                      )}
+                      {org.verificationStatus === 'VERIFIED' && (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          {t('organizations.status.VERIFIED')}
+                        </Badge>
+                      )}
+                      {org.verificationStatus === 'ACTIVE' && (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          {t('organizations.status.ACTIVE')}
+                        </Badge>
+                      )}
+                      {org.verificationStatus === 'INACTIVE' && (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          {t('organizations.status.INACTIVE')}
+                        </Badge>
+                      )}
+                      {org.verificationStatus === 'PENDING' && (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          {t('organizations.status.PENDING')}
+                        </Badge>
+                      )}
+                      {org.verificationStatus === 'NOTVERIFIED' && (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          {t('organizations.status.NOTVERIFIED')}
+                        </Badge>
+                      )}
+                    </div>
+
+                  </div>
+
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
+                    <span className="flex items-center gap-1"><Target className="w-4 h-4" />{t(`organizations.type.${org.type}`)}</span>
+                    <span className="flex items-center gap-1"><MapPin className="w-4 h-4" />{org.city?.name || ''}{org.city?.name && org.country?.name ? ', ' : ''}{org.country?.name || ''}</span>
+                    <span className="flex items-center gap-1"><Briefcase className="w-4 h-4" />{org.activeProjects || 0} {t('organizations.details.projects')}</span>
+                  </div>
+
+                  <div className="flex items-center gap-2 mb-4">
+                    {(org.sectors || []).slice(0, 3).map((sector, index) => (
+                      <Badge key={`${org.id}-sector-${index}`} variant="secondary">{sector?.name || t(`sectors.${sector?.code}`)}</Badge>
+                    ))}
+                    {(org.sectors || []).length > 3 && <Badge variant="outline">+{(org.sectors || []).length - 3}</Badge>}
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
+                      onClick={() => logEngagement(org.id)}
+                    >
+                      <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
+                      Worked with this organisation
+                    </Button>
+                    {(partnerStates[org.id]?.engagements?.length ?? 0) > 0 && (
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-600 text-white text-xs font-semibold">
+                        {partnerStates[org.id].engagements!.length}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-3 border-t">
+                    <span className="flex items-center gap-1 text-sm text-muted-foreground"><Globe className="w-4 h-4" />{t(`organizations.region.${org.region}`)}</span>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="default" size="sm" onClick={() => navigate(`/search/organizations/${org.id}`)}>{t('actions.viewDetails')}</Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-100">
-                      {compatibilityByOrg[org.id] || 72}% compatibility
-                    </Badge>
-                    {shouldShowBookmarkButton && (
-                      <Button
-                        variant={isBookmarked(org.id) ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => toggleBookmark(org.id)}
-                        aria-label="Add to Partners"
-                        className="min-h-9"
-                      >
-                        <Plus className="w-4 h-4 mr-1.5" />
-                        {isBookmarked(org.id) ? 'Partner added' : 'Add to Partners'}
-                      </Button>
-                    )}
-                    {org.verificationStatus === 'VERIFIED' && (
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        {t('organizations.status.VERIFIED')}
-                      </Badge>
-                    )}
-                    {org.verificationStatus === 'ACTIVE' && (
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        {t('organizations.status.ACTIVE')}
-                      </Badge>
-                    )}
-                    {org.verificationStatus === 'INACTIVE' && (
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        {t('organizations.status.INACTIVE')}
-                      </Badge>
-                    )}
-                    {org.verificationStatus === 'PENDING' && (
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        {t('organizations.status.PENDING')}
-                      </Badge>
-                    )}
-                    {org.verificationStatus === 'NOTVERIFIED' && (
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        {t('organizations.status.NOTVERIFIED')}
-                      </Badge>
-                    )}
-                  </div>
-
                 </div>
-
-                <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
-                  <span className="flex items-center gap-1"><Target className="w-4 h-4" />{t(`organizations.type.${org.type}`)}</span>
-                  <span className="flex items-center gap-1"><MapPin className="w-4 h-4" />{org.city?.name || ''}{org.city?.name && org.country?.name ? ', ' : ''}{org.country?.name || ''}</span>
-                  <span className="flex items-center gap-1"><Briefcase className="w-4 h-4" />{org.activeProjects || 0} {t('organizations.details.projects')}</span>
-                </div>
-
-                <div className="flex items-center gap-2 mb-4">
-                  {(org.sectors || []).slice(0, 3).map((sector, index) => (
-                    <Badge key={`${org.id}-sector-${index}`} variant="secondary">{sector?.name || t(`sectors.${sector?.code}`)}</Badge>
-                  ))}
-                  {(org.sectors || []).length > 3 && <Badge variant="outline">+{(org.sectors || []).length - 3}</Badge>}
-                </div>
-
-                <div className="mt-3 flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
-                    onClick={() => logEngagement(org.id)}
-                  >
-                    <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
-                    Worked with this organisation
-                  </Button>
-                  {(partnerStates[org.id]?.engagements?.length ?? 0) > 0 && (
-                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-600 text-white text-xs font-semibold">
-                      {partnerStates[org.id].engagements!.length}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between pt-3 border-t">
-                  <span className="flex items-center gap-1 text-sm text-muted-foreground"><Globe className="w-4 h-4" />{t(`organizations.region.${org.region}`)}</span>
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="default" size="sm" onClick={() => navigate(`/search/organizations/${org.id}`)}>{t('actions.viewDetails')}</Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12 bg-white rounded-lg border">
-            <Building2 className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-            <h3 className="text-lg font-semibold text-primary mb-1">{t('organizations.list.noResults')}</h3>
-            <p className="text-sm text-muted-foreground">{t('organizations.list.noResults.message')}</p>
-          </div>
-        )}
-
-        {organizations.meta.totalPages > 1 && (
-          <div className="flex items-center justify-between">
-            <Button variant="outline" size="sm" onClick={() => setCurrentPage(currentPage - 1)} disabled={!organizations.meta.hasPreviousPage}>
-              <ChevronLeft className="w-4 h-4 mr-1" />
-              {t('pagination.previous')}
-            </Button>
-            <div className="flex items-center gap-2">
-              {Array.from({ length: Math.min(5, organizations.meta.totalPages) }, (_, index) => {
-                const pageNum = index + 1;
-                return (
-                  <Button key={pageNum} variant={currentPage === pageNum ? 'default' : 'outline'} size="sm" onClick={() => setCurrentPage(pageNum)}>
-                    {pageNum}
-                  </Button>
-                );
-              })}
+              ))}
             </div>
-            <Button variant="outline" size="sm" onClick={() => setCurrentPage(currentPage + 1)} disabled={!organizations.meta.hasNextPage}>
-              {t('pagination.next')}
-              <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
-          </div>
-        )}
-      </>)}
+          ) : (
+            <div className="text-center py-12 bg-white rounded-lg border">
+              <Building2 className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-primary mb-1">{t('organizations.list.noResults')}</h3>
+              <p className="text-sm text-muted-foreground">{t('organizations.list.noResults.message')}</p>
+            </div>
+          )}
+
+          {organizations.meta.totalPages > 1 && (
+            <div className="flex items-center justify-between">
+              <Button variant="outline" size="sm" onClick={() => setCurrentPage(currentPage - 1)} disabled={!organizations.meta.hasPreviousPage}>
+                <ChevronLeft className="w-4 h-4 mr-1" />
+                {t('pagination.previous')}
+              </Button>
+              <div className="flex items-center gap-2">
+                {Array.from({ length: Math.min(5, organizations.meta.totalPages) }, (_, index) => {
+                  const pageNum = index + 1;
+                  return (
+                    <Button key={pageNum} variant={currentPage === pageNum ? 'default' : 'outline'} size="sm" onClick={() => setCurrentPage(pageNum)}>
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setCurrentPage(currentPage + 1)} disabled={!organizations.meta.hasNextPage}>
+                {t('pagination.next')}
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </div>
+          )}
+        </>)}
       </div>
 
       <Dialog open={isLoadDialogOpen} onOpenChange={setIsLoadDialogOpen}>

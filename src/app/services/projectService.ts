@@ -5,7 +5,7 @@ export const projectService = {
 
 
   getAllProjects: async (): Promise<ProjectListDTO[]> => {
-    return await apiClient.get<ProjectListDTO[]>('/projects');
+    return await apiClient.get<ProjectListDTO[]>('/projects/all');
   },
 
 
@@ -41,10 +41,13 @@ export const projectService = {
     return apiClient.get('/projects/kpis');
   },
   getSavedSearches: async (userId: number) => {
-    return apiClient.get(`/projects/saved-searches/${userId}`);
+    return apiClient.get(`/projects/saved-searches/${userId}`, { _t: Date.now() });
   },
   saveSearch: async (userId: number, name: string, payload: any) => {
     return apiClient.post(`/projects/saved-searches/${userId}?name=${encodeURIComponent(name)}`, payload);
+  },
+  updateSavedSearch: async (id: number, name: string, payload: any) => {
+    return apiClient.put(`/projects/saved-searches/${id}?name=${encodeURIComponent(name)}`, payload);
   },
   deleteSavedSearch: async (id: number) => {
     return apiClient.delete(`/projects/saved-searches/${id}`);

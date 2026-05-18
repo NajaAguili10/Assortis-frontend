@@ -19,6 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@app/components/ui/separator';
 import { useTenders } from '@app/hooks/useTenders';
 import { usePipeline } from '@app/modules/expert/hooks/usePipeline';
+import { useAuth } from '@app/contexts/AuthContext';
+import { tenderService } from '@app/services/tenderService';
 import {
   CountryEnum,
   FundingAgencyEnum,
@@ -41,6 +43,14 @@ type SortField = 'title' | 'location' | 'donor' | 'budget' | 'published' | 'dead
 type SortDirection = 'asc' | 'desc' | 'none';
 
 const DISCARDED_PROJECTS_STORAGE_KEY = 'matching-projects.discardedIds';
+
+const formatPillLabel = (value: string) => value
+  .toLowerCase()
+  .split('_')
+  .filter(Boolean)
+  .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+  .join(' ');
+
 
 function readSavedProjectIds(): string[] {
   try {
@@ -93,8 +103,23 @@ function writeDiscardedProjectIds(projectIds: string[]) {
 export default function ActiveTenders() {
   const { t, language } = useTranslation();
   const navigate = useNavigate();
-  const { allTenders, kpis } = useTenders();
+  const { tenders, kpis: rawKpis, isLoading, updateFilters, clearFilters: clearApiFilters, refreshTenders } = useTenders();
+  const allTenders = tenders?.data || [];
+  const kpis = rawKpis || {
+    totalTenders: 0,
+    activeTenders: 0,
+    closedTenders: 0,
+    awardedTenders: 0,
+    averageBudget: { amount: 0, currency: 'EUR', formatted: '€0' },
+    averageProposalsPerTender: 0,
+    successRate: 0,
+    mySubmissions: 0,
+    myPendingSubmissions: 0,
+    myInvitations: 0,
+    pipelineValue: { amount: 0, currency: 'EUR', formatted: '€0' }
+  };
   const { addToPipeline, isInPipeline } = usePipeline();
+  const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<AlertsTab>('projects');
   const [showFilters, setShowFilters] = useState(false);
@@ -129,6 +154,33 @@ export default function ActiveTenders() {
   useEffect(() => {
     writeDiscardedProjectIds(Array.from(discardedIds));
   }, [discardedIds]);
+
+  useEffect(() => {
+    if (user) {
+      tenderService.getDiscardedTenders(user.organizationId)
+        .then(ids => {
+          setDiscardedIds(new Set(ids.map(id => String(id))));
+        })
+        .catch(err => {
+          console.error('Failed to load discarded tenders from backend:', err);
+        });
+    }
+  }, [user]);
+
+  // Sync filters with the API hook
+  useEffect(() => {
+    updateFilters({
+      searchQuery: searchQuery,
+      sectors: selectedSectors,
+      countries: selectedCountries,
+      regions: selectedRegions,
+      fundingAgencies: selectedFundingAgencies,
+      procurementTypes: selectedProcurementTypes,
+      noticeTypes: selectedNoticeTypes,
+      minBudget: budgetMode === 'above' ? Number(budgetValue) : undefined,
+      maxBudget: budgetMode === 'below' ? Number(budgetValue) : undefined,
+    });
+  }, [searchQuery, selectedSectors, selectedCountries, selectedRegions, selectedFundingAgencies, selectedProcurementTypes, selectedNoticeTypes, budgetMode, budgetValue, updateFilters]);
 
   const quickDays = useMemo(() => {
     return Array.from({ length: 5 }, (_, index) => {
@@ -245,19 +297,22 @@ export default function ActiveTenders() {
     setLocationFilters([]);
     setDonorFilters([]);
     setSelectedQuickDay(null);
+    setSearchInput('');
+    setSearchQuery('');
+    clearApiFilters();
   };
 
   const topByTab = useMemo(() => {
     const projects = allTenders.filter(item => item.alertCategory === MatchingAlertCategoryEnum.PROJECTS);
     const awards = allTenders.filter(item => item.alertCategory === MatchingAlertCategoryEnum.AWARDS);
     const shortlists = allTenders.filter(item => item.alertCategory === MatchingAlertCategoryEnum.SHORTLISTS);
-    const bin = projects.filter(item => discardedIds.has(item.id));
+    const bin = projects.filter(item => discardedIds.has(String(item.id)));
 
     return { projects, awards, shortlists, bin };
   }, [allTenders, discardedIds]);
 
   const baseRows = useMemo(() => {
-    if (activeTab === 'projects') return topByTab.projects.filter(item => !discardedIds.has(item.id));
+    if (activeTab === 'projects') return topByTab.projects.filter(item => !discardedIds.has(String(item.id)));
     if (activeTab === 'awards') return topByTab.awards;
     if (activeTab === 'shortlists') return topByTab.shortlists;
     return topByTab.bin;
@@ -265,7 +320,24 @@ export default function ActiveTenders() {
 
   const passesSearch = (row: TenderListDTO) => {
     if (!searchQuery) return true;
-    const haystack = `${row.title} ${row.referenceNumber} ${row.organizationName}`.toLowerCase();
+    const sectorLabels = row.sectors ? row.sectors.map(s => t(`sectors.${s}`)).join(' ') : '';
+    const fundingAgencyLabel = row.fundingAgency ? t(`fundingAgencies.${row.fundingAgency}`) : '';
+    const procurementTypeLabel = row.procurementType ? formatPillLabel(row.procurementType) : '';
+    const noticeTypeLabel = row.noticeType ? formatPillLabel(row.noticeType) : '';
+    const countryLabel = row.country ? getLocalizedCountryName(row.country, language) : '';
+
+    const haystack = [
+      row.title,
+      row.referenceNumber,
+      row.organizationName,
+      row.description,
+      sectorLabels,
+      fundingAgencyLabel,
+      procurementTypeLabel,
+      noticeTypeLabel,
+      countryLabel
+    ].filter(Boolean).join(' ').toLowerCase();
+
     const query = searchQuery.toLowerCase();
 
     if (searchMode === 'exactPhrase') {
@@ -466,12 +538,6 @@ export default function ActiveTenders() {
     URL.revokeObjectURL(url);
   };
 
-  const formatPillLabel = (value: string) => value
-    .toLowerCase()
-    .split('_')
-    .filter(Boolean)
-    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
 
   const getSectorLabel = (sector: SectorEnum) => t(`sectors.${sector}`);
 
@@ -511,18 +577,50 @@ export default function ActiveTenders() {
     );
   };
 
-  const handleDiscard = (id: string) => {
-    setDiscardedIds(prev => new Set(prev).add(id));
-    toast.info('Project moved to Bin');
+  const handleDiscard = async (id: any) => {
+    const idStr = String(id);
+    const numericId = Number(idStr.replace('tender-', ''));
+    if (user) {
+      try {
+        await tenderService.discardTender(numericId, user.organizationId);
+        setDiscardedIds(prev => new Set(prev).add(idStr));
+        toast.info('Project moved to Bin');
+        refreshTenders();
+      } catch (err) {
+        console.error('Failed to discard tender:', err);
+        toast.error('Failed to discard tender');
+      }
+    } else {
+      setDiscardedIds(prev => new Set(prev).add(idStr));
+      toast.info('Project moved to Bin (local)');
+    }
   };
 
-  const handleRestore = (id: string) => {
-    setDiscardedIds(prev => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-    toast.success('Project restored');
+  const handleRestore = async (id: any) => {
+    const idStr = String(id);
+    const numericId = Number(idStr.replace('tender-', ''));
+    if (user) {
+      try {
+        await tenderService.restoreTender(numericId, user.organizationId);
+        setDiscardedIds(prev => {
+          const next = new Set(prev);
+          next.delete(idStr);
+          return next;
+        });
+        toast.success('Project restored');
+        refreshTenders();
+      } catch (err) {
+        console.error('Failed to restore tender:', err);
+        toast.error('Failed to restore tender');
+      }
+    } else {
+      setDiscardedIds(prev => {
+        const next = new Set(prev);
+        next.delete(idStr);
+        return next;
+      });
+      toast.success('Project restored (local)');
+    }
   };
 
   const handleAddToMyProjects = (row: TenderListDTO) => {
@@ -973,7 +1071,7 @@ export default function ActiveTenders() {
                       : 'bg-slate-200 text-slate-600'
                   }`}
                 >
-                  {tab.id === 'projects' ? topByTab.projects.filter(item => !discardedIds.has(item.id)).length :
+                  {tab.id === 'projects' ? topByTab.projects.filter(item => !discardedIds.has(String(item.id))).length :
                     tab.id === 'awards' ? topByTab.awards.length :
                     tab.id === 'shortlists' ? topByTab.shortlists.length :
                     topByTab.bin.length}

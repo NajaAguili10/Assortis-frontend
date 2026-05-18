@@ -8,6 +8,7 @@ import {
   RegionEnum,
   SectorDTO,
   CountryDTO,
+  SubsectorDTO,
 } from '../types/organization.dto';
 
 const COUNTRY_REGION_MAP: Record<string, RegionEnum> = {
@@ -137,7 +138,7 @@ const normalizeOrganization = (org: Organization): Organization => {
     country: org.country ? { id: org.country.id, name: org.country.name, code: org.country.code } : { id: 0, name: '', code: '' },
     region: normalizeRegion(org),
     mainSector: org.mainSector,
-    sectors: Array.isArray(org.sectors) 
+    sectors: Array.isArray(org.sectors)
       ? org.sectors.map((s: any) => typeof s === 'string' ? { id: 0, name: s, code: s } : s)
       : (org.mainSector ? [org.mainSector] : []),
     subSectors: org.subsectors || [],
@@ -236,7 +237,7 @@ const applyFiltersAndSort = (
 
   if (filters?.sectors?.length) {
     filtered = filtered.filter((org) =>
-      (org.sectors || []).some((orgSector) => 
+      (org.sectors || []).some((orgSector) =>
         filters.sectors!.some(s => s.code === (orgSector.code || orgSector))
       ),
     );
@@ -244,7 +245,7 @@ const applyFiltersAndSort = (
 
   if (filters?.subSectors?.length) {
     filtered = filtered.filter((org) =>
-      (org.subSectors || []).some((orgSub) => 
+      (org.subSectors || []).some((orgSub) =>
         filters.subSectors!.some(s => s.code === orgSub.code)
       ),
     );
@@ -546,5 +547,20 @@ export const organizationService = {
   },
   getMySubscriptionCountries: async () => {
     return apiClient.get<CountryDTO[]>(`/organizations/my-subscription-countries`);
+  },
+  getMySubscriptionSubsectors: async () => {
+    return apiClient.get<SubsectorDTO[]>(`/organizations/my-subscription-subsectors`);
+  },
+  getMySubscriptionRegions: async () => {
+    return apiClient.get<string[]>(`/organizations/my-subscription-regions`);
+  },
+  getShortlists: async (organizationId: string | number) => {
+    return apiClient.get<any[]>(`/organizations/${organizationId}/shortlists`);
+  },
+  getMyShortlists: async () => {
+    return apiClient.get<any[]>(`/organizations/my-shortlists`);
+  },
+  getMyAwards: async () => {
+    return apiClient.get<any[]>(`/organizations/my-awards`);
   }
 };

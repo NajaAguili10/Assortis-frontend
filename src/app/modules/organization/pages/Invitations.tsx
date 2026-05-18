@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { PageBanner } from '@app/components/PageBanner';
@@ -42,7 +42,20 @@ export default function Invitations() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
-  const { kpis } = useTenders();
+  const { kpis: rawKpis } = useTenders();
+  const kpis = rawKpis || {
+    totalTenders: 0,
+    activeTenders: 0,
+    closedTenders: 0,
+    awardedTenders: 0,
+    averageBudget: { amount: 0, currency: 'EUR', formatted: '€0' },
+    averageProposalsPerTender: 0,
+    successRate: 0,
+    mySubmissions: 0,
+    myPendingSubmissions: 0,
+    myInvitations: 0,
+    pipelineValue: { amount: 0, currency: 'EUR', formatted: '€0' }
+  };
 
   // Détecter si on est dans Mon Espace
   const isAccountSection = location.pathname.startsWith('/account') || location.pathname.startsWith('/compte-utilisateur');
