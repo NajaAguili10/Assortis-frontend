@@ -9,6 +9,7 @@ import {
   type SavedSearchEditorSavePayload,
   type SavedSearchReviewItem,
 } from '@app/components/SavedSearchEditorDialog';
+import { SavedSearchProfileBadge } from '@app/components/SavedSearchProfileBadge';
 import { Button } from '@app/components/ui/button';
 import { Input } from '@app/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@app/components/ui/select';
@@ -32,7 +33,7 @@ import { Search, X, ChevronLeft, ChevronRight, Building2, MapPin, Briefcase, Glo
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import type { Organization } from '@app/types/organization.dto';
-import { savedSearchService, type SavedSearchAlertSettings } from '@app/services/savedSearchService';
+import { buildOrganizationProfileSearchFields, savedSearchService, type SavedSearchAlertSettings } from '@app/services/savedSearchService';
 
 interface OrganizationSavedPayload {
   searchQuery: string;
@@ -55,6 +56,9 @@ interface SavedSearchEntry<TPayload> {
   label: string;
   createdAt: string;
   payload: TPayload;
+  organizationProfileId?: string;
+  organizationProfileName?: string;
+  organizationProfileEmail?: string;
 }
 
 interface OrganizationPartnerState {
@@ -312,7 +316,7 @@ function CollaborationHistoryPanel({
 
 export default function SearchOrganizationsTabContent() {
   const { t, language } = useLanguage();
-  const { user } = useAuth();
+  const { user, activeOrganizationProfile } = useAuth();
   const navigate = useNavigate();
   const { isBookmarked, toggleBookmark } = useOrganizationBookmarks();
   const [searchParams] = useSearchParams();
@@ -551,13 +555,70 @@ export default function SearchOrganizationsTabContent() {
   };
 
   const fetchSavedSearches = async () => {
-    if (!user) return;
-    try {
-      const searches = await organizationService.getSavedSearches(user.id);
-      setSavedSearches(searches || []);
-    } catch (error) {
-      console.error('Error fetching saved searches:', error);
-    }
+    const rows = savedSearchService
+      .list(user?.id, 'organisations')
+      .filter((item) => !activeOrganizationProfile || item.organizationProfileId === activeOrganizationProfile.id)
+      .map((item) => ({
+        id: item.id,
+        label: item.name,
+        createdAt: item.created_at,
+        payload: item.filters as OrganizationSavedPayload,
+        organizationProfileId: item.organizationProfileId,
+        organizationProfileName: item.organizationProfileName,
+        organizationProfileEmail: item.organizationProfileEmail,
+      }));
+    setSavedSearches(rows);
+  };
+
+  const buildPayload = (): OrganizationSavedPayload => ({
+    searchQuery,
+    procurementType,
+    publishedFrom,
+    publishedTo,
+    projectBudget,
+    keywords,
+    officeLocation,
+    city,
+    selectedSectors,
+    selectedSubSectors,
+    selectedRegions,
+    selectedCountries,
+    type: filters.type || [],
+  });
+
+  const buildSummary = () => [
+    searchQuery ? `Keywords: ${searchQuery}` : '',
+    procurementType ? `Procurement: ${procurementType}` : '',
+    publishedFrom ? `From: ${publishedFrom}` : '',
+    publishedTo ? `To: ${publishedTo}` : '',
+    projectBudget ? `Budget: ${projectBudget}` : '',
+    selectedSectors.length ? `Sectors: ${selectedSectors.length}` : '',
+    selectedCountries.length ? `Countries: ${selectedCountries.length}` : '',
+  ].filter(Boolean);
+
+  const buildReviewItemsFromPayload = (payload: OrganizationSavedPayload): SavedSearchReviewItem[] => [
+    { label: 'Type', value: 'Organisations' },
+    { label: 'Keywords', value: payload.searchQuery || payload.keywords },
+    { label: 'Procurement Type', value: payload.procurementType },
+    { label: 'Published From', value: payload.publishedFrom },
+    { label: 'Published To', value: payload.publishedTo },
+    { label: 'Project Budget', value: payload.projectBudget },
+    { label: 'Office Location', value: payload.officeLocation },
+    { label: 'City', value: payload.city },
+    { label: 'Sectors', value: (payload.selectedSectors || []).map((item: any) => item.name || item.code || String(item)) },
+    { label: 'Countries', value: (payload.selectedCountries || []).map((item: any) => item.name || item.code || String(item)) },
+  ];
+
+  const getAlertSettingsForEntry = (entry?: SavedSearchEntry<OrganizationSavedPayload> | null): Partial<SavedSearchAlertSettings> => {
+    if (!entry) return { alertFrequency: 'daily', alertDays: ['Every day'], alertHour: '08:00', emailFormat: 'summary', status: 'active' };
+    const saved = savedSearchService.get(entry.id);
+    return {
+      alertFrequency: saved?.alertFrequency || 'daily',
+      alertDays: saved?.alertDays || ['Every day'],
+      alertHour: saved?.alertHour || '08:00',
+      emailFormat: saved?.emailFormat || 'summary',
+      status: saved?.status || 'active',
+    };
   };
 
   const applySavedSearch = (payload: OrganizationSavedPayload) => {
@@ -594,40 +655,64 @@ export default function SearchOrganizationsTabContent() {
       return;
     }
 
-    const label = searchQuery.trim() || `Saved organisations ${format(new Date(), 'yyyy-MM-dd HH:mm')}`;
-    const payload: OrganizationSavedPayload = {
-      searchQuery,
-      selectedSectors,
-      selectedSubSectors,
-      selectedCountries,
-      type: filters.type || [],
-    };
-
-    try {
-      await organizationService.saveSearch(user.id, label, payload);
-      toast.success('Search saved');
-      fetchSavedSearches();
-    } catch (error) {
-      console.error('Error saving search:', error);
-      toast.error('Failed to save search');
-    }
+    setEditingSavedSearch(null);
+    setIsSaveSearchDialogOpen(true);
   };
 
-  const handleDeleteSavedSearch = async (id: string | number) => {
-    try {
-      await organizationService.deleteSavedSearch(Number(id));
-      toast.success('Search deleted');
-      fetchSavedSearches();
-    } catch (error) {
-      console.error('Error deleting search:', error);
-      toast.error('Failed to delete search');
+  const openEditSavedSearch = (entry: SavedSearchEntry<OrganizationSavedPayload>) => {
+    setEditingSavedSearch(entry);
+    setIsSaveSearchDialogOpen(true);
+  };
+
+  const saveSearch = ({ name, alertSettings, useCurrentCriteria }: SavedSearchEditorSavePayload) => {
+    const payload = useCurrentCriteria || !editingSavedSearch ? buildPayload() : editingSavedSearch.payload;
+    const patch = {
+      name,
+      filters: payload,
+      ...buildOrganizationProfileSearchFields(activeOrganizationProfile),
+      context: {
+        type: 'organisations' as const,
+        route: '/search/organisations',
+        label: 'Organisations',
+        summary: buildSummary(),
+        language,
+        accountType: user?.accountType,
+      },
+      alertsEnabled: alertSettings.alertFrequency !== 'unsubscribe' && alertSettings.status === 'active',
+      alertFrequency: alertSettings.alertFrequency,
+      alertDays: alertSettings.alertDays,
+      alertHour: alertSettings.alertHour,
+      emailFormat: alertSettings.emailFormat,
+      status: alertSettings.status,
+    };
+
+    if (editingSavedSearch) {
+      savedSearchService.update(editingSavedSearch.id, patch);
+      toast.success('Saved search updated');
+    } else {
+      savedSearchService.save({ userId: user?.id, ...patch });
+      toast.success('Search saved');
     }
+
+    setIsSaveSearchDialogOpen(false);
+    setEditingSavedSearch(null);
+    fetchSavedSearches();
+  };
+
+  const deleteSavedSearch = (id: string) => {
+    savedSearchService.remove(id);
+    toast.success('Search deleted');
+    fetchSavedSearches();
   };
 
   const openLoadSearchDialog = () => {
     fetchSavedSearches();
     setIsLoadDialogOpen(true);
   };
+
+  useEffect(() => {
+    fetchSavedSearches();
+  }, [user?.id, activeOrganizationProfile?.id]);
 
   const sectionHeadingKey = 'search.section.organisations.filters.heading';
   const sectionDescriptionKey = 'search.section.organisations.filters.description';
@@ -1110,6 +1195,9 @@ export default function SearchOrganizationsTabContent() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-primary">{entry.label}</p>
                       <p className="text-xs text-muted-foreground">{format(new Date(entry.createdAt), 'yyyy-MM-dd HH:mm')}</p>
+                      <div className="mt-1">
+                        <SavedSearchProfileBadge profileName={entry.organizationProfileName} profileEmail={entry.organizationProfileEmail} />
+                      </div>
                     </div>
                     <div className="flex shrink-0 gap-2">
                       <Button

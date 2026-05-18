@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { authService, LoginResponse } from '@app/services/authService';
+import type { OrganizationProfile } from '@app/services/organizationProfileService';
 
 interface User {
   id: string;
@@ -14,6 +15,25 @@ interface User {
 
 type QuickLoginAccountType = 'expert' | 'organization' | 'organization-user' | 'admin' | 'public';
 
+const buildUserFromLoginResponse = (response: LoginResponse): User => {
+  const { id, email: userEmail, roles } = response;
+  const primaryRole = roles && roles.length > 0 ? roles[0] : 'public';
+  const normalizedRole = primaryRole.toLowerCase().replace(/_/g, '-');
+  const accountType = normalizedRole === 'organization-user'
+    ? 'organization'
+    : normalizedRole as User['accountType'];
+
+  return {
+    id: String(id),
+    email: userEmail,
+    firstName: userEmail.split('@')[0],
+    lastName: 'User',
+    role: normalizedRole,
+    accountType,
+    organizationId: response.organizationId,
+  };
+};
+
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
@@ -23,6 +43,8 @@ interface AuthContextType {
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (token: string, newPassword: string) => Promise<void>;
   quickLogin: (accountType: QuickLoginAccountType) => Promise<void>;
+  activeOrganizationProfile: OrganizationProfile | null;
+  setActiveOrganizationProfile: (profile: OrganizationProfile | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,6 +52,17 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [activeOrganizationProfileState, setActiveOrganizationProfileState] = useState<OrganizationProfile | null>(null);
+
+  const persistLoginResponse = (response: LoginResponse) => {
+    const { token } = response;
+    const loggedInUser = buildUserFromLoginResponse(response);
+
+    setUser(loggedInUser);
+    setIsAuthenticated(true);
+    localStorage.setItem('assortis_token', token);
+    localStorage.setItem('assortis_user', JSON.stringify(loggedInUser));
+  };
 
   // Check for existing session on mount
   useEffect(() => {
@@ -40,6 +73,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
         setIsAuthenticated(true);
+        const storedProfile = localStorage.getItem('assortis_active_organization_profile');
+        if (storedProfile) {
+          setActiveOrganizationProfileState(JSON.parse(storedProfile));
+        }
       } catch (error) {
         console.error('Error parsing stored user:', error);
         localStorage.removeItem('assortis_user');
@@ -74,32 +111,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     try {
       const response: LoginResponse = await authService.login(email, password);
-      const { token, id, email: userEmail, roles } = response;
-      
-      const primaryRole = roles && roles.length > 0 ? roles[0] : 'public';
-      
-      const loggedInUser: User = {
-        id: String(id),
-        email: userEmail,
-        firstName: userEmail.split('@')[0], // Extract first part of email as fallback
-        lastName: 'User',
-        role: primaryRole,
-        accountType: primaryRole.toLowerCase() as any,
-        organizationId: response.organizationId,
-      };
-
-      setUser(loggedInUser);
-      setIsAuthenticated(true);
-      localStorage.setItem('assortis_token', token);
-      localStorage.setItem('assortis_user', JSON.stringify(loggedInUser));
+      persistLoginResponse(response);
     } catch (error: any) {
       throw new Error(error.message || 'Login failed');
+    }
+  };
+
+  const setActiveOrganizationProfile = (profile: OrganizationProfile | null) => {
+    setActiveOrganizationProfileState(profile);
+    if (profile) {
+      localStorage.setItem('assortis_active_organization_profile', JSON.stringify(profile));
+    } else {
+      localStorage.removeItem('assortis_active_organization_profile');
     }
   };
 
   const logout = () => {
     setUser(null);
     setIsAuthenticated(false);
+    setActiveOrganizationProfile(null);
     authService.logout();
   };
 
@@ -145,43 +175,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const quickLogin = async (accountType: QuickLoginAccountType): Promise<void> => {
-    /* OLD STATIC AUTH (disabled for dynamic backend auth)
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (accountType) {
-          const isOrganizationUser = accountType === 'organization-user';
-          const resolvedAccountType = isOrganizationUser ? 'organization' : accountType;
-          const mockUser: User = {
-            id: '2',
-            email: isOrganizationUser ? 'organization-user@example.com' : `${accountType}@example.com`,
-            firstName: isOrganizationUser
-              ? 'Organization'
-              : accountType.charAt(0).toUpperCase() + accountType.slice(1),
-            lastName: 'User',
-            role:
-              accountType === 'admin'
-                ? 'admin'
-                : isOrganizationUser
-                ? 'organization-user'
-                : accountType === 'organization'
-                ? 'organization-admin'
-                : 'member',
-            accountType: resolvedAccountType,
-            isSubscribed: resolvedAccountType !== 'public',
-          };
-          setUser(mockUser);
-          setIsAuthenticated(true);
-          localStorage.setItem('assortis_user', JSON.stringify(mockUser));
-          resolve();
-        } else {
-          reject(new Error('Invalid account type'));
-        }
-      }, 500);
-    });
-    */
-    
-    // Quick login is disabled for production backend auth
-    throw new Error('Quick login is not available in production mode');
+    const response = await authService.demoLogin(accountType);
+    persistLoginResponse(response);
   };
 
   return (
@@ -195,6 +190,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         forgotPassword,
         resetPassword,
         quickLogin,
+        activeOrganizationProfile: activeOrganizationProfileState,
+        setActiveOrganizationProfile,
       }}
     >
       {children}

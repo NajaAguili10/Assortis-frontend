@@ -4,6 +4,7 @@
  */
 
 export type AccountType = 'expert' | 'organization' | 'admin' | 'public';
+export const PUBLIC_VISIBLE_ITEM_LIMIT = 5;
 
 export interface ModulePermissions {
   canAccess: boolean;
@@ -19,6 +20,10 @@ export const isOrganizationAccount = (accountType?: AccountType): boolean => {
 
 export const isExpertAccount = (accountType?: AccountType): boolean => {
   return accountType === 'expert';
+};
+
+export const isPublicAccount = (accountType?: AccountType): boolean => {
+  return accountType === 'public';
 };
 
 export const isOrganizationOrAdminAccount = (accountType?: AccountType): boolean => {
@@ -112,6 +117,10 @@ export const hasOrganizationsSubMenuAccess = (
     return ['organization', 'expert', 'admin'].includes(accountType);
   }
 
+  if (subMenu === 'myOrganization') {
+    return ['organization', 'public', 'admin'].includes(accountType);
+  }
+
   if (subMenu === 'projectReferences') {
     return ['organization', 'expert', 'admin'].includes(accountType);
   }
@@ -144,6 +153,43 @@ export const hasMonEspaceAccess = (accountType?: AccountType): boolean => {
   // organization, expert et admin ont accès
   // Seul public n'a pas accès
   return ['organization', 'expert', 'admin'].includes(accountType);
+};
+
+export const canAccessPublicOrganizationProfile = (accountType?: AccountType): boolean => {
+  return ['organization', 'public', 'admin'].includes(accountType || '');
+};
+
+export const canAccessMySearch = (accountType?: AccountType): boolean => {
+  return ['organization', 'expert', 'public', 'admin'].includes(accountType || '');
+};
+
+export const canAccessMatchingProjectsPreview = (accountType?: AccountType): boolean => {
+  return ['organization', 'expert', 'public', 'admin'].includes(accountType || '');
+};
+
+export const canAccessStats = (accountType?: AccountType | 'expert-organization'): boolean => {
+  return accountType !== 'public' && hasStatisticsAccess(accountType);
+};
+
+export const canAccessTraining = (accountType?: AccountType): boolean => {
+  return !!accountType && !isPublicAccount(accountType);
+};
+
+export const canAccessTasks = (accountType?: AccountType): boolean => {
+  return ['organization', 'expert', 'admin'].includes(accountType || '');
+};
+
+export const canAccessTeamMembers = (accountType?: AccountType): boolean => {
+  return ['organization', 'admin'].includes(accountType || '');
+};
+
+export const getMatchingProjectsAccessMode = (
+  accountType?: AccountType,
+  isSubscribed = true
+): 'full' | 'preview' | 'none' => {
+  if (!canAccessMatchingProjectsPreview(accountType)) return 'none';
+  if (isPublicAccount(accountType) || !isSubscribed) return 'preview';
+  return 'full';
 };
 
 /**
@@ -291,10 +337,10 @@ export const canNavigateModule = (module: 'tenders' | 'offers' | 'experts' | 'or
     
     case 'training':
       // Tous les types peuvent accéder aux formations
-      return true;
+      return canAccessTraining(accountType);
 
     case 'statistics':
-      return hasStatisticsAccess(accountType);
+      return canAccessStats(accountType);
     
     default:
       return false;

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
 import { organizationService } from '@app/services/organizationService';
-import { ProjectStatusEnum, ProjectPriorityEnum, ProjectSectorEnum } from '@app/types/project.dto';
+import { ProjectSectorEnum } from '@app/types/project.dto';
 import { Button } from '@app/components/ui/button';
 import { Input } from '@app/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@app/components/ui/select';
@@ -20,6 +20,7 @@ import {
   type SavedSearchEditorSavePayload,
   type SavedSearchReviewItem,
 } from '@app/components/SavedSearchEditorDialog';
+import { SavedSearchProfileBadge } from '@app/components/SavedSearchProfileBadge';
 import { useProjects } from '@app/hooks/useProjects';
 import {
   Search,
@@ -34,8 +35,8 @@ import {
   Building2,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { ProjectStatusEnum, ProjectPriorityEnum, type ProjectFiltersDTO } from '@app/types/project.dto';
-import { savedSearchService, type SavedSearchAlertSettings } from '@app/services/savedSearchService';
+import { ProjectStatusEnum, type ProjectFiltersDTO } from '@app/types/project.dto';
+import { buildOrganizationProfileSearchFields, savedSearchService, type SavedSearchAlertSettings } from '@app/services/savedSearchService';
 import { toast } from 'sonner';
 
 interface ProjectSavedPayload {
@@ -49,11 +50,14 @@ interface SavedSearchEntry<TPayload> {
   label: string;
   createdAt: string;
   payload: TPayload;
+  organizationProfileId?: string;
+  organizationProfileName?: string;
+  organizationProfileEmail?: string;
 }
 
 export default function SearchProjectsTabContent() {
   const { t, language } = useLanguage();
-  const { user } = useAuth();
+  const { user, activeOrganizationProfile } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const {
@@ -71,9 +75,9 @@ export default function SearchProjectsTabContent() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const { user } = useAuth();
   const [subscriptionSectors, setSubscriptionSectors] = useState<string[]>([]);
   const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
+  const [notIncludedInMembershipSubscription, setNotIncludedInMembershipSubscription] = useState(false);
 
   useEffect(() => {
     if (user?.organizationId) {
@@ -95,16 +99,22 @@ export default function SearchProjectsTabContent() {
   const [editingSavedSearch, setEditingSavedSearch] = useState<SavedSearchEntry<ProjectSavedPayload> | null>(null);
   const [savedSearches, setSavedSearches] = useState<SavedSearchEntry<ProjectSavedPayload>[]>([]);
 
-  const readSavedSearches = (): SavedSearchEntry<ProjectSavedPayload>[] => savedSearchService.list(user?.id, 'projects').map((item) => ({
-    id: item.id,
-    label: item.name,
-    createdAt: item.created_at,
-    payload: item.filters as ProjectSavedPayload,
-  }));
+  const readSavedSearches = (): SavedSearchEntry<ProjectSavedPayload>[] => savedSearchService
+    .list(user?.id, 'projects')
+    .filter((item) => !activeOrganizationProfile || item.organizationProfileId === activeOrganizationProfile.id)
+    .map((item) => ({
+      id: item.id,
+      label: item.name,
+      createdAt: item.created_at,
+      payload: item.filters as ProjectSavedPayload,
+      organizationProfileId: item.organizationProfileId,
+      organizationProfileName: item.organizationProfileName,
+      organizationProfileEmail: item.organizationProfileEmail,
+    }));
 
   useEffect(() => {
     setSavedSearches(readSavedSearches());
-  }, [user?.id]);
+  }, [user?.id, activeOrganizationProfile?.id]);
 
   useEffect(() => {
     const q = (searchParams.get('q') || '').trim();
@@ -129,6 +139,7 @@ export default function SearchProjectsTabContent() {
     filters: {
       ...filters,
       searchQuery: searchQuery || filters.searchQuery,
+      notIncludedInMembershipSubscription,
     },
     sortBy,
   });
@@ -136,6 +147,7 @@ export default function SearchProjectsTabContent() {
   const applySavedSearch = (payload: ProjectSavedPayload) => {
     setSearchQuery(payload.searchQuery || payload.filters?.searchQuery || '');
     updateFilters(payload.filters || {});
+    setNotIncludedInMembershipSubscription(Boolean(payload.filters?.notIncludedInMembershipSubscription));
     setSortBy(payload.sortBy || 'newest');
   };
 
@@ -161,6 +173,7 @@ export default function SearchProjectsTabContent() {
       projectFilters.region?.length ? `Regions: ${projectFilters.region.length}` : '',
       projectFilters.minBudget !== undefined ? `Min budget: ${projectFilters.minBudget}` : '',
       projectFilters.maxBudget !== undefined ? `Max budget: ${projectFilters.maxBudget}` : '',
+      projectFilters.notIncludedInMembershipSubscription ? 'Not included in membership subscription' : '',
     ].filter(Boolean);
   };
 
@@ -178,6 +191,7 @@ export default function SearchProjectsTabContent() {
       { label: 'Countries / Regions', value: formatList(projectFilters.region as string[]) },
       { label: 'Budget', value: projectFilters.minBudget !== undefined || projectFilters.maxBudget !== undefined ? `${projectFilters.minBudget ?? 'Any'} - ${projectFilters.maxBudget ?? 'Any'}` : '' },
       { label: 'Organisation Name', value: projectFilters.leadOrganization },
+      { label: 'Membership Subscription', value: projectFilters.notIncludedInMembershipSubscription ? 'Not included in the membership subscription' : '' },
     ];
   };
 
@@ -209,6 +223,7 @@ export default function SearchProjectsTabContent() {
       savedSearchService.update(editingSavedSearch.id, {
         name,
         filters: nextPayload,
+        ...buildOrganizationProfileSearchFields(activeOrganizationProfile),
         context: useCurrentCriteria
           ? {
               type: 'projects',
@@ -237,6 +252,7 @@ export default function SearchProjectsTabContent() {
       userId: user?.id,
       name,
       filters: buildPayload(),
+      ...buildOrganizationProfileSearchFields(activeOrganizationProfile),
       context: {
         type: 'projects',
         route: '/search/projects',
@@ -349,6 +365,17 @@ export default function SearchProjectsTabContent() {
             </div>
           </div>
         )}
+        <label className="mt-4 flex w-fit cursor-pointer items-center gap-2 rounded-md border bg-white px-3 py-2 text-sm text-gray-700">
+          <input
+            type="checkbox"
+            checked={notIncludedInMembershipSubscription}
+            onChange={(event) => {
+              setNotIncludedInMembershipSubscription(event.target.checked);
+              updateFilters({ notIncludedInMembershipSubscription: event.target.checked });
+            }}
+          />
+          <span>Not included in the membership subscription</span>
+        </label>
       </div>
 
       <div>
@@ -494,6 +521,9 @@ export default function SearchProjectsTabContent() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-primary">{entry.label}</p>
                       <p className="text-xs text-muted-foreground">{format(new Date(entry.createdAt), 'yyyy-MM-dd HH:mm')}</p>
+                      <div className="mt-1">
+                        <SavedSearchProfileBadge profileName={entry.organizationProfileName} profileEmail={entry.organizationProfileEmail} />
+                      </div>
                     </div>
                     <div className="flex shrink-0 gap-2">
                       <Button

@@ -5,7 +5,7 @@ export const projectService = {
 
 
   getAllProjects: async (): Promise<ProjectListDTO[]> => {
-    return await apiClient.get<ProjectListDTO[]>('/projects');
+    return await apiClient.get<ProjectListDTO[]>('/projects/all');
   },
 
 
@@ -29,6 +29,9 @@ export const projectService = {
     if (filters.region && filters.region.length > 0) params.region = filters.region.join(',');
     if (filters.minBudget !== undefined) params.minBudget = filters.minBudget;
     if (filters.maxBudget !== undefined) params.maxBudget = filters.maxBudget;
+    if (filters.notIncludedInMembershipSubscription !== undefined) {
+      params.notIncludedInMembershipSubscription = filters.notIncludedInMembershipSubscription;
+    }
 
     return apiClient.get<PaginatedResponseDTO<ProjectListDTO>>('/projects', params);
   },

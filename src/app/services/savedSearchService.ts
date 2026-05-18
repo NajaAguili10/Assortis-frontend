@@ -1,3 +1,5 @@
+import { apiClient } from '@app/api/apiClient';
+
 export type SavedSearchType =
   | 'map'
   | 'projects'
@@ -31,6 +33,9 @@ export interface SavedSearchAlertSettings {
 export interface SavedSearch<TFilters = unknown> {
   id: string;
   user_id: string;
+  organizationProfileId?: string;
+  organizationProfileName?: string;
+  organizationProfileEmail?: string;
   name: string;
   filters: TFilters;
   context: SavedSearchContext;
@@ -62,6 +67,50 @@ const writeAll = (items: SavedSearch[]) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
 };
 
+const normalizeRemoteSavedSearch = (item: any): SavedSearch => normalizeSavedSearch({
+  id: String(item.id),
+  user_id: resolveSavedSearchUserId(item.userId ?? item.user_id),
+  organizationProfileId: item.organizationProfileId != null ? String(item.organizationProfileId) : undefined,
+  organizationProfileName: item.organizationProfileName,
+  organizationProfileEmail: item.organizationProfileEmail,
+  name: item.name || 'Untitled saved search',
+  filters: item.filters ?? item.payload ?? {},
+  context: item.context ?? {
+    type: 'projects',
+    route: '/search/projects',
+    label: 'Projects',
+  },
+  alertsEnabled: item.alertsEnabled,
+  alertFrequency: item.alertFrequency,
+  alertDays: item.alertDays,
+  alertHour: item.alertHour,
+  emailFormat: item.emailFormat,
+  status: item.status,
+  lastExecutionAt: item.lastExecutionAt,
+  lastMatchCount: item.lastMatchCount,
+  created_at: item.createdAt ?? item.created_at ?? new Date().toISOString(),
+  updated_at: item.updatedAt ?? item.updated_at,
+});
+
+const toRemotePayload = <TFilters>(input: {
+  organizationProfileId?: string;
+  name?: string;
+  filters?: TFilters;
+  context?: SavedSearchContext;
+  alertsEnabled?: boolean;
+} & Partial<SavedSearchAlertSettings>) => ({
+  organizationProfileId: input.organizationProfileId ? Number(input.organizationProfileId) : undefined,
+  name: input.name,
+  filters: input.filters ?? {},
+  context: input.context,
+  alertsEnabled: input.alertsEnabled,
+  alertFrequency: input.alertFrequency,
+  alertDays: input.alertDays,
+  alertHour: input.alertHour,
+  emailFormat: input.emailFormat,
+  status: input.status,
+});
+
 export const normalizeSavedSearch = <TFilters = unknown>(item: SavedSearch<TFilters>): SavedSearch<TFilters> => {
   const alertFrequency = item.alertFrequency || (item.alertsEnabled === false ? 'unsubscribe' : 'daily');
   return {
@@ -79,6 +128,16 @@ export const normalizeSavedSearch = <TFilters = unknown>(item: SavedSearch<TFilt
 export const resolveSavedSearchUserId = (userId?: string | number | null) =>
   userId === undefined || userId === null || userId === '' ? ANONYMOUS_USER_ID : String(userId);
 
+export const buildOrganizationProfileSearchFields = (
+  profile?: { id: string; fullName: string; email: string } | null,
+) => profile
+  ? {
+      organizationProfileId: profile.id,
+      organizationProfileName: profile.fullName,
+      organizationProfileEmail: profile.email,
+    }
+  : {};
+
 export const savedSearchService = {
   list(userId?: string | number | null, type?: SavedSearchType): SavedSearch[] {
     const resolvedUserId = resolveSavedSearchUserId(userId);
@@ -95,6 +154,9 @@ export const savedSearchService = {
 
   save<TFilters>(input: {
     userId?: string | number | null;
+    organizationProfileId?: string;
+    organizationProfileName?: string;
+    organizationProfileEmail?: string;
     name: string;
     filters: TFilters;
     context: SavedSearchContext;
@@ -105,6 +167,9 @@ export const savedSearchService = {
     const entry: SavedSearch<TFilters> = {
       id: `saved-search-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       user_id: resolveSavedSearchUserId(input.userId),
+      organizationProfileId: input.organizationProfileId,
+      organizationProfileName: input.organizationProfileName,
+      organizationProfileEmail: input.organizationProfileEmail,
       name: input.name.trim(),
       filters: input.filters,
       context: input.context,
@@ -140,6 +205,10 @@ export const savedSearchService = {
     writeAll(readAll().filter((item) => item.id !== id));
   },
 
+  removeByOrganizationProfile(profileId: string) {
+    writeAll(readAll().filter((item) => item.organizationProfileId !== profileId));
+  },
+
   toggleAlerts(id: string) {
     const current = this.get(id);
     if (!current) return;
@@ -156,6 +225,9 @@ export const savedSearchService = {
     if (!current) return null;
     return this.save({
       userId: current.user_id,
+      organizationProfileId: current.organizationProfileId,
+      organizationProfileName: current.organizationProfileName,
+      organizationProfileEmail: current.organizationProfileEmail,
       name: `${current.name} copy`,
       filters: current.filters,
       context: current.context,
@@ -182,6 +254,75 @@ export const savedSearchService = {
       lastExecutionAt: new Date().toISOString(),
       lastMatchCount: matchCount ?? Math.floor(12 + Math.random() * 86),
     });
+  },
+
+  async listRemote(type?: SavedSearchType): Promise<SavedSearch[]> {
+    const rows = await apiClient.get<any[]>('/saved-searches');
+    return rows
+      .map(normalizeRemoteSavedSearch)
+      .filter((item) => !type || item.context.type === type)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  },
+
+  async saveRemote<TFilters>(input: {
+    userId?: string | number | null;
+    organizationProfileId?: string;
+    organizationProfileName?: string;
+    organizationProfileEmail?: string;
+    name: string;
+    filters: TFilters;
+    context: SavedSearchContext;
+    alertsEnabled?: boolean;
+  } & Partial<SavedSearchAlertSettings>): Promise<SavedSearch<TFilters>> {
+    const response = await apiClient.post<any>('/saved-searches', toRemotePayload(input));
+    return normalizeRemoteSavedSearch(response) as SavedSearch<TFilters>;
+  },
+
+  async updateRemote<TFilters>(id: string, patch: Partial<SavedSearch<TFilters>>): Promise<SavedSearch<TFilters>> {
+    const response = await apiClient.put<any>(`/saved-searches/${encodeURIComponent(id)}`, toRemotePayload(patch as any));
+    return normalizeRemoteSavedSearch(response) as SavedSearch<TFilters>;
+  },
+
+  async removeRemote(id: string): Promise<void> {
+    await apiClient.delete(`/saved-searches/${encodeURIComponent(id)}`);
+  },
+
+  async duplicateRemote(id: string): Promise<SavedSearch | null> {
+    const current = await this.getRemote(id);
+    if (!current) return null;
+    return this.saveRemote({
+      userId: current.user_id,
+      organizationProfileId: current.organizationProfileId,
+      organizationProfileName: current.organizationProfileName,
+      organizationProfileEmail: current.organizationProfileEmail,
+      name: `${current.name} copy`,
+      filters: current.filters,
+      context: current.context,
+      alertsEnabled: current.alertsEnabled,
+      alertFrequency: current.alertFrequency,
+      alertDays: current.alertDays,
+      alertHour: current.alertHour,
+      emailFormat: current.emailFormat,
+      status: current.status,
+    });
+  },
+
+  async getRemote(id: string): Promise<SavedSearch | null> {
+    const rows = await this.listRemote();
+    return rows.find((item) => item.id === id) ?? null;
+  },
+
+  async setPausedRemote(search: SavedSearch, paused: boolean): Promise<SavedSearch> {
+    return this.updateRemote(search.id, {
+      ...search,
+      status: paused ? 'paused' : 'active',
+      alertsEnabled: !paused && search.alertFrequency !== 'unsubscribe',
+    });
+  },
+
+  async recordRunRemote(id: string, matchCount?: number): Promise<SavedSearch> {
+    const response = await apiClient.post<any>(`/saved-searches/${encodeURIComponent(id)}/run`, { matchCount });
+    return normalizeRemoteSavedSearch(response);
   },
 };
 

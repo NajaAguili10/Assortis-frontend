@@ -31,6 +31,8 @@ interface ProjectsContextType {
   collaborations: CollaborationDTO[];
   addCollaboration: (collaboration: CollaborationDTO) => void;
   templates: ProjectTemplateDTO[];
+  isProjectsLoading: boolean;
+  projectsError: string | null;
 }
 
 const ProjectsContext = createContext<ProjectsContextType | undefined>(undefined);
@@ -783,21 +785,33 @@ const initialMockTemplates: ProjectTemplateDTO[] = [
 
 export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 const [projects, setProjects] = useState<ProjectListDTO[]>([]); 
+  const [isProjectsLoading, setIsProjectsLoading] = useState(false);
+  const [projectsError, setProjectsError] = useState<string | null>(null);
 
+  // Local-only placeholders until task, collaboration, and template APIs exist.
   const [tasks, setTasks] = useState<TaskDTO[]>(initialMockTasks);
   const [collaborations, setCollaborations] = useState<CollaborationDTO[]>(initialMockCollaborations);
   const [templates, setTemplates] = useState<ProjectTemplateDTO[]>(initialMockTemplates);
 
   useEffect(() => {
     const fetchProjects = async () => {
+      setIsProjectsLoading(true);
+      setProjectsError(null);
       try {
         const response = await projectService.getAllProjects();
-        if (Array.isArray(response) && response.length > 0) {
+        if (Array.isArray(response)) {
           // Map to internal type if necessary, here we assume they match or are compatible
           setProjects(response as ProjectListDTO[]);
+        } else {
+          throw new Error('Invalid projects response from backend');
         }
       } catch (error) {
-        console.error("Error fetching projects in context, keeping mock data:", error);
+        const message = error instanceof Error ? error.message : 'Unable to load projects';
+        setProjects([]);
+        setProjectsError(message);
+        console.error("Error fetching projects from backend:", error);
+      } finally {
+        setIsProjectsLoading(false);
       }
     };
 
@@ -811,17 +825,17 @@ const [projects, setProjects] = useState<ProjectListDTO[]>([]);
   const updateProject = (id: string, updatedProject: Partial<ProjectListDTOInternal>) => {
     setProjects((prev) =>
       prev.map((project) =>
-        project.id === id ? { ...project, ...updatedProject, updatedDate: new Date().toISOString().split('T')[0] } : project
+        String(project.id) === String(id) ? { ...project, ...updatedProject, updatedDate: new Date().toISOString().split('T')[0] } : project
       )
     );
   };
 
   const deleteProject = (id: string) => {
-    setProjects((prev) => prev.filter((project) => project.id !== id));
+    setProjects((prev) => prev.filter((project) => String(project.id) !== String(id)));
   };
 
   const getProjectById = (id: string) => {
-    return projects.find((project) => project.id === id);
+    return projects.find((project) => String(project.id) === String(id));
   };
 
   const addTask = (task: TaskDTO) => {
@@ -854,6 +868,8 @@ const [projects, setProjects] = useState<ProjectListDTO[]>([]);
         collaborations,
         addCollaboration,
         templates,
+        isProjectsLoading,
+        projectsError,
       }}
     >
       {children}
