@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@app/components/ui/tab
 import { Separator } from '@app/components/ui/separator';
 
 import { useOrganizations } from '@app/modules/organization/hooks/useOrganizations';
+import { useOrganizationBookmarks } from '@app/modules/shared/hooks/useOrganizationBookmarks';
 import {
   Award,
   BarChart3,

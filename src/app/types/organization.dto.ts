@@ -48,6 +48,9 @@ export interface OrganizationBackend {
   address?: string | null;
   postalCode?: string | null;
   equipmentInfrastructure?: string | null;
+  technicalCapacity?: string | null;
+  timezone?: string | null;
+  expertsCount?: number | null;
   activeProjects?: number | null;
   completedProjects?: number | null;
   teamMembers?: number | null;
@@ -233,6 +236,9 @@ export interface Organization {
   postalCode?: string;
 
   equipmentInfrastructure?: string;
+  technicalCapacity?: string;
+  timezone?: string;
+  expertsCount?: number;
   contactName?: string;
   contactTitle?: string;
 }
