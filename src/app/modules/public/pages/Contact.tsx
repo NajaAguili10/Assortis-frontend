@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@app/components/ui/select';
 import { toast } from 'sonner';
+import ReactCountryFlag from 'react-country-flag';
 import { 
   Phone, 
   Mail,
@@ -28,6 +29,7 @@ import { useContactPageContent } from '@app/hooks/useOffersContent';
 import { submitContactForm } from '@app/services/contactService';
 import { ContactFormData } from '@app/types/contact.types';
 import { getIconByName } from '@app/utils/iconMapper';
+import { phoneCountryCodes } from '@app/utils/phoneCountryCodes';
 
 export default function Contact() {
   const { t, language } = useLanguage();
@@ -36,10 +38,15 @@ export default function Contact() {
   
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [selectedCountryCode, setSelectedCountryCode] = useState(
+    phoneCountryCodes.find((country) => country.isoCode === 'TN') ?? phoneCountryCodes[0],
+  );
+  const [phoneNumber, setPhoneNumber] = useState('');
 
   const [formData, setFormData] = useState<ContactFormData>({
     fullName: '',
     email: '',
+    countryCallingCode: selectedCountryCode.dialCode,
     phone: '',
     subject: '',
     message: '',
@@ -63,14 +70,23 @@ export default function Contact() {
     setSubmitting(true);
 
     try {
-      await submitContactForm(formData);
+      const trimmedPhoneNumber = phoneNumber.trim();
+      const formattedPhone = trimmedPhoneNumber
+        ? `${selectedCountryCode.dialCode} ${trimmedPhoneNumber}`
+        : '';
+
+      await submitContactForm({
+        ...formData,
+        countryCallingCode: selectedCountryCode.dialCode,
+        phone: trimmedPhoneNumber,
+      });
       
       // ✅ Enregistrer dans l'historique
       addHistoryEntry({
         type: 'general_inquiry',
         organizationName: 'Assortis Support',
         title: formData.subject,
-        message: `${language === 'fr' ? 'De' : language === 'es' ? 'De' : 'From'}: ${formData.fullName}\n${language === 'fr' ? 'Email' : language === 'es' ? 'Correo electrónico' : 'Email'}: ${formData.email}${formData.phone ? `\n${language === 'fr' ? 'Téléphone' : language === 'es' ? 'Teléfono' : 'Phone'}: ${formData.phone}` : ''}\n\n${formData.message}`,
+        message: `${language === 'fr' ? 'De' : language === 'es' ? 'De' : 'From'}: ${formData.fullName}\n${language === 'fr' ? 'Email' : language === 'es' ? 'Correo electrónico' : 'Email'}: ${formData.email}${formattedPhone ? `\n${language === 'fr' ? 'Téléphone' : language === 'es' ? 'Teléfono' : 'Phone'}: ${formattedPhone}` : ''}\n\n${formData.message}`,
         status: 'sent',
       });
       
@@ -83,10 +99,15 @@ export default function Contact() {
         setFormData({
           fullName: '',
           email: '',
+          countryCallingCode: phoneCountryCodes.find((country) => country.isoCode === 'TN')?.dialCode ?? '+216',
           phone: '',
           subject: '',
           message: '',
         });
+        setSelectedCountryCode(
+          phoneCountryCodes.find((country) => country.isoCode === 'TN') ?? phoneCountryCodes[0],
+        );
+        setPhoneNumber('');
         setSubmitted(false);
       }, 3000);
     } catch (err) {
@@ -316,15 +337,67 @@ export default function Contact() {
                         )}
                         
                         {field.type === 'tel' && (
-                          <Input
-                            id={field.name}
-                            type="tel"
-                            placeholder={field.placeholder[language]}
-                            value={formData[field.name as keyof ContactFormData]}
-                            onChange={(e) => handleInputChange(field.name as keyof ContactFormData, e.target.value)}
-                            required={field.required}
-                            className="w-full"
-                          />
+                          <div className="flex flex-col gap-3 sm:flex-row">
+                            <Select
+                              value={selectedCountryCode.isoCode}
+                              onValueChange={(value) => {
+                                const nextCountry = phoneCountryCodes.find((country) => country.isoCode === value);
+                                if (nextCountry) {
+                                  setSelectedCountryCode(nextCountry);
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    countryCallingCode: nextCountry.dialCode,
+                                  }));
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="w-full sm:w-[260px]">
+                                <SelectValue>
+                                  <span className="flex items-center gap-2">
+                                    <ReactCountryFlag
+                                      countryCode={selectedCountryCode.isoCode}
+                                      svg
+                                      aria-label={selectedCountryCode.country}
+                                    />
+                                    <span className="truncate">
+                                      {selectedCountryCode.country} ({selectedCountryCode.dialCode})
+                                    </span>
+                                  </span>
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {phoneCountryCodes.map((country) => (
+                                  <SelectItem key={country.isoCode} value={country.isoCode}>
+                                    <span className="flex items-center gap-2">
+                                      <ReactCountryFlag
+                                        countryCode={country.isoCode}
+                                        svg
+                                        aria-label={country.country}
+                                      />
+                                      <span>{country.country} ({country.dialCode})</span>
+                                    </span>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+
+                            <Input
+                              id={field.name}
+                              type="tel"
+                              placeholder={field.placeholder[language]}
+                              value={phoneNumber}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setPhoneNumber(value);
+                                setFormData(prev => ({
+                                  ...prev,
+                                  phone: value,
+                                }));
+                              }}
+                              required={field.required}
+                              className="w-full"
+                            />
+                          </div>
                         )}
                         
                         {field.type === 'select' && field.options && (
