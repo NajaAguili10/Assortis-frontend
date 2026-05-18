@@ -1,13 +1,40 @@
 import { apiClient } from '../api/apiClient';
 import { ProjectFiltersDTO, ProjectListDTO } from '../types/project.dto';
 
-export const projectService = {
+export interface CreateProjectPayload {
+  /** Required */
+  title: string;
+  /** Optional */
+  referenceCode?: string;
+  description?: string;
+  /** e.g. "DEVELOPMENT" | "INFRASTRUCTURE" | "CAPACITY_BUILDING" | "RESEARCH" | "TECHNICAL_ASSISTANCE" | "HUMANITARIAN" | "PILOT" | "PROGRAM" */
+  type?: string;
+  /** e.g. "ACTIVE" | "DRAFT" | "PLANNING" */
+  status?: string;
+  /** e.g. "LOW" | "MEDIUM" | "HIGH" | "URGENT" */
+  priority?: string;
+  /** e.g. "LOCAL" | "NATIONAL" | "REGIONAL" | "INTERNATIONAL" */
+  scope?: string;
+  region?: string;
+  /** Country code or name */
+  country?: string;
+  city?: string;
+  /** Sector code */
+  sector?: string;
+  budget?: number;
+  currency?: string;
+  fundingType?: string;
+  /** ISO date string e.g. "2025-01-15" */
+  startDate?: string;
+  endDate?: string;
+  donorId?: number;
+}
 
+export const projectService = {
 
   getAllProjects: async (): Promise<ProjectListDTO[]> => {
     return await apiClient.get<ProjectListDTO[]>('/projects/all');
   },
-
 
   getPaginatedProjects: async (page: number = 0, size: number = 10) => {
     return apiClient.get('/projects', { page, size });
@@ -40,6 +67,10 @@ export const projectService = {
     return apiClient.get(`/projects/${id}`);
   },
 
+  createProject: async (payload: CreateProjectPayload) => {
+    return apiClient.post('/projects', payload);
+  },
+
   getKPIs: async () => {
     return apiClient.get('/projects/kpis');
   },
@@ -56,3 +87,4 @@ export const projectService = {
     return apiClient.delete(`/projects/saved-searches/${id}`);
   }
 };
+
