@@ -20,6 +20,11 @@ pipeline {
             description: 'Running container name'
         )
         string(
+            name: 'DOCKER_NETWORK',
+            defaultValue: 'spring-backend-network',
+            description: 'Docker network shared with the backend container'
+        )
+        string(
             name: 'BRANCH',
             defaultValue: 'Dev',
             description: 'Git branch to build'
@@ -56,6 +61,8 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh """
+                    docker network create ${params.DOCKER_NETWORK} 2>/dev/null || true
+
                     # Stop and remove existing container (ignore errors if not running)
                     docker stop ${params.CONTAINER_NAME} 2>/dev/null || true
                     docker rm   ${params.CONTAINER_NAME} 2>/dev/null || true
@@ -64,6 +71,7 @@ pipeline {
                     docker run -d \\
                         --name ${params.CONTAINER_NAME} \\
                         --restart unless-stopped \\
+                        --network ${params.DOCKER_NETWORK} \\
                         -p ${params.HOST_PORT}:80 \\
                         ${IMAGE_TAG}
 

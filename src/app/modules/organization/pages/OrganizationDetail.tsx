@@ -13,8 +13,10 @@ import { Badge } from '@app/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@app/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@app/components/ui/tabs';
 import { Separator } from '@app/components/ui/separator';
+import { slugifyPartnerName } from '@app/services/organizationPartnerContracts.service';
 
 import { useOrganizations } from '@app/modules/organization/hooks/useOrganizations';
+import { useOrganizationBookmarks } from '@app/modules/shared/hooks/useOrganizationBookmarks';
 import {
   Award,
   BarChart3,
@@ -721,7 +723,16 @@ export default function OrganizationDetail() {
             <p className="font-semibold text-primary">{partner.name}</p>
             <p className="text-muted-foreground">{partner.location}</p>
             <p className="text-muted-foreground">{partner.sectors}</p>
-            <Badge variant="secondary" className="w-fit">{partner.contracts}</Badge>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 w-fit rounded-full bg-secondary px-2.5 text-xs font-semibold text-secondary-foreground hover:bg-accent hover:text-white"
+              onClick={() => navigate(`/organizations/${organization.id}/partners/${slugifyPartnerName(partner.name)}/contracts`)}
+              aria-label={`View ${partner.contracts} contracts with ${partner.name}`}
+            >
+              {partner.contracts}
+            </Button>
             <Badge variant="outline" className="w-fit">{partner.shortlists}</Badge>
           </CardContent>
         </Card>

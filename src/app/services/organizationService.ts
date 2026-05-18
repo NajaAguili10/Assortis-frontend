@@ -201,6 +201,88 @@ const normalizeSectorCode = (sector?: string | null) => {
   return sector.toUpperCase().replace(/[\s&/-]+/g, '_');
 };
 
+const formatBusinessTimezone = (timezone?: string | null, countryCode?: string | null) => {
+  if (!timezone && !countryCode) return '-';
+
+  const normalizedTimezone = timezone?.trim();
+  const upperCountryCode = countryCode?.toUpperCase() || '';
+
+  const timezoneMap: Record<string, string> = {
+    'Africa/Tunis': 'CET (UTC+1)',
+    'Europe/Paris': 'CET (UTC+1)',
+    'Europe/Berlin': 'CET (UTC+1)',
+    'Europe/Rome': 'CET (UTC+1)',
+    'Europe/Madrid': 'CET (UTC+1)',
+    'Europe/Zurich': 'CET (UTC+1)',
+    'Europe/Vienna': 'CET (UTC+1)',
+    'Europe/Amsterdam': 'CET (UTC+1)',
+    'Europe/Brussels': 'CET (UTC+1)',
+    'Europe/Warsaw': 'CET (UTC+1)',
+    'Europe/Prague': 'CET (UTC+1)',
+    'Europe/Budapest': 'CET (UTC+1)',
+    'Europe/Belgrade': 'CET (UTC+1)',
+    'Europe/Ljubljana': 'CET (UTC+1)',
+    'Europe/Bratislava': 'CET (UTC+1)',
+    'Europe/Sarajevo': 'CET (UTC+1)',
+    'Europe/Podgorica': 'CET (UTC+1)',
+    'Europe/Zagreb': 'CET (UTC+1)',
+    'Africa/Algiers': 'CET (UTC+1)',
+    'Europe/London': 'GMT (UTC+0)',
+    'Africa/Accra': 'GMT (UTC+0)',
+    'Africa/Dakar': 'GMT (UTC+0)',
+    'Africa/Bamako': 'GMT (UTC+0)',
+    'Africa/Casablanca': 'GMT (UTC+0)',
+    'Africa/Ouagadougou': 'GMT (UTC+0)',
+    'Africa/Lome': 'GMT (UTC+0)',
+    'Europe/Lisbon': 'GMT (UTC+0)',
+    'Africa/Cairo': 'EET (UTC+2)',
+    'Europe/Sofia': 'EET (UTC+2)',
+    'Asia/Amman': 'EET (UTC+2)',
+    'Asia/Beirut': 'EET (UTC+2)',
+    'Africa/Tripoli': 'EET (UTC+2)',
+  };
+
+  const countryFallbackMap: Record<string, string> = {
+    TN: 'CET (UTC+1)',
+    FR: 'CET (UTC+1)',
+    DE: 'CET (UTC+1)',
+    IT: 'CET (UTC+1)',
+    ES: 'CET (UTC+1)',
+    CH: 'CET (UTC+1)',
+    AT: 'CET (UTC+1)',
+    NL: 'CET (UTC+1)',
+    BE: 'CET (UTC+1)',
+    PL: 'CET (UTC+1)',
+    CZ: 'CET (UTC+1)',
+    HU: 'CET (UTC+1)',
+    RS: 'CET (UTC+1)',
+    SI: 'CET (UTC+1)',
+    SK: 'CET (UTC+1)',
+    BA: 'CET (UTC+1)',
+    ME: 'CET (UTC+1)',
+    HR: 'CET (UTC+1)',
+    DZ: 'CET (UTC+1)',
+    GB: 'GMT (UTC+0)',
+    GH: 'GMT (UTC+0)',
+    SN: 'GMT (UTC+0)',
+    ML: 'GMT (UTC+0)',
+    MA: 'GMT (UTC+0)',
+    BF: 'GMT (UTC+0)',
+    TG: 'GMT (UTC+0)',
+    PT: 'GMT (UTC+0)',
+    EG: 'EET (UTC+2)',
+    BG: 'EET (UTC+2)',
+    JO: 'EET (UTC+2)',
+    LB: 'EET (UTC+2)',
+    LY: 'EET (UTC+2)',
+  };
+
+  return (normalizedTimezone && timezoneMap[normalizedTimezone])
+    || countryFallbackMap[upperCountryCode]
+    || normalizedTimezone
+    || '-';
+};
+
 const normalizeSectors = (org: OrganizationBackend): SectorDTO[] => {
   if (Array.isArray(org.sectors) && org.sectors.length > 0) {
     return org.sectors
@@ -509,7 +591,7 @@ const normalizeCurrentOrganizationProfile = (org: OrganizationBackend) => ({
   languages: Array.isArray(org.languages) ? org.languages.filter(Boolean) : [],
   services: Array.isArray(org.services) ? org.services.filter(Boolean) : [],
   teamSize: org.employeesCount ?? org.teamMembers ?? 0,
-  experts: org.teamMembers ?? 0,
+  experts: org.expertsCount ?? org.teamMembers ?? 0,
   annualBudget: typeof org.annualTurnover === 'number' ? org.annualTurnover : 0,
   projectsCompleted: org.completedProjects ?? 0,
   activeProjects: org.activeProjects ?? 0,
@@ -528,8 +610,9 @@ const normalizeCurrentOrganizationProfile = (org: OrganizationBackend) => ({
     }).format(org.budget)
     : '-',
   employees: org.employeesCount != null ? String(org.employeesCount) : '-',
-  technicalCapacity: org.equipmentInfrastructure ? 'Available' : '-',
+  technicalCapacity: org.technicalCapacity || '-',
   equipment: org.equipmentInfrastructure || '-',
+  timezone: formatBusinessTimezone(org.timezone, org.country?.code),
   certifications: Array.isArray(org.certifications)
     ? org.certifications.map((certification) => certification.certificationName).filter(Boolean)
     : [],
@@ -559,6 +642,9 @@ const buildCurrentOrganizationUpdatePayload = (formData: {
   subsectors: string[];
   languages: string[];
   teamSize: string;
+  experts: string;
+  technicalCapacity: string;
+  equipmentInfrastructure: string;
   annualBudget: string;
   projectsCompleted: string;
   selectedServices: string[];
@@ -583,6 +669,9 @@ const buildCurrentOrganizationUpdatePayload = (formData: {
   subsectors: formData.subsectors,
   languages: formData.languages,
   employeesCount: formData.teamSize ? parseInt(formData.teamSize, 10) : 0,
+  expertsCount: formData.experts ? parseInt(formData.experts, 10) : 0,
+  technicalCapacity: formData.technicalCapacity,
+  equipmentInfrastructure: formData.equipmentInfrastructure,
   annualTurnover: formData.annualBudget ? parseInt(formData.annualBudget, 10) : 0,
   projectsCompleted: formData.projectsCompleted ? parseInt(formData.projectsCompleted, 10) : 0,
   services: formData.selectedServices,
@@ -661,6 +750,9 @@ export const organizationService = {
     subsectors: string[];
     languages: string[];
     teamSize: string;
+    experts: string;
+    technicalCapacity: string;
+    equipmentInfrastructure: string;
     annualBudget: string;
     projectsCompleted: string;
     selectedServices: string[];

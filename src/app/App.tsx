@@ -29,6 +29,7 @@ import NewProject from './modules/shared/pages/NewProject';
 import NewTask from './modules/shared/pages/NewTask';
 import AssignTasks from './modules/shared/pages/AssignTasks';
 import ProjectDetail from './modules/shared/pages/ProjectDetail';
+import ProjectRelatedProjectsContractsPage from './modules/shared/pages/ProjectRelatedProjectsContractsPage';
 import EditProject from './modules/shared/pages/EditProject';
 import CollaborationDetail from './modules/shared/pages/CollaborationDetail';
 import Experts from './modules/expert/pages/Experts';
@@ -61,6 +62,8 @@ import ExpertDashboard from './modules/expert/pages/ExpertDashboard';
 import OrganizationsHub from './modules/organization/pages/OrganizationsHub';
 import OrganizationsDatabase from './modules/organization/pages/OrganizationsDatabase';
 import OrganizationDetail from './modules/organization/pages/OrganizationDetail';
+import OrganizationPartnerContractsPage from './modules/organization/pages/OrganizationPartnerContractsPage';
+import OrganizationPartnerContractDetailPage from './modules/organization/pages/OrganizationPartnerContractDetailPage';
 import OrganizationsTeams from './modules/organization/pages/OrganizationsTeams';
 import OrganizationsPartnerships from './modules/organization/pages/OrganizationsPartnerships';
 import OrganizationsPartnershipDetail from './modules/organization/pages/OrganizationsPartnershipDetail';
@@ -150,6 +153,7 @@ import {
   ProtectedMySelectionAlerts,
   ProtectedAccountSubscription,
   ProtectedAccountTeams,
+  ProtectedManageProfiles,
 } from './components/ProtectedRouteWrapper';
 import AboutPage from './modules/public/pages/AboutPage';
 import Login from './modules/public/pages/Login';
@@ -176,6 +180,16 @@ import JobOfferEditPage from './modules/posting-board/pages/JobOfferEditPage';
 import JobApplicationsPage from './modules/posting-board/pages/JobApplicationsPage';
 import ApplicationDetailPage from './modules/posting-board/pages/ApplicationDetailPage';
 import { MonEspaceProtectedRoute } from './components/MonEspaceProtectedRoute';
+import { PermissionRoute } from './components/PermissionRoute';
+import {
+  canAccessStats,
+  canAccessTasks,
+  canAccessTeamMembers,
+  canAccessTraining,
+  canAccessPublicOrganizationProfile,
+  hasOrganizationsSubMenuAccess,
+  type AccountType,
+} from './services/permissions.service';
 
 // Helper to wrap Mon Espace pages with access control
 const withMonEspaceProtection = (Component: React.ComponentType) => {
@@ -185,6 +199,29 @@ const withMonEspaceProtection = (Component: React.ComponentType) => {
     </MonEspaceProtectedRoute>
   );
 };
+
+const withPermissionProtection = (
+  Component: React.ComponentType,
+  canAccess: (accountType?: AccountType) => boolean,
+  fallbackTo = '/account'
+) => {
+  return () => (
+    <PermissionRoute canAccess={canAccess} fallbackTo={fallbackTo}>
+      <Component />
+    </PermissionRoute>
+  );
+};
+
+const canAccessOrganizationDatabase = (accountType?: AccountType) =>
+  hasOrganizationsSubMenuAccess('database', accountType);
+const canAccessOrganizationProjectReferences = (accountType?: AccountType) =>
+  hasOrganizationsSubMenuAccess('projectReferences', accountType);
+const canAccessOrganizationPartnerships = (accountType?: AccountType) =>
+  hasOrganizationsSubMenuAccess('partnerships', accountType);
+const canAccessOrganizationMatching = (accountType?: AccountType) =>
+  hasOrganizationsSubMenuAccess('matching', accountType);
+const canAccessOrganizationMatchingDossier = (accountType?: AccountType) =>
+  hasOrganizationsSubMenuAccess('matchingDossier', accountType);
 
 const router = createBrowserRouter([
   {
@@ -228,11 +265,12 @@ const router = createBrowserRouter([
       { path: 'projects/pipeline', Component: Pipeline },
       { path: 'projects/matching', Component: ProjectsMatching },
       { path: 'projects/matching-archive', Component: ProjectsMatchingArchive },
+      { path: 'projects/:projectId/related-projects-contracts', Component: ProjectRelatedProjectsContractsPage },
       { path: 'projects/:id', Component: ProjectDetail },
       { path: 'projects/:id/edit', Component: EditProject },
-      { path: 'projects/tasks', Component: ProjectsTasks },
-      { path: 'projects/tasks/new', Component: NewTask },
-      { path: 'projects/tasks/assign', Component: AssignTasks },
+      { path: 'projects/tasks', Component: withPermissionProtection(ProjectsTasks, canAccessTasks) },
+      { path: 'projects/tasks/new', Component: withPermissionProtection(NewTask, canAccessTasks) },
+      { path: 'projects/tasks/assign', Component: withPermissionProtection(AssignTasks, canAccessTasks) },
       { path: 'projects/references', Component: ProjectsReferences },
       { path: 'projects/collaborations', Component: ProjectsCollaborations },
       { path: 'projects/collaborations/:id', Component: CollaborationDetail },
@@ -277,44 +315,46 @@ const router = createBrowserRouter([
       { path: 'matching-opportunities/alerts', element: <Navigate to="/account/my-selection" replace /> },
       { path: 'organizations', Component: OrganizationsHub },
       { path: 'organizations/overview', Component: OrganizationsHub },
-      { path: 'organizations/database', Component: OrganizationsDatabase },
+      { path: 'organizations/database', Component: withPermissionProtection(OrganizationsDatabase, canAccessOrganizationDatabase) },
+      { path: 'organizations/:organizationId/partners/:partnerId/contracts/:contractId', Component: OrganizationPartnerContractDetailPage },
+      { path: 'organizations/:organizationId/partners/:partnerId/contracts', Component: OrganizationPartnerContractsPage },
       { path: 'organizations/:id', Component: OrganizationDetail },
       { path: 'organizations/create-profile', Component: OrganizationsCreateProfile },
       { path: 'organizations/edit-profile', Component: OrganizationsEditProfile },
       { path: 'organizations/invite', Component: OrganizationsInvite },
-      { path: 'organizations/my-organization', Component: MyOrganization },
+      { path: 'organizations/my-organization', Component: withPermissionProtection(MyOrganization, canAccessPublicOrganizationProfile) },
       { path: 'organizations/my-tenders', Component: OrganizationsMyTenders },
       { path: 'organizations/my-tenders/:id', Component: OrganizationsTenderDetail },
       { path: 'organizations/my-tenders/:id/edit', Component: OrganizationsCreateTender },
       { path: 'organizations/create-tender', Component: OrganizationsCreateTender },
-      { path: 'organizations/project-references', Component: OrganizationProjectReferences },
-      { path: 'organizations/project-references/:id', Component: OrganizationProjectReferenceDetail },
-      { path: 'organizations/teams', Component: OrganizationsTeams },
-      { path: 'organizations/partnerships', Component: OrganizationsPartnerships },
-      { path: 'organizations/partnership-detail/:id', Component: OrganizationsPartnershipDetail },
+      { path: 'organizations/project-references', Component: withPermissionProtection(OrganizationProjectReferences, canAccessOrganizationProjectReferences) },
+      { path: 'organizations/project-references/:id', Component: withPermissionProtection(OrganizationProjectReferenceDetail, canAccessOrganizationProjectReferences) },
+      { path: 'organizations/teams', Component: withPermissionProtection(OrganizationsTeams, canAccessTeamMembers) },
+      { path: 'organizations/partnerships', Component: withPermissionProtection(OrganizationsPartnerships, canAccessOrganizationPartnerships) },
+      { path: 'organizations/partnership-detail/:id', Component: withPermissionProtection(OrganizationsPartnershipDetail, canAccessOrganizationPartnerships) },
       { path: 'organizations/invitations', Component: OrganizationsInvitations },
-      { path: 'organizations/matching', Component: OrganizationsMatching },
-      { path: 'organizations/matching-dossier', Component: OrganizationsMatchingArchive },
+      { path: 'organizations/matching', Component: withPermissionProtection(OrganizationsMatching, canAccessOrganizationMatching) },
+      { path: 'organizations/matching-dossier', Component: withPermissionProtection(OrganizationsMatchingArchive, canAccessOrganizationMatchingDossier) },
       { path: 'matching', Component: SmartMatching },
       { path: 'subscriptions', Component: Subscriptions },
-      { path: 'training', Component: Training },
-      { path: 'training/portfolio', Component: TrainingPortfolio },
-      { path: 'training/activated-pills', Component: TrainingActivatedPills },
-      { path: 'training/catalog', Component: TrainingCatalog },
-      { path: 'training/checkout', Component: TrainingCheckout },
-      { path: 'training/checkout/confirmation', Component: TrainingCheckoutConfirmation },
-      { path: 'training/enroll/:courseId', Component: TrainingEnrollment },
-      { path: 'training/program-details/:programId', Component: TrainingProgramDetails },
+      { path: 'training', Component: withPermissionProtection(Training, canAccessTraining) },
+      { path: 'training/portfolio', Component: withPermissionProtection(TrainingPortfolio, canAccessTraining) },
+      { path: 'training/activated-pills', Component: withPermissionProtection(TrainingActivatedPills, canAccessTraining) },
+      { path: 'training/catalog', Component: withPermissionProtection(TrainingCatalog, canAccessTraining) },
+      { path: 'training/checkout', Component: withPermissionProtection(TrainingCheckout, canAccessTraining) },
+      { path: 'training/checkout/confirmation', Component: withPermissionProtection(TrainingCheckoutConfirmation, canAccessTraining) },
+      { path: 'training/enroll/:courseId', Component: withPermissionProtection(TrainingEnrollment, canAccessTraining) },
+      { path: 'training/program-details/:programId', Component: withPermissionProtection(TrainingProgramDetails, canAccessTraining) },
       { path: 'training/live-sessions', element: <Navigate to="/training/catalog" replace /> },
-      { path: 'training/live-session-details/:sessionId', Component: TrainingLiveSessionDetails },
-      { path: 'training/session-enroll/:sessionId', Component: TrainingSessionEnrollment },
-      { path: 'training/recording-player/:sessionId', Component: TrainingRecordingPlayer },
-      { path: 'training/trainers', Component: TrainingTrainers },
-      { path: 'training/trainer-details/:trainerId', Component: TrainingTrainerDetails },
+      { path: 'training/live-session-details/:sessionId', Component: withPermissionProtection(TrainingLiveSessionDetails, canAccessTraining) },
+      { path: 'training/session-enroll/:sessionId', Component: withPermissionProtection(TrainingSessionEnrollment, canAccessTraining) },
+      { path: 'training/recording-player/:sessionId', Component: withPermissionProtection(TrainingRecordingPlayer, canAccessTraining) },
+      { path: 'training/trainers', Component: withPermissionProtection(TrainingTrainers, canAccessTraining) },
+      { path: 'training/trainer-details/:trainerId', Component: withPermissionProtection(TrainingTrainerDetails, canAccessTraining) },
       { path: 'training/certifications', element: <Navigate to="/training/portfolio" replace /> },
       { path: 'training/certifications-history', element: <Navigate to="/training/portfolio" replace /> },
-      { path: 'training/certification-details/:certificationId', Component: TrainingCertificationDetails },
-      { path: 'training/certification-enroll/:certificationId', Component: TrainingCertificationEnroll },
+      { path: 'training/certification-details/:certificationId', Component: withPermissionProtection(TrainingCertificationDetails, canAccessTraining) },
+      { path: 'training/certification-enroll/:certificationId', Component: withPermissionProtection(TrainingCertificationEnroll, canAccessTraining) },
       { path: 'excellence', Component: Assistance },
       { path: 'assistance', Component: Assistance },
       { path: 'assistance/find-expert', Component: AssistanceFindExpert },
@@ -322,15 +362,15 @@ const router = createBrowserRouter([
       { path: 'assistance/request-support', Component: AssistanceRequestSupport },
       { path: 'assistance/history', Component: AssistanceHistory },
       { path: 'statistics', element: <Navigate to="/statistics/dashboard" replace /> },
-      { path: 'statistics/dashboard', Component: StatisticsDashboard },
-      { path: 'statistics/projects-contracts', Component: StatisticsProjectsContracts },
-      { path: 'statistics/market-trends', Component: StatisticsMarketTrends },
-      { path: 'statistics/pricing-experts', Component: StatisticsPricingExperts },
+      { path: 'statistics/dashboard', Component: withPermissionProtection(StatisticsDashboard, canAccessStats) },
+      { path: 'statistics/projects-contracts', Component: withPermissionProtection(StatisticsProjectsContracts, canAccessStats) },
+      { path: 'statistics/market-trends', Component: withPermissionProtection(StatisticsMarketTrends, canAccessStats) },
+      { path: 'statistics/pricing-experts', Component: withPermissionProtection(StatisticsPricingExperts, canAccessStats) },
       { path: 'statistics/policy', element: <Navigate to="/statistics/pricing-experts" replace /> },
-      { path: 'statistics/experts-fees', Component: StatisticsExpertsFees },
-      { path: 'statistics/competitors', Component: StatisticsCompetitors },
-      { path: 'statistics/usage-analytics', Component: StatisticsUsageAnalytics },
-      { path: 'statistics/map-insights', Component: StatisticsMapInsights },
+      { path: 'statistics/experts-fees', Component: withPermissionProtection(StatisticsExpertsFees, canAccessStats) },
+      { path: 'statistics/competitors', Component: withPermissionProtection(StatisticsCompetitors, canAccessStats) },
+      { path: 'statistics/usage-analytics', Component: withPermissionProtection(StatisticsUsageAnalytics, canAccessStats) },
+      { path: 'statistics/map-insights', Component: withPermissionProtection(StatisticsMapInsights, canAccessStats) },
       { path: 'notifications', Component: Notifications },
       { path: 'offers', Component: OffersHub },
       { path: 'offers/become-member', Component: BecomeMember },
@@ -383,6 +423,7 @@ const router = createBrowserRouter([
       { path: 'compte-utilisateur/credits', element: <Navigate to="/account/subscription" replace /> },
       { path: 'account/credits', element: <Navigate to="/account/subscription" replace /> },
       { path: 'account/my-selection', Component: ProtectedMySelectionAlerts },
+      { path: 'account/manage-profiles', Component: ProtectedManageProfiles },
       { path: 'account/teams', Component: ProtectedAccountTeams },
       { path: 'account/messages', Component: ProtectedAccountMessages },
       { path: 'account/profile', Component: ProtectedModifierProfilPage },

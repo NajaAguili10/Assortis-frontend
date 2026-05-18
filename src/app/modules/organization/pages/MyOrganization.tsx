@@ -183,7 +183,7 @@ export default function MyOrganization() {
           ...profileData,
           established: profileData.yearFounded ? String(profileData.yearFounded) : '',
           selectedSector: profileData.sectors[0] || '',
-          timezone: '-',
+          timezone: profileData.timezone || '-',
         });
 
         updateProfile({
