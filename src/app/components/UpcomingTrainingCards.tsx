@@ -195,6 +195,13 @@ export function UpcomingTrainingCards() {
                     >
                         <div className="p-5 pb-0">
                             <div className="flex items-center gap-2 mb-3 flex-wrap min-h-[28px]">
+                                <Badge
+                                    variant="outline"
+                                    className="bg-blue-50 text-blue-700 border-blue-200 text-xs"
+                                >
+                                    Upcoming Training
+                                </Badge>
+
                                 <Badge variant="outline" className="text-xs">
                                     {normalizeLabel(training.level)}
                                 </Badge>

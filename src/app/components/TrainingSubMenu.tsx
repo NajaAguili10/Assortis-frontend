@@ -20,6 +20,7 @@ export function TrainingSubMenu() {
     if (path.startsWith('/training/catalog')) return 'catalog';
     if (path.startsWith('/training/live-session-details')) return 'catalog';
     if (path.startsWith('/training/session-enroll')) return 'catalog';
+    if (path.startsWith('/training/recording')) return 'catalog';
     if (path.startsWith('/training/recording-player')) return 'catalog';
     if (path.startsWith('/training/enroll')) return 'catalog';
     if (path.startsWith('/training/program-details')) return 'catalog';

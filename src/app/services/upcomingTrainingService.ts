@@ -1,7 +1,18 @@
-import { API_BASE_URL } from './authService';
+import {
+    API_BASE_URL,
+    getAuthHeaders,
+    resolveCurrentOrganizationId,
+} from './authService';
 
 export interface UpcomingTrainingSector {
     id: number;
+    code: string;
+    name: string;
+}
+
+export interface UpcomingTrainingSubsector {
+    id: number;
+    sectorId: number;
     code: string;
     name: string;
 }
@@ -31,18 +42,29 @@ export interface UpcomingTraining {
     certificationIssuer: string | null;
     certificationValidityMonths: number | null;
     sectors: UpcomingTrainingSector[];
+    subsectors: UpcomingTrainingSubsector[];
 }
 
 export const getUpcomingTrainings = async (): Promise<UpcomingTraining[]> => {
-    const response = await fetch(`${API_BASE_URL}/training/upcoming`, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-    });
+    const organizationId = await resolveCurrentOrganizationId();
+
+    const response = await fetch(
+        `${API_BASE_URL}/training/upcoming?organizationId=${encodeURIComponent(
+            String(organizationId)
+        )}`,
+        {
+            method: 'GET',
+            headers: getAuthHeaders(),
+        }
+    );
 
     if (!response.ok) {
-        throw new Error('Unable to load upcoming trainings');
+        const errorText = await response.text().catch(() => '');
+
+        throw new Error(
+            errorText ||
+            `Unable to load upcoming trainings. HTTP status: ${response.status}`
+        );
     }
 
     return response.json();
