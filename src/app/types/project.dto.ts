@@ -289,6 +289,14 @@ export interface ProjectKPIsDTO {
   urgentProjects: number;
 }
 
+export interface TaskKPIsDTO {
+  todo: number;
+  inProgress: number;
+  review: number;
+  completed: number;
+  total: number;
+}
+
 export interface ProjectFiltersDTO {
   searchQuery?: string;
   status?: ProjectStatusEnum[];

@@ -33,7 +33,7 @@ export default function ProjectsTasks() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isExpertOnly = user?.accountType === 'expert';
-  const { tasks, kpis } = useProjects();
+  const { tasks, kpis, taskKPIs } = useProjects();
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -90,6 +90,14 @@ export default function ProjectsTasks() {
     COMPLETED: tasks.filter(t => t.status === 'COMPLETED').length,
   };
 
+  const displayedStatusCounts = {
+    all: taskKPIs?.total ?? statusCounts.all,
+    TODO: taskKPIs?.todo ?? statusCounts.TODO,
+    IN_PROGRESS: taskKPIs?.inProgress ?? statusCounts.IN_PROGRESS,
+    REVIEW: taskKPIs?.review ?? statusCounts.REVIEW,
+    COMPLETED: taskKPIs?.completed ?? statusCounts.COMPLETED,
+  };
+
   return (
     <div className="min-h-screen">
       <PageBanner
@@ -127,28 +135,28 @@ export default function ProjectsTasks() {
                 <span className="text-sm text-muted-foreground">{t('projects.tasks.status.TODO')}</span>
                 <CheckSquare className="w-4 h-4 text-gray-500" />
               </div>
-              <p className="text-2xl font-bold text-primary">{statusCounts.TODO}</p>
+              <p className="text-2xl font-bold text-primary">{displayedStatusCounts.TODO}</p>
             </div>
             <div className="bg-white rounded-lg border p-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-muted-foreground">{t('projects.tasks.status.IN_PROGRESS')}</span>
                 <Clock className="w-4 h-4 text-blue-500" />
               </div>
-              <p className="text-2xl font-bold text-primary">{statusCounts.IN_PROGRESS}</p>
+              <p className="text-2xl font-bold text-primary">{displayedStatusCounts.IN_PROGRESS}</p>
             </div>
             <div className="bg-white rounded-lg border p-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-muted-foreground">{t('projects.tasks.status.REVIEW')}</span>
                 <AlertCircle className="w-4 h-4 text-yellow-500" />
               </div>
-              <p className="text-2xl font-bold text-primary">{statusCounts.REVIEW}</p>
+              <p className="text-2xl font-bold text-primary">{displayedStatusCounts.REVIEW}</p>
             </div>
             <div className="bg-white rounded-lg border p-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-muted-foreground">{t('projects.tasks.status.COMPLETED')}</span>
                 <CheckCircle2 className="w-4 h-4 text-green-500" />
               </div>
-              <p className="text-2xl font-bold text-primary">{statusCounts.COMPLETED}</p>
+              <p className="text-2xl font-bold text-primary">{displayedStatusCounts.COMPLETED}</p>
             </div>
           </div>
 
@@ -171,11 +179,11 @@ export default function ProjectsTasks() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t('projects.filters.status')}: {t('projects.filters.all')} ({statusCounts.all})</SelectItem>
-                  <SelectItem value="TODO">{t('projects.tasks.status.TODO')} ({statusCounts.TODO})</SelectItem>
-                  <SelectItem value="IN_PROGRESS">{t('projects.tasks.status.IN_PROGRESS')} ({statusCounts.IN_PROGRESS})</SelectItem>
-                  <SelectItem value="REVIEW">{t('projects.tasks.status.REVIEW')} ({statusCounts.REVIEW})</SelectItem>
-                  <SelectItem value="COMPLETED">{t('projects.tasks.status.COMPLETED')} ({statusCounts.COMPLETED})</SelectItem>
+                  <SelectItem value="all">{t('projects.filters.status')}: {t('projects.filters.all')} ({displayedStatusCounts.all})</SelectItem>
+                  <SelectItem value="TODO">{t('projects.tasks.status.TODO')} ({displayedStatusCounts.TODO})</SelectItem>
+                  <SelectItem value="IN_PROGRESS">{t('projects.tasks.status.IN_PROGRESS')} ({displayedStatusCounts.IN_PROGRESS})</SelectItem>
+                  <SelectItem value="REVIEW">{t('projects.tasks.status.REVIEW')} ({displayedStatusCounts.REVIEW})</SelectItem>
+                  <SelectItem value="COMPLETED">{t('projects.tasks.status.COMPLETED')} ({displayedStatusCounts.COMPLETED})</SelectItem>
                 </SelectContent>
               </Select>
             </div>

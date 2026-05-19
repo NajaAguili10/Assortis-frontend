@@ -1,12 +1,14 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useProjectsContext } from '../contexts/ProjectsContext';
 import { projectService } from '../services/projectService';
+import { taskService } from '../services/taskService';
 import {
   ProjectListDTO,
   TaskDTO,
   CollaborationDTO,
   ProjectTemplateDTO,
   ProjectKPIsDTO,
+  TaskKPIsDTO,
   ProjectFiltersDTO,
   PaginatedResponseDTO,
   ProjectStatusEnum,
@@ -116,7 +118,14 @@ export const useProjects = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [projectsError, setProjectsError] = useState<string | null>(null);
   const pageSize = 10;
-const [allProjects, setAllProjects] = useState<ProjectListDTO[]>([]);
+  const [allProjects, setAllProjects] = useState<ProjectListDTO[]>([]);
+  const [taskKPIs, setTaskKPIs] = useState<TaskKPIsDTO>({
+    todo: 0,
+    inProgress: 0,
+    review: 0,
+    completed: 0,
+    total: 0,
+  });
 
 
 
@@ -133,8 +142,21 @@ useEffect(() => {
 
   fetchData();
 }, []);
-  
-  
+
+useEffect(() => {
+  const fetchTaskKPIs = async () => {
+    try {
+      const response = await taskService.getTaskKPIs();
+      setTaskKPIs(response);
+    } catch (error) {
+      setTaskKPIs({ todo: 0, inProgress: 0, review: 0, completed: 0, total: 0 });
+      console.error('Error fetching task KPIs from backend:', error);
+    }
+  };
+
+  fetchTaskKPIs();
+}, []);
+
   // CURRENT_USER_ID is the mock logged-in user
   const CURRENT_USER_ID = 'user-1';
 
@@ -340,6 +362,7 @@ useEffect(() => {
     projectsError: projectsError || contextProjectsError,
     refreshProjects: fetchProjects,
     tasks,
+    taskKPIs,
     collaborations,
     templates,
     allProjects,
