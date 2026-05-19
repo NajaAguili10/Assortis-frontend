@@ -96,7 +96,8 @@ export const useProjects = () => {
     templates,
     isProjectsLoading,
     projectsError: contextProjectsError,
-    getProjectById: getProjectByIdFromContext
+    getProjectById: getProjectByIdFromContext,
+    updateTask: updateTaskInContext,
   } = useProjectsContext();
 
   const [projectsData, setProjectsData] = useState<PaginatedResponseDTO<ProjectListDTO>>({
@@ -369,5 +370,6 @@ useEffect(() => {
     filteredProjects,
     getProjectById: getProjectByIdFromContext,
     getCollaborationById: (id: string) => collaborations.find(c => c.id === id),
+    updateTask: updateTaskInContext,
   };
 };

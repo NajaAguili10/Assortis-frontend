@@ -1,5 +1,5 @@
 import { apiClient } from '../api/apiClient';
-import { CreateTaskPayload, TaskDTO, TaskKPIsDTO } from '../types/project.dto';
+import { CreateTaskPayload, TaskDTO, TaskKPIsDTO, UpdateTaskPayload } from '../types/project.dto';
 
 export const taskService = {
   getTasks: async (projectId?: string): Promise<TaskDTO[]> => {
@@ -14,5 +14,9 @@ export const taskService = {
 
   createTask: async (payload: CreateTaskPayload): Promise<TaskDTO> => {
     return await apiClient.post<TaskDTO>('/projects/tasks', payload);
+  },
+
+  updateTask: async (taskId: string, payload: UpdateTaskPayload): Promise<TaskDTO> => {
+    return await apiClient.put<TaskDTO>(`/projects/tasks/${taskId}`, payload);
   },
 };
