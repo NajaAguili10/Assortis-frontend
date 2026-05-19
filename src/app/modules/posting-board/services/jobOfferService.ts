@@ -5,6 +5,7 @@ import {
   JobOfferCreateDTO,
   JobOfferTypeEnum,
   JobOfferStatusEnum,
+  JobLanguageRequirement,
 } from '../types/JobOffer.dto';
 
 type BackendJobOffer = {
@@ -51,6 +52,7 @@ type BackendJobOffer = {
   deadlineTime?: string | null;
   applicationMethod?: string | null;
   contactPersonFunction?: string | null;
+  languages?: JobLanguageRequirement[] | null;
 };
 
 type JobOfferUpsertPayload = {
@@ -89,6 +91,7 @@ type JobOfferUpsertPayload = {
   deadlineTime?: string | null;
   applicationMethod?: string | null;
   contactPersonFunction?: string | null;
+  languages?: JobLanguageRequirement[];
 };
 
 const STORAGE_KEY = 'postingBoard.jobOffers';
@@ -110,6 +113,8 @@ const writeStoredOffers = (offers: BackendJobOffer[]) => {
     // Local fallback is best-effort only.
   }
 };
+
+const isApiError = (error: any) => Boolean(error?.response?.status);
 
 const normalizeStatus = (value?: string): JobOfferStatusEnum => {
   switch ((value || '').toUpperCase()) {
@@ -208,6 +213,7 @@ const normalizeOffer = (offer: BackendJobOffer): JobOfferDetailDTO => {
     contactEmail: offer.contactEmail || undefined,
     contactPerson: offer.contactPerson || undefined,
     contactPersonFunction: offer.contactPersonFunction || undefined,
+    languages: offer.languages || [],
     totalApplications: offer.totalApplications ?? offer.applicationsCount ?? 0,
     createdAt: offer.createdAt || new Date().toISOString(),
     updatedAt: offer.updatedAt || offer.createdAt || new Date().toISOString(),
@@ -249,6 +255,7 @@ const buildPayload = (data: JobOfferCreateDTO): JobOfferUpsertPayload => ({
   deadlineTime: data.deadlineTime || null,
   applicationMethod: data.applicationMethod || null,
   contactPersonFunction: data.contactPersonFunction || null,
+  languages: data.languages || [],
 });
 
 const toCreateDto = (offer: JobOfferDetailDTO): JobOfferCreateDTO => ({
@@ -285,6 +292,7 @@ const toCreateDto = (offer: JobOfferDetailDTO): JobOfferCreateDTO => ({
   applicationLink: offer.applicationLink,
   applicationMethod: offer.applicationMethod,
   estimatedStartDate: offer.estimatedStartDate,
+  languages: offer.languages,
 });
 
 export async function getAllJobOffers(): Promise<JobOfferListDTO[]> {
@@ -345,6 +353,9 @@ export async function createJobOffer(data: JobOfferCreateDTO, recruiterId: strin
     writeStoredOffers([response, ...stored]);
     return normalizeOffer(response);
   } catch (error) {
+    if (isApiError(error)) {
+      throw error;
+    }
     const now = new Date().toISOString();
     const fallback: BackendJobOffer = {
       id: `local-${Date.now()}`,
@@ -398,6 +409,7 @@ export async function updateJobOffer(id: string, data: Partial<JobOfferCreateDTO
     contactEmail: data.contactEmail,
     contactPerson: data.contactPerson,
     contactPersonFunction: data.contactPersonFunction,
+    languages: data.languages,
   });
 
   try {
@@ -405,7 +417,10 @@ export async function updateJobOffer(id: string, data: Partial<JobOfferCreateDTO
     const stored = readStoredOffers().filter((offer) => String(offer.id) !== id);
     writeStoredOffers([response, ...stored]);
     return normalizeOffer(response);
-  } catch {
+  } catch (error) {
+    if (isApiError(error)) {
+      throw error;
+    }
     const stored = readStoredOffers();
     const index = stored.findIndex((offer) => String(offer.id) === id);
     if (index < 0) return null;
@@ -430,7 +445,12 @@ export async function updateJobOfferStatus(id: string, status: JobOfferStatusEnu
 }
 
 export async function deleteJobOffer(id: string): Promise<boolean> {
+  if (id.startsWith('local-')) {
+    writeStoredOffers(readStoredOffers().filter((offer) => String(offer.id) !== id));
+    return true;
+  }
   await apiClient.delete(`/job-offers/${id}`);
+  writeStoredOffers(readStoredOffers().filter((offer) => String(offer.id) !== id));
   return true;
 }
 

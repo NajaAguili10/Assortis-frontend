@@ -41,6 +41,11 @@ import {
 
 type MainTab = 'publish' | 'jobs';
 
+const getErrorMessage = (error: unknown, fallback: string) => {
+  const apiMessage = (error as any)?.response?.data?.message;
+  return typeof apiMessage === 'string' && apiMessage.trim() ? apiMessage : fallback;
+};
+
 export default function PublierOffrePage() {
   const { t } = useLanguage();
   const { user, isAuthenticated } = useAuth();
@@ -197,7 +202,7 @@ export default function PublierOffrePage() {
       await loadPublishedOffers();
     } catch (error) {
       console.error('Error creating job offer:', error);
-      toast.error(t('monEspace.message.error'));
+      toast.error(getErrorMessage(error, t('monEspace.message.error')));
     }
   };
 
@@ -217,7 +222,7 @@ export default function PublierOffrePage() {
       setOfferToDelete(null);
     } catch (error) {
       console.error('Error deleting offer:', error);
-      toast.error(t('monEspace.message.error'));
+      toast.error(getErrorMessage(error, t('monEspace.message.error')));
     } finally {
       setIsDeleting(false);
     }
@@ -241,6 +246,8 @@ export default function PublierOffrePage() {
       subSectors: offer.subSectors,
       regions: offer.regions,
       countries: offer.countries,
+      cities: offer.cities,
+      customCities: offer.customCities,
       homeBased: offer.homeBased,
       seniority: offer.seniority,
       restrictions: offer.restrictions,
