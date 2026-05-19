@@ -1,5 +1,13 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { authService, LoginResponse } from '@app/services/authService';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import {
+  authService,
+  clearAuthData,
+  getConnectedOrganizationApi,
+  saveAuthData,
+  saveConnectedOrganization,
+  type ConnectedOrganizationResponse,
+  type LoginResponse,
+} from '@app/services/authService';
 import type { OrganizationProfile } from '@app/services/organizationProfileService';
 
 interface User {
@@ -11,28 +19,13 @@ interface User {
   accountType?: 'expert' | 'organization' | 'admin' | 'public';
   isSubscribed?: boolean;
   organizationId?: number;
+  token?: string;
+  roles?: string[];
+  permissions?: string[];
+  connectedOrganization?: ConnectedOrganizationResponse | null;
 }
 
 type QuickLoginAccountType = 'expert' | 'organization' | 'organization-user' | 'admin' | 'public';
-
-const buildUserFromLoginResponse = (response: LoginResponse): User => {
-  const { id, email: userEmail, roles } = response;
-  const primaryRole = roles && roles.length > 0 ? roles[0] : 'public';
-  const normalizedRole = primaryRole.toLowerCase().replace(/_/g, '-');
-  const accountType = normalizedRole === 'organization-user'
-    ? 'organization'
-    : normalizedRole as User['accountType'];
-
-  return {
-    id: String(id),
-    email: userEmail,
-    firstName: userEmail.split('@')[0],
-    lastName: 'User',
-    role: normalizedRole,
-    accountType,
-    organizationId: response.organizationId,
-  };
-};
 
 interface AuthContextType {
   user: User | null;
@@ -49,76 +42,57 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const resolveAccountType = (roles: string[] = []): User['accountType'] => {
+  const normalizedRoles = roles.map((role) => role.toLowerCase().replace(/_/g, '-'));
+
+  if (normalizedRoles.some((role) => role.includes('admin'))) {
+    return 'admin';
+  }
+
+  if (normalizedRoles.some((role) => role.includes('expert'))) {
+    return 'expert';
+  }
+
+  if (normalizedRoles.some((role) => role.includes('organization'))) {
+    return 'organization';
+  }
+
+  return 'public';
+};
+
+const buildUserFromLoginResponse = (
+  response: LoginResponse,
+  connectedOrganization: ConnectedOrganizationResponse | null = null,
+): User => {
+  const roles = response.roles || [];
+  const primaryRole = roles[0] || 'public';
+  const normalizedRole = primaryRole.toLowerCase().replace(/_/g, '-');
+
+  return {
+    id: String(response.id),
+    email: response.email,
+    firstName: response.email.split('@')[0],
+    lastName: 'User',
+    role: normalizedRole,
+    accountType: resolveAccountType(roles),
+    isSubscribed: resolveAccountType(roles) !== 'public',
+    organizationId: response.organizationId ?? connectedOrganization?.organizationId,
+    token: response.token,
+    roles,
+    permissions: response.permissions || [],
+    connectedOrganization,
+  };
+};
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [activeOrganizationProfileState, setActiveOrganizationProfileState] = useState<OrganizationProfile | null>(null);
-
-  const persistLoginResponse = (response: LoginResponse) => {
-    const { token } = response;
-    const loggedInUser = buildUserFromLoginResponse(response);
-
-    setUser(loggedInUser);
-    setIsAuthenticated(true);
-    localStorage.setItem('assortis_token', token);
-    localStorage.setItem('assortis_user', JSON.stringify(loggedInUser));
-  };
-
-  // Check for existing session on mount
-  useEffect(() => {
-    const storedUser = localStorage.getItem('assortis_user');
-    const storedToken = localStorage.getItem('assortis_token');
-    if (storedUser && storedToken) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        setIsAuthenticated(true);
-        const storedProfile = localStorage.getItem('assortis_active_organization_profile');
-        if (storedProfile) {
-          setActiveOrganizationProfileState(JSON.parse(storedProfile));
-        }
-      } catch (error) {
-        console.error('Error parsing stored user:', error);
-        localStorage.removeItem('assortis_user');
-        localStorage.removeItem('assortis_token');
-      }
-    }
-  }, []);
-
-  const login = async (email: string, password: string): Promise<void> => {
-    /* OLD STATIC AUTH (disabled for dynamic backend auth)
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (email && password.length >= 6) {
-          const mockUser: User = {
-            id: '1',
-            email,
-            firstName: email.split('@')[0],
-            lastName: 'User',
-            role: 'member',
-            accountType: 'organization',
-          };
-          setUser(mockUser);
-          setIsAuthenticated(true);
-          localStorage.setItem('assortis_user', JSON.stringify(mockUser));
-          resolve();
-        } else {
-          reject(new Error('Invalid credentials'));
-        }
-      }, 500);
-    });
-    */
-
-    try {
-      const response: LoginResponse = await authService.login(email, password);
-      persistLoginResponse(response);
-    } catch (error: any) {
-      throw new Error(error.message || 'Login failed');
-    }
-  };
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [activeOrganizationProfileState, setActiveOrganizationProfileState] =
+    useState<OrganizationProfile | null>(null);
 
   const setActiveOrganizationProfile = (profile: OrganizationProfile | null) => {
     setActiveOrganizationProfileState(profile);
+
     if (profile) {
       localStorage.setItem('assortis_active_organization_profile', JSON.stringify(profile));
     } else {
@@ -126,36 +100,64 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const persistLoginResponse = async (response: LoginResponse, loadOrganization = true) => {
+    saveAuthData(response);
+
+    let connectedOrganization: ConnectedOrganizationResponse | null = null;
+
+    if (loadOrganization) {
+      try {
+        connectedOrganization = await getConnectedOrganizationApi();
+        saveConnectedOrganization(connectedOrganization);
+      } catch (organizationError) {
+        console.warn('NO ORGANIZATION FOUND:', organizationError);
+      }
+    }
+
+    const authenticatedUser = buildUserFromLoginResponse(response, connectedOrganization);
+    localStorage.setItem('assortis_user', JSON.stringify(authenticatedUser));
+    setUser(authenticatedUser);
+    setIsAuthenticated(true);
+  };
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('assortis_user');
+    const storedToken = localStorage.getItem('assortis_token');
+
+    if (storedUser && storedToken) {
+      try {
+        setUser(JSON.parse(storedUser));
+        setIsAuthenticated(true);
+
+        const storedProfile = localStorage.getItem('assortis_active_organization_profile');
+        if (storedProfile) {
+          setActiveOrganizationProfileState(JSON.parse(storedProfile));
+        }
+      } catch (error) {
+        console.error('Error parsing stored auth data:', error);
+        clearAuthData();
+      }
+    }
+  }, []);
+
+  const login = async (email: string, password: string): Promise<void> => {
+    try {
+      const response = await authService.login({ email, password });
+      await persistLoginResponse(response);
+    } catch (error: any) {
+      throw new Error(error.message || 'Login failed');
+    }
+  };
+
   const logout = () => {
+    clearAuthData();
+    setActiveOrganizationProfile(null);
     setUser(null);
     setIsAuthenticated(false);
-    setActiveOrganizationProfile(null);
-    authService.logout();
   };
 
   const signup = async (userData: Partial<User> & { email: string; password: string }): Promise<void> => {
-    // TODO: Replace with actual API call
-    // Mock signup for demo
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (userData.email && userData.password.length >= 6) {
-          const mockUser: User = {
-            id: Date.now().toString(),
-            email: userData.email,
-            firstName: userData.firstName || userData.email.split('@')[0],
-            lastName: userData.lastName || 'User',
-            role: 'member',
-            accountType: 'organization', // Default to organization for new signups
-          };
-          setUser(mockUser);
-          setIsAuthenticated(true);
-          localStorage.setItem('assortis_user', JSON.stringify(mockUser));
-          resolve();
-        } else {
-          reject(new Error('Invalid signup data'));
-        }
-      }, 500);
-    });
+    await authService.register(userData);
   };
 
   const forgotPassword = async (email: string): Promise<void> => {
@@ -176,7 +178,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const quickLogin = async (accountType: QuickLoginAccountType): Promise<void> => {
     const response = await authService.demoLogin(accountType);
-    persistLoginResponse(response);
+    await persistLoginResponse(response);
   };
 
   return (
@@ -201,8 +203,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+
+  if (!context) {
+    throw new Error('useAuth must be used inside AuthProvider');
   }
+
   return context;
 };

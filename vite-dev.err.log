@@ -1,0 +1,28 @@
+[2m11:02:05[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/projects/tasks[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+[2m11:02:05[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/projects/all[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+[2m11:02:06[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/tenders/all[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+[2m11:02:06[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/tenders/kpis[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+[2m11:02:09[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/job-offers[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+[2m11:02:09[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/job-offers[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+[2m11:02:12[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/auth/demo-login[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)

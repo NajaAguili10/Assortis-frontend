@@ -9,9 +9,23 @@ import { Button } from '@app/components/ui/button';
 import { Input } from '@app/components/ui/input';
 import { Label } from '@app/components/ui/label';
 import { Badge } from '@app/components/ui/badge';
+
 import { RadioGroup, RadioGroupItem } from '@app/components/ui/radio-group';
-import { useTraining } from '@app/hooks/useTraining';
-import type { TrainingCourseDTO } from '@app/types/training.dto';
+
+import {
+  TrainingCourseDTO,
+  TrainingFormatEnum,
+  TrainingLevelEnum,
+} from '@app/types/training.dto';
+
+import { ProjectSectorEnum } from '@app/types/project.dto';
+
+import {
+  getUpcomingTrainings,
+  type UpcomingTraining,
+} from '@app/services/upcomingTrainingService';
+
+
 import {
   GraduationCap,
   BookOpen,
@@ -58,13 +72,90 @@ interface FormErrors {
   organizationName?: string;
 }
 
+const splitTags = (tags: string | null | undefined): string[] => {
+  if (!tags) return [];
+
+  return tags
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+};
+
+const mapLevel = (level: string | null | undefined): TrainingLevelEnum => {
+  switch ((level || '').toUpperCase()) {
+    case 'BEGINNER':
+      return TrainingLevelEnum.BEGINNER;
+    case 'ADVANCED':
+      return TrainingLevelEnum.ADVANCED;
+    case 'EXPERT':
+      return TrainingLevelEnum.EXPERT;
+    case 'INTERMEDIATE':
+    default:
+      return TrainingLevelEnum.INTERMEDIATE;
+  }
+};
+
+const mapFormat = (
+    deliveryMode: string | null | undefined
+): TrainingFormatEnum => {
+  switch ((deliveryMode || '').toUpperCase()) {
+    case 'HYBRID':
+      return TrainingFormatEnum.HYBRID;
+    case 'IN_PERSON':
+    case 'IN PERSON':
+    case 'OFFLINE':
+      return TrainingFormatEnum.IN_PERSON;
+    case 'SELF_PACED':
+    case 'SELF PACED':
+      return TrainingFormatEnum.SELF_PACED;
+    case 'ONLINE':
+    default:
+      return TrainingFormatEnum.ONLINE;
+  }
+};
+
+const mapUpcomingToEnrollmentCourse = (
+    training: UpcomingTraining
+): TrainingCourseDTO => {
+  return {
+    id: String(training.id),
+    title: training.title,
+    description: training.description || '',
+    sector: ProjectSectorEnum.EDUCATION,
+    subsectors: [],
+    level: mapLevel(training.level),
+    format: mapFormat(training.deliveryMode),
+    duration: training.durationHours || 0,
+    language: (training.courseLanguage || 'EN') as TrainingCourseDTO['language'],
+    instructor: {
+      name: training.expertName || 'Assortis Academy',
+      title: '',
+    },
+    price: training.price || 0,
+    rating: 0,
+    enrolledCount: 0,
+    startDate: training.startDate || undefined,
+    modules: training.modulesCount || 0,
+    certificate: Boolean(training.certificationAvailable),
+    certificationAvailable: Boolean(training.certificationAvailable),
+    certificationPrice: training.certificationPrice || undefined,
+    certificationTitle: training.certificationTitle || undefined,
+    certificationIssuer: training.certificationIssuer || undefined,
+    certificationValidityMonths:
+        training.certificationValidityMonths ?? undefined,
+    tags: splitTags(training.tags),
+    thumbnail: training.thumbnailUrl || undefined,
+  };
+};
+
 export default function TrainingEnrollment() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const { addHistoryEntry } = useAssistanceHistory();
   const { courseId } = useParams<{ courseId: string }>();
-  const { courses, kpis } = useTraining();
-
+  const [upcomingTrainings, setUpcomingTrainings] = useState<UpcomingTraining[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [enrollmentType, setEnrollmentType] = useState<EnrollmentType>('INDIVIDUAL');
   const [enrollmentOption, setEnrollmentOption] = useState<EnrollmentOption>('BOTH');
   const [participantCount, setParticipantCount] = useState<number>(1);
@@ -80,25 +171,51 @@ export default function TrainingEnrollment() {
 
   const [formErrors, setFormErrors] = useState<FormErrors>({});
 
+  useEffect(() => {
+    const loadUpcomingTrainings = async () => {
+      setLoading(true);
+      setLoadError('');
+
+      try {
+        const data = await getUpcomingTrainings();
+        setUpcomingTrainings(data || []);
+      } catch (err: any) {
+        setLoadError(err.message || 'Unable to load selected training');
+        setUpcomingTrainings([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUpcomingTrainings();
+  }, []);
+
+  const courses = useMemo(() => {
+    return upcomingTrainings.map(mapUpcomingToEnrollmentCourse);
+  }, [upcomingTrainings]);
+
   const course = useMemo(() => {
-    return courses.find(c => c.id === courseId);
+    return courses.find((c) => String(c.id) === String(courseId));
   }, [courses, courseId]);
 
   const recommendedCourses = useMemo(() => {
     if (!course) return [];
+
     return courses
-      .filter(c => c.id !== courseId && (
-        c.level === course.level ||
-        c.tags.some(tag => course.tags.includes(tag))
-      ))
-      .slice(0, 3);
+        .filter(
+            (c) =>
+                String(c.id) !== String(courseId) &&
+                (c.level === course.level ||
+                    c.tags.some((tag) => course.tags.includes(tag)))
+        )
+        .slice(0, 3);
   }, [courses, courseId, course]);
 
   useEffect(() => {
-    if (!course) {
+    if (!loading && !course) {
       navigate('/training/catalog');
     }
-  }, [course, navigate]);
+  }, [loading, course, navigate]);
 
   const handleIncrement = () => {
     setParticipantCount(prev => Math.min(prev + 1, 100));
@@ -264,9 +381,59 @@ export default function TrainingEnrollment() {
     }, 2000);
   };
 
-  if (!course) return null;
+  if (loading) {
+    return (
+        <div className="min-h-screen bg-gray-50">
+          <PageBanner
+              title={t('training.hub.title')}
+              description={t('training.hub.subtitle')}
+              icon={GraduationCap}
+              stats={[
+                {
+                  value: '0',
+                  label: t('training.stats.enrolledPrograms'),
+                },
+              ]}
+          />
 
-  const totalPrice = calculateTotalPrice();
+          <TrainingSubMenu />
+
+          <PageContainer className="my-6">
+            <div className="bg-white rounded-lg border p-8 text-center">
+              Loading training...
+            </div>
+          </PageContainer>
+        </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+        <div className="min-h-screen bg-gray-50">
+          <PageBanner
+              title={t('training.hub.title')}
+              description={t('training.hub.subtitle')}
+              icon={GraduationCap}
+              stats={[
+                {
+                  value: '0',
+                  label: t('training.stats.enrolledPrograms'),
+                },
+              ]}
+          />
+
+          <TrainingSubMenu />
+
+          <PageContainer className="my-6">
+            <div className="bg-white rounded-lg border p-8 text-center text-red-600">
+              {loadError}
+            </div>
+          </PageContainer>
+        </div>
+    );
+  }
+
+  if (!course) return null;  const totalPrice = calculateTotalPrice();
   const discount = getDiscountPercentage();
 
   return (
@@ -276,8 +443,7 @@ export default function TrainingEnrollment() {
         description={t('training.hub.subtitle')}
         icon={GraduationCap}
         stats={[
-          { value: kpis.enrolledPrograms.toString(), label: t('training.stats.enrolledPrograms') }
-        ]}
+          { value: courses.length.toString(), label: t('training.stats.enrolledPrograms') }        ]}
       />
 
       {/* Sub Menu */}
