@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { projectService } from '@app/services/projectService';
+import { taskService } from '@app/services/taskService';
 import {
   ProjectListDTO,
   ProjectStatusEnum,
@@ -819,6 +820,28 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
     };
 
     fetchProjects();
+  }, []);
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const response = await taskService.getTasks();
+        if (Array.isArray(response)) {
+          setTasks(response.map((task) => ({
+            ...task,
+            id: String(task.id),
+            projectId: String(task.projectId),
+          })));
+        } else {
+          throw new Error('Invalid tasks response from backend');
+        }
+      } catch (error) {
+        setTasks([]);
+        console.error('Error fetching tasks from backend:', error);
+      }
+    };
+
+    fetchTasks();
   }, []);
 
   const addProject = (project: ProjectListDTOInternal) => {

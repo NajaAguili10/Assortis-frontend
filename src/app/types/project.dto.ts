@@ -330,6 +330,20 @@ export interface TaskDTO {
   tags: string[];
 }
 
+export interface CreateTaskPayload {
+  projectId: string;
+  projectTitle?: string;
+  title: string;
+  description?: string;
+  status?: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'COMPLETED';
+  priority: ProjectPriorityEnum;
+  assignedTo?: TaskAssigneeDTO[];
+  startDate?: string;
+  dueDate?: string;
+  completedDate?: string;
+  tags?: string[];
+}
+
 export interface CollaborationDTO {
   id: string;
   projectId: string;

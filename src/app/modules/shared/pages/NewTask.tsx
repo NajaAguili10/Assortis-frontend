@@ -15,7 +15,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@a
 import { useProjects } from '@app/hooks/useProjects';
 import { useExperts } from '@app/modules/expert/hooks/useExperts';
 import { useProjectsContext } from '@app/contexts/ProjectsContext';
-import { ProjectListDTO, ProjectPriorityEnum } from '@app/types/project.dto';
+import { taskService } from '@app/services/taskService';
+import { CreateTaskPayload, ProjectListDTO, ProjectPriorityEnum } from '@app/types/project.dto';
 
 export default function NewTask() {
   const { t } = useTranslation();
@@ -24,9 +25,8 @@ export default function NewTask() {
   const { allProjects } = useProjects();
   const { allExperts } = useExperts();
 
-  const CURRENT_ORG_ID = 'org-1';
-  const organizationProjects = useMemo(() => allProjects.filter(project => project.organizationId === CURRENT_ORG_ID), [allProjects]);
-  const organizationExperts = useMemo(() => allExperts.filter(expert => expert.organizationId === CURRENT_ORG_ID), [allExperts]);
+  const availableProjects = useMemo(() => allProjects, [allProjects]);
+  const availableExperts = useMemo(() => allExperts, [allExperts]);
 
   const [selectedProject, setSelectedProject] = useState<ProjectListDTO | null>(null);
   const [formValues, setFormValues] = useState({
@@ -52,29 +52,28 @@ export default function NewTask() {
   };
 
   const handleProjectChange = (projectId: string) => {
-    const project = organizationProjects.find(item => item.id === projectId) || null;
+    const project = availableProjects.find(item => item.id === projectId) || null;
     setSelectedProject(project);
     setField('projectId', projectId);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formValues.title.trim()) {
       toast.error(t('projects.task.validation.title'));
       return;
     }
 
-    if (organizationProjects.length > 0 && !formValues.projectId) {
+    if (availableProjects.length > 0 && !formValues.projectId) {
       toast.error(t('projects.task.validation.project'));
       return;
     }
 
-    const assignedExpert = organizationExperts.find(expert => expert.id === formValues.assignedTo);
+    const assignedExpert = availableExperts.find(expert => expert.id === formValues.assignedTo);
     const projectTitle = selectedProject?.title || selectedProject?.name || '';
 
-    addTask({
-      id: `task-${Date.now()}`,
-      projectId: formValues.projectId || 'unassigned-project',
-      projectTitle: projectTitle || 'Project to assign later',
+    const payload: CreateTaskPayload = {
+      projectId: formValues.projectId || '',
+      projectTitle: projectTitle || undefined,
       title: formValues.title.trim(),
       description: formValues.description.trim() || undefined,
       status: 'TODO',
@@ -85,10 +84,21 @@ export default function NewTask() {
       startDate: formValues.estimatedStartDate || undefined,
       dueDate: formValues.dueDate || undefined,
       tags: [formValues.category, formValues.taskType, formValues.complexity].filter(Boolean),
-    });
+    };
 
-    toast.success(t('projects.task.success'));
-    navigate('/projects/tasks');
+    try {
+      const createdTask = await taskService.createTask(payload);
+      addTask({
+        ...createdTask,
+        id: String(createdTask.id),
+        projectId: String(createdTask.projectId),
+      });
+      toast.success(t('projects.task.success'));
+      navigate('/projects/tasks');
+    } catch (error) {
+      console.error('Failed to create task', error);
+      toast.error(t('projects.task.error') || 'Unable to create task');
+    }
   };
 
   return (
@@ -133,13 +143,13 @@ export default function NewTask() {
 
                 <div className="grid gap-5 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>{t('projects.task.selectProject')}{organizationProjects.length > 0 ? ' *' : ''}</Label>
+                    <Label>{t('projects.task.selectProject')}{availableProjects.length > 0 ? ' *' : ''}</Label>
                     <Select value={formValues.projectId} onValueChange={handleProjectChange}>
                       <SelectTrigger className="min-h-11">
                         <SelectValue placeholder={t('common.select')} />
                       </SelectTrigger>
                       <SelectContent>
-                        {organizationProjects.map(project => (
+                        {availableProjects.map(project => (
                           <SelectItem key={project.id} value={project.id}>{project.name || project.title}</SelectItem>
                         ))}
                       </SelectContent>
@@ -168,7 +178,7 @@ export default function NewTask() {
                       <SelectValue placeholder={t('projects.create.selectExpert')} />
                     </SelectTrigger>
                     <SelectContent>
-                      {organizationExperts.map(expert => (
+                        {availableExperts.map(expert => (
                         <SelectItem key={expert.id} value={expert.id}>{expert.name} - {expert.role}</SelectItem>
                       ))}
                     </SelectContent>
