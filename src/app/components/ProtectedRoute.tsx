@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
+import { PageLoading } from './SystemStates';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -12,7 +13,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   redirectTo = '/login',
   allowedRoles
 }) => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, isInitializing, user } = useAuth();
+
+  if (isInitializing) {
+    return <PageLoading />;
+  }
 
   if (!isAuthenticated) {
     return <Navigate to={redirectTo} replace />;

@@ -9,8 +9,7 @@ const getHeaders = (includeAuth = true) => {
 };
 
 const getPostHeaders = (endpoint: string) => {
-  const publicAuthEndpoints = ['/auth/login', '/auth/demo-login', '/auth/register', '/auth/send-verification', '/auth/verify-email', '/auth/forgot-password', '/auth/reset-password'];
-  return getHeaders(!publicAuthEndpoints.includes(endpoint));
+  return getHeaders(!isPublicAuthEndpoint(endpoint));
 };
 
 const getAuthHeaders = () => {
@@ -20,6 +19,43 @@ const getAuthHeaders = () => {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
+};
+
+const publicAuthEndpoints = [
+  '/auth/login',
+  '/auth/demo-login',
+  '/auth/register',
+  '/auth/send-verification',
+  '/auth/verify-email',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+];
+
+const isPublicAuthEndpoint = (endpoint: string) => publicAuthEndpoints.includes(endpoint);
+
+const notifyAuthRejected = (endpoint: string, status: number) => {
+  if (status !== 401 || isPublicAuthEndpoint(endpoint)) {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent('assortis:auth-rejected', {
+      detail: { endpoint, status },
+    }),
+  );
+};
+
+const throwApiError = async (response: Response, endpoint: string): Promise<never> => {
+  let errorData: any = {};
+  try {
+    errorData = await response.json();
+  } catch (e) {}
+
+  notifyAuthRejected(endpoint, response.status);
+
+  const err: any = new Error(errorData.message || `API error: ${response.status} ${response.statusText}`);
+  err.response = { status: response.status, data: errorData };
+  throw err;
 };
 
 export const apiClient = {
@@ -44,20 +80,7 @@ export const apiClient = {
     });
 
     if (!response.ok) {
-      let errorData: any = {};
-      try {
-        errorData = await response.json();
-      } catch (e) {}
-
-      if (response.status === 401) {
-        // Handle unauthorized access (e.g., token expired)
-        localStorage.removeItem('assortis_token');
-        localStorage.removeItem('assortis_user');
-        window.location.href = '/login';
-      }
-      const err: any = new Error(errorData.message || `API error: ${response.status} ${response.statusText}`);
-      err.response = { data: errorData };
-      throw err;
+      await throwApiError(response, endpoint);
     }
 
     return response.json();
@@ -71,19 +94,7 @@ export const apiClient = {
     });
 
     if (!response.ok) {
-      let errorData: any = {};
-      try {
-        errorData = await response.json();
-      } catch (e) {}
-
-      if (response.status === 401 && endpoint !== '/auth/login') {
-        localStorage.removeItem('assortis_token');
-        localStorage.removeItem('assortis_user');
-        window.location.href = '/login';
-      }
-      const err: any = new Error(errorData.message || `API error: ${response.status} ${response.statusText}`);
-      err.response = { data: errorData };
-      throw err;
+      await throwApiError(response, endpoint);
     }
 
     return response.json();
@@ -97,18 +108,7 @@ export const apiClient = {
     });
 
     if (!response.ok) {
-      let errorData: any = {};
-      try {
-        errorData = await response.json();
-      } catch (e) {}
-      if (response.status === 401) {
-        localStorage.removeItem('assortis_token');
-        localStorage.removeItem('assortis_user');
-        window.location.href = '/login';
-      }
-      const err: any = new Error(errorData.message || `API error: ${response.status} ${response.statusText}`);
-      err.response = { data: errorData };
-      throw err;
+      await throwApiError(response, endpoint);
     }
 
     return response.json();
@@ -122,18 +122,7 @@ export const apiClient = {
     });
 
     if (!response.ok) {
-      let errorData: any = {};
-      try {
-        errorData = await response.json();
-      } catch (e) {}
-      if (response.status === 401) {
-        localStorage.removeItem('assortis_token');
-        localStorage.removeItem('assortis_user');
-        window.location.href = '/login';
-      }
-      const err: any = new Error(errorData.message || `API error: ${response.status} ${response.statusText}`);
-      err.response = { data: errorData };
-      throw err;
+      await throwApiError(response, endpoint);
     }
 
     return response.json();
@@ -146,18 +135,7 @@ export const apiClient = {
     });
 
     if (!response.ok) {
-      let errorData: any = {};
-      try {
-        errorData = await response.json();
-      } catch (e) {}
-      if (response.status === 401) {
-        localStorage.removeItem('assortis_token');
-        localStorage.removeItem('assortis_user');
-        window.location.href = '/login';
-      }
-      const err: any = new Error(errorData.message || `API error: ${response.status} ${response.statusText}`);
-      err.response = { data: errorData };
-      throw err;
+      await throwApiError(response, endpoint);
     }
   },
 };

@@ -30,6 +30,7 @@ type QuickLoginAccountType = 'expert' | 'organization' | 'organization-user' | '
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  isInitializing: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   signup: (userData: Partial<User> & { email: string; password: string }) => Promise<void>;
@@ -84,11 +85,84 @@ const buildUserFromLoginResponse = (
   };
 };
 
+const readJson = <T,>(key: string): T | null => {
+  const value = localStorage.getItem(key);
+
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(value) as T;
+  } catch (error) {
+    console.warn(`Invalid stored auth value for ${key}:`, error);
+    localStorage.removeItem(key);
+    return null;
+  }
+};
+
+const getStoredUser = (): User | null => {
+  const token = localStorage.getItem('assortis_token');
+
+  if (!token) {
+    return null;
+  }
+
+  const storedUser = readJson<User>('assortis_user');
+
+  if (storedUser) {
+    return { ...storedUser, token: storedUser.token || token };
+  }
+
+  const storedAuthResponse = readJson<LoginResponse>('assortis_auth_response');
+
+  if (storedAuthResponse?.token) {
+    const connectedOrganization =
+      readJson<ConnectedOrganizationResponse>('assortis_connected_organization');
+    const rebuiltUser = buildUserFromLoginResponse(
+      { ...storedAuthResponse, token },
+      connectedOrganization,
+    );
+    localStorage.setItem('assortis_user', JSON.stringify(rebuiltUser));
+    return rebuiltUser;
+  }
+
+  const userId = localStorage.getItem('assortis_user_id');
+  const email = localStorage.getItem('assortis_email');
+  const roles = readJson<string[]>('assortis_roles') || [];
+  const permissions = readJson<string[]>('assortis_permissions') || [];
+
+  if (userId && email) {
+    return buildUserFromLoginResponse(
+      {
+        token,
+        id: Number(userId),
+        email,
+        roles,
+        permissions,
+      },
+      readJson<ConnectedOrganizationResponse>('assortis_connected_organization'),
+    );
+  }
+
+  return null;
+};
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [initialAuthState] = useState(() => {
+    const storedUser = getStoredUser();
+    return {
+      user: storedUser,
+      isAuthenticated: Boolean(storedUser),
+    };
+  });
+  const [user, setUser] = useState<User | null>(initialAuthState.user);
+  const [isAuthenticated, setIsAuthenticated] = useState(initialAuthState.isAuthenticated);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [activeOrganizationProfileState, setActiveOrganizationProfileState] =
-    useState<OrganizationProfile | null>(null);
+    useState<OrganizationProfile | null>(() =>
+      readJson<OrganizationProfile>('assortis_active_organization_profile'),
+    );
 
   const setActiveOrganizationProfile = (profile: OrganizationProfile | null) => {
     setActiveOrganizationProfileState(profile);
@@ -121,23 +195,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('assortis_user');
-    const storedToken = localStorage.getItem('assortis_token');
+    const storedUser = getStoredUser();
 
-    if (storedUser && storedToken) {
-      try {
-        setUser(JSON.parse(storedUser));
-        setIsAuthenticated(true);
-
-        const storedProfile = localStorage.getItem('assortis_active_organization_profile');
-        if (storedProfile) {
-          setActiveOrganizationProfileState(JSON.parse(storedProfile));
-        }
-      } catch (error) {
-        console.error('Error parsing stored auth data:', error);
-        clearAuthData();
-      }
+    if (storedUser) {
+      setUser(storedUser);
+      setIsAuthenticated(true);
+    } else {
+      setUser(null);
+      setIsAuthenticated(false);
     }
+
+    setIsInitializing(false);
+  }, []);
+
+  useEffect(() => {
+    const handleAuthRejected = () => {
+      clearAuthData();
+      setActiveOrganizationProfileState(null);
+      setUser(null);
+      setIsAuthenticated(false);
+    };
+
+    window.addEventListener('assortis:auth-rejected', handleAuthRejected);
+
+    return () => {
+      window.removeEventListener('assortis:auth-rejected', handleAuthRejected);
+    };
   }, []);
 
   const login = async (email: string, password: string): Promise<void> => {
@@ -186,6 +269,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       value={{
         user,
         isAuthenticated,
+        isInitializing,
         login,
         logout,
         signup,

@@ -6,7 +6,7 @@ import { hasMonEspaceAccess } from '../services/permissions.service';
  * Only expert, organization, organization, and admin roles have access
  */
 export function useMonEspaceAccess() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, isInitializing, user } = useAuth();
 
   // Check if user has the required role using the permissions service
   const hasAccess = isAuthenticated && hasMonEspaceAccess(user?.accountType);
@@ -14,6 +14,7 @@ export function useMonEspaceAccess() {
   return {
     hasAccess,
     isAuthenticated,
+    isInitializing,
     userRole: user?.accountType,
   };
 }

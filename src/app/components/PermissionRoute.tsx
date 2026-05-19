@@ -1,6 +1,7 @@
 import { Navigate } from 'react-router';
 import { useAuth } from '@app/contexts/AuthContext';
 import { ProtectedRoute } from './ProtectedRoute';
+import { PageLoading } from './SystemStates';
 import type { AccountType } from '@app/services/permissions.service';
 
 interface PermissionRouteProps {
@@ -10,7 +11,11 @@ interface PermissionRouteProps {
 }
 
 export function PermissionRoute({ children, canAccess, fallbackTo = '/account' }: PermissionRouteProps) {
-  const { user } = useAuth();
+  const { isInitializing, user } = useAuth();
+
+  if (isInitializing) {
+    return <PageLoading />;
+  }
 
   return (
     <ProtectedRoute>
