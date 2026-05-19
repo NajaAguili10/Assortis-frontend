@@ -13,6 +13,15 @@ const getPostHeaders = (endpoint: string) => {
   return getHeaders(!publicAuthEndpoints.includes(endpoint));
 };
 
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('assortis_token');
+
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
+
 export const apiClient = {
   get: async <T>(endpoint: string, params?: Record<string, any>): Promise<T> => {
     let url = `${API_BASE_URL}${endpoint}`;
