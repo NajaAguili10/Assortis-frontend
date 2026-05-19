@@ -511,6 +511,7 @@
     // Success
     'projects.assign.success': 'Tasks assigned successfully!',
     'projects.assign.successMessage': '{count} task(s) assigned to {experts} expert(s)',
+    'projects.assign.saveError': 'Unable to save task assignments. Please try again.',
     
     // List
     'projects.list.title': 'Projects Database',

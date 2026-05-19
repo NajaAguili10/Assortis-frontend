@@ -267,7 +267,7 @@ export default function AssignTasks() {
       navigate('/projects');
     } catch (error) {
       console.error('Error saving task assignments:', error);
-      toast.error(t('projects.assign.error') || 'Unable to save task assignments');
+      toast.error(t('projects.assign.saveError') || 'Unable to save task assignments');
     } finally {
       setIsSaving(false);
     }
@@ -760,7 +760,7 @@ export default function AssignTasks() {
                 </Button>
               ) : (
                 <Button onClick={handleSubmit} disabled={isSaving} className="bg-green-600 hover:bg-green-700">
-                  {isSaving ? t('common.saving') : t('projects.assign.confirm')}
+                  {isSaving ? t('common.saving') || 'Saving...' : t('projects.assign.confirm')}
                 </Button>
               )}
             </div>
