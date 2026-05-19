@@ -20,6 +20,7 @@ import { Badge } from '@app/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@app/components/ui/card';
 import { Separator } from '@app/components/ui/separator';
 import { getLocalizedCountryName } from '@app/utils/country-translator';
+import { getSubsectorDisplayLabel } from '@app/utils/subsector-display';
 import { useOrganizationTenders } from '@app/modules/organization/hooks/useOrganizationTenders';
 import type { CountryEnum } from '@app/types/tender.dto';
 
@@ -27,7 +28,7 @@ export default function OrganizationsTenderDetail() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { t, language } = useLanguage();
-  const { getTenderById } = useOrganizationTenders();
+  const { getTenderById, isLoading } = useOrganizationTenders();
 
   const tender = getTenderById(id);
   const dateLocale = language === 'fr' ? fr : language === 'es' ? es : enUS;
@@ -36,6 +37,9 @@ export default function OrganizationsTenderDetail() {
     const translated = t(key);
     return translated === key ? fallback : translated;
   };
+
+  const getSubSectorDisplay = (subSector?: string | null, subSectorLabel?: string) =>
+    getSubsectorDisplayLabel(t, subSector, subSectorLabel);
 
   const statusBadgeClassName = useMemo(() => {
     if (!tender) return 'rounded-full bg-blue-100 text-blue-800 border-blue-200';
@@ -47,6 +51,10 @@ export default function OrganizationsTenderDetail() {
 
     return 'rounded-full bg-blue-100 text-blue-800 border-blue-200';
   }, [tender]);
+
+  if (isLoading) {
+    return null;
+  }
 
   if (!tender) {
     return (
@@ -103,7 +111,7 @@ export default function OrganizationsTenderDetail() {
                   </p>
                   <p>
                     <span className="font-semibold text-gray-900">{t('organizations.myTenders.fields.subSector')}: </span>
-                    {getTranslation(`subsectors.${tender.subSector}`, tender.subSector)}
+                    {getSubSectorDisplay(tender.subSector, tender.subSectorLabel)}
                   </p>
                   <p>
                     <span className="font-semibold text-gray-900">{t('organizations.myTenders.fields.country')}: </span>
@@ -152,7 +160,7 @@ export default function OrganizationsTenderDetail() {
                     </div>
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('organizations.myTenders.fields.subSector')}</p>
-                      <p className="mt-1 text-sm text-gray-900">{getTranslation(`subsectors.${tender.subSector}`, tender.subSector)}</p>
+                      <p className="mt-1 text-sm text-gray-900">{getSubSectorDisplay(tender.subSector, tender.subSectorLabel)}</p>
                     </div>
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('organizations.myTenders.fields.country')}</p>

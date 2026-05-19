@@ -534,8 +534,8 @@ const applyFiltersAndSort = (
   return filtered;
 };
 
-const fetchOrganizations = async () => {
-  const response = await apiClient.get<OrganizationBackend[] | { data?: OrganizationBackend[]; items?: OrganizationBackend[] }>('/organizations');
+const fetchOrganizations = async (endpoint: string = '/organizations') => {
+  const response = await apiClient.get<OrganizationBackend[] | { data?: OrganizationBackend[]; items?: OrganizationBackend[] }>(endpoint);
 
   const rawOrganizations = Array.isArray(response)
     ? response
@@ -689,6 +689,16 @@ export const organizationService = {
       throw error;
     }
 
+  },
+
+  getOrganizationsDatabaseList: async (filters?: OrganizationFilters, sortBy?: string) => {
+    try {
+      const organizations = await fetchOrganizations('/organizations/database');
+      return applyFiltersAndSort(organizations, filters, sortBy);
+    } catch (error) {
+      console.error('Error in getOrganizationsDatabaseList:', error);
+      throw error;
+    }
   },
 
   getAllOrganizationsByOrganization: async (

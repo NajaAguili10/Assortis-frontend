@@ -69,7 +69,7 @@ const getStatusValue = (org: Organization): string | undefined => {
   return undefined;
 };
 
-export function useOrganizations() {
+export function useOrganizations(options?: { scope?: 'all' | 'database' }) {
 
   const [kpis, setKpis] = useState<OrganizationKPIs>({
     totalOrganizations: 0,
@@ -95,7 +95,9 @@ export function useOrganizations() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await organizationService.getOrganizationsList();
+        const response = options?.scope === 'database'
+          ? await organizationService.getOrganizationsDatabaseList()
+          : await organizationService.getOrganizationsList();
         setAllOrganizations(response);
       } catch (error) {
         console.error("Error fetching organizations:", error);
@@ -105,7 +107,7 @@ export function useOrganizations() {
     };
 
     fetchData();
-  }, []);
+  }, [options?.scope]);
   /*useEffect(() => {
   const fetchData = async () => {
     try {

@@ -1,45 +1,12 @@
 import { useState } from 'react';
+import {
+  organizationTenderService,
+  TenderQuickCreatePayload,
+  OrganizationTenderItem,
+} from '@app/services/organizationTenderService';
 
-export interface TenderQuickCreatePayload {
-  title: string;
-  description: string;
-  sector: string;
-  subSector: string;
-  country: string;
-  donorClient: string;
-  budget?: number;
-  deadline: string;
-}
-
-export interface TenderQuickCreateResult {
-  id: string;
-  createdAt: string;
-  status: 'DRAFT';
-}
-
-const QUICK_TENDERS_STORAGE_KEY = 'tenders.quickCreated';
-
-function readQuickTenders(): Array<TenderQuickCreatePayload & TenderQuickCreateResult> {
-  try {
-    const raw = localStorage.getItem(QUICK_TENDERS_STORAGE_KEY);
-    if (!raw) return [];
-
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed as Array<TenderQuickCreatePayload & TenderQuickCreateResult>;
-  } catch {
-    return [];
-  }
-}
-
-function writeQuickTenders(items: Array<TenderQuickCreatePayload & TenderQuickCreateResult>) {
-  try {
-    localStorage.setItem(QUICK_TENDERS_STORAGE_KEY, JSON.stringify(items));
-  } catch {
-    // No-op to preserve UX if storage is unavailable.
-  }
-}
+export type TenderQuickCreateResult = Pick<OrganizationTenderItem, 'id' | 'createdAt' | 'status'>;
+export type { TenderQuickCreatePayload };
 
 export function useTenderQuickCreate() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -48,19 +15,7 @@ export function useTenderQuickCreate() {
     setIsSubmitting(true);
 
     try {
-      const createdTender: TenderQuickCreatePayload & TenderQuickCreateResult = {
-        ...payload,
-        id: `tnd-${Date.now()}`,
-        createdAt: new Date().toISOString(),
-        status: 'DRAFT',
-      };
-
-      const existing = readQuickTenders();
-      writeQuickTenders([createdTender, ...existing]);
-
-      // Keep async contract compatible with a future API call.
-      await Promise.resolve();
-
+      const createdTender = await organizationTenderService.createCurrentOrganizationTender(payload);
       return {
         id: createdTender.id,
         createdAt: createdTender.createdAt,

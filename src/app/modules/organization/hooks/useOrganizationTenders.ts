@@ -1,73 +1,42 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type {
+import {
+  organizationTenderService,
+  OrganizationTenderItem,
   TenderQuickCreatePayload,
-  TenderQuickCreateResult,
-} from '@app/modules/shared/hooks/useTenderQuickCreate';
-
-const QUICK_TENDERS_STORAGE_KEY = 'tenders.quickCreated';
-
-export type OrganizationTenderItem = TenderQuickCreatePayload & TenderQuickCreateResult;
-
-function readOrganizationTenders(): OrganizationTenderItem[] {
-  try {
-    const raw = localStorage.getItem(QUICK_TENDERS_STORAGE_KEY);
-    if (!raw) return [];
-
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed as OrganizationTenderItem[];
-  } catch {
-    return [];
-  }
-}
-
-function writeOrganizationTenders(items: OrganizationTenderItem[]) {
-  try {
-    localStorage.setItem(QUICK_TENDERS_STORAGE_KEY, JSON.stringify(items));
-  } catch {
-    // Keep UI responsive when storage is unavailable.
-  }
-}
+} from '@app/services/organizationTenderService';
 
 export function useOrganizationTenders() {
   const [tenders, setTenders] = useState<OrganizationTenderItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const refreshTenders = useCallback(() => {
-    const loaded = readOrganizationTenders().sort((a, b) => {
-      const dateA = new Date(a.createdAt).getTime();
-      const dateB = new Date(b.createdAt).getTime();
-      return dateB - dateA;
-    });
-
-    setTenders(loaded);
+  const refreshTenders = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const loaded = await organizationTenderService.getCurrentOrganizationTenders();
+      setTenders(
+        [...loaded].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+      );
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     refreshTenders();
 
-    const onStorage = (event: StorageEvent) => {
-      if (event.key && event.key !== QUICK_TENDERS_STORAGE_KEY) return;
+    const onFocus = () => {
       refreshTenders();
     };
 
-    window.addEventListener('storage', onStorage);
-    window.addEventListener('focus', refreshTenders);
-
-    return () => {
-      window.removeEventListener('storage', onStorage);
-      window.removeEventListener('focus', refreshTenders);
-    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
   }, [refreshTenders]);
 
   const stats = useMemo(() => {
     const total = tenders.length;
     const draft = tenders.filter(item => item.status === 'DRAFT').length;
 
-    return {
-      total,
-      draft,
-    };
+    return { total, draft };
   }, [tenders]);
 
   const getTenderById = useCallback(
@@ -79,20 +48,9 @@ export function useOrganizationTenders() {
   );
 
   const updateTender = useCallback(
-    async (id: string, payload: Omit<OrganizationTenderItem, 'id' | 'createdAt' | 'status'> & Partial<Pick<OrganizationTenderItem, 'status'>>) => {
-      const existing = readOrganizationTenders();
-      const current = existing.find(item => item.id === id);
-      if (!current) return null;
-
-      const updated: OrganizationTenderItem = {
-        ...current,
-        ...payload,
-      };
-
-      writeOrganizationTenders(existing.map(item => (item.id === id ? updated : item)));
-      refreshTenders();
-
-      await Promise.resolve();
+    async (id: string, payload: TenderQuickCreatePayload) => {
+      const updated = await organizationTenderService.updateCurrentOrganizationTender(id, payload);
+      await refreshTenders();
       return updated;
     },
     [refreshTenders],
@@ -100,14 +58,8 @@ export function useOrganizationTenders() {
 
   const deleteTender = useCallback(
     async (id: string) => {
-      const existing = readOrganizationTenders();
-      const next = existing.filter(item => item.id !== id);
-      if (next.length === existing.length) return false;
-
-      writeOrganizationTenders(next);
-      refreshTenders();
-
-      await Promise.resolve();
+      await organizationTenderService.deleteCurrentOrganizationTender(id);
+      await refreshTenders();
       return true;
     },
     [refreshTenders],
@@ -115,6 +67,7 @@ export function useOrganizationTenders() {
 
   return {
     tenders,
+    isLoading,
     refreshTenders,
     getTenderById,
     updateTender,
