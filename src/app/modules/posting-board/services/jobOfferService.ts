@@ -115,6 +115,13 @@ const writeStoredOffers = (offers: BackendJobOffer[]) => {
 };
 
 const isApiError = (error: any) => Boolean(error?.response?.status);
+const getApiStatus = (error: any) => Number(error?.response?.status || 0);
+const isLocalOfferId = (id?: number | string | null) => String(id || '').startsWith('local-');
+const removeStoredOffer = (id: string) => {
+  writeStoredOffers(readStoredOffers().filter((offer) => String(offer.id) !== id));
+};
+
+const getLocalOnlyStoredOffers = () => readStoredOffers().filter((offer) => isLocalOfferId(offer.id));
 
 const normalizeStatus = (value?: string): JobOfferStatusEnum => {
   switch ((value || '').toUpperCase()) {
@@ -298,7 +305,7 @@ const toCreateDto = (offer: JobOfferDetailDTO): JobOfferCreateDTO => ({
 export async function getAllJobOffers(): Promise<JobOfferListDTO[]> {
   try {
     const response = await apiClient.get<BackendJobOffer[]>('/job-offers');
-    const merged = [...response, ...readStoredOffers().filter(stored => !response.some(item => String(item.id) === String(stored.id)))];
+    const merged = [...response, ...getLocalOnlyStoredOffers().filter(stored => !response.some(item => String(item.id) === String(stored.id)))];
     return merged.map(normalizeOffer);
   } catch (error) {
     return readStoredOffers().map(normalizeOffer);
@@ -315,6 +322,10 @@ export async function getJobOfferById(id: string): Promise<JobOfferDetailDTO | n
     const response = await apiClient.get<BackendJobOffer>(`/job-offers/${id}`);
     return normalizeOffer(response);
   } catch (error) {
+    if (getApiStatus(error) === 404) {
+      removeStoredOffer(id);
+      return null;
+    }
     const stored = readStoredOffers().find((offer) => String(offer.id) === id);
     if (stored) return normalizeOffer(stored);
     console.error('Error fetching job offer by id:', error);
@@ -325,7 +336,7 @@ export async function getJobOfferById(id: string): Promise<JobOfferDetailDTO | n
 export async function getJobOffersByProject(projectId: string): Promise<JobOfferListDTO[]> {
   try {
     const response = await apiClient.get<BackendJobOffer[]>(`/job-offers/project/${encodeURIComponent(projectId)}`);
-    const stored = readStoredOffers().filter((offer) => String(offer.linkedProjectId || offer.projectId || '') === projectId);
+    const stored = getLocalOnlyStoredOffers().filter((offer) => String(offer.linkedProjectId || offer.projectId || '') === projectId);
     const merged = [...response, ...stored.filter(item => !response.some(offer => String(offer.id) === String(item.id)))];
     return merged.map(normalizeOffer);
   } catch {
@@ -445,12 +456,20 @@ export async function updateJobOfferStatus(id: string, status: JobOfferStatusEnu
 }
 
 export async function deleteJobOffer(id: string): Promise<boolean> {
-  if (id.startsWith('local-')) {
-    writeStoredOffers(readStoredOffers().filter((offer) => String(offer.id) !== id));
+  if (isLocalOfferId(id)) {
+    removeStoredOffer(id);
     return true;
   }
-  await apiClient.delete(`/job-offers/${id}`);
-  writeStoredOffers(readStoredOffers().filter((offer) => String(offer.id) !== id));
+
+  try {
+    await apiClient.delete(`/job-offers/${id}`);
+  } catch (error) {
+    if (getApiStatus(error) !== 404) {
+      throw error;
+    }
+  }
+
+  removeStoredOffer(id);
   return true;
 }
 
