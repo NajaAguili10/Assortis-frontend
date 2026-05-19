@@ -18,6 +18,7 @@ import {
 import { toast } from 'sonner';
 import { useState, useMemo } from 'react';
 import { UserPlus, ArrowLeft, CheckCircle2, Search } from 'lucide-react';
+import { taskService } from '@app/services/taskService';
 import { useProjects } from '@app/hooks/useProjects';
 import { useExperts } from '@app/modules/expert/hooks/useExperts';
 import { useAuth } from '@app/contexts/AuthContext';
@@ -86,9 +87,10 @@ export default function AssignTasks() {
 
   // Step 4: Assignment Details
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Hooks pour récupérer les données de l'organisation
-  const { allProjects, tasks } = useProjects();
+  const { allProjects, tasks, updateTask } = useProjects();
   const { allExperts } = useExperts();
 
   // Filtrer par organizationId de l'utilisateur actuel (org-1 pour la démo)
@@ -232,11 +234,43 @@ export default function AssignTasks() {
     setCurrentStep(Math.max(currentStep - 1, 1));
   };
 
-  const handleSubmit = () => {
-    const count = assignments.length;
-    const expertsCount = selectedExperts.length;
-    toast.success(t('projects.assign.success'));
-    navigate('/projects');
+  const handleSubmit = async () => {
+    if (assignments.length === 0) {
+      toast.error(t('projects.assign.validation.tasks'));
+      return;
+    }
+
+    const assignmentsByTask = assignments.reduce<Record<string, { id: string; name: string; role: string }[]>>((map, assignment) => {
+      const expert = getExpertById(assignment.expertId);
+      if (!expert) return map;
+
+      const existing = map[assignment.taskId] || [];
+      if (!existing.some((item) => item.id === assignment.expertId)) {
+        existing.push({ id: assignment.expertId, name: expert.name, role: assignment.role || '' });
+      }
+      map[assignment.taskId] = existing;
+      return map;
+    }, {});
+
+    try {
+      setIsSaving(true);
+      await Promise.all(
+        Object.entries(assignmentsByTask).map(async ([taskId, assignedTo]) => {
+          await taskService.updateTask(taskId, { assignedTo });
+          if (updateTask) {
+            updateTask(taskId, { assignedTo });
+          }
+        })
+      );
+
+      toast.success(t('projects.assign.success'));
+      navigate('/projects');
+    } catch (error) {
+      console.error('Error saving task assignments:', error);
+      toast.error(t('projects.assign.error') || 'Unable to save task assignments');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const toggleTaskSelection = (taskId: string) => {
@@ -725,8 +759,8 @@ export default function AssignTasks() {
                   {t('projects.assign.next')}
                 </Button>
               ) : (
-                <Button onClick={handleSubmit} className="bg-green-600 hover:bg-green-700">
-                  {t('projects.assign.confirm')}
+                <Button onClick={handleSubmit} disabled={isSaving} className="bg-green-600 hover:bg-green-700">
+                  {isSaving ? t('common.saving') : t('projects.assign.confirm')}
                 </Button>
               )}
             </div>
