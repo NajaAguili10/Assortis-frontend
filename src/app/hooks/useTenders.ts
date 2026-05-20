@@ -31,6 +31,7 @@ function parseDate(value: Date | string | number | null | undefined): Date | und
 function normalizeTenderData(tender: any): TenderListDTO {
   return {
     ...tender,
+    id: String(tender.id),
     deadline: parseDate(tender.deadline) ?? new Date(),
     createdAt: parseDate(tender.createdAt) ?? new Date(),
     publishedDate: parseDate(tender.publishedDate),
@@ -407,6 +408,10 @@ export function useTenders() {
     return savedTenderIds.has(tenderId);
   };
 
+  const getTenderById = useCallback(async (id: string | number) => {
+    return normalizeTenderData(await tenderService.getTenderById(id));
+  }, []);
+
   const updateFilters = useCallback((newFilters: Partial<TenderFilters>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
     setCurrentPage(1); // Reset to first page when filters change
@@ -461,6 +466,6 @@ export function useTenders() {
     isTenderSaved,
 
     refreshTenders: fetchTenders,
-    getTenderById: tenderService.getTenderById
+    getTenderById
   };
 }

@@ -166,6 +166,17 @@ export default function Pipeline() {
       return;
     }
 
+    if (!tender.isProject && !tender.isToR) {
+      navigate(`/calls/${tender.tenderId}`, {
+        state: {
+          fromPipeline: true,
+          fromMyProjects: true,
+          accessSource: 'my-projects',
+        },
+      });
+      return;
+    }
+
     if (tender.isToR) {
       navigate(`/calls/tors/${tender.tenderId}`, {
         state: {
@@ -253,6 +264,9 @@ export default function Pipeline() {
     return itemsToShow
       .map(item => {
         if (item.tenderTitle) {
+          const isKnownProject = /^\d+$/.test(item.tenderId) && allProjects.some((project) => String(project.id) === item.tenderId);
+          const isKnownTender = allTenders.some((tender) => String(tender.id) === item.tenderId);
+          const isKnownToR = allToRs.some((tor) => String(tor.id) === item.tenderId);
           return {
             id: item.tenderId,
             tenderId: item.tenderId,
@@ -282,8 +296,8 @@ export default function Pipeline() {
             role: item.role,
             roleSought: item.roleSought,
             progressPercent: item.progressPercent,
-            isToR: false,
-            isProject: false,
+            isToR: isKnownToR,
+            isProject: isKnownProject && !isKnownTender && !isKnownToR,
           };
         }
 

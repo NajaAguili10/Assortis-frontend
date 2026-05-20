@@ -5,6 +5,7 @@ import Calls from './modules/shared/pages/Calls';
 import CallsEnhanced from './modules/shared/pages/CallsEnhanced';
 import TendersHub from './modules/shared/pages/TendersHub';
 import ActiveTenders from './modules/shared/pages/ActiveTenders';
+import TenderDetail from './modules/shared/pages/TenderDetail';
 import ToRsList from './modules/shared/pages/ToRsList';
 import ToRDetail from './modules/shared/pages/ToRDetail';
 import AIMatching from './modules/shared/pages/AIMatching';
@@ -244,7 +245,7 @@ const router = createBrowserRouter([
       { path: 'calls/active', Component: ActiveTenders },
       { path: 'calls/tors', Component: ToRsList },
       { path: 'calls/tors/:id', Component: ToRDetail },
-      { path: 'calls/:id', Component: ProjectDetail },
+      { path: 'calls/:id', Component: TenderDetail },
       { path: 'calls/ai-matching', Component: AIMatching },
       { path: 'calls/templates', Component: Templates },
       { path: 'calls/template-edit/:id', Component: TemplateEdit },
@@ -255,7 +256,7 @@ const router = createBrowserRouter([
       { path: 'tenders', element: <Navigate to="/tenders/active" replace /> },
       { path: 'tenders/overview', Component: TendersHub },
       { path: 'tenders/active', Component: ActiveTenders },
-      { path: 'tenders/:id', Component: ProjectDetail },
+      { path: 'tenders/:id', Component: TenderDetail },
       { path: 'tenders/ai-matching', Component: AIMatching },
       { path: 'tenders/templates', Component: Templates },
       { path: 'tenders/template-edit/:id', Component: TemplateEdit },

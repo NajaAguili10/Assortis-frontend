@@ -511,7 +511,7 @@ export default function ProjectsActive() {
       return;
     }
 
-    navigate(`/projects/${row.id}`, { state: { fromMyProjects: true, isFavorited: favouriteIds.has(row.id) } });
+    navigate(`/calls/${row.id}`, { state: { fromMyProjects: true, isFavorited: favouriteIds.has(row.id) } });
   };
 
   const handleDelete = (id: string) => {
