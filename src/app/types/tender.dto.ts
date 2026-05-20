@@ -254,6 +254,12 @@ export enum FundingAgencyEnum {
   ZRDA = 'ZRDA'
 }
 
+export interface DonorDTO {
+  id: number;
+  name: string;
+  shortName?: string;
+}
+
 export enum SectorEnum {
   EDUCATION = 'EDUCATION',
   HEALTH = 'HEALTH',

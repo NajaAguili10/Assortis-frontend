@@ -21,6 +21,30 @@ import {
   REGION_COUNTRY_MAP
 } from '../types/tender.dto';
 
+function parseDate(value: Date | string | number | null | undefined): Date | undefined {
+  if (value instanceof Date) return value;
+  if (value === null || value === undefined || value === '') return undefined;
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date : undefined;
+}
+
+function normalizeTenderData(tender: any): TenderListDTO {
+  return {
+    ...tender,
+    deadline: parseDate(tender.deadline) ?? new Date(),
+    createdAt: parseDate(tender.createdAt) ?? new Date(),
+    publishedDate: parseDate(tender.publishedDate),
+    awardCompanies: tender.awardCompanies?.map((award: any) => ({
+      ...award,
+      date: parseDate(award.date) ?? new Date(),
+    })),
+    shortlistCompanies: tender.shortlistCompanies?.map((shortlist: any) => ({
+      ...shortlist,
+      date: parseDate(shortlist.date) ?? new Date(),
+    })),
+  } as TenderListDTO;
+}
+
 // Generate a simple PDF blob for demo purposes
 const generateDemoPDF = (fileName: string, tenderRef: string): string => {
   const pdfContent = `%PDF-1.4
@@ -298,6 +322,8 @@ export function useTenders() {
           : Promise.resolve([])
       ]);
 
+      const normalizedTenders = (tendersResponse || []).map(normalizeTenderData);
+
       const mappedShortlists: TenderListDTO[] = (shortlistsResponse || []).map((s: any) => ({
         id: `shortlist-${s.id}`,
         referenceNumber: `SH-${s.id}`,
@@ -327,7 +353,7 @@ export function useTenders() {
         comments: s.comments
       }));
 
-      const combined = [...tendersResponse, ...mappedShortlists];
+      const combined = [...normalizedTenders, ...mappedShortlists];
 
       setTendersData({
         data: combined,
