@@ -458,6 +458,9 @@
     'projects.assign.taskPriority': 'Priority',
     'projects.assign.taskDueDate': 'Due Date',
     'projects.assign.noTasksAvailable': 'No tasks available for this project',
+    'projects.assign.selectProjectFirst': 'Select a project to view its tasks',
+    'projects.assign.loadingTasks': 'Loading project tasks...',
+    'projects.assign.taskLoadError': 'Unable to load tasks for the selected project.',
     'projects.assign.selectAtLeastOne': 'Please select at least one task',
     
     // Step 3 - Select Experts
@@ -1363,8 +1366,11 @@
     'projects.assign.taskStatus': 'Status',
     'projects.assign.taskPriority': 'Priority',
     'projects.assign.taskDueDate': 'Due Date',
-    'projects.assign.noTasksAvailable': 'No tasks available for this project',
-    'projects.assign.selectAtLeastOne': 'Please select at least one task',
+    'projects.assign.noTasksAvailable': 'Aucune tâche n’est disponible pour ce projet',
+    'projects.assign.selectProjectFirst': 'Sélectionnez un projet pour afficher ses tâches',
+    'projects.assign.loadingTasks': 'Chargement des tâches du projet…',
+    'projects.assign.taskLoadError': 'Impossible de charger les tâches pour le projet sélectionné.',
+    'projects.assign.selectAtLeastOne': 'Veuillez sélectionner au moins une tâche',
     
     // Step 3 - Select Experts
     'projects.assign.selectExperts': 'Select Experts',
@@ -2211,8 +2217,11 @@
     'projects.assign.taskStatus': 'Status',
     'projects.assign.taskPriority': 'Priority',
     'projects.assign.taskDueDate': 'Due Date',
-    'projects.assign.noTasksAvailable': 'No tasks available for this project',
-    'projects.assign.selectAtLeastOne': 'Please select at least one task',
+    'projects.assign.noTasksAvailable': 'No hay tareas disponibles para este proyecto',
+    'projects.assign.selectProjectFirst': 'Seleccione un proyecto para ver sus tareas',
+    'projects.assign.loadingTasks': 'Cargando tareas del proyecto...',
+    'projects.assign.taskLoadError': 'No se pueden cargar las tareas del proyecto seleccionado.',
+    'projects.assign.selectAtLeastOne': 'Por favor seleccione al menos una tarea',
     
     // Step 3 - Select Experts
     'projects.assign.selectExperts': 'Select Experts',

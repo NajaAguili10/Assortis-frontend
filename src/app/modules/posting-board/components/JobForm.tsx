@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '../../../components/ui/button';
 import { Checkbox } from '../../../components/ui/checkbox';
 import { Input } from '../../../components/ui/input';
@@ -19,6 +19,7 @@ import { Briefcase, Building2, CalendarCheck, FileImage, FileText, Globe, Loader
 import { GroupedSelection } from './GroupedSelection';
 import { RichTextEditor } from './RichTextEditor';
 import { useProjectsContext } from '@app/contexts/ProjectsContext';
+import { cityService } from '@app/services/cityService';
 
 interface JobFormProps {
   onSubmit: (data: JobOfferCreateDTO) => Promise<void>;
@@ -39,12 +40,6 @@ const FUNCTION_GROUPS = [
   { label: 'Technical', options: ['Engineer', 'Researcher', 'IT Specialist', 'Communication Specialist'] },
   { label: 'Leadership', options: ['Team Leader', 'Country Director', 'Department Head'] },
 ];
-
-const CITY_OPTIONS: Record<string, string[]> = {
-  Armenia: ['Yerevan', 'Shirak Province', 'Artashat', 'Armavir', 'Gavar', 'Gyumri', 'Lori Province', 'Ashtarak', 'Hrazdan', 'Vanadzor'],
-  Azerbaijan: ['Baku', 'Ganja', 'Sumqayit', 'Mingachevir', 'Khirdalan', 'Shirvan', 'Shaki', 'Yevlakh'],
-  Belarus: ['Minsk', 'Gomel', 'Mogilev', 'Vitebsk', 'Grodno', 'Brest', 'Bobruisk', 'Baranovichi', 'Pinsk', 'Orsha'],
-};
 
 const normalizeType = (type?: JobOfferTypeEnum): ActiveVacancyType => {
   if (type === JobOfferTypeEnum.INTERNAL) return JobOfferTypeEnum.INTERNAL;
@@ -70,6 +65,23 @@ const buildLocation = (countries: string[], cities: string[], customCities: stri
 const getProjectOptionId = (project: { id?: string; code?: string; title: string }) =>
   project.id || project.code || project.title;
 
+const toDateInputValue = (date: Date) => date.toISOString().split('T')[0];
+
+const getTomorrow = () => {
+  const tomorrow = new Date();
+  tomorrow.setHours(0, 0, 0, 0);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return toDateInputValue(tomorrow);
+};
+
+const isFutureDate = (value: string) => {
+  if (!value) return false;
+  const selected = new Date(`${value}T00:00:00`);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return selected.getTime() > today.getTime();
+};
+
 export function JobForm({
   onSubmit,
   onCancel,
@@ -79,6 +91,9 @@ export function JobForm({
 }: JobFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [availableCities, setAvailableCities] = useState<string[]>([]);
+  const [isLoadingCities, setIsLoadingCities] = useState(false);
+  const tomorrow = useMemo(getTomorrow, []);
 
   const { projects: allProjects } = useProjectsContext();
   const [linkedProjectSearch, setLinkedProjectSearch] = useState('');
@@ -146,8 +161,45 @@ export function JobForm({
       options: query ? group.options.filter((option) => option.toLowerCase().includes(query)) : group.options,
     })).filter((group) => group.options.length > 0);
   }, [functionQuery]);
-  const availableCities = useMemo(() => countries.flatMap((country) => CITY_OPTIONS[country] || []), [countries]);
   const actionLabel = submitLabel || (vacancyType === JobOfferTypeEnum.PROJECT_NEW ? 'CREATE PROJECT & VACANCY' : 'CREATE VACANCY');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCities = async () => {
+      if (countries.length === 0) {
+        setAvailableCities([]);
+        return;
+      }
+
+      setIsLoadingCities(true);
+      try {
+        const results = await Promise.all(countries.map((country) => cityService.getCities(country)));
+        if (!cancelled) {
+          setAvailableCities(Array.from(new Set(results.flat().map((city) => city.name))).sort());
+        }
+      } catch (error) {
+        console.error('Error loading cities:', error);
+        if (!cancelled) {
+          setAvailableCities([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingCities(false);
+        }
+      }
+    };
+
+    loadCities();
+    return () => {
+      cancelled = true;
+    };
+  }, [countries]);
+
+  useEffect(() => {
+    if (countries.length === 0 || availableCities.length === 0) return;
+    setCities((current) => current.filter((city) => availableCities.includes(city)));
+  }, [availableCities, countries.length]);
 
   const handleLogoFile = (file?: File) => {
     if (!file || !['image/jpeg', 'image/png'].includes(file.type)) return;
@@ -209,6 +261,8 @@ export function JobForm({
     if (!jobFunction && !otherFunction.trim()) nextErrors.jobFunction = 'Function is required.';
     if (!descriptionPlainText.trim()) nextErrors.description = 'Vacancy text is required.';
     if (!deadline) nextErrors.deadline = 'Application deadline is required.';
+    else if (!isFutureDate(deadline)) nextErrors.deadline = 'Application deadline must be a future date.';
+    if (estimatedStartDate && !isFutureDate(estimatedStartDate)) nextErrors.estimatedStartDate = 'Estimated response date must be a future date.';
     if (vacancyType === JobOfferTypeEnum.PROJECT_LINKED && !linkedProjectId) nextErrors.linkedProject = 'Please select an existing project.';
     if (vacancyType !== JobOfferTypeEnum.INTERNAL && !projectSummaryPlainText.trim() && !projectSummary.trim()) nextErrors.projectSummary = 'Project summary is required.';
     if (vacancyType === JobOfferTypeEnum.PROJECT_NEW && !projectTitle.trim()) nextErrors.projectTitle = 'Project title is required.';
@@ -544,8 +598,10 @@ export function JobForm({
               )}
             </div>
             <div className="max-h-44 space-y-1 overflow-y-auto">
-              {availableCities.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Select Armenia, Azerbaijan, or Belarus to load example cities.</p>
+              {isLoadingCities ? (
+                <p className="text-sm text-muted-foreground">Loading cities...</p>
+              ) : availableCities.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Select a country to load available cities.</p>
               ) : availableCities.map((city) => (
                 <label key={city} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-white">
                   <Checkbox checked={cities.includes(city)} onCheckedChange={() => setCities(toggleValue(cities, city))} />
@@ -629,7 +685,7 @@ export function JobForm({
         <div className="grid gap-5 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label>Application deadline <span className="text-destructive">*</span></Label>
-            <Input type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} className={errors.deadline ? 'border-destructive' : ''} />
+            <Input type="date" min={tomorrow} value={deadline} onChange={(event) => setDeadline(event.target.value)} className={errors.deadline ? 'border-destructive' : ''} />
             {errors.deadline && <p className="text-xs text-destructive">{errors.deadline}</p>}
           </div>
           <div className="space-y-1.5">
@@ -652,8 +708,9 @@ export function JobForm({
             <Input type="number" min="1" value={contractDurationDays} onChange={(event) => setContractDurationDays(event.target.value)} placeholder="Number of days" />
           </div>
           <div className="space-y-1.5">
-            <Label>Estimated contract start</Label>
-            <Input type="date" value={estimatedStartDate} onChange={(event) => setEstimatedStartDate(event.target.value)} />
+            <Label>Estimated response date</Label>
+            <Input type="date" min={tomorrow} value={estimatedStartDate} onChange={(event) => setEstimatedStartDate(event.target.value)} className={errors.estimatedStartDate ? 'border-destructive' : ''} />
+            {errors.estimatedStartDate && <p className="text-xs text-destructive">{errors.estimatedStartDate}</p>}
           </div>
           <div className="space-y-3 md:col-span-2">
             <Label>Send applications to</Label>

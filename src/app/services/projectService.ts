@@ -1,5 +1,6 @@
 import { apiClient } from '../api/apiClient';
-import { ProjectFiltersDTO, ProjectListDTO } from '../types/project.dto';
+import { CountryDTO } from '../types/organization.dto';
+import { ProjectFiltersDTO, ProjectListDTO, RegionDTO, SectorDTO } from '../types/project.dto';
 
 export interface CreateProjectPayload {
   /** Required */
@@ -67,8 +68,24 @@ export const projectService = {
     return apiClient.get(`/projects/${id}`);
   },
 
+  getCountries: async (): Promise<CountryDTO[]> => {
+    return apiClient.get('/countries');
+  },
+
+  getRegions: async (): Promise<RegionDTO[]> => {
+    return apiClient.get('/regions');
+  },
+
+  getSectors: async (): Promise<SectorDTO[]> => {
+    return apiClient.get('/sectors');
+  },
+
   createProject: async (payload: CreateProjectPayload) => {
     return apiClient.post('/projects', payload);
+  },
+
+  updateProject: async (id: string | number, payload: CreateProjectPayload) => {
+    return apiClient.put(`/projects/${id}`, payload);
   },
 
   getKPIs: async () => {
@@ -85,6 +102,12 @@ export const projectService = {
   },
   deleteSavedSearch: async (id: number) => {
     return apiClient.delete(`/projects/saved-searches/${id}`);
+  },
+  deleteProject: async (id: string | number) => {
+    return apiClient.delete(`/projects/${id}`);
+  },
+  restoreProject: async (id: string | number) => {
+    return apiClient.put(`/projects/${id}/restore`);
   }
 };
 

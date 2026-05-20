@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useLanguage } from '@app/contexts/LanguageContext';
 import { useAuth } from '@app/contexts/AuthContext';
+import { toast } from 'sonner';
 import { useNavigate } from 'react-router';
 import { PageBanner } from '@app/components/PageBanner';
 import { PageContainer } from '@app/components/PageContainer';
@@ -38,7 +39,7 @@ export default function Projects() {
   const { t, language } = useLanguage();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { kpis, allProjects, filteredProjects = [], viewMode, setViewMode, updateFilters } = useProjects();
+  const { kpis, allProjects, filteredProjects = [], viewMode, setViewMode, updateFilters, deleteProject, restoreProject } = useProjects();
   
   // Vérifier les permissions d'accès
   const hasAccess = hasProjectsAccess(user?.accountType);
@@ -49,7 +50,6 @@ export default function Projects() {
   // Vérifier si l'utilisateur est un expert (pas organization)
   const isExpertOnly = user?.accountType === 'expert';
   const [activeCreatedProjectsTab, setActiveCreatedProjectsTab] = useState<CreatedProjectsTab>('open');
-  const [deletedCreatedProjectIds, setDeletedCreatedProjectIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
 
   // Use filteredProjects (viewMode + search applied in hook)
@@ -98,17 +98,22 @@ export default function Projects() {
       return true;
     }
 
-    const endDate = new Date(project.timeline?.endDate || project.updatedDate || project.createdDate).getTime();
+    const endDateValue = project.timeline?.endDate;
+    if (!endDateValue) {
+      return false;
+    }
+
+    const endDate = new Date(endDateValue).getTime();
     return Number.isFinite(endDate) && endDate < now;
   };
 
   const createdProjectsByTab = useMemo(() => {
-    const open = userCreatedProjects.filter((project) => !isPastCreatedProject(project) && !deletedCreatedProjectIds.has(project.id));
-    const past = userCreatedProjects.filter((project) => isPastCreatedProject(project) && !deletedCreatedProjectIds.has(project.id));
-    const deleted = userCreatedProjects.filter((project) => deletedCreatedProjectIds.has(project.id));
+    const open = userCreatedProjects.filter((project) => !isPastCreatedProject(project) && !project.deleted);
+    const past = userCreatedProjects.filter((project) => isPastCreatedProject(project) && !project.deleted);
+    const deleted = userCreatedProjects.filter((project) => project.deleted);
 
     return { open, past, deleted };
-  }, [deletedCreatedProjectIds, userCreatedProjects]);
+  }, [userCreatedProjects]);
 
   const activeCreatedProjects = useMemo(() => {
     if (activeCreatedProjectsTab === 'open') return createdProjectsByTab.open;
@@ -116,16 +121,22 @@ export default function Projects() {
     return createdProjectsByTab.deleted;
   }, [activeCreatedProjectsTab, createdProjectsByTab]);
 
-  const handleDeleteCreatedProject = (id: string) => {
-    setDeletedCreatedProjectIds((prev) => new Set(prev).add(id));
+  const handleDeleteCreatedProject = async (id: string) => {
+    try {
+      await deleteProject(id);
+      toast.success(t('projects.delete.success') || 'Project successfully deleted');
+    } catch (err) {
+      toast.error(t('projects.delete.error') || 'Failed to delete project');
+    }
   };
 
-  const handleRestoreCreatedProject = (id: string) => {
-    setDeletedCreatedProjectIds((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
+  const handleRestoreCreatedProject = async (id: string) => {
+    try {
+      await restoreProject(id);
+      toast.success(t('projects.restore.success') || 'Project successfully restored');
+    } catch (err) {
+      toast.error(t('projects.restore.error') || 'Failed to restore project');
+    }
   };
   
   // D�finir les sous-menus et leurs descriptions pour la page d'acc�s refus�

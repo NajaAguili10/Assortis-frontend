@@ -24,7 +24,8 @@ interface ProjectsContextType {
   projects: ProjectListDTOInternal[];
   addProject: (project: ProjectListDTOInternal) => void;
   updateProject: (id: string, project: Partial<ProjectListDTOInternal>) => void;
-  deleteProject: (id: string) => void;
+  deleteProject: (id: string) => Promise<void>;
+  restoreProject: (id: string) => Promise<void>;
   getProjectById: (id: string) => ProjectListDTOInternal | undefined;
   tasks: TaskDTO[];
   addTask: (task: TaskDTO) => void;
@@ -804,8 +805,11 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
       try {
         const response = await projectService.getAllProjects();
         if (Array.isArray(response)) {
-          // Map to internal type if necessary, here we assume they match or are compatible
-          setProjects(response as ProjectListDTO[]);
+          // Normalize IDs to strings so lookups work consistently across routes.
+          setProjects(response.map((project) => ({
+            ...project,
+            id: String(project.id),
+          })) as ProjectListDTO[]);
         } else {
           throw new Error('Invalid projects response from backend');
         }
@@ -856,12 +860,37 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
     );
   };
 
-  const deleteProject = (id: string) => {
-    setProjects((prev) => prev.filter((project) => String(project.id) !== String(id)));
+  const deleteProject = async (id: string) => {
+    try {
+      await projectService.deleteProject(id);
+      setProjects((prev) =>
+        prev.map((project) =>
+          String(project.id) === String(id) ? { ...project, deleted: true } : project
+        )
+      );
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      throw error;
+    }
+  };
+
+  const restoreProject = async (id: string) => {
+    try {
+      await projectService.restoreProject(id);
+      setProjects((prev) =>
+        prev.map((project) =>
+          String(project.id) === String(id) ? { ...project, deleted: false } : project
+        )
+      );
+    } catch (error) {
+      console.error("Error restoring project:", error);
+      throw error;
+    }
   };
 
   const getProjectById = (id: string) => {
-    return projects.find((project) => project.id === id);
+    const normalizedId = String(id);
+    return projects.find((project) => String(project.id) === normalizedId);
   };
 
   const addTask = (task: TaskDTO) => {
@@ -887,6 +916,7 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
         addProject,
         updateProject,
         deleteProject,
+        restoreProject,
         getProjectById,
         tasks,
         addTask,

@@ -111,6 +111,11 @@ export const apiClient = {
       await throwApiError(response, endpoint);
     }
 
+    // Handle 204 No Content and other empty responses
+    if (response.status === 204 || response.headers.get('content-length') === '0') {
+      return {} as T;
+    }
+
     return response.json();
   },
 
@@ -123,6 +128,11 @@ export const apiClient = {
 
     if (!response.ok) {
       await throwApiError(response, endpoint);
+    }
+
+    // Handle 204 No Content and other empty responses
+    if (response.status === 204 || response.headers.get('content-length') === '0') {
+      return {} as T;
     }
 
     return response.json();
