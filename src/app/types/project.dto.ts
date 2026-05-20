@@ -198,6 +198,7 @@ export interface ProjectTeamMemberDTO {
   role: string;
   organization?: string;
   avatar?: string;
+  allocation?: string;
 }
 
 export interface ProjectMilestoneDTO {
@@ -216,23 +217,34 @@ export interface RegionDTO {
 export interface ProjectListDTO {
   id: string;
   organizationId?: string;
+  referenceCode?: string;
   code: string;
+  name?: string;
   title: string;
   description: string;
   status: ProjectStatusEnum;
   priority: ProjectPriorityEnum;
-  type: ProjectTypeEnum;
+  type: ProjectTypeEnum | string;
+  fundingType?: string;
+  currency?: string;
+  donor?: {
+    id: string | number;
+    name: string;
+    shortName?: string;
+    type?: string;
+  };
   
   // Location
   country: string;
-  region: RegionDTO;
+  city?: string;
+  region: RegionDTO | string;
   
   // Sector
-  sector: SectorDTO;
-  subsectors: SubsectorDTO[];
+  sector: SectorDTO | string;
+  subsectors: (SubsectorDTO | string)[];
   
   // Financial
-  budget: number;
+  budget: number | ProjectBudgetDTO;
   
   // Timeline
   timeline: ProjectTimelineDTO;
@@ -258,11 +270,14 @@ export interface ProjectListDTO {
 }
 
 export interface ProjectDetailDTO extends ProjectListDTO {
+  scope?: string;
+  source?: string;
   objectives: string[];
   deliverables: string[];
   risks: string[];
   
   team: ProjectTeamMemberDTO[];
+  tasks?: TaskDTO[];
   milestones: ProjectMilestoneDTO[];
   
   // Additional details
@@ -270,6 +285,12 @@ export interface ProjectDetailDTO extends ProjectListDTO {
   impactArea?: string;
   fundingSource?: string;
   relatedProjects?: string[];
+  relatedOrganizations?: {
+    id: string | number;
+    name: string;
+    role?: string;
+    lead?: boolean;
+  }[];
   documents?: {
     id: string;
     name: string;

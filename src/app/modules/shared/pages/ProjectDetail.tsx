@@ -60,7 +60,6 @@ import {
   Mail,
 } from 'lucide-react';
 import { ProjectStatusEnum, ProjectPriorityEnum } from '@app/types/project.dto';
-import { aiDiscountSamples, expertPricingBySeniority } from '@app/modules/shared/data/statistics.mock';
 import { canAssignProjectTasks } from '@app/services/permissions.service';
 import { isEarlyIntelligencePhase } from '@app/services/projectRelationships.service';
 import { projectService } from '@app/services/projectService';
@@ -128,6 +127,7 @@ interface ProjectDocument {
   name: string;
   type: string;
   datePublished: string;
+  url?: string;
 }
 
 interface PartnerMatch {
@@ -224,7 +224,7 @@ function writeSavedProjectIds(projectIds: string[]) {
   try {
     localStorage.setItem('projects.favouriteIds', JSON.stringify(projectIds));
   } catch (error) {
-    // Ignore storage errors to preserve current mock behavior.
+    // Ignore storage errors; saved-project state is non-critical UI state.
   }
 }
 
@@ -258,7 +258,7 @@ function writeRefProHistory(projectId: string | undefined, history: RefProVersio
   try {
     localStorage.setItem(`projects.refpro.history.${projectId}`, JSON.stringify(history));
   } catch (error) {
-    // Ignore storage errors to preserve current mock behavior.
+    // Ignore storage errors; generated draft history is non-critical UI state.
   }
 }
 
@@ -330,7 +330,7 @@ function writeTorHistory(projectId: string | undefined, history: TorHistoryEntry
   try {
     localStorage.setItem(`projects.tor.history.${projectId}`, JSON.stringify(history));
   } catch (error) {
-    // Ignore storage errors to preserve current mock behavior.
+    // Ignore storage errors; ToR draft history is non-critical UI state.
   }
 }
 
@@ -355,7 +355,7 @@ function writePartnerVisibility(visibility: Record<string, boolean>) {
   try {
     localStorage.setItem(PARTNER_VISIBILITY_STORAGE_KEY, JSON.stringify(visibility));
   } catch (error) {
-    // Ignore storage errors to preserve current mock behavior.
+    // Ignore storage errors; visibility preferences are non-critical UI state.
   }
 }
 
@@ -415,7 +415,7 @@ export default function ProjectDetail() {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const { user } = useAuth();
-  const { libraryExpertIds } = useCVCredits();
+  const { availableCredits, libraryExpertIds, unlockExpertCV } = useCVCredits();
   const { kpis, allProjects } = useProjects();
   const { experts, allExperts } = useExperts();
   const { allOrganizations } = useOrganizations();
@@ -459,10 +459,11 @@ export default function ProjectDetail() {
   const [pendingProjectAction, setPendingProjectAction] = useState<'add' | 'remove'>('add');
   const [contactOrganization, setContactOrganization] = useState<{ id: string; name: string; projectTitle?: string } | null>(null);
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
-  const [availableCredits, setAvailableCredits] = useState(120);
   const [purchasedCvExpertIds, setPurchasedCvExpertIds] = useState<Set<string>>(new Set());
   const [dynamicProject, setProject] = useState<any>(null);
   const [isLoadingProject, setIsLoadingProject] = useState(true);
+  const [projectLoadError, setProjectLoadError] = useState('');
+  const [projectReloadKey, setProjectReloadKey] = useState(0);
   const [pendingCvUnlockId, setPendingCvUnlockId] = useState<string | null>(null);
   const [isProjectSaved, setIsProjectSaved] = useState<boolean>(() => {
     if (!id) return stateFavorited;
@@ -473,82 +474,29 @@ export default function ProjectDetail() {
   const [pricingPolicy, setPricingPolicy] = useState<'aggressive' | 'competitive' | 'premium'>('competitive');
   const showAlertsHeader = projectAccessSource === 'my-alerts';
 
-  const priceEstimate = useMemo(() => {
-    const avgBase = aiDiscountSamples.reduce((sum, s) => sum + s.initialBudget, 0) / aiDiscountSamples.length;
-    const avgExpertMedian = expertPricingBySeniority.reduce((sum, s) => sum + s.median, 0) / expertPricingBySeniority.length;
-    const discountFactors = { aggressive: 0.82, competitive: 0.88, premium: 0.94 } as const;
-    const factor = discountFactors[pricingPolicy];
-    const central = Math.round(avgBase * factor);
-    const low = Math.round(central * 0.9);
-    const high = Math.round(central * 1.12);
-    const discountPct = Math.round((1 - factor) * 100);
-    return { central, low, high, avgExpertMedian: Math.round(avgExpertMedian), discountPct, sampleCount: aiDiscountSamples.length };
-  }, [pricingPolicy]);
-
   useEffect(() => {
     const fetchProject = async () => {
-      if (!id) return;
+      if (!id) {
+        setProject(null);
+        setProjectLoadError('Project ID is missing.');
+        setIsLoadingProject(false);
+        return;
+      }
       setIsLoadingProject(true);
+      setProjectLoadError('');
       try {
         const data = await projectService.getProjectById(id);
-        if (data) {
-          // Merge API data with mock extensions for full UI compatibility
-          setProject({
-            ...data,
-            // Mock extensions not yet in backend
-            scope: 'REGIONAL',
-            relatedTender: 'Rural Infrastructure Development - East Africa Region',
-            projectSource: 'TENDER',
-            mostRelevantIcaPartners: [
-              'Education Development Trust',
-              'African School Builders Initiative',
-              'Global Infrastructure Partners',
-            ],
-            otherPossiblePartners: [
-              'Rural Teachers Network',
-              'Learning Spaces Alliance',
-              'Community Builders East Africa',
-            ],
-            shortlistedCompanies: [
-              { name: 'EduBuild Consortium', date: '2024-01-15' },
-              { name: 'SchoolWorks International', date: '2024-01-15' },
-              { name: 'Kijani Infra Ltd', date: '2024-01-15' },
-            ],
-            contractAwardedCompanies: [
-              { name: 'EduBuild Consortium', date: '2024-02-20', budget: '$1,200,000' },
-              { name: 'Kijani Infra Ltd', date: '2024-02-20', budget: '$980,000' },
-            ],
-            teamMembers: [
-              { id: '1', name: 'Sarah Johnson', role: 'Project Manager', allocation: '100%' },
-              { id: '2', name: 'Michael Chen', role: 'Technical Lead', allocation: '100%' },
-              { id: '3', name: 'Aisha Ndlovu', role: 'Infrastructure Specialist', allocation: '80%' },
-              { id: '4', name: 'Carlos Rodriguez', role: 'M&E Officer', allocation: '60%' },
-              { id: '5', name: 'Dr. Fatima Hassan', role: 'Education Consultant', allocation: '40%' },
-            ],
-            tasks: [
-              { id: '1', title: 'Complete site assessments', status: 'COMPLETED', priority: 'HIGH', dueDate: '2023-07-15' },
-              { id: '2', title: 'Finalize architectural designs', status: 'COMPLETED', priority: 'HIGH', dueDate: '2023-08-30' },
-              { id: '3', title: 'Procurement of construction materials', status: 'IN_PROGRESS', priority: 'URGENT', dueDate: '2024-03-15' },
-              { id: '4', title: 'Community stakeholder engagement', status: 'IN_PROGRESS', priority: 'MEDIUM', dueDate: '2024-04-10' },
-              { id: '5', title: 'Quarterly progress reporting', status: 'TODO', priority: 'MEDIUM', dueDate: '2024-05-01' },
-            ],
-            milestones: [
-              { id: '1', title: 'Project Initiation', date: '2023-06-01', status: 'COMPLETED' },
-              { id: '2', title: 'Site Surveys Completed', date: '2023-08-15', status: 'COMPLETED' },
-              { id: '3', title: 'Construction Phase 1', date: '2023-12-01', status: 'COMPLETED' },
-              { id: '4', title: 'Construction Phase 2', date: '2024-06-01', status: 'IN_PROGRESS' },
-              { id: '5', title: 'Facility Handover', date: '2025-05-31', status: 'PENDING' },
-            ],
-          });
-        }
+        setProject(data || null);
       } catch (err) {
         console.error("Error fetching project details:", err);
+        setProject(null);
+        setProjectLoadError('Failed to load project details.');
       } finally {
         setIsLoadingProject(false);
       }
     };
     fetchProject();
-  }, [id]);
+  }, [id, projectReloadKey]);
 
 
   useEffect(() => {
@@ -585,10 +533,6 @@ export default function ProjectDetail() {
     writeTorHistory(id, torHistory);
   }, [id, torHistory]);
 
-  const fallbackOrganizationId = allOrganizations[0]?.id || '1';
-  const fallbackExpertId = experts.data[0]?.id || '1';
-  const fallbackProjectId = allProjects[0]?.id || '1';
-
   const resolveOrganizationId = (organizationName: string) => {
     const normalizedName = organizationName.trim().toLowerCase();
     const match = allOrganizations.find((org) => {
@@ -598,7 +542,7 @@ export default function ProjectDetail() {
       return byId || byName || byAcronym;
     });
 
-    return match?.id || fallbackOrganizationId;
+    return match?.id || organizationName;
   };
 
   const resolveOrganizationBookmarkId = (organizationName: string) => {
@@ -615,7 +559,7 @@ export default function ProjectDetail() {
 
   const resolveExpertId = (expertId: string) => {
     const match = experts.data.find((expert) => expert.id === expertId);
-    return match?.id || fallbackExpertId;
+    return match?.id || expertId;
   };
 
   const resolveProjectId = (projectReference: string) => {
@@ -627,7 +571,7 @@ export default function ProjectDetail() {
       return byId || byTitle || byCode;
     });
 
-    return match?.id || fallbackProjectId;
+    return match?.id || projectReference;
   };
 
   const renderOrganizationBookmarkButton = (organizationName: string) => {
@@ -655,134 +599,113 @@ export default function ProjectDetail() {
     );
   };
 
-  // Mock project data - will be replaced with actual data from API
-  const PROJECT_MOCK = {
-    id: id,
-    code: projectSnapshot?.referenceNumber || 'PROJ-2024-001',
-    title: projectSnapshot?.title || 'Rural Education Infrastructure Development',
-    description: projectSnapshot?.description || 'Construction and renovation of primary schools in rural communities to improve access to quality education. The project aims to build 15 new schools and renovate 25 existing facilities across rural regions, providing quality education infrastructure for over 10,000 students.',
-    status: ProjectStatusEnum.ACTIVE,
-    priority: ProjectPriorityEnum.HIGH,
-    type: 'INFRASTRUCTURE',
-    procurementType: projectSnapshot?.procurementType,
-    noticeType: projectSnapshot?.noticeType,
-    fundingAgency: projectSnapshot?.fundingAgency,
-    scope: 'REGIONAL',
-    sector: 'EDUCATION',
-    sectors: projectSnapshot?.sectors?.length ? projectSnapshot.sectors : ['EDUCATION', 'INFRASTRUCTURE'],
-    subsectors: ['PRIMARY_EDUCATION', 'INFRASTRUCTURE'],
-    objectives: 'Improve access to quality education in rural communities by constructing modern school facilities equipped with necessary amenities including classrooms, libraries, laboratories, and sanitation facilities. Ensure sustainable and inclusive education infrastructure that meets international standards.',
-    
-    // Related Tender
-    relatedTender: 'Rural Infrastructure Development - East Africa Region',
-    projectSource: 'TENDER',
-    
-    // Location
-    country: projectSnapshot?.location || projectSnapshot?.country || 'Kenya',
-    countries: [
-      'Afghanistan',
-      'Armenia',
-      'Azerbaijan',
-      'Bangladesh',
-      'Bhutan',
-      'Cambodia',
-      'China',
-      'India',
-      'Indonesia',
-      'Kazakhstan',
-      'Malaysia',
-      'Nepal',
-      'Pakistan',
-      'Philippines',
-      'Sri Lanka',
-      'Thailand',
-      'Uzbekistan',
-      'Vietnam',
-    ],
-    region: 'Eastern Province',
-    city: 'Kitui County',
-    
-    // Timeline
-    timeline: {
-      startDate: projectSnapshot?.publishedDate || '2023-06-01',
-      endDate: projectSnapshot?.deadline || '2025-05-31',
-      duration: 24,
-      completionPercentage: 74,
-    },
-    
-    // Budget
-    budget: {
-      total: projectSnapshot?.budgetAmount || 2500000,
-      spent: projectSnapshot?.budgetAmount ? Math.round(projectSnapshot.budgetAmount * 0.74) : 1850000,
-      remaining: projectSnapshot?.budgetAmount ? Math.round(projectSnapshot.budgetAmount * 0.26) : 650000,
-      currency: projectSnapshot?.budgetCurrency || 'USD',
-    },
-    
-    // Organizations
-    leadOrganization: projectSnapshot?.donor || 'World Bank',
-    donor: projectSnapshot?.fundingAgency || projectSnapshot?.donor || 'USAID',
-    partners: [
-      'Ministry of Education Kenya',
-      'Local NGO Consortium',
-      'Community Development Foundation',
-    ],
-    mostRelevantIcaPartners: [
-      'Education Development Trust',
-      'African School Builders Initiative',
-      'Global Infrastructure Partners',
-    ],
-    otherPossiblePartners: [
-      'Rural Teachers Network',
-      'Learning Spaces Alliance',
-      'Community Builders East Africa',
-    ],
-    shortlistedCompanies: [
-      { name: 'EduBuild Consortium', date: '2024-01-15' },
-      { name: 'SchoolWorks International', date: '2024-01-15' },
-      { name: 'Kijani Infra Ltd', date: '2024-01-15' },
-    ],
-    contractAwardedCompanies: [
-      { name: 'EduBuild Consortium', date: '2024-02-20', budget: '$1,200,000' },
-      { name: 'Kijani Infra Ltd', date: '2024-02-20', budget: '$980,000' },
-    ],
-    
-    // Team
-    projectManager: 'Sarah Johnson',
-    technicalLead: 'Michael Chen',
-    teamSize: 45,
-    teamMembers: [
-      { id: '1', name: 'Sarah Johnson', role: 'Project Manager', allocation: '100%' },
-      { id: '2', name: 'Michael Chen', role: 'Technical Lead', allocation: '100%' },
-      { id: '3', name: 'Aisha Ndlovu', role: 'Infrastructure Specialist', allocation: '80%' },
-      { id: '4', name: 'Carlos Rodriguez', role: 'M&E Officer', allocation: '60%' },
-      { id: '5', name: 'Dr. Fatima Hassan', role: 'Education Consultant', allocation: '40%' },
-    ],
-    
-    // Tasks
-    totalTasks: 172,
-    tasksCompleted: 128,
-    tasks: [
-      { id: '1', title: 'Complete site assessments', status: 'COMPLETED', priority: 'HIGH', dueDate: '2023-07-15' },
-      { id: '2', title: 'Finalize architectural designs', status: 'COMPLETED', priority: 'HIGH', dueDate: '2023-08-30' },
-      { id: '3', title: 'Procurement of construction materials', status: 'IN_PROGRESS', priority: 'URGENT', dueDate: '2024-03-15' },
-      { id: '4', title: 'Community stakeholder engagement', status: 'IN_PROGRESS', priority: 'MEDIUM', dueDate: '2024-04-10' },
-      { id: '5', title: 'Quarterly progress reporting', status: 'TODO', priority: 'MEDIUM', dueDate: '2024-05-01' },
-    ],
-    
-    // Milestones
-    milestones: [
-      { id: '1', title: 'Project Initiation', date: '2023-06-01', status: 'COMPLETED' },
-      { id: '2', title: 'Site Surveys Completed', date: '2023-08-15', status: 'COMPLETED' },
-      { id: '3', title: 'Construction Phase 1', date: '2023-12-01', status: 'COMPLETED' },
-      { id: '4', title: 'Construction Phase 2', date: '2024-06-01', status: 'IN_PROGRESS' },
-      { id: '5', title: 'Facility Handover', date: '2025-05-31', status: 'PENDING' },
-    ],
-    
-    createdDate: '2023-05-15',
-    updatedDate: '2024-02-20',
+  const NA = 'N/A';
+  const asArray = (value: any) => Array.isArray(value) ? value : [];
+  const toText = (value: any) => {
+    if (value === null || value === undefined || value === '') return NA;
+    if (typeof value === 'object') return value.name || value.code || value.title || NA;
+    return String(value);
+  };
+  const toOptionalText = (value: any) => {
+    const text = toText(value);
+    return text === NA ? '' : text;
+  };
+  const toNumber = (value: any) => {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : 0;
+  };
+  const normalizeBudget = (rawProject: any) => {
+    const rawBudget = rawProject?.budget;
+    if (rawBudget && typeof rawBudget === 'object') {
+      return {
+        total: toNumber(rawBudget.total),
+        spent: toNumber(rawBudget.spent),
+        remaining: toNumber(rawBudget.remaining),
+        currency: toOptionalText(rawBudget.currency || rawProject?.currency),
+      };
+    }
+    const total = toNumber(rawBudget);
+    return {
+      total,
+      spent: 0,
+      remaining: total,
+      currency: toOptionalText(rawProject?.currency),
+    };
+  };
+  const normalizeProject = (rawProject: any) => {
+    const budget = normalizeBudget(rawProject);
+    const timeline = rawProject?.timeline || {};
+    const donor = rawProject?.donor;
+    const team = asArray(rawProject?.team).map((member: any) => ({
+      id: String(member?.id || member?.name || ''),
+      name: toText(member?.name),
+      role: toText(member?.role),
+      allocation: toText(member?.allocation),
+    })).filter((member: any) => member.id || member.name !== NA);
+    const tasks = asArray(rawProject?.tasks).map((task: any) => ({
+      ...task,
+      id: String(task?.id || task?.title || ''),
+      title: toText(task?.title),
+      status: toOptionalText(task?.status) || 'TODO',
+      priority: toOptionalText(task?.priority) || ProjectPriorityEnum.MEDIUM,
+      dueDate: task?.dueDate || '',
+      assignedTo: asArray(task?.assignedTo),
+    })).filter((task: any) => task.id || task.title !== NA);
+    const relatedOrganizations = asArray(rawProject?.relatedOrganizations);
+    const partners = asArray(rawProject?.partners).map(toText).filter((value) => value !== NA);
+    const leadOrganization = toOptionalText(rawProject?.leadOrganization)
+      || toOptionalText(relatedOrganizations.find((org: any) => org?.lead)?.name);
+
+    return {
+      id: String(rawProject?.id || id || ''),
+      code: toText(rawProject?.code || rawProject?.referenceCode),
+      title: toText(rawProject?.title || rawProject?.name),
+      description: toText(rawProject?.description),
+      status: toOptionalText(rawProject?.status) || ProjectStatusEnum.DRAFT,
+      priority: toOptionalText(rawProject?.priority) || ProjectPriorityEnum.MEDIUM,
+      type: toOptionalText(rawProject?.type),
+      procurementType: toOptionalText(rawProject?.procurementType || rawProject?.fundingType),
+      noticeType: toOptionalText(rawProject?.noticeType || rawProject?.source),
+      fundingAgency: toOptionalText(donor?.name || donor?.shortName || rawProject?.fundingSource),
+      donor: toOptionalText(donor?.name || donor?.shortName || donor),
+      scope: toOptionalText(rawProject?.scope),
+      source: toOptionalText(rawProject?.source),
+      projectSource: toOptionalText(rawProject?.source),
+      sector: toText(rawProject?.sector),
+      sectors: [rawProject?.sector, ...asArray(rawProject?.sectors)].map(toText).filter((value, index, values) => value !== NA && values.indexOf(value) === index),
+      subsectors: asArray(rawProject?.subsectors).map(toText).filter((value) => value !== NA),
+      objectives: asArray(rawProject?.objectives).map(toText).join(', '),
+      deliverables: asArray(rawProject?.deliverables).map(toText).join(', '),
+      country: toText(rawProject?.country),
+      countries: [rawProject?.country].map(toText).filter((value) => value !== NA),
+      region: toText(rawProject?.region),
+      city: toText(rawProject?.city),
+      timeline: {
+        startDate: timeline.startDate || rawProject?.startDate || '',
+        endDate: timeline.endDate || rawProject?.endDate || '',
+        duration: toNumber(timeline.duration),
+        completionPercentage: toNumber(timeline.completionPercentage),
+      },
+      budget,
+      leadOrganization: leadOrganization || NA,
+      partners,
+      relatedOrganizations,
+      teamSize: toNumber(rawProject?.teamSize || team.length),
+      teamMembers: team,
+      projectManager: toText(team.find((member: any) => /manager/i.test(member.role))?.name),
+      technicalLead: toText(team.find((member: any) => /technical|lead/i.test(member.role))?.name),
+      totalTasks: toNumber(rawProject?.totalTasks || tasks.length),
+      tasksCompleted: toNumber(rawProject?.tasksCompleted || tasks.filter((task: any) => task.status === 'COMPLETED').length),
+      tasks,
+      milestones: asArray(rawProject?.milestones),
+      documents: asArray(rawProject?.documents),
+      relatedProjects: asArray(rawProject?.relatedProjects),
+      mostRelevantIcaPartners: [],
+      otherPossiblePartners: [],
+    };
   };
 
-  const project = dynamicProject ?? PROJECT_MOCK;
+  const project = useMemo(() => normalizeProject(dynamicProject), [dynamicProject, id]);
   const pipelineItem = getPipelineItem(project.id || '');
   const currentPipelineStage = pipelineItem?.stage || 'eoi_preparation';
   const currentPipelineStageDefinition = PIPELINE_STAGES.find((stage) => stage.id === currentPipelineStage);
@@ -873,49 +796,34 @@ export default function ProjectDetail() {
     role: member.role,
   }));
 
-  const lifecycleDocuments: LifecycleDocument[] = [
-    {
-      id: 'early-intelligence-notice',
-      group: 'early-intelligence',
-      sectionLabel: 'Early Intelligence',
-      itemLabel: 'Early Intelligence Notice',
-      description: 'The donor has signaled a planned intervention focused on education infrastructure expansion in under-served regions. Preliminary budget envelopes and strategic objectives are now available for partner alignment.',
-    },
-    {
-      id: 'action-plan-procurement-plan',
-      group: 'early-intelligence',
-      sectionLabel: 'Early Intelligence',
-      itemLabel: 'Action Plan / Procurement Plan',
-      description: 'The action plan outlines phased procurement lots, timeline dependencies, and prequalification steps. It highlights coordination windows for consortium setup and compliance preparation.',
-    },
-    {
-      id: 'request-invitation-eoi',
-      group: 'open-procurement',
-      sectionLabel: 'Open Procurement',
-      itemLabel: 'Request / Invitation for Expression of Interest',
-      description: 'The request for expression of interest defines technical eligibility, minimum experience thresholds, and expected implementation methodology for qualified organizations.',
-    },
-    {
-      id: 'contract',
-      group: 'contract-shortlist',
-      sectionLabel: 'Contract / Shortlist',
-      itemLabel: 'Contract',
-      description: 'The contract package confirms awarded scopes, deliverable schedule, and financial commitments per awarded entity. It also specifies reporting obligations and quality assurance milestones.',
-      hasContract: true,
-    },
-    {
-      id: 'shortlist',
-      group: 'contract-shortlist',
-      sectionLabel: 'Contract / Shortlist',
-      itemLabel: 'Shortlist',
-      description: 'The shortlist announces organizations selected after technical and administrative screening. The final round focuses on detailed financial and operational capacity validation.',
-      hasShortlist: true,
-    },
-  ];
+  useEffect(() => {
+    setProjectTasks(project.tasks.map((task) => ({
+      ...task,
+      assignedTo: task.assignedTo || ([] as { id: string; name: string; role?: string }[]),
+    })));
+  }, [dynamicProject]);
+
+  const lifecycleDocuments: LifecycleDocument[] = project.documents.map((document: any) => {
+    const type = toOptionalText(document.type).toLowerCase();
+    const group: LifecycleGroupKey = type.includes('contract') || type.includes('shortlist')
+      ? 'contract-shortlist'
+      : type.includes('procurement') || type.includes('eoi') || type.includes('expression')
+      ? 'open-procurement'
+      : 'early-intelligence';
+    return {
+      id: String(document.id || document.name),
+      group,
+      sectionLabel: group === 'contract-shortlist' ? 'Contract / Shortlist' : group === 'open-procurement' ? 'Open Procurement' : 'Early Intelligence',
+      itemLabel: toText(document.name),
+      description: toText(document.type),
+      hasShortlist: type.includes('shortlist'),
+      hasContract: type.includes('contract'),
+    };
+  });
 
   const activeLifecycleDoc = useMemo(
-    () => lifecycleDocuments.find((doc) => doc.id === activeLifecycleDocId) || lifecycleDocuments[0],
-    [activeLifecycleDocId]
+    () => lifecycleDocuments.find((doc) => doc.id === activeLifecycleDocId) || lifecycleDocuments[0] || null,
+    [activeLifecycleDocId, lifecycleDocuments]
   );
   const lifecycleSections = [
     { key: 'early-intelligence' as const, title: 'Early Intelligence', items: lifecycleDocuments.filter((doc) => doc.group === 'early-intelligence') },
@@ -924,15 +832,21 @@ export default function ProjectDetail() {
   ];
   const noticeDescription =
     project.noticeDescription ||
-    project.description ||
+    (project.description !== NA ? project.description : '') ||
     project.objectives ||
-    'No project description is available for this notice.';
+    NA;
   const noticeOverviewDescription = [
     noticeDescription,
-    `Overview: ${project.title} is led by ${project.leadOrganization || 'the lead organization'} in ${project.country || 'the selected country'}.`,
-    `Budget: ${project.budget.total.toLocaleString()} ${project.budget.currency}; spent: ${project.budget.spent.toLocaleString()} ${project.budget.currency}; remaining: ${project.budget.remaining.toLocaleString()} ${project.budget.currency}.`,
-    `Progress: ${project.tasksCompleted}/${project.totalTasks} tasks completed and ${project.timeline.completionPercentage}% timeline completion.`,
-  ].filter(Boolean).join(' ');
+    project.leadOrganization !== NA || project.country !== NA
+      ? `Overview: ${project.title} is led by ${project.leadOrganization} in ${project.country}.`
+      : '',
+    project.budget.total > 0
+      ? `Budget: ${formatMoney(project.budget.total, project.budget.currency)}; spent: ${formatMoney(project.budget.spent, project.budget.currency)}; remaining: ${formatMoney(project.budget.remaining, project.budget.currency)}.`
+      : '',
+    project.totalTasks > 0
+      ? `Progress: ${project.tasksCompleted}/${project.totalTasks} tasks completed and ${project.timeline.completionPercentage}% timeline completion.`
+      : '',
+  ].filter((value) => value && value !== NA).join(' ') || NA;
   const isEarlyIntelligenceProject = isEarlyIntelligencePhase(
     project.phase,
     project.noticeType,
@@ -941,171 +855,44 @@ export default function ProjectDetail() {
     project.type
   );
 
-  const suggestedExperts: SuggestedExpert[] = [
-    {
-      id: 'expert-1',
-      name: 'Amina Diallo',
-      role: 'Senior Bid Writer',
-      matchScore: 94,
-      tags: ['Education', 'Procurement', 'Consortium building'],
-    },
-    {
-      id: 'expert-2',
-      name: 'Daniel Mwangi',
-      role: 'Infrastructure Proposal Lead',
-      matchScore: 89,
-      tags: ['School construction', 'Donor compliance', 'Budget narratives'],
-    },
-    {
-      id: 'expert-3',
-      name: 'Sofia Alvarez',
-      role: 'Monitoring and Evaluation Specialist',
-      matchScore: 82,
-      tags: ['Results frameworks', 'Education KPIs', 'Reporting'],
-    },
-  ];
+  const suggestedExperts: SuggestedExpert[] = [];
 
-  const suggestedBidWriters: SuggestedExpert[] = [
-    {
-      id: 'writer-1',
-      name: 'Nadia Laurent',
-      role: 'Lead Proposal Strategist',
-      matchScore: 96,
-      tags: ['Donor storytelling', 'EOI strategy', 'Compliance review'],
-    },
-    {
-      id: 'writer-2',
-      name: 'Peter Kamau',
-      role: 'Senior Bid Manager',
-      matchScore: 88,
-      tags: ['Capture planning', 'Proposal coordination', 'Pricing inputs'],
-    },
-    {
-      id: 'writer-3',
-      name: 'Lucia Romero',
-      role: 'Technical Writer',
-      matchScore: 83,
-      tags: ['Education programs', 'Editing', 'Executive summaries'],
-    },
-  ];
+  const suggestedBidWriters: SuggestedExpert[] = [];
 
-  const partnerMatches: PartnerMatch[] = [
-    {
-      id: 'partner-1',
-      name: 'Education Development Trust',
-      summary: 'Strong implementation footprint in East Africa with recent donor-funded education wins.',
-      category: 'primary',
-      highlight: 'High delivery fit',
-    },
-    {
-      id: 'partner-2',
-      name: 'African School Builders Initiative',
-      summary: 'Operationally aligned on rural school infrastructure and community engagement.',
-      category: 'primary',
-      highlight: 'Best consortium complement',
-    },
-    {
-      id: 'partner-3',
-      name: 'Learning Spaces Alliance',
-      summary: 'Relevant references in education environments, but lighter in-country depth.',
-      category: 'secondary',
-      highlight: 'Good technical backup',
-    },
-    {
-      id: 'partner-4',
-      name: 'Community Builders East Africa',
-      summary: 'Useful local relationships and mobilization capacity for field execution.',
-      category: 'secondary',
-      highlight: 'Local access advantage',
-    },
-  ];
+  const partnerMatches: PartnerMatch[] = project.relatedOrganizations.map((organization: any, index: number) => ({
+    id: String(organization.id || organization.name || index),
+    name: toText(organization.name),
+    summary: toText(organization.role),
+    category: organization.lead ? 'primary' : 'secondary',
+    highlight: organization.lead ? 'Lead organization' : toText(organization.role),
+  })).filter((partner) => partner.name !== NA);
 
-  const similarPastProjects: SimilarProject[] = [
-    { id: 'past-1', name: 'County School Upgrades Program', sector: 'Education infrastructure', country: 'Kenya' },
-    { id: 'past-2', name: 'Rural Classrooms Expansion', sector: 'Primary education', country: 'Uganda' },
-    { id: 'past-3', name: 'Learning Facilities Modernization', sector: 'School rehabilitation', country: 'Tanzania' },
-  ];
+  const similarPastProjects: SimilarProject[] = project.relatedProjects.map((relatedProject: any, index: number) => ({
+    id: String(relatedProject.id || relatedProject || index),
+    name: toText(relatedProject.title || relatedProject.name || relatedProject),
+    sector: toText(relatedProject.sector),
+    country: toText(relatedProject.country),
+  })).filter((relatedProject) => relatedProject.name !== NA);
 
-  const predictiveInsights: PredictiveInsight[] = [
-    {
-      id: 'insight-1',
-      labelKey: 'projects.matchingAI.insights.winLikelihood',
-      value: 78,
-      tone: 'emerald',
-      helper: 'Strong thematic alignment and solid donor relevance.',
-    },
-    {
-      id: 'insight-2',
-      labelKey: 'projects.matchingAI.insights.competitionLevel',
-      value: 64,
-      tone: 'amber',
-      helper: 'Expect several credible regional competitors in the shortlist.',
-    },
-    {
-      id: 'insight-3',
-      labelKey: 'projects.matchingAI.insights.consortiumReadiness',
-      value: 86,
-      tone: 'blue',
-      helper: 'Partner mix is already close to a bid-ready configuration.',
-    },
-  ];
+  const predictiveInsights: PredictiveInsight[] = [];
 
-  const contextualRecommendations: ContextualRecommendation[] = [
-    {
-      id: 'rec-1',
-      title: 'Eastern Province Teacher Support Initiative',
-      subtitle: 'Education · Kenya',
-      ctaHint: 'High overlap in donor priorities and delivery geography.',
-    },
-    {
-      id: 'rec-2',
-      title: 'Regional School Resilience Facility',
-      subtitle: 'Infrastructure · Uganda',
-      ctaHint: 'Relevant reference project for positioning and consortium reuse.',
-    },
-    {
-      id: 'rec-3',
-      title: 'Inclusive Learning Campuses Program',
-      subtitle: 'Education · Rwanda',
-      ctaHint: 'Aligned on accessibility and multi-site implementation scope.',
-    },
-  ];
+  const contextualRecommendations: ContextualRecommendation[] = [];
 
-  const similarContracts = [
-    { id: 'contract-1', projectName: 'County School Upgrades Program', donor: 'World Bank', budget: '$1,100,000' },
-    { id: 'contract-2', projectName: 'Rural Classrooms Expansion', donor: 'UNICEF', budget: '$950,000' },
-    { id: 'contract-3', projectName: 'Education Facilities Modernization', donor: 'USAID', budget: '$1,350,000' },
-  ];
+  const similarContracts: { id: string; projectName: string; donor: string; budget: string }[] = [];
 
-  const topCompanies = [
-    { id: 'company-1', name: 'EduBuild Consortium', count: 11 },
-    { id: 'company-2', name: 'SchoolWorks International', count: 9 },
-    { id: 'company-3', name: 'Kijani Infra Ltd', count: 8 },
-    { id: 'company-4', name: 'African Learning Facilities', count: 7 },
-    { id: 'company-5', name: 'Nova Development Group', count: 6 },
-  ];
+  const topCompanies: { id: string; name: string; count: number }[] = [];
 
-  const localCompanies = [
-    { id: 'local-1', name: 'Nairobi Infrastructure Partners', info: 'Strong public infrastructure track record' },
-    { id: 'local-2', name: 'Eastern BuildCo', info: 'Regional education projects' },
-    { id: 'local-3', name: 'Kenya Development Engineering', info: 'School construction specialization' },
-  ];
+  const localCompanies: { id: string; name: string; info: string }[] = [];
 
-  const topExperts = [
-    { id: 'top-expert-1', name: 'Dr. Fatima Hassan', profession: 'Education Infrastructure Specialist', seniority: 'Senior' },
-    { id: 'top-expert-2', name: 'Michael Chen', profession: 'Technical Lead Engineer', seniority: 'Lead' },
-    { id: 'top-expert-3', name: 'Aisha Ndlovu', profession: 'Civil Works Manager', seniority: 'Senior' },
-    { id: 'top-expert-4', name: 'Jean-Paul Nsimba', profession: 'Procurement Advisor', seniority: 'Intermediate' },
-    { id: 'top-expert-5', name: 'Lina Ortega', profession: 'M&E Specialist', seniority: 'Senior' },
-  ];
+  const topExperts: { id: string; name: string; profession: string; seniority: string }[] = [];
 
-  const projectDocuments: ProjectDocument[] = [
-    { id: 'doc-1', name: 'Early Intelligence Notice', type: 'Notice', datePublished: '2023-05-18' },
-    { id: 'doc-2', name: 'Procurement Plan', type: 'Planning Document', datePublished: '2023-06-02' },
-    { id: 'doc-3', name: 'Expression of Interest Package', type: 'EOI', datePublished: '2023-08-11' },
-    { id: 'doc-4', name: 'Shortlist Announcement', type: 'Shortlist', datePublished: '2024-01-15' },
-    { id: 'doc-5', name: 'Awarded Contract Summary', type: 'Contract', datePublished: '2024-02-20' },
-  ];
+  const projectDocuments: ProjectDocument[] = project.documents.map((document: any) => ({
+    id: String(document.id || document.name),
+    name: toText(document.name),
+    type: toText(document.type),
+    datePublished: document.uploadedDate || document.datePublished || '',
+    url: document.url,
+  })).filter((document) => document.name !== NA);
 
   const getStatusColor = (status: ProjectStatusEnum) => {
     switch (status) {
@@ -1143,15 +930,21 @@ export default function ProjectDetail() {
       .replace(/_/g, ' ')
       .replace(/\b\w/g, (char) => char.toUpperCase());
 
-  const budgetUtilization = Math.round((project.budget.spent / project.budget.total) * 100);
+  const budgetUtilization = project.budget.total > 0 ? Math.round((project.budget.spent / project.budget.total) * 100) : 0;
   const remainingTasks = Math.max(project.totalTasks - project.tasksCompleted, 0);
-  const taskCompletionPercentage = Math.round((project.tasksCompleted / project.totalTasks) * 100);
-  const formatDate = (value: string) =>
-    new Date(value).toLocaleDateString('en-GB', {
+  const taskCompletionPercentage = project.totalTasks > 0 ? Math.round((project.tasksCompleted / project.totalTasks) * 100) : 0;
+  const formatDate = (value: string) => {
+    const date = new Date(value);
+    if (!value || Number.isNaN(date.getTime())) return NA;
+    return date.toLocaleDateString('en-GB', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
     });
+  };
+  function formatMoney(amount: number, currency: string) {
+    return amount > 0 ? `${amount.toLocaleString()} ${currency || ''}`.trim() : NA;
+  }
 
   const scrollToSection = (sectionId: string) => {
     const section = document.getElementById(sectionId);
@@ -1234,12 +1027,12 @@ export default function ProjectDetail() {
     const trailingDigits = expertId.match(/(\d+)$/)?.[1];
     return trailingDigits || expertId;
   };
-  const hasCvAccess = (expertId: string) => purchasedCvExpertIds.has(expertId);
+  const hasCvAccess = (expertId: string) => purchasedCvExpertIds.has(expertId) || libraryExpertIds.includes(expertId);
   const getExpertDisplayName = (expertId: string, expertName: string) => {
     if (hasCvAccess(expertId)) return expertName;
     return `Expert ${getExpertPublicId(expertId)}`;
   };
-  const hasUnlockedExpertAccess = (expertId: string) => hasCvAccess(expertId) || libraryExpertIds.includes(expertId);
+  const hasUnlockedExpertAccess = (expertId: string) => hasCvAccess(expertId);
 
   const getVacancySummary = (vacancy: JobOfferListDTO) =>
     (vacancy.projectSummary || vacancy.descriptionPlainText || vacancy.description || '').replace(/<[^>]+>/g, ' ').slice(0, 220);
@@ -1313,7 +1106,11 @@ export default function ProjectDetail() {
       return;
     }
 
-    setAvailableCredits((prev) => prev - CV_UNLOCK_COST);
+    const result = unlockExpertCV(expertId, `Expert ${getExpertPublicId(expertId)}`, CV_UNLOCK_COST);
+    if (!result.success) {
+      toast.error('Not enough credits to unlock this CV.');
+      return;
+    }
     setPurchasedCvExpertIds((prev) => new Set(prev).add(expertId));
     toast.success(`CV unlocked for Expert ${getExpertPublicId(expertId)}`);
   };
@@ -1357,20 +1154,7 @@ export default function ProjectDetail() {
   };
 
   const generateSectionResponse = (sectionKey: string) => {
-    const sectionResponses: Record<string, string> = {
-      experts: 'AI recommendation: Prioritize experts with direct education infrastructure delivery and strong donor compliance experience for a higher technical score.',
-      bidWriters: 'AI recommendation: Assemble one strategic lead writer and one compliance-focused writer to strengthen clarity, structure, and scoring alignment.',
-      partnerMatching: 'AI recommendation: Build your consortium around the two primary matches and use secondary matches as backup for local access and surge capacity.',
-      similarProjects: 'AI recommendation: Reuse execution and reporting patterns from similar country projects to reduce delivery risk and improve proposal credibility.',
-      predictiveInsights: 'AI recommendation: Win likelihood is competitive when consortium readiness remains above 80% and your differentiators are explicit in the technical narrative.',
-      recommendations: 'AI recommendation: Review related opportunities now and save at least one adjacent project to support cross-reference positioning in your submission.',
-    };
-
-    setGeneratedResponses((prev) => ({
-      ...prev,
-      [sectionKey]: sectionResponses[sectionKey],
-    }));
-    toast.success(t('projects.matchingAI.generateToast'));
+    toast.error('No backend-generated data is available for this section.');
   };
 
   const generateRefProSections = (): RefProDescriptionSection[] => {
@@ -1794,16 +1578,13 @@ export default function ProjectDetail() {
   );
 
   const downloadProjectDocument = (doc: ProjectDocument) => {
-    const fileName = `${doc.name.replace(/\s+/g, '_')}.pdf`;
-    const fileContent = `Document name: ${doc.name}\nType: ${doc.type}\nPublished: ${doc.datePublished}`;
-    const blob = new Blob([fileContent], { type: 'application/pdf' });
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = fileName;
+    link.href = doc.url || '#';
+    link.download = doc.name || 'document';
+    link.target = '_blank';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(link.href);
   };
 
   const downloadExpertCv = (expertId: string, expertName: string, format: 'pdf' | 'docx') => {
@@ -1847,6 +1628,73 @@ export default function ProjectDetail() {
     setSelectedTaskMemberId('');
     toast.success(t('projects.tasks.memberAssigned'));
   };
+
+  const renderPageBanner = () => (
+    <>
+      <PageBanner
+        title={
+          showPipelineContext
+            ? t('pipeline.title')
+            : showAlertsHeader
+            ? t('activeTenders.title')
+            : isSearchContext
+            ? t(`search.section.${searchSection}.title`)
+            : t('projects.submenu.active')
+        }
+        description={
+          showPipelineContext
+            ? t('pipeline.subtitle')
+            : showAlertsHeader
+            ? t('activeTenders.subtitle')
+            : isSearchContext
+            ? t(`search.section.${searchSection}.description`)
+            : t('projects.active.subtitle')
+        }
+        icon={showPipelineContext ? Target : isSearchContext ? Search : Briefcase}
+        stats={
+          showPipelineContext || showAlertsHeader || isSearchContext
+            ? undefined
+            : [{ value: kpis.activeProjects.toString(), label: t('projects.stats.activeProjects') }]
+        }
+      />
+      {isSearchContext ? <SearchSectionTabs activeTab={searchSection} /> : showAlertsHeader ? <TendersSubMenu /> : <ProjectsSubMenu />}
+    </>
+  );
+
+  if (isLoadingProject) {
+    return (
+      <div className="min-h-screen bg-gray-100">
+        {renderPageBanner()}
+        <PageContainer className="my-6">
+          <main role="main" className="px-4 py-10 sm:px-5 lg:px-6">
+            <div className="rounded-lg border bg-white p-8 text-center text-sm text-[#4A5568]">
+              <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-[#E63462]" />
+              Loading project details...
+            </div>
+          </main>
+        </PageContainer>
+      </div>
+    );
+  }
+
+  if (projectLoadError || !dynamicProject) {
+    return (
+      <div className="min-h-screen bg-gray-100">
+        {renderPageBanner()}
+        <PageContainer className="my-6">
+          <main role="main" className="px-4 py-10 sm:px-5 lg:px-6">
+            <div className="rounded-lg border bg-white p-8 text-center">
+              <p className="text-base font-semibold text-[#4A5568]">{projectLoadError || 'Project details are unavailable.'}</p>
+              <div className="mt-4 flex justify-center gap-3">
+                <Button variant="outline" onClick={() => navigate(-1)}>Back</Button>
+                <Button onClick={() => setProjectReloadKey((value) => value + 1)}>Retry</Button>
+              </div>
+            </div>
+          </main>
+        </PageContainer>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -2250,6 +2098,11 @@ export default function ProjectDetail() {
                         </AccordionTrigger>
                         <AccordionContent>
                           <div className="space-y-2">
+                            {similarContracts.length === 0 && (
+                              <div className="rounded-xl border border-dashed border-[#4A5568]/20 bg-[#F8FAFC] p-5 text-sm text-[#4A5568]/80">
+                                No related contracts available.
+                              </div>
+                            )}
                             {similarContracts.map((item) => (
                               <div key={item.id} className="rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-3">
                                 <Link to={buildProjectDetailPath(item.projectName)} className="text-sm font-medium text-[#4A5568] underline-offset-2 hover:text-[#E63462] hover:underline">{item.projectName}</Link>
@@ -2275,6 +2128,11 @@ export default function ProjectDetail() {
                         </AccordionTrigger>
                         <AccordionContent>
                           <div className="space-y-2">
+                            {topCompanies.length === 0 && (
+                              <div className="rounded-xl border border-dashed border-[#4A5568]/20 bg-[#F8FAFC] p-5 text-sm text-[#4A5568]/80">
+                                No related organizations available.
+                              </div>
+                            )}
                             {topCompanies.map((company) => (
                               <div key={company.id} className="flex flex-col gap-3 rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div className="flex flex-wrap items-center gap-2">
@@ -2298,6 +2156,11 @@ export default function ProjectDetail() {
                         </AccordionTrigger>
                         <AccordionContent>
                           <div className="space-y-2">
+                            {localCompanies.length === 0 && (
+                              <div className="rounded-xl border border-dashed border-[#4A5568]/20 bg-[#F8FAFC] p-5 text-sm text-[#4A5568]/80">
+                                No local organizations available.
+                              </div>
+                            )}
                             {localCompanies.map((company) => (
                               <div key={company.id} className="rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-3">
                                 <div className="flex flex-wrap items-center gap-2">
@@ -2321,6 +2184,11 @@ export default function ProjectDetail() {
                         </AccordionTrigger>
                         <AccordionContent>
                           <div className="space-y-2">
+                            {topExperts.length === 0 && (
+                              <div className="rounded-xl border border-dashed border-[#4A5568]/20 bg-[#F8FAFC] p-5 text-sm text-[#4A5568]/80">
+                                No related experts available.
+                              </div>
+                            )}
                             {topExperts.map((expert) => (
                               <div key={expert.id} className="rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-3">
                                 <div className="flex items-center justify-between gap-2">
@@ -2366,41 +2234,8 @@ export default function ProjectDetail() {
                           </span>
                         </AccordionTrigger>
                         <AccordionContent>
-                          <div className="space-y-4 pb-1">
-                            <div className="flex flex-wrap items-center gap-3">
-                              <span className="text-sm font-medium text-[#4A5568]">{t('projects.marketAnalysis.pricingPolicy.dropdown')}</span>
-                              <Select value={pricingPolicy} onValueChange={(v) => setPricingPolicy(v as typeof pricingPolicy)}>
-                                <SelectTrigger className="w-44">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="aggressive">{t('projects.marketAnalysis.pricingPolicy.aggressive')}</SelectItem>
-                                  <SelectItem value="competitive">{t('projects.marketAnalysis.pricingPolicy.competitive')}</SelectItem>
-                                  <SelectItem value="premium">{t('projects.marketAnalysis.pricingPolicy.premium')}</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                              <div className="rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-3 text-center">
-                                <p className="text-xs text-[#4A5568]/70 mb-1">{t('projects.marketAnalysis.pricingPolicy.estimatedPrice')}</p>
-                                <p className="text-xl font-bold text-[#E63462]">${priceEstimate.central.toLocaleString()}</p>
-                              </div>
-                              <div className="rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-3 text-center">
-                                <p className="text-xs text-[#4A5568]/70 mb-1">{t('projects.marketAnalysis.pricingPolicy.range')}</p>
-                                <p className="text-base font-semibold text-[#4A5568]">${priceEstimate.low.toLocaleString()} – ${priceEstimate.high.toLocaleString()}</p>
-                              </div>
-                              <div className="rounded-xl border border-[#4A5568]/15 bg-[#F8FAFC] p-3 text-center">
-                                <p className="text-xs text-[#4A5568]/70 mb-1">{t('projects.marketAnalysis.pricingPolicy.discountRate')}</p>
-                                <p className="text-base font-semibold text-[#4A5568]">{priceEstimate.discountPct}%</p>
-                              </div>
-                            </div>
-                            <div className="flex flex-wrap gap-4 text-xs text-[#4A5568]/70">
-                              <span className="inline-flex items-center gap-1">
-                                <DollarSign className="h-3 w-3" />
-                                {t('projects.marketAnalysis.pricingPolicy.avgExpertRate')}: ${priceEstimate.avgExpertMedian}/day
-                              </span>
-                              <span>{t('projects.marketAnalysis.pricingPolicy.basis').replace('{count}', String(priceEstimate.sampleCount))}</span>
-                            </div>
+                          <div className="rounded-xl border border-dashed border-[#4A5568]/20 bg-[#F8FAFC] p-5 text-sm text-[#4A5568]/80">
+                            No pricing policy data available.
                           </div>
                         </AccordionContent>
                       </AccordionItem>
@@ -2586,6 +2421,11 @@ export default function ProjectDetail() {
 
                         <div>
                           <p className="mb-2 text-xs text-[#4A5568]/70">{t('projects.create.teamMembers')} ({project.teamSize})</p>
+                          {project.teamMembers.length === 0 ? (
+                            <div className="rounded-xl border border-dashed border-[#4A5568]/20 bg-white p-5 text-sm text-[#4A5568]/80">
+                              No team members assigned.
+                            </div>
+                          ) : (
                           <ul role="list" className="space-y-2">
                             {project.teamMembers.map((member) => (
                               <li key={member.id} className="flex items-center justify-between rounded-xl border border-[#4A5568]/15 bg-white p-3 text-sm">
@@ -2600,6 +2440,7 @@ export default function ProjectDetail() {
                               </li>
                             ))}
                           </ul>
+                          )}
                         </div>
                       </div>
                     </TabsContent>
@@ -2688,7 +2529,7 @@ export default function ProjectDetail() {
                               <span className="text-sm font-medium text-primary">Progress</span>
                               <span className="text-sm font-semibold text-primary">{project.tasksCompleted}/{project.totalTasks}</span>
                             </div>
-                            <Progress value={Math.round((project.tasksCompleted / project.totalTasks) * 100)} className="h-2.5" />
+                            <Progress value={taskCompletionPercentage} className="h-2.5" />
                           </div>
                         </div>
                         <Button size="sm" className="ml-4 gap-1.5" onClick={() => navigate('/projects/tasks/new')}>
@@ -2697,6 +2538,11 @@ export default function ProjectDetail() {
                         </Button>
                       </div>
 
+                      {projectTasks.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-[#4A5568]/20 bg-[#F8FAFC] p-5 text-sm text-[#4A5568]/80">
+                          No tasks available.
+                        </div>
+                      ) : (
                       <ul role="list" className="space-y-3">
                         {projectTasks.map((task) => (
                           <li key={task.id} className="rounded-lg border border-gray-100 p-3 transition-colors hover:bg-gray-50">
@@ -2735,6 +2581,7 @@ export default function ProjectDetail() {
                           </li>
                         ))}
                       </ul>
+                      )}
                     </TabsContent>
                   )}
 
@@ -2745,6 +2592,11 @@ export default function ProjectDetail() {
                         <h3 className="text-base font-semibold text-[#4A5568]">{t('projects.details.documents')}</h3>
                       </div>
 
+                    {projectDocuments.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-[#4A5568]/20 bg-white p-5 text-sm text-[#4A5568]/80">
+                        No documents available.
+                      </div>
+                    ) : (
                     <div className="space-y-3">
                       {projectDocuments.map((document) => (
                         <div key={document.id} className="rounded-xl border border-[#4A5568]/15 bg-white p-4 shadow-sm">
@@ -2762,7 +2614,7 @@ export default function ProjectDetail() {
                               <p className="mt-1 text-sm text-[#4A5568]/90">{formatDate(document.datePublished)}</p>
                             </div>
                             <div className="flex items-center justify-start sm:justify-end">
-                              <Button size="sm" variant="outline" className="border-[#E63462]/30 text-[#E63462] hover:bg-[#FFF1F4] hover:text-[#E63462]" onClick={() => downloadProjectDocument(document)}>
+                              <Button size="sm" variant="outline" className="border-[#E63462]/30 text-[#E63462] hover:bg-[#FFF1F4] hover:text-[#E63462]" onClick={() => downloadProjectDocument(document)} disabled={!document.url}>
                                 <Download className="mr-2 h-4 w-4" />
                                 {t('projects.documents.download')}
                               </Button>
@@ -2771,6 +2623,7 @@ export default function ProjectDetail() {
                         </div>
                       ))}
                     </div>
+                    )}
                     </div>
                   </TabsContent>
 
@@ -2814,7 +2667,7 @@ export default function ProjectDetail() {
                         icon={<UserCircle className="h-5 w-5 text-rose-500" />}
                       >
                         <div className="mb-3 flex justify-end">
-                          <Button size="sm" variant="outline" onClick={() => generateSectionResponse('experts')} disabled={isAlertsContext}>
+                          <Button size="sm" variant="outline" onClick={() => generateSectionResponse('experts')} disabled>
                             <WandSparkles className="mr-2 h-4 w-4" />
                             {t('projects.matchingAI.actions.generateResponse')}
                           </Button>
@@ -2873,7 +2726,7 @@ export default function ProjectDetail() {
                           </>
                         ) : (
                           <div className="rounded-lg border border-rose-100 bg-white/80 p-3 text-sm text-muted-foreground">
-                            {t('projects.matchingAI.generateHint')}
+                            No backend-generated expert recommendations available.
                           </div>
                         )}
                       </MatchingAiCard>
@@ -2885,7 +2738,7 @@ export default function ProjectDetail() {
                         icon={<FileText className="h-5 w-5 text-fuchsia-500" />}
                       >
                         <div className="mb-3 flex justify-end">
-                          <Button size="sm" variant="outline" onClick={() => generateSectionResponse('bidWriters')} disabled={isAlertsContext}>
+                          <Button size="sm" variant="outline" onClick={() => generateSectionResponse('bidWriters')} disabled>
                             <WandSparkles className="mr-2 h-4 w-4" />
                             {t('projects.matchingAI.actions.generateResponse')}
                           </Button>
@@ -2944,7 +2797,7 @@ export default function ProjectDetail() {
                           </>
                         ) : (
                           <div className="rounded-lg border border-fuchsia-100 bg-white/80 p-3 text-sm text-muted-foreground">
-                            {t('projects.matchingAI.generateHint')}
+                            No backend-generated bid writer recommendations available.
                           </div>
                         )}
                       </MatchingAiCard>
@@ -2957,7 +2810,7 @@ export default function ProjectDetail() {
                         className="xl:col-span-2"
                       >
                         <div className="mb-3 flex justify-end">
-                          <Button size="sm" variant="outline" onClick={() => generateSectionResponse('partnerMatching')} disabled={isAlertsContext}>
+                          <Button size="sm" variant="outline" onClick={() => generateSectionResponse('partnerMatching')} disabled>
                             <WandSparkles className="mr-2 h-4 w-4" />
                             {t('projects.matchingAI.actions.generateResponse')}
                           </Button>
@@ -3015,7 +2868,7 @@ export default function ProjectDetail() {
                           </>
                         ) : (
                           <div className="rounded-lg border border-sky-100 bg-white/80 p-3 text-sm text-muted-foreground">
-                            {t('projects.matchingAI.generateHint')}
+                            No backend-generated partner matching data available.
                           </div>
                         )}
                       </MatchingAiCard>
@@ -3027,7 +2880,7 @@ export default function ProjectDetail() {
                         icon={<Briefcase className="h-5 w-5 text-violet-500" />}
                       >
                         <div className="mb-3 flex justify-end">
-                          <Button size="sm" variant="outline" onClick={() => generateSectionResponse('similarProjects')} disabled={isAlertsContext}>
+                          <Button size="sm" variant="outline" onClick={() => generateSectionResponse('similarProjects')} disabled>
                             <WandSparkles className="mr-2 h-4 w-4" />
                             {t('projects.matchingAI.actions.generateResponse')}
                           </Button>
@@ -3049,7 +2902,7 @@ export default function ProjectDetail() {
                           </>
                         ) : (
                           <div className="rounded-lg border border-violet-100 bg-white/80 p-3 text-sm text-muted-foreground">
-                            {t('projects.matchingAI.generateHint')}
+                            No related projects available.
                           </div>
                         )}
                       </MatchingAiCard>
@@ -3061,7 +2914,7 @@ export default function ProjectDetail() {
                         icon={<TrendingUp className="h-5 w-5 text-sky-500" />}
                       >
                         <div className="mb-3 flex justify-end">
-                          <Button size="sm" variant="outline" onClick={() => generateSectionResponse('predictiveInsights')} disabled={isAlertsContext}>
+                          <Button size="sm" variant="outline" onClick={() => generateSectionResponse('predictiveInsights')} disabled>
                             <WandSparkles className="mr-2 h-4 w-4" />
                             {t('projects.matchingAI.actions.generateResponse')}
                           </Button>
@@ -3088,7 +2941,7 @@ export default function ProjectDetail() {
                           </>
                         ) : (
                           <div className="rounded-lg border border-sky-100 bg-white/80 p-3 text-sm text-muted-foreground">
-                            {t('projects.matchingAI.generateHint')}
+                            No backend-generated predictive insights available.
                           </div>
                         )}
                       </MatchingAiCard>
@@ -3102,7 +2955,7 @@ export default function ProjectDetail() {
                         icon={<Target className="h-5 w-5 text-amber-500" />}
                       >
                         <div className="mb-3 flex justify-end">
-                          <Button size="sm" variant="outline" onClick={() => generateSectionResponse('recommendations')} disabled={isAlertsContext}>
+                          <Button size="sm" variant="outline" onClick={() => generateSectionResponse('recommendations')} disabled>
                             <WandSparkles className="mr-2 h-4 w-4" />
                             {t('projects.matchingAI.actions.generateResponse')}
                           </Button>
@@ -3132,7 +2985,7 @@ export default function ProjectDetail() {
                           </>
                         ) : (
                           <div className="rounded-lg border border-amber-100 bg-white/80 p-3 text-sm text-muted-foreground">
-                            {t('projects.matchingAI.generateHint')}
+                            No backend-generated recommendations available.
                           </div>
                         )}
                       </MatchingAiCard>

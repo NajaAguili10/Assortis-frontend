@@ -1,6 +1,6 @@
 import { apiClient } from '../api/apiClient';
 import { CountryDTO } from '../types/organization.dto';
-import { ProjectFiltersDTO, ProjectListDTO, RegionDTO, SectorDTO } from '../types/project.dto';
+import { ProjectDetailDTO, ProjectFiltersDTO, ProjectListDTO, RegionDTO, SectorDTO } from '../types/project.dto';
 
 export interface CreateProjectPayload {
   /** Required */
@@ -64,8 +64,8 @@ export const projectService = {
     return apiClient.get<PaginatedResponseDTO<ProjectListDTO>>('/projects', params);
   },
 
-  getProjectById: async (id: string | number) => {
-    return apiClient.get(`/projects/${id}`);
+  getProjectById: async (id: string | number): Promise<ProjectDetailDTO> => {
+    return apiClient.get<ProjectDetailDTO>(`/projects/${id}`);
   },
 
   getCountries: async (): Promise<CountryDTO[]> => {
