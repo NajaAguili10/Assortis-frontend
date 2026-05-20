@@ -85,6 +85,12 @@ export const projectService = {
   },
   deleteSavedSearch: async (id: number) => {
     return apiClient.delete(`/projects/saved-searches/${id}`);
+  },
+  deleteProject: async (id: string | number) => {
+    return apiClient.delete(`/projects/${id}`);
+  },
+  restoreProject: async (id: string | number) => {
+    return apiClient.put(`/projects/${id}/restore`);
   }
 };
 

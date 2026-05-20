@@ -24,7 +24,8 @@ interface ProjectsContextType {
   projects: ProjectListDTOInternal[];
   addProject: (project: ProjectListDTOInternal) => void;
   updateProject: (id: string, project: Partial<ProjectListDTOInternal>) => void;
-  deleteProject: (id: string) => void;
+  deleteProject: (id: string) => Promise<void>;
+  restoreProject: (id: string) => Promise<void>;
   getProjectById: (id: string) => ProjectListDTOInternal | undefined;
   tasks: TaskDTO[];
   addTask: (task: TaskDTO) => void;
@@ -856,8 +857,32 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
     );
   };
 
-  const deleteProject = (id: string) => {
-    setProjects((prev) => prev.filter((project) => String(project.id) !== String(id)));
+  const deleteProject = async (id: string) => {
+    try {
+      await projectService.deleteProject(id);
+      setProjects((prev) =>
+        prev.map((project) =>
+          String(project.id) === String(id) ? { ...project, deleted: true } : project
+        )
+      );
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      throw error;
+    }
+  };
+
+  const restoreProject = async (id: string) => {
+    try {
+      await projectService.restoreProject(id);
+      setProjects((prev) =>
+        prev.map((project) =>
+          String(project.id) === String(id) ? { ...project, deleted: false } : project
+        )
+      );
+    } catch (error) {
+      console.error("Error restoring project:", error);
+      throw error;
+    }
   };
 
   const getProjectById = (id: string) => {
@@ -887,6 +912,7 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
         addProject,
         updateProject,
         deleteProject,
+        restoreProject,
         getProjectById,
         tasks,
         addTask,

@@ -85,6 +85,7 @@ const normalizeProject = (project: ProjectListDTO): ProjectListDTO => {
     totalTasks: Number(project.totalTasks ?? 0),
     createdDate: getCreatedDate(project),
     updatedDate: (project as any).updatedDate || getCreatedDate(project),
+    deleted: !!(project as any).deleted,
   } as ProjectListDTO;
 };
 
@@ -98,6 +99,8 @@ export const useProjects = () => {
     projectsError: contextProjectsError,
     getProjectById: getProjectByIdFromContext,
     updateTask: updateTaskInContext,
+    deleteProject,
+    restoreProject,
   } = useProjectsContext();
 
   const [projectsData, setProjectsData] = useState<PaginatedResponseDTO<ProjectListDTO>>({
@@ -201,21 +204,22 @@ useEffect(() => {
 
   // KPIs
   const kpis: ProjectKPIsDTO = useMemo(() => {
-    const totalBudget = allProjects.reduce((sum, p) => sum + getBudgetValue(p, 'total'), 0);
-    const budgetSpent = allProjects.reduce((sum, p) => sum + getBudgetValue(p, 'spent'), 0);
-    const avgCompletion = allProjects.length > 0
-      ? allProjects.reduce((sum, p) => sum + getCompletion(p), 0) / allProjects.length
+    const nonDeletedProjects = allProjects.filter(p => !p.deleted);
+    const totalBudget = nonDeletedProjects.reduce((sum, p) => sum + getBudgetValue(p, 'total'), 0);
+    const budgetSpent = nonDeletedProjects.reduce((sum, p) => sum + getBudgetValue(p, 'spent'), 0);
+    const avgCompletion = nonDeletedProjects.length > 0
+      ? nonDeletedProjects.reduce((sum, p) => sum + getCompletion(p), 0) / nonDeletedProjects.length
       : 0;
     
     return {
-      totalProjects: allProjects.length,
-      activeProjects: allProjects.filter(p => p.status === ProjectStatusEnum.ACTIVE).length,
-      completedProjects: allProjects.filter(p => p.status === ProjectStatusEnum.COMPLETED).length,
-      onHoldProjects: allProjects.filter(p => p.status === ProjectStatusEnum.ON_HOLD).length,
+      totalProjects: nonDeletedProjects.length,
+      activeProjects: nonDeletedProjects.filter(p => p.status === ProjectStatusEnum.ACTIVE).length,
+      completedProjects: nonDeletedProjects.filter(p => p.status === ProjectStatusEnum.COMPLETED).length,
+      onHoldProjects: nonDeletedProjects.filter(p => p.status === ProjectStatusEnum.ON_HOLD).length,
       totalBudget,
       budgetSpent,
       averageCompletion: Math.round(avgCompletion),
-      urgentProjects: allProjects.filter(p => p.priority === ProjectPriorityEnum.URGENT).length,
+      urgentProjects: nonDeletedProjects.filter(p => p.priority === ProjectPriorityEnum.URGENT).length,
     };
   }, [allProjects]);
 
@@ -266,7 +270,7 @@ useEffect(() => {
     }
 
     if (filters.region && filters.region.length > 0) {
-      filtered = filtered.filter((project) => filters.region!.includes(getCodeValue(project.region)));
+      filtered = filtered.filter((project) => filters.region!.includes(getCodeValue(project.region) as RegionEnum));
     }
 
     if (filters.minBudget !== undefined) {
@@ -371,5 +375,7 @@ useEffect(() => {
     getProjectById: getProjectByIdFromContext,
     getCollaborationById: (id: string) => collaborations.find(c => c.id === id),
     updateTask: updateTaskInContext,
+    deleteProject,
+    restoreProject,
   };
 };

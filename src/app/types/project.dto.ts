@@ -254,6 +254,7 @@ export interface ProjectListDTO {
   createdBy?: string;
   ownedBy?: string;
   tags?: string[];
+  deleted?: boolean;
 }
 
 export interface ProjectDetailDTO extends ProjectListDTO {
