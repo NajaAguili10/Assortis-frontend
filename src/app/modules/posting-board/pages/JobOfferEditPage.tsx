@@ -12,6 +12,11 @@ import { toast } from 'sonner';
 import { Briefcase } from 'lucide-react';
 import { Alert, AlertDescription } from '../../../components/ui/alert';
 
+const getErrorMessage = (error: unknown, fallback: string) => {
+  const apiMessage = (error as any)?.response?.data?.message;
+  return typeof apiMessage === 'string' && apiMessage.trim() ? apiMessage : fallback;
+};
+
 export default function JobOfferEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -33,7 +38,7 @@ export default function JobOfferEditPage() {
       setJob(data);
     } catch (error) {
       console.error('Error loading job:', error);
-      toast.error(t('monEspace.message.error'));
+      toast.error(getErrorMessage(error, t('monEspace.message.error')));
     } finally {
       setIsLoading(false);
     }
@@ -48,7 +53,7 @@ export default function JobOfferEditPage() {
       navigate(`/posting-board/detail/${id}`);
     } catch (error) {
       console.error('Error updating job offer:', error);
-      toast.error(t('monEspace.message.error'));
+      toast.error(getErrorMessage(error, t('monEspace.message.error')));
     }
   };
 
@@ -109,6 +114,7 @@ export default function JobOfferEditPage() {
           initialData={job}
           onSubmit={handleSubmit}
           onCancel={handleCancel}
+          submitLabel="Update Vacancy"
         />
       </PageContainer>
     </div>

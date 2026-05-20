@@ -164,7 +164,6 @@ export default function OrganizationsTeams() {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [experts, setExperts] = useState<ExpertDTO[]>([]);
 
-  console.log('🔥 USER:', user);
 
   useEffect(() => {
     const fetchExperts = async () => {
@@ -179,7 +178,6 @@ export default function OrganizationsTeams() {
   }, []);
 
   useEffect(() => {
-    console.log('🔥 STATE teamMembers:', teamMembers);
   }, [teamMembers]);
 
   const fetchTeamMembers = async () => {
