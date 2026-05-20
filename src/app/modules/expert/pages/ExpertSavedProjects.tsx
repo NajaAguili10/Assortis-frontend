@@ -10,6 +10,7 @@ import { ProjectsSubMenu } from '@app/components/ProjectsSubMenu';
 import { Button } from '@app/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@app/components/ui/tooltip';
 import { useTenders } from '@app/hooks/useTenders';
+import { usePipeline } from '../hooks/usePipeline';
 
 const STORAGE_KEY = 'projects.favouriteIds';
 
@@ -46,6 +47,7 @@ export default function ExpertSavedProjects() {
   const { user } = useAuth();
   const { tenders } = useTenders();
   const allTenders = tenders?.data || [];
+  const { removeFromPipeline } = usePipeline();
 
   const [savedIds, setSavedIds] = useState<Set<string>>(() => new Set(readSavedProjectIds()));
 
@@ -54,6 +56,7 @@ export default function ExpertSavedProjects() {
   const savedProjects = allTenders.filter(tender => savedIds.has(tender.id));
 
   const handleUnsave = (id: string) => {
+    removeFromPipeline(id);
     setSavedIds(prev => {
       const next = new Set(prev);
       next.delete(id);

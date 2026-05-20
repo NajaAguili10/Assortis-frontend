@@ -1,4 +1,4 @@
-﻿import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '@app/contexts/AuthContext';
 import { API_BASE_URL } from '@app/config/api.config';
 import { SubmissionStatusEnum } from '@app/types/tender.dto';
@@ -143,12 +143,14 @@ const readStoredPipelineItems = (): PipelineItem[] => {
     const stored = localStorage.getItem('pipeline_items');
     const parsed = stored ? JSON.parse(stored) : [];
     if (!Array.isArray(parsed)) return [];
-    return parsed.map((item: PipelineItem) => ({
-      ...item,
-      stage: mapBackendStage(item.stage),
-      stageUpdatedAt: item.stageUpdatedAt || item.lastModified || item.addedAt,
-      stageHistory: Array.isArray(item.stageHistory) ? item.stageHistory : [],
-    }));
+    return parsed
+      .filter((item: PipelineItem) => item && item.tenderId && !item.tenderId.startsWith('tender-'))
+      .map((item: PipelineItem) => ({
+        ...item,
+        stage: mapBackendStage(item.stage),
+        stageUpdatedAt: item.stageUpdatedAt || item.lastModified || item.addedAt,
+        stageHistory: Array.isArray(item.stageHistory) ? item.stageHistory : [],
+      }));
   } catch {
     return [];
   }

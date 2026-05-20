@@ -1121,7 +1121,19 @@ export default function ProjectDetail() {
     const savedIds = new Set(readSavedProjectIds());
     savedIds.add(project.id);
     writeSavedProjectIds(Array.from(savedIds));
-    addToPipeline(project.id);
+    addToPipeline(project.id, undefined, undefined, 50, {
+      tenderTitle: project.title,
+      tenderReference: project.code,
+      organizationName: project.leadOrganization,
+      country: project.country,
+      donor: project.donor,
+      status: project.status,
+      expectedValue: project.budget?.total || 0,
+      currency: project.budget?.currency || 'USD',
+      deadline: project.timeline?.endDate,
+      sectors: project.sectors || [],
+      matchScore: 50,
+    });
     setIsProjectSaved(true);
     setProjectAccessSource('my-projects');
     toast.success(t('projects.matchingAI.addedToast'));

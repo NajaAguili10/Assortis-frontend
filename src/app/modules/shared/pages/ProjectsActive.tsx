@@ -77,7 +77,7 @@ export default function ProjectsActive() {
   const navigate = useNavigate();
   const { tenders } = useTenders();
   const allTenders = tenders?.data || [];
-  const { pipelineItems } = usePipeline();
+  const { pipelineItems, addToPipeline, removeFromPipeline } = usePipeline();
 
   const [activeTab, setActiveTab] = useState<ActiveProjectsTab>('open');
   const [showFilters, setShowFilters] = useState(false);
@@ -475,13 +475,30 @@ export default function ProjectsActive() {
     .map(part => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 
-  const toggleFavourite = (id: string) => {
+  const toggleFavourite = (row: TenderListDTO) => {
     setFavouriteIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
+      const isFav = next.has(row.id);
+      if (isFav) {
+        next.delete(row.id);
+        removeFromPipeline(row.id);
       } else {
-        next.add(id);
+        next.add(row.id);
+        
+        // Map TenderListDTO to PipelineMetadata
+        const budgetAmount = row.budget?.amount || 0;
+        const budgetCurrency = row.budget?.currency || 'USD';
+        
+        addToPipeline(row.id, undefined, undefined, 50, {
+          tenderTitle: row.title,
+          tenderReference: row.referenceNumber,
+          organizationName: row.organizationName,
+          country: row.country,
+          expectedValue: budgetAmount,
+          currency: budgetCurrency,
+          deadline: row.deadline ? new Date(row.deadline).toISOString() : undefined,
+          sectors: row.sectors || [],
+        });
       }
       writeSavedProjectIds(Array.from(next));
       return next;
@@ -973,7 +990,7 @@ export default function ProjectsActive() {
                                         size="sm"
                                         className="min-h-10 w-10 p-0"
                                         aria-label={t(favouriteIds.has(row.id) ? 'activeTenders.button.removeFromMyProjects' : 'activeTenders.button.addToMyProjects')}
-                                        onClick={() => toggleFavourite(row.id)}
+                                        onClick={() => toggleFavourite(row)}
                                       >
                                         <Heart className="h-4 w-4" />
                                       </Button>
