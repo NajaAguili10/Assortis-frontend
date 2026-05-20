@@ -805,8 +805,11 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
       try {
         const response = await projectService.getAllProjects();
         if (Array.isArray(response)) {
-          // Map to internal type if necessary, here we assume they match or are compatible
-          setProjects(response as ProjectListDTO[]);
+          // Normalize IDs to strings so lookups work consistently across routes.
+          setProjects(response.map((project) => ({
+            ...project,
+            id: String(project.id),
+          })) as ProjectListDTO[]);
         } else {
           throw new Error('Invalid projects response from backend');
         }
@@ -886,7 +889,8 @@ export const ProjectsProvider: React.FC<{ children: ReactNode }> = ({ children }
   };
 
   const getProjectById = (id: string) => {
-    return projects.find((project) => project.id === id);
+    const normalizedId = String(id);
+    return projects.find((project) => String(project.id) === normalizedId);
   };
 
   const addTask = (task: TaskDTO) => {
