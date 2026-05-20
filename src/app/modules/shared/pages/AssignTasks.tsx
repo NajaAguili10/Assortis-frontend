@@ -16,31 +16,14 @@ import {
   SelectValue,
 } from '@app/components/ui/select';
 import { toast } from 'sonner';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { UserPlus, ArrowLeft, CheckCircle2, Search } from 'lucide-react';
 import { taskService } from '@app/services/taskService';
 import { useProjects } from '@app/hooks/useProjects';
 import { useExperts } from '@app/modules/expert/hooks/useExperts';
 import { useAuth } from '@app/contexts/AuthContext';
 import { canManageOrganizationAdminActions } from '@app/services/permissions.service';
-import { ProjectListDTO } from '@app/types/project.dto';
-
-interface Task {
-  id: string;
-  title: string;
-  status: string;
-  priority: string;
-  dueDate: string;
-  startDate: string;
-}
-
-interface Expert {
-  id: string;
-  name: string;
-  expertise: string;
-  availability: string;
-  rate: string;
-}
+import { ProjectListDTO, TaskDTO } from '@app/types/project.dto';
 
 interface Assignment {
   taskId: string;
@@ -53,6 +36,45 @@ interface Assignment {
   notes: string;
 }
 
+interface AssignmentExpert {
+  id: string;
+  name: string;
+  expertise: string;
+  availability: string;
+  rate: string;
+  organizationId?: string;
+}
+
+interface AssignmentProject extends Omit<ProjectListDTO, 'budget'> {
+  name: string;
+  managerName?: string;
+  budget: {
+    total: number;
+    currency: string;
+  };
+}
+
+const toAssignmentProject = (project: ProjectListDTO): AssignmentProject => ({
+  ...project,
+  name: String((project as any).name ?? project.title ?? project.code ?? ''),
+  managerName: String((project as any).managerName ?? project.leadOrganization ?? ''),
+  budget: {
+    total: Number((project as any).budget?.total ?? project.budget ?? 0),
+    currency: String((project as any).budget?.currency ?? (project as any).budget?.currency ?? 'USD'),
+  },
+});
+
+const toAssignmentExpert = (expert: any): AssignmentExpert => ({
+    id: String(expert.id ?? ''),
+    name: String(
+      expert.fullName ??
+      (`${expert.firstName ?? ''} ${expert.lastName ?? ''}`.trim() || expert.title || expert.email || '')
+    ),
+    expertise: String(expert.title ?? expert.currentPosition ?? expert.bio ?? ''),
+    availability: String(expert.availabilityStatus ?? expert.availability ?? ''),
+    rate: expert.currency && expert.dailyRate ? `${expert.currency} ${expert.dailyRate}` : String(expert.dailyRate ?? expert.hourlyRate ?? ''),
+    organizationId: String(expert.organizationId ?? expert.primaryOrganizationId ?? ''),
+  });
 export default function AssignTasks() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -80,6 +102,9 @@ export default function AssignTasks() {
   // Step 2: Select Tasks
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [searchTasks, setSearchTasks] = useState('');
+  const [fallbackProjectTasks, setFallbackProjectTasks] = useState<TaskDTO[]>([]);
+  const [isTasksLoading, setIsTasksLoading] = useState(false);
+  const [tasksError, setTasksError] = useState<string | null>(null);
 
   // Step 3: Select Experts
   const [selectedExperts, setSelectedExperts] = useState<string[]>([]);
@@ -93,32 +118,100 @@ export default function AssignTasks() {
   const { allProjects, tasks, updateTask } = useProjects();
   const { allExperts } = useExperts();
 
-  // Filtrer par organizationId de l'utilisateur actuel (org-1 pour la démo)
-  const CURRENT_ORG_ID = 'org-1';
-  
+  const CURRENT_ORG_ID = String(
+    user?.organizationId ?? user?.connectedOrganization?.organizationId ?? ''
+  );
+
+  const getProjectOrganizationId = (project: any): string => {
+    return String(
+      project.organizationId ??
+      (project as any).organization?.id ??
+      (project as any).organizationId ??
+      ''
+    );
+  };
+
+  const assignmentProjects = useMemo(() => {
+    return allProjects.map(toAssignmentProject);
+  }, [allProjects]);
+
   // Étape 1: Projets de l'organisation
   const organizationProjects = useMemo(() => {
-    return allProjects.filter(p => p.organizationId === CURRENT_ORG_ID);
-  }, [allProjects]);
+    if (!CURRENT_ORG_ID) return assignmentProjects;
+
+    const filteredProjects = assignmentProjects.filter(
+      (p) => getProjectOrganizationId(p) === CURRENT_ORG_ID
+    );
+
+    return filteredProjects.length > 0 ? filteredProjects : assignmentProjects;
+  }, [assignmentProjects, CURRENT_ORG_ID]);
+
+  const selectedProjectId = String(selectedProject || '');
 
   // Projet sélectionné complet
   const selectedProjectData = useMemo(() => {
-    return organizationProjects.find(p => p.id === selectedProject);
-  }, [organizationProjects, selectedProject]);
+    return organizationProjects.find((p) => String(p.id) === selectedProjectId);
+  }, [organizationProjects, selectedProjectId]);
 
   // Étape 2: Tâches du projet sélectionné
   const projectTasks = useMemo(() => {
-    if (!selectedProject) return [];
-    return tasks.filter(t => t.projectId === selectedProject);
-  }, [tasks, selectedProject]);
+    if (!selectedProjectId) return [];
+    const matchedTasks = tasks.filter((t) => String(t.projectId) === selectedProjectId);
+    return matchedTasks.length > 0 ? matchedTasks : fallbackProjectTasks;
+  }, [tasks, selectedProjectId, fallbackProjectTasks]);
+
+  useEffect(() => {
+    if (!selectedProjectId) {
+      setFallbackProjectTasks([]);
+      setTasksError(null);
+      setIsTasksLoading(false);
+      return;
+    }
+
+    const loadProjectTasks = async () => {
+      setIsTasksLoading(true);
+      setTasksError(null);
+      try {
+        const response = await taskService.getTasks(selectedProjectId);
+        setFallbackProjectTasks(
+          Array.isArray(response)
+            ? response.map((task) => ({
+                ...task,
+                id: String(task.id),
+                projectId: String(task.projectId),
+              }))
+            : []
+        );
+      } catch (error) {
+        setFallbackProjectTasks([]);
+        setTasksError(t('projects.assign.taskLoadError'));
+      } finally {
+        setIsTasksLoading(false);
+      }
+    };
+
+    loadProjectTasks();
+  }, [selectedProjectId, t]);
+
+  const getExpertOrganizationId = (expert: AssignmentExpert): string => {
+    return String(expert.organizationId ?? '');
+  };
+
+  const assignmentExperts = useMemo(() => {
+    return allExperts.map(toAssignmentExpert);
+  }, [allExperts]);
 
   // Étape 3: Experts de l'organisation
   const organizationExperts = useMemo(() => {
-    return allExperts.filter(e => e.organizationId === CURRENT_ORG_ID);
-  }, [allExperts]);
+    if (!CURRENT_ORG_ID) return assignmentExperts;
+    const filteredExperts = assignmentExperts.filter(
+      (e) => getExpertOrganizationId(e) === CURRENT_ORG_ID
+    );
+    return filteredExperts.length > 0 ? filteredExperts : assignmentExperts;
+  }, [assignmentExperts, CURRENT_ORG_ID]);
 
   // Réinitialiser les tâches sélectionnées quand le projet change
-  useMemo(() => {
+  useEffect(() => {
     if (selectedProject) {
       setSelectedTasks([]);
     }
@@ -300,13 +393,13 @@ export default function AssignTasks() {
   const getTaskById = (taskId: string) => projectTasks.find(t => t.id === taskId);
   const getExpertById = (expertId: string) => organizationExperts.find(e => e.id === expertId);
 
-  const filteredTasks = projectTasks.filter(task =>
-    task.title.toLowerCase().includes(searchTasks.toLowerCase())
+  const filteredTasks = projectTasks.filter((task) =>
+    String(task.title || '').toLowerCase().includes(searchTasks.toLowerCase())
   );
 
-  const filteredExperts = organizationExperts.filter(expert =>
-    expert.name.toLowerCase().includes(searchExperts.toLowerCase()) ||
-    expert.expertise.toLowerCase().includes(searchExperts.toLowerCase())
+  const filteredExperts = organizationExperts.filter((expert) =>
+    String(expert.name || '').toLowerCase().includes(searchExperts.toLowerCase()) ||
+    String(expert.expertise || '').toLowerCase().includes(searchExperts.toLowerCase())
   );
 
   const renderStepContent = () => {
@@ -368,54 +461,73 @@ export default function AssignTasks() {
               <p className="text-sm text-gray-500 mb-3">{t('projects.assign.tasksDescription')}</p>
             </div>
 
-            <div className="space-y-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  value={searchTasks}
-                  onChange={(e) => setSearchTasks(e.target.value)}
-                  placeholder={t('common.search')}
-                  className="pl-10"
-                />
+            {/* If no project selected, prompt user to select one first */}
+            {!selectedProjectId ? (
+              <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500">
+                {t('projects.assign.selectProjectFirst')}
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 max-h-96 overflow-y-auto">
-              {filteredTasks.map((task) => (
-                <div
-                  key={task.id}
-                  onClick={() => toggleTaskSelection(task.id)}
-                  className={`border rounded-lg p-4 cursor-pointer transition-all ${
-                    selectedTasks.includes(task.id)
-                      ? 'border-primary bg-primary/5'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedTasks.includes(task.id)}
-                      onChange={() => toggleTaskSelection(task.id)}
-                      className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      value={searchTasks}
+                      onChange={(e) => setSearchTasks(e.target.value)}
+                      placeholder={t('common.search')}
+                      className="pl-10"
                     />
-                    <div className="flex-1">
-                      <h4 className="font-medium text-primary">{task.title}</h4>
-                      <div className="flex gap-4 mt-2 text-sm text-gray-600">
-                        <span>
-                          {t('projects.assign.taskStatus')}: <strong>{t(`projects.tasks.status.${task.status}`)}</strong>
-                        </span>
-                        <span>
-                          {t('projects.assign.taskPriority')}: <strong>{t(`projects.priority.${task.priority}`)}</strong>
-                        </span>
-                        <span>
-                          {t('projects.assign.taskDueDate')}: <strong>{task.dueDate}</strong>
-                        </span>
-                      </div>
-                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
+
+                <div className="grid grid-cols-1 gap-3 max-h-96 overflow-y-auto">
+                  {isTasksLoading ? (
+                    <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500">
+                      {t('projects.assign.loadingTasks')}
+                    </div>
+                  ) : projectTasks.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500">
+                      {tasksError || t('projects.assign.noTasksAvailable')}
+                    </div>
+                  ) : (
+                    filteredTasks.map((task) => (
+                      <div
+                        key={task.id}
+                        onClick={() => toggleTaskSelection(task.id)}
+                        className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                          selectedTasks.includes(task.id)
+                            ? 'border-primary bg-primary/5'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedTasks.includes(task.id)}
+                            onChange={() => toggleTaskSelection(task.id)}
+                            className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                          />
+                          <div className="flex-1">
+                            <h4 className="font-medium text-primary">{task.title}</h4>
+                            <div className="flex gap-4 mt-2 text-sm text-gray-600">
+                              <span>
+                                {t('projects.assign.taskStatus')}: <strong>{t(`projects.tasks.status.${task.status}`)}</strong>
+                              </span>
+                              <span>
+                                {t('projects.assign.taskPriority')}: <strong>{t(`projects.priority.${task.priority}`)}</strong>
+                              </span>
+                              <span>
+                                {t('projects.assign.taskDueDate')}: <strong>{task.dueDate}</strong>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
 
             {selectedTasks.length > 0 && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-3">
