@@ -21,6 +21,9 @@ import { useTenders } from '@app/hooks/useTenders';
 import { usePipeline } from '@app/modules/expert/hooks/usePipeline';
 import { useAuth } from '@app/contexts/AuthContext';
 import { tenderService } from '@app/services/tenderService';
+import { organizationService } from '@app/services/organizationService';
+import { SectorDTO, SubsectorDTO, CountryDTO } from '@app/types/organization.dto';
+import { RegionDTO } from '@app/types/project.dto';
 import {
   CountryEnum,
   FundingAgencyEnum,
@@ -33,6 +36,7 @@ import {
   SECTOR_SUBSECTOR_MAP,
   SubSectorEnum,
   TenderListDTO,
+  DonorDTO,
 } from '@app/types/tender.dto';
 import { getLocalizedCountryName } from '@app/utils/country-translator';
 
@@ -143,8 +147,9 @@ export default function ActiveTenders() {
   const [selectedSubSectors, setSelectedSubSectors] = useState<SubSectorEnum[]>([]);
   const [selectedRegions, setSelectedRegions] = useState<RegionEnum[]>([]);
   const [selectedCountries, setSelectedCountries] = useState<CountryEnum[]>([]);
-  const [selectedFundingAgencies, setSelectedFundingAgencies] = useState<FundingAgencyEnum[]>([]);
+  const [selectedFundingAgencies, setSelectedFundingAgencies] = useState<string[]>([]);
   const [fundingAgencySearch, setFundingAgencySearch] = useState('');
+  const [availableDonors, setAvailableDonors] = useState<DonorDTO[]>([]);
   const [hoveredSector, setHoveredSector] = useState<SectorEnum | null>(null);
   const [selectedQuickDay, setSelectedQuickDay] = useState<string | null>(null);
   const [discardedIds, setDiscardedIds] = useState<Set<string>>(() => new Set(readDiscardedProjectIds()));
@@ -153,6 +158,11 @@ export default function ActiveTenders() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('none');
   const [locationFilters, setLocationFilters] = useState<string[]>([]);
   const [donorFilters, setDonorFilters] = useState<string[]>([]);
+  const [donorColumnSearch, setDonorColumnSearch] = useState('');
+
+  const [subscriptionSectors, setSubscriptionSectors] = useState<SectorDTO[]>([]);
+  const [subscriptionCountries, setSubscriptionCountries] = useState<CountryDTO[]>([]);
+  const [subscriptionSubsectors, setSubscriptionSubsectors] = useState<SubsectorDTO[]>([]);
 
   const today = startOfToday();
   const dateLocale = language === 'fr' ? fr : language === 'es' ? es : enUS;
@@ -170,8 +180,46 @@ export default function ActiveTenders() {
         .catch(err => {
           console.error('Failed to load discarded tenders from backend:', err);
         });
+        
+      organizationService.getMySubscriptionSectors().then(res => {
+        setSubscriptionSectors(Array.isArray(res) ? res : (res as any)?.data || []);
+      }).catch(console.error);
+      organizationService.getMySubscriptionCountries().then(res => {
+        setSubscriptionCountries(Array.isArray(res) ? res : (res as any)?.data || []);
+      }).catch(console.error);
+      organizationService.getSubSectors().then(res => {
+        setSubscriptionSubsectors(Array.isArray(res) ? res : (res as any)?.data || []);
+      }).catch(console.error);
+      tenderService.getAllDonors().then(res => {
+        setAvailableDonors(Array.isArray(res) ? res : (res as any)?.data || []);
+      }).catch(console.error);
     }
   }, [user]);
+
+  const dynamicSubsectorsMap = useMemo(() => {
+    const map: Record<number, SubsectorDTO[]> = {};
+    subscriptionSubsectors.forEach(sub => {
+      if (!map[sub.sectorId]) map[sub.sectorId] = [];
+      map[sub.sectorId].push(sub);
+    });
+    return map;
+  }, [subscriptionSubsectors]);
+
+  const mappedSelectedSectors = useMemo(() => {
+    return subscriptionSectors.filter(s => selectedSectors.includes(s.code as SectorEnum));
+  }, [selectedSectors, subscriptionSectors]);
+  
+  const mappedSelectedSubsectors = useMemo(() => {
+    return subscriptionSubsectors.filter(s => selectedSubSectors.includes(s.code as SubSectorEnum));
+  }, [selectedSubSectors, subscriptionSubsectors]);
+
+  const mappedSelectedCountries = useMemo(() => {
+    return subscriptionCountries.filter(c => selectedCountries.includes(c.code as CountryEnum));
+  }, [selectedCountries, subscriptionCountries]);
+
+  const mappedSelectedRegions = useMemo(() => {
+    return selectedRegions.map(r => ({ id: 0, code: r, name: r }));
+  }, [selectedRegions]);
 
   // Sync filters with the API hook
   useEffect(() => {
@@ -183,8 +231,8 @@ export default function ActiveTenders() {
       fundingAgencies: selectedFundingAgencies,
       procurementTypes: selectedProcurementTypes,
       noticeTypes: selectedNoticeTypes,
-      minBudget: budgetMode === 'above' ? Number(budgetValue) : undefined,
-      maxBudget: budgetMode === 'below' ? Number(budgetValue) : undefined,
+      minBudget: budgetMode === 'above' ? Number(budgetValue) : (budgetMode === 'any' && budgetValue ? Number(budgetValue) : undefined),
+      maxBudget: budgetMode === 'below' ? Number(budgetValue) : (budgetMode === 'any' && budgetValue ? Number(budgetValue) : undefined),
     });
   }, [searchQuery, selectedSectors, selectedCountries, selectedRegions, selectedFundingAgencies, selectedProcurementTypes, selectedNoticeTypes, budgetMode, budgetValue, updateFilters]);
 
@@ -213,7 +261,7 @@ export default function ActiveTenders() {
     ));
   };
 
-  const toggleFundingAgency = (value: FundingAgencyEnum) => {
+  const toggleFundingAgency = (value: string) => {
     setSelectedFundingAgencies(prev => (
       prev.includes(value) ? prev.filter(item => item !== value) : [...prev, value]
     ));
@@ -226,12 +274,19 @@ export default function ActiveTenders() {
 
   const resetQuickDay = () => setSelectedQuickDay(null);
 
+  const combinedDonors = useMemo(() => {
+    const backendDonors = availableDonors.map(d => d.name).filter(Boolean);
+    const tenderDonors = allTenders.map(t => t.organizationName).filter(Boolean);
+    const tenderFundingAgencies = allTenders.map(t => t.fundingAgency).filter(Boolean);
+    return [...new Set([...backendDonors, ...tenderDonors, ...tenderFundingAgencies])].sort();
+  }, [availableDonors, allTenders]);
+
   const filteredFundingAgencies = useMemo(() => {
-    if (!fundingAgencySearch) return Object.values(FundingAgencyEnum);
-    return Object.values(FundingAgencyEnum).filter(agency =>
-      t(`fundingAgencies.${agency}`).toLowerCase().includes(fundingAgencySearch.toLowerCase())
+    if (!fundingAgencySearch) return combinedDonors;
+    return combinedDonors.filter(name =>
+      name.toLowerCase().includes(fundingAgencySearch.toLowerCase())
     );
-  }, [fundingAgencySearch, t]);
+  }, [fundingAgencySearch, combinedDonors]);
 
   const availableSubSectors = useMemo(() => {
     if (selectedSectors.length === 0) return [];
@@ -385,9 +440,13 @@ export default function ActiveTenders() {
         return false;
       }
 
-      if (!Number.isNaN(budgetNumber) && budgetValue) {
-        if (budgetMode === 'above' && row.budget.amount < budgetNumber) return false;
-        if (budgetMode === 'below' && row.budget.amount > budgetNumber) return false;
+      if (!Number.isNaN(budgetNumber) && budgetValue !== '') {
+        const amount = typeof row.budget === 'number' ? row.budget : row.budget?.amount;
+        if (typeof amount !== 'number') return false;
+
+        if (budgetMode === 'above' && amount < budgetNumber) return false;
+        if (budgetMode === 'below' && amount > budgetNumber) return false;
+        if (budgetMode === 'any' && amount !== budgetNumber) return false;
       }
 
       if (hideMultiCountry && row.isMultiCountry) return false;
@@ -396,7 +455,7 @@ export default function ActiveTenders() {
       if (selectedSubSectors.length > 0 && !row.subsectors?.some(sub => selectedSubSectors.includes(sub))) return false;
       if (selectedRegions.length > 0 && (!row.region || !selectedRegions.includes(row.region))) return false;
       if (selectedCountries.length > 0 && !selectedCountries.includes(row.country)) return false;
-      if (selectedFundingAgencies.length > 0 && (!row.fundingAgency || !selectedFundingAgencies.includes(row.fundingAgency))) return false;
+      if (selectedFundingAgencies.length > 0 && !selectedFundingAgencies.includes(row.fundingAgency || '') && !selectedFundingAgencies.includes(row.organizationName || '')) return false;
 
       if (selectedQuickDay && row.publishedDate && format(row.publishedDate, 'yyyy-MM-dd') !== selectedQuickDay) return false;
 
@@ -404,7 +463,7 @@ export default function ActiveTenders() {
         ? t('activeTenders.multiCountryLabel')
         : getLocalizedCountryName(row.country, language);
       if (locationFilters.length > 0 && !locationFilters.includes(locationLabel)) return false;
-      if (donorFilters.length > 0 && !donorFilters.includes(row.organizationName)) return false;
+      if (donorFilters.length > 0 && (!row.fundingAgency || !donorFilters.includes(row.fundingAgency))) return false;
 
       return true;
     });
@@ -494,7 +553,7 @@ export default function ActiveTenders() {
     const locations = [...new Set(baseRows.map(row => (
       row.isMultiCountry ? t('activeTenders.multiCountryLabel') : getLocalizedCountryName(row.country, language)
     )))];
-    const donors = [...new Set(baseRows.map(row => row.organizationName))];
+    const donors = [...new Set(baseRows.map(row => row.fundingAgency))].filter(Boolean) as string[];
     return { locations, donors };
   }, [baseRows, language, t]);
 
@@ -520,7 +579,7 @@ export default function ActiveTenders() {
       return [
         row.title,
         location,
-        row.organizationName,
+        row.fundingAgency || '',
         row.budget.formatted,
         published,
         deadline,
@@ -956,29 +1015,31 @@ export default function ActiveTenders() {
 
                 <div className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-out ${showSectorFilters ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
                   <SectorSubsectorFilter
-                    selectedSectors={selectedSectors}
-                    selectedSubSectors={selectedSubSectors}
-                    hoveredSector={hoveredSector}
-                    onHoverSector={setHoveredSector}
-                    onSelectSector={toggleSector}
-                    onSelectSubSector={toggleSubSector}
+                    selectedSectors={mappedSelectedSectors}
+                    selectedSubSectors={mappedSelectedSubsectors}
+                    hoveredSector={hoveredSector ? subscriptionSectors.find(s => s.code === hoveredSector) || null : null}
+                    onHoverSector={(sector) => setHoveredSector(sector ? sector.code as SectorEnum : null)}
+                    onSelectSector={(sector) => toggleSector(sector.code as SectorEnum)}
+                    onSelectSubSector={(subSector) => toggleSubSector(subSector.code as SubSectorEnum)}
                     onSelectAllSectors={() => {
-                      if (selectedSectors.length === Object.values(SectorEnum).length) {
+                      if (selectedSectors.length === subscriptionSectors.length) {
                         setSelectedSectors([]);
                         setSelectedSubSectors([]);
                       } else {
-                        setSelectedSectors(Object.values(SectorEnum));
+                        setSelectedSectors(subscriptionSectors.map(s => s.code as SectorEnum));
                       }
                     }}
                     onSelectAllSubSectors={(sector) => {
-                      const subs = SECTOR_SUBSECTOR_MAP[sector] || [];
-                      const allSelected = subs.every(item => selectedSubSectors.includes(item));
+                      const subs = dynamicSubsectorsMap[sector.id] || [];
+                      const allSelected = subs.every(item => selectedSubSectors.includes(item.code as SubSectorEnum));
                       if (allSelected) {
-                        setSelectedSubSectors(prev => prev.filter(item => !subs.includes(item)));
+                        setSelectedSubSectors(prev => prev.filter(item => !subs.map(s => s.code).includes(item)));
                       } else {
-                        setSelectedSubSectors(prev => [...new Set([...prev, ...subs])]);
+                        setSelectedSubSectors(prev => [...new Set([...prev, ...subs.map(s => s.code as SubSectorEnum)])]);
                       }
                     }}
+                    allowedSectors={subscriptionSectors}
+                    dynamicSubsectorsMap={dynamicSubsectorsMap}
                     t={t}
                   />
                 </div>
@@ -997,10 +1058,10 @@ export default function ActiveTenders() {
 
                 <div className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-out ${showRegionFilters ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
                   <RegionCountryFilter
-                    selectedRegions={selectedRegions}
-                    selectedCountries={selectedCountries}
-                    onSelectRegion={toggleRegion}
-                    onSelectCountry={toggleCountry}
+                    selectedRegions={mappedSelectedRegions as any}
+                    selectedCountries={mappedSelectedCountries}
+                    onSelectRegion={(region) => toggleRegion(region.name as RegionEnum)}
+                    onSelectCountry={(country) => toggleCountry(country.code as CountryEnum)}
                     onSelectAllRegions={() => {
                       if (selectedRegions.length === Object.values(RegionEnum).length) {
                         setSelectedRegions([]);
@@ -1009,6 +1070,7 @@ export default function ActiveTenders() {
                         setSelectedRegions(Object.values(RegionEnum));
                       }
                     }}
+                    allowedCountries={subscriptionCountries}
                     t={t}
                   />
                 </div>
@@ -1028,15 +1090,15 @@ export default function ActiveTenders() {
                       placeholder={t('common.search')}
                     />
                     <div className="max-h-64 overflow-auto space-y-2">
-                      {filteredFundingAgencies.map(agency => (
-                        <label key={agency} className="flex items-center gap-2 text-sm">
+                      {filteredFundingAgencies.map(name => (
+                        <label key={name} className="flex items-center gap-2 text-sm">
                           <input
                             type="checkbox"
                             className="h-4 w-4"
-                            checked={selectedFundingAgencies.includes(agency)}
-                            onChange={() => toggleFundingAgency(agency)}
+                            checked={selectedFundingAgencies.includes(name)}
+                            onChange={() => toggleFundingAgency(name)}
                           />
-                          <span>{t(`fundingAgencies.${agency}`)}</span>
+                          <span>{name}</span>
                         </label>
                       ))}
                     </div>
@@ -1161,8 +1223,16 @@ export default function ActiveTenders() {
                             </PopoverTrigger>
                           </div>
                           <PopoverContent className="w-64" align="start">
+                            <Input
+                              className="mb-3"
+                              value={donorColumnSearch}
+                              onChange={event => setDonorColumnSearch(event.target.value)}
+                              placeholder={t('common.search')}
+                            />
                             <div className="space-y-2 max-h-64 overflow-auto">
-                              {columnOptions.donors.map(item => (
+                              {columnOptions.donors
+                                .filter(item => item && item.toLowerCase().includes(donorColumnSearch.toLowerCase()))
+                                .map(item => (
                                 <label key={item} className="flex items-center gap-2 text-sm">
                                   <input
                                     type="checkbox"
@@ -1248,7 +1318,7 @@ export default function ActiveTenders() {
                           )}
                         </div>
                         <div className="text-gray-700 leading-snug">{location}</div>
-                        <div className="text-gray-700 leading-snug">{row.organizationName}</div>
+                        <div className="text-gray-700 leading-snug">{row.fundingAgency || '-'}</div>
                         <div className="text-gray-700 font-medium">{row.budget.formatted}</div>
                         <div className="text-gray-700">{row.publishedDate ? format(row.publishedDate, 'dd MMM yyyy', { locale: dateLocale }) : '-'}</div>
                         {(activeTab === 'projects' || activeTab === 'bin') && (

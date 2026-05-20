@@ -3,7 +3,8 @@ import {
   TenderListDTO, 
   TenderKPIsDTO, 
   PaginatedResponseDTO, 
-  TenderFilters 
+  TenderFilters,
+  DonorDTO
 } from '../types/tender.dto';
 
 export const tenderService = {
@@ -32,6 +33,10 @@ export const tenderService = {
 
   getAllTenders: async (): Promise<TenderListDTO[]> => {
     return apiClient.get<TenderListDTO[]>('/tenders/all');
+  },
+
+  getAllDonors: async (): Promise<DonorDTO[]> => {
+    return apiClient.get<DonorDTO[]>('/donors');
   },
 
   getTenderById: async (id: string | number): Promise<TenderListDTO> => {
